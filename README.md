@@ -1,0 +1,1 @@
+# kafka-schema-reg-mcp
