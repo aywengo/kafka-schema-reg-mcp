@@ -72,7 +72,7 @@ echo -e "\n${BLUE}Running Tests:${NC}"
 echo "========================================"
 
 # Use tee to show output in real-time AND capture it
-if pytest test_integration.py -v --tb=short --color=yes 2>&1 | tee "$TEMP_OUTPUT"; then
+if pytest tests/test_integration.py -v --tb=short --color=yes 2>&1 | tee "$TEMP_OUTPUT"; then
     TEST_RESULT=0
 else
     TEST_RESULT=$?
