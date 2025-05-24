@@ -1,0 +1,99 @@
+services:
+  mcp-server:
+    build: .
+    ports:
+      - "38000:8000"
+    environment:
+      - SCHEMA_REGISTRY_URL=http://schema-registry-mcp:8081
+      - SCHEMA_REGISTRY_USER=${SCHEMA_REGISTRY_USER:-}
+      - SCHEMA_REGISTRY_PASSWORD=${SCHEMA_REGISTRY_PASSWORD:-}
+    depends_on:
+      - schema-registry-mcp
+    networks:
+      - kafka-network-mcp
+  akhq-ui-mcp:
+    image: tchiotludo/akhq:0.25.1
+    depends_on:
+      - schema-registry-mcp
+      - kafka-mcp
+    ports:
+      - "38080:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            kafka-mcp-local:
+              properties:
+                bootstrap.servers: "kafka-mcp:9092"
+              schema-registry:
+                url: "http://schema-registry-mcp:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s 
+    networks:
+      - kafka-network-mcp
+  schema-registry-mcp:
+    image: confluentinc/cp-schema-registry:7.5.0
+    hostname: schema-registry-mcp
+    container_name: schema-registry-mcp
+    depends_on:
+      kafka-mcp:
+        condition: service_healthy
+    ports:
+      - "38081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-mcp
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-mcp:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_DELETE_SUBJECT_ENABLED: "true"
+      SCHEMA_REGISTRY_DELETE_VERSION_ENABLED: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - kafka-network-mcp
+
+  kafka-mcp:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka-mcp
+    container_name: kafka-mcp
+    ports:
+      - "39092:9092"
+      - "39094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-mcp:9094
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-mcp:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      CLUSTER_ID: "v-qDsAQhRMOEe3xNzCmBuQ"
+      KAFKA_INITIAL_BROKER_REGISTRATION_TIMEOUT_MS: 60000
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka to be ready...' &&
+        /etc/confluent/docker/run"
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - kafka-network-mcp
+
+networks:
+  kafka-network-mcp:
+    driver: bridge 
