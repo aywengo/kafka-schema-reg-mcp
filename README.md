@@ -83,735 +83,158 @@ curl http://localhost:38000/
 # {"message": "Kafka Schema Registry MCP Server with Context Support"}
 ```
 
-## 📋 API Endpoints
+## 📋 API Overview
 
-### Core Schema Operations
+The MCP server provides comprehensive REST API endpoints for all Schema Registry operations:
 
-#### Register Schema
+### **Core Operations**
+- **Schema Management**: Register, retrieve, and manage Avro schemas with versioning
+- **Context Management**: Create and manage logical schema groupings
+- **Subject Management**: List, delete, and manage schema subjects
+- **Compatibility Testing**: Validate schema evolution before registration
+
+### **Advanced Features**  
+- **Configuration Management**: Global and subject-level compatibility controls
+- **Mode Control**: Operational state management (READWRITE, READONLY, IMPORT)
+- **Schema Export**: 17 export endpoints with JSON, Avro IDL, and ZIP bundle formats
+- **Context-Aware Operations**: All endpoints support optional context parameters
+
+### **Quick Example**
 ```bash
-POST /schemas
-```
-**Basic Usage:**
-```bash
+# Register a schema
 curl -X POST http://localhost:38000/schemas \
   -H "Content-Type: application/json" \
   -d '{
-    "subject": "user-value",
-    "schema": {
-      "type": "record",
-      "name": "User", 
-      "fields": [
-        {"name": "id", "type": "int"},
-        {"name": "name", "type": "string"}
-      ]
-    },
-    "schemaType": "AVRO"
-  }'
-```
-
-**With Context (Request Body):**
-```bash
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-value",
-    "schema": {...},
-    "schemaType": "AVRO",
+    "subject": "user-events",
+    "schema": {"type": "record", "name": "User", "fields": [...]},
     "context": "production"
   }'
+
+# Export schemas
+curl http://localhost:38000/export/schemas/user-events?format=avro_idl
 ```
 
-**With Context (Query Parameter):**
-```bash
-curl -X POST http://localhost:38000/schemas?context=production \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-value",
-    "schema": {...},
-    "schemaType": "AVRO"
-  }'
-```
+**📖 Complete API Documentation**: [API Reference](docs/api-reference.md)
 
-#### Get Schema
-```bash
-GET /schemas/{subject}?version=latest&context={context}
-```
-```bash
-curl http://localhost:38000/schemas/user-value
-curl http://localhost:38000/schemas/user-value?context=production
-curl http://localhost:38000/schemas/user-value?version=2&context=staging
-```
+## 🎯 Key Capabilities
 
-#### Get Schema Versions
-```bash
-GET /schemas/{subject}/versions?context={context}
-```
-```bash
-curl http://localhost:38000/schemas/user-value/versions
-curl http://localhost:38000/schemas/user-value/versions?context=production
-```
+### **📦 Schema Export System**
+Comprehensive export functionality with 17 endpoints supporting backup, migration, and documentation:
+- **Multiple Formats**: JSON, Avro IDL, ZIP bundles
+- **Flexible Scopes**: Single schemas, subjects, contexts, or global exports
+- **Use Cases**: Environment promotion, disaster recovery, compliance auditing, documentation generation
 
-#### Check Compatibility
-```bash
-POST /compatibility?context={context}
-```
-```bash
-curl -X POST http://localhost:38000/compatibility \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-value",
-    "schema": {...},
-    "schemaType": "AVRO",
-    "context": "production"
-  }'
-```
+**📖 Detailed Guide**: [API Reference - Export Endpoints](docs/api-reference.md#export-endpoints)
 
-### Schema Context Management
+### **🏗️ Schema Contexts** 
+Powerful logical grouping for enterprise schema management:
+- **Environment Isolation**: Separate development, staging, production
+- **Multi-Tenancy**: Client-specific schema isolation
+- **Team Boundaries**: Organize schemas by development teams
+- **Operational Benefits**: Namespace collision prevention, context-aware governance
 
-#### List All Contexts
-```bash
-GET /contexts
-```
-```bash
-curl http://localhost:38000/contexts
-# {"contexts": ["production", "staging", "development"]}
-```
+**📖 Real-World Examples**: [Use Cases - Enterprise Scenarios](docs/use-cases.md#-enterprise-use-cases)
 
-#### Create Context
-```bash
-POST /contexts/{context}
-```
-```bash
-curl -X POST http://localhost:38000/contexts/production
-# {"message": "Context 'production' created successfully"}
-```
+### **⚙️ Configuration & Mode Control**
+Enterprise-grade operational control:
+- **Compatibility Management**: Global and subject-level compatibility controls
+- **Operational Modes**: READWRITE, READONLY, IMPORT for controlled access
+- **Context-Aware Settings**: Different rules per environment
+- **Governance**: Policy enforcement and change control
 
-#### Delete Context
-```bash
-DELETE /contexts/{context}
-```
-```bash
-curl -X DELETE http://localhost:38000/contexts/staging
-# {"message": "Context 'staging' deleted successfully"}
-```
-
-### Subject Management
-
-#### List Subjects
-```bash
-GET /subjects?context={context}
-```
-```bash
-# All subjects in default context
-curl http://localhost:38000/subjects
-
-# Subjects in specific context
-curl http://localhost:38000/subjects?context=production
-```
-
-#### Delete Subject
-```bash
-DELETE /subjects/{subject}?context={context}
-```
-```bash
-curl -X DELETE http://localhost:38000/subjects/user-value
-curl -X DELETE http://localhost:38000/subjects/user-value?context=production
-```
-
-### Configuration Management
-
-#### Get Global Configuration
-```bash
-GET /config?context={context}
-```
-```bash
-curl http://localhost:38000/config
-curl http://localhost:38000/config?context=production
-```
-
-#### Update Global Configuration
-```bash
-PUT /config?context={context}
-```
-```bash
-curl -X PUT http://localhost:38000/config \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "FULL"}'
-
-curl -X PUT http://localhost:38000/config?context=production \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "BACKWARD"}'
-```
-
-#### Get/Set Subject Configuration
-```bash
-GET /config/{subject}?context={context}
-PUT /config/{subject}?context={context}
-```
-```bash
-# Get subject-specific configuration
-curl http://localhost:38000/config/user-value
-
-# Set subject-specific compatibility level
-curl -X PUT http://localhost:38000/config/user-value \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "FORWARD"}'
-
-# Subject config in specific context
-curl -X PUT http://localhost:38000/config/user-value?context=staging \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "FULL"}'
-```
-
-### Mode Management
-
-#### Get/Set Global Mode
-```bash
-GET /mode?context={context}
-PUT /mode?context={context}
-```
-```bash
-# Get current mode
-curl http://localhost:38000/mode
-
-# Set to read-only mode
-curl -X PUT http://localhost:38000/mode \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "READONLY"}'
-
-# Set import mode for specific context
-curl -X PUT http://localhost:38000/mode?context=staging \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "IMPORT"}'
-```
-
-#### Get/Set Subject Mode
-```bash
-GET /mode/{subject}?context={context}
-PUT /mode/{subject}?context={context}
-```
-```bash
-# Get subject mode
-curl http://localhost:38000/mode/user-value
-
-# Set subject to read-only
-curl -X PUT http://localhost:38000/mode/user-value \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "READONLY"}'
-```
-
-### Schema Export
-
-#### Export Single Schema
-```bash
-GET /export/schemas/{subject}?version=latest&context={context}&format={format}
-```
-```bash
-# Export latest schema as JSON
-curl http://localhost:38000/export/schemas/user-value
-
-# Export specific version as Avro IDL
-curl http://localhost:38000/export/schemas/user-value?version=2&format=avro_idl
-
-# Export from specific context
-curl http://localhost:38000/export/schemas/user-value?context=production&format=json
-```
-
-#### Export Subject (All Versions)
-```bash
-POST /export/subjects/{subject}?context={context}
-```
-```bash
-curl -X POST http://localhost:38000/export/subjects/user-value \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "json",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }'
-
-# Export only latest version
-curl -X POST http://localhost:38000/export/subjects/user-value \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "json",
-    "include_versions": "latest"
-  }'
-```
-
-#### Export Context (All Subjects)
-```bash
-POST /export/contexts/{context}
-```
-```bash
-# Export context as JSON
-curl -X POST http://localhost:38000/export/contexts/production \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "json",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }'
-
-# Export context as ZIP bundle
-curl -X POST http://localhost:38000/export/contexts/production \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "bundle",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }' --output production_export.zip
-```
-
-#### Export Global (All Contexts)
-```bash
-POST /export/global
-```
-```bash
-# Export everything as JSON
-curl -X POST http://localhost:38000/export/global \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "json",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }'
-
-# Export everything as comprehensive ZIP bundle
-curl -X POST http://localhost:38000/export/global \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "bundle",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }' --output complete_registry_export.zip
-```
-
-#### List Exportable Subjects
-```bash
-GET /export/subjects?context={context}
-```
-```bash
-# List all exportable subjects in default context
-curl http://localhost:38000/export/subjects
-
-# List exportable subjects in specific context
-curl http://localhost:38000/export/subjects?context=production
-```
-
-## 📦 Schema Export Features
-
-The Schema Export functionality provides comprehensive capabilities for backing up, migrating, and documenting your schema registry:
-
-### **Export Formats**
-- **JSON**: Structured export with complete metadata
-- **Avro IDL**: Human-readable schema documentation
-- **ZIP Bundle**: Packaged exports with organized file structure
-
-### **Export Scopes**
-- **Single Schema**: Export specific schema versions
-- **Subject Export**: All versions of a schema subject
-- **Context Export**: All schemas within a context
-- **Global Export**: Complete registry backup
-
-### **Export Options**
-- **Version Control**: Export all versions, latest only, or specific versions
-- **Metadata Inclusion**: Export timestamps, registry URLs, and context information
-- **Configuration Export**: Include compatibility settings and operational modes
-- **Flexible Filtering**: Context-aware exports with granular control
-
-### **Use Cases**
-- **🔄 Migration**: Move schemas between environments or registries
-- **💾 Backup**: Regular backups of schema registry state
-- **📋 Documentation**: Generate human-readable schema documentation
-- **🔍 Auditing**: Export for compliance and schema governance
-- **🧪 Testing**: Create test datasets with schema versions
-- **📊 Analysis**: Schema evolution analysis and reporting
-
-### **Export Endpoints Quick Reference**
-
-| Endpoint | Method | Description | Output Format |
-|----------|--------|-------------|---------------|
-| `/export/schemas/{subject}` | GET | Export single schema | JSON, Avro IDL |
-| `/export/subjects/{subject}` | POST | Export all versions of subject | JSON |
-| `/export/contexts/{context}` | POST | Export entire context | JSON, ZIP Bundle |
-| `/export/global` | POST | Export complete registry | JSON, ZIP Bundle |
-| `/export/subjects` | GET | List exportable subjects | JSON |
-
-### **Advanced Export Examples**
-
-#### Backup Production Environment
-```bash
-# Export entire production context as ZIP bundle
-curl -X POST http://localhost:38000/export/contexts/production \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "bundle",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }' --output production_backup_$(date +%Y%m%d).zip
-```
-
-#### Generate Schema Documentation
-```bash
-# Export all schemas as Avro IDL for documentation
-curl http://localhost:38000/export/schemas/user-events?format=avro_idl \
-  --output user-events-schema.avdl
-
-# Export specific version for historical documentation
-curl http://localhost:38000/export/schemas/user-events?version=3&format=avro_idl \
-  --output user-events-v3-schema.avdl
-```
-
-#### Migration Between Environments
-```bash
-# 1. Export from staging
-curl -X POST http://localhost:38000/export/contexts/staging \
-  -d '{"format": "json", "include_versions": "latest"}' \
-  --output staging_schemas.json
-
-# 2. Process and import to production (external tooling)
-# 3. Verify with specific version exports
-curl http://localhost:38000/export/schemas/user-events?context=production&version=latest
-```
-
-#### Schema Governance and Auditing
-```bash
-# Export with full metadata for compliance
-curl -X POST http://localhost:38000/export/global \
-  -H "Content-Type: application/json" \
-  -d '{
-    "format": "json",
-    "include_metadata": true,
-    "include_config": true,
-    "include_versions": "all"
-  }' --output compliance_export_$(date +%Y%m%d_%H%M%S).json
-```
-
-## 🎯 Schema Context Benefits
-
-Schema Contexts provide powerful capabilities for enterprise schema management:
-
-### **Logical Separation**
-- **Environment Isolation**: `production`, `staging`, `development`
-- **Team Boundaries**: `team-a`, `team-b`, `shared`
-- **Application Domains**: `user-service`, `order-service`, `analytics`
-
-### **Multi-Tenancy**
-- **Client Isolation**: `client-a`, `client-b` 
-- **Regulatory Compliance**: `gdpr`, `pci`, `sox`
-- **Geographic Regions**: `us-east`, `eu-west`, `asia-pacific`
-
-### **Schema Evolution Management**
-- **Versioning Strategy**: Different evolution rules per context
-- **Testing Isolation**: Safe schema testing without affecting production
-- **Migration Support**: Gradual context-based schema migrations
-
-### **Operational Benefits**
-- **Namespace Collision Prevention**: Same subject names in different contexts
-- **Access Control**: Context-based permissions and governance
-- **Monitoring & Metrics**: Context-aware observability
-
-## 🔧 Configuration & Mode Benefits
-
-### **Compatibility Management**
-- **Global Control**: Set default compatibility levels across all schemas
-- **Subject Override**: Fine-tune compatibility per schema subject
-- **Context Isolation**: Different compatibility rules per environment/context
-- **Evolution Safety**: Prevent breaking changes with strict compatibility levels
-
-### **Operational Modes**
-- **READWRITE**: Normal operation for active development and production
-- **READONLY**: Temporary read-only mode for maintenance or migrations  
-- **IMPORT**: Special mode for bulk schema imports and migrations
-- **Subject-Level Control**: Different modes per schema subject
-- **Context-Aware**: Mode settings per context for environment-specific control
-
-### **Governance Benefits**
-- **Policy Enforcement**: Automated compatibility checking
-- **Change Control**: Controlled schema evolution with approval workflows
-- **Risk Mitigation**: Read-only modes prevent accidental modifications
-- **Migration Support**: Import mode for safe schema migrations
+**📖 Complete Reference**: [API Reference - Configuration](docs/api-reference.md#configuration-management)
 
 ## 🔐 Authentication
 
-Optional authentication support for Schema Registry:
-
+Optional basic authentication support. Set environment variables:
 ```bash
-# Set environment variables
 export SCHEMA_REGISTRY_USER="your-username"
 export SCHEMA_REGISTRY_PASSWORD="your-password"
-
-# Restart services
-docker-compose restart mcp-server
 ```
+
+**📖 Security Setup**: [Deployment Guide - Security](docs/deployment.md#-security-considerations)
 
 ## 🧪 Testing
 
-### Run All Tests
+Comprehensive test suite with 53 passing tests covering all functionality:
+- ✅ **53 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
+- ✅ **17 Export Tests** covering all export scenarios and formats
+- ✅ **Context Isolation** verification and multi-environment testing
+- ✅ **Error Handling** for invalid requests and edge cases
+
 ```bash
+# Run all tests
 ./run_integration_tests.sh
 ```
 
-### Test Coverage
-- ✅ **Core Operations**: Registration, retrieval, versioning
-- ✅ **Context Management**: Create, list, delete contexts
-- ✅ **Context-Aware Operations**: All endpoints with context support
-- ✅ **Context Isolation**: Verify proper schema separation
-- ✅ **Configuration Management**: Global and subject-level compatibility settings
-- ✅ **Mode Control**: Operational state management (READWRITE, READONLY, IMPORT)
-- ✅ **Context-Aware Config/Mode**: Configuration and mode settings per context
-- ✅ **Schema Export**: Single schemas, subjects, contexts, and global exports (17 export tests)
-- ✅ **Export Formats**: JSON, Avro IDL, and ZIP bundle formats with metadata
-- ✅ **Export Validation**: Content verification, format validation, and metadata inclusion
-- ✅ **Compatibility Checking**: Both default and context-aware
-- ✅ **Error Handling**: Invalid schemas, missing subjects, invalid config/mode
-- ✅ **Authentication**: Optional auth support
-
-### Manual Testing
-```bash
-# Test context creation
-curl -X POST http://localhost:38000/contexts/test-env
-
-# Register schema in context
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "test-user",
-    "schema": {"type": "record", "name": "User", "fields": [{"name": "id", "type": "int"}]},
-    "context": "test-env"
-  }'
-
-# Verify context isolation
-curl http://localhost:38000/subjects?context=test-env
-curl http://localhost:38000/subjects  # Default context - should be different
-
-# Test export functionality
-curl http://localhost:38000/export/schemas/test-user?context=test-env&format=json
-curl http://localhost:38000/export/schemas/test-user?context=test-env&format=avro_idl
-```
-
-### Configuration & Mode Example
-```bash
-# 1. Check current global configuration and mode
-curl http://localhost:38000/config
-curl http://localhost:38000/mode
-
-# 2. Create production and staging contexts
-curl -X POST http://localhost:38000/contexts/production
-curl -X POST http://localhost:38000/contexts/staging
-
-# 3. Set strict compatibility for production
-curl -X PUT http://localhost:38000/config?context=production \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "FULL"}'
-
-# 4. Set lenient compatibility for staging  
-curl -X PUT http://localhost:38000/config?context=staging \
-  -H "Content-Type: application/json" \
-  -d '{"compatibility": "NONE"}'
-
-# 5. Register schema in production with strict rules
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-events",
-    "schema": {
-      "type": "record", 
-      "name": "UserEvent",
-      "fields": [
-        {"name": "userId", "type": "string"},
-        {"name": "action", "type": "string"}
-      ]
-    },
-    "context": "production"
-  }'
-
-# 6. Test evolution in staging (should succeed with NONE compatibility)
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-events",
-    "schema": {
-      "type": "record",
-      "name": "UserEvent", 
-      "fields": [
-        {"name": "userId", "type": "int"},
-        {"name": "action", "type": "string"}
-      ]
-    },
-    "context": "staging"
-  }'
-
-# 7. Set production to read-only for maintenance
-curl -X PUT http://localhost:38000/mode?context=production \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "READONLY"}'
-
-# 8. Try to register in read-only production (should fail)
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "new-events",
-    "schema": {"type": "record", "name": "NewEvent", "fields": []},
-    "context": "production"
-  }'
-
-# 9. Reset production to normal operation
-curl -X PUT http://localhost:38000/mode?context=production \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "READWRITE"}'
-```
+**📖 Testing Guide**: [Deployment Guide - Testing](docs/deployment.md#-troubleshooting)
 
 ## 🚀 Production Deployment
 
-For production deployments, see the [Deployment Guide](docs/deployment.md) which covers:
-
-- **Docker Compose** production configurations
-- **Kubernetes** deployments with Helm charts
-- **Cloud platforms** (AWS EKS, Google Cloud Run, Azure)
-- **Security** considerations and best practices
-- **Monitoring** with Prometheus and Grafana
-- **Performance** optimization and scaling
-- **CI/CD** automated workflows and DockerHub publishing
-
-### Quick Production Start
+Production-ready with pre-built DockerHub images and comprehensive deployment options:
 
 ```bash
-# Production-ready deployment with pre-built images
+# Quick production start with pre-built images
 docker-compose up -d
 
-# Or direct production usage
-docker run -d -p 38000:8000 \
-  -e SCHEMA_REGISTRY_URL=http://your-registry:8081 \
-  --name kafka-schema-mcp \
-  aywengo/kafka-schema-reg-mcp:latest
+# Or direct Docker usage
+docker run -d -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
 ```
+
+**📖 Complete Guide**: [Deployment Guide](docs/deployment.md) - Docker Compose, Kubernetes, cloud platforms, monitoring, CI/CD
 
 ## 🔧 Development
 
-### Local Development
+Quick local development setup:
+
 ```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Local Python development
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && python mcp_server.py
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Run server locally
-python mcp_server.py
-```
-
-### Docker Development
-```bash
-# Remove override to build locally
+# Docker development
 mv docker-compose.override.yml docker-compose.override.yml.bak
-
-# Rebuild after code changes
-docker-compose build --no-cache mcp-server
-docker-compose up -d
+docker-compose build --no-cache mcp-server && docker-compose up -d
 ```
 
-### CI/CD Workflows
-
-The project includes automated GitHub Actions workflows:
-
-- **Build Workflow**: Multi-platform builds with security scanning on every push
-- **Publish Workflow**: Automated DockerHub publishing on version tags
-- **Security**: Trivy vulnerability scanning and SARIF reports
-- **Multi-Platform**: Supports AMD64 and ARM64 architectures
-
-See [Deployment Guide](docs/deployment.md#-cicd--automated-publishing) for setup instructions.
+**📖 Development Guide**: [Deployment Guide - Development](docs/deployment.md#-local-development)
 
 ## 📚 Documentation
 
-This project includes comprehensive documentation in the `docs/` folder:
+Comprehensive documentation covering all aspects:
 
-- **[Use Cases](docs/use-cases.md)** - Real-world scenarios and implementation examples
-- **[API Reference](docs/api-reference.md)** - Complete endpoint documentation  
-- **[IDE Integration](docs/ide-integration.md)** - VS Code, Claude Code, and Cursor setup
-- **[Deployment Guide](docs/deployment.md)** - Docker, Kubernetes, and cloud deployments
+| Guide | Purpose |
+|-------|---------|
+| **[API Reference](docs/api-reference.md)** | Complete endpoint documentation with examples |
+| **[Use Cases](docs/use-cases.md)** | Real-world scenarios and implementation patterns |
+| **[IDE Integration](docs/ide-integration.md)** | VS Code, Claude Code, and Cursor setup guides |
+| **[Deployment Guide](docs/deployment.md)** | Docker, Kubernetes, cloud platforms, CI/CD |
 
-### Key Integration Guides
+### 🛠️ IDE Integration
+- **🔵 VS Code**: Extensions, workspace configuration, REST client testing
+- **🤖 Claude Code**: AI-assisted schema development and context management  
+- **⚡ Cursor**: AI-powered development with schema generation and visualization
 
-#### 🔵 **VS Code Integration**
-Complete setup with extensions, workspace configuration, REST client testing, and debugging.
+**📖 Setup Instructions**: [IDE Integration Guide](docs/ide-integration.md)
 
-#### 🤖 **Claude Code Integration**  
-AI-assisted schema development with intelligent workflows and context management.
+## 🔗 Schema Registry Integration
 
-#### ⚡ **Cursor Integration**
-AI-powered development with schema generation, visualization, and automated testing.
+Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/fundamentals/index.html) supporting multiple formats (Avro, JSON, Protobuf), schema evolution, and context-based namespace management.
 
-## 🚀 Production Deployment
-
-For production deployments, see the [Deployment Guide](docs/deployment.md) which covers:
-
-- **Docker Compose** production configurations
-- **Kubernetes** deployments with Helm charts
-- **Cloud platforms** (AWS EKS, Google Cloud Run, Azure)
-- **Security** considerations and best practices
-- **Monitoring** with Prometheus and Grafana
-- **Performance** optimization and scaling
-
-## 📚 Schema Registry Integration
-
-This MCP server integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/fundamentals/index.html) and supports:
-
-- **Multiple Schema Formats**: Avro, JSON Schema, Protocol Buffers
-- **Schema Evolution**: Forward, backward, and full compatibility
-- **Subject Naming Strategies**: TopicNameStrategy, RecordNameStrategy, TopicRecordNameStrategy
-- **Schema Contexts**: Logical grouping and namespace management
-- **Schema Linking**: Cross-registry schema replication (when supported)
-
-## 🔗 References
-
-- [Confluent Schema Registry Documentation](https://docs.confluent.io/platform/current/schema-registry/fundamentals/index.html)
-- [Schema Registry API Reference](https://docs.confluent.io/platform/current/schema-registry/develop/api.html)
-- [Schema Contexts Documentation](https://docs.confluent.io/platform/current/schema-registry/fundamentals/index.html#schema-contexts)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+**📖 Integration Details**: [Use Cases - Schema Registry Integration](docs/use-cases.md#-schema-registry-integration)
 
 ---
 
-## 🎉 Success Metrics
+## 🎉 Production Ready
 
-**Latest Test Results**: ✅ **53 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
+**✅ 53 PASSED** tests with comprehensive validation of all features including export functionality, context management, and enterprise controls.
 
-**Production Ready**: 
-- 🐳 **DockerHub**: `aywengo/kafka-schema-reg-mcp` with 5+ tags
-- 🏗️ **Multi-Platform**: AMD64 + ARM64 support
-- 🔒 **Security**: Trivy vulnerability scanning on every build
-- 🚀 **CI/CD**: Automated GitHub Actions workflows
-- 📊 **Monitoring**: Prometheus metrics and Grafana dashboards
+**🐳 DockerHub Ready**: `aywengo/kafka-schema-reg-mcp` with multi-platform support (AMD64/ARM64), automated CI/CD, and security scanning.
 
-This includes comprehensive testing of:
-- ✅ **Core Schema Operations**: Registration, retrieval, versioning, compatibility
-- ✅ **Schema Context Management**: Creation, isolation, context-aware operations  
-- ✅ **Configuration Management**: Global and subject-level compatibility controls
-- ✅ **Mode Control**: Operational state management across contexts
-- ✅ **Schema Export**: All export formats and scopes with comprehensive validation
-- ✅ **Error Handling**: Invalid requests, missing resources, permission checks
-- ✅ **Authentication**: Optional basic auth support
+**🆕 v1.3.0 Features**: 
+- 17 Schema Export endpoints (JSON, Avro IDL, ZIP bundles)
+- Multi-scope exports (schema, subject, context, global)
+- Enhanced CI/CD with automated DockerHub publishing
+- Production-grade security scanning and monitoring
 
-**New in v1.3.0:**
-- 🆕 **Schema Export**: Comprehensive export functionality with multiple formats (17 export endpoints)
-- 🆕 **Avro IDL Support**: Export schemas in human-readable Avro IDL format for documentation
-- 🆕 **ZIP Bundle Export**: Package schemas with metadata, configuration, and organized file structure
-- 🆕 **Multi-Scope Export**: Single schema, subject, context, or global exports with granular control
-- 🆕 **Export Metadata**: Comprehensive export tracking with timestamps, URLs, and context information
-- 🆕 **Flexible Versioning**: Export specific versions, latest, or all versions with validation
-- 🆕 **DockerHub Integration**: Pre-built multi-platform images with automated publishing
-- 🆕 **CI/CD Workflows**: GitHub Actions with security scanning and automated releases
-- 🆕 **Production-Ready**: 53 passing tests covering all export scenarios and edge cases
-
-**Previous Releases:**
-- **v1.2.0**: Configuration Management, Mode Control, Context-Aware Config/Mode
-- **v1.1.0**: Schema Context Support, Context-Aware Operations  
-- **v1.0.0**: Core Schema Registry MCP functionality
+**📈 Previous Releases**: v1.2.0 (Configuration Management), v1.1.0 (Schema Contexts), v1.0.0 (Core MCP)
