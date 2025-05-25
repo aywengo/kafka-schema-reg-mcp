@@ -66,7 +66,7 @@ async def test_advanced_mcp_features():
                 
                 result = await session.call_tool("register_schema", {
                     "subject": "user-events-value",
-                    "schema": user_schema,
+                    "schema_definition": user_schema,
                     "schema_type": "AVRO",
                     "context": "production"
                 })
@@ -88,7 +88,7 @@ async def test_advanced_mcp_features():
                 
                 result = await session.call_tool("register_schema", {
                     "subject": "order-events-value", 
-                    "schema": order_schema,
+                    "schema_definition": order_schema,
                     "schema_type": "AVRO"
                 })
                 print(f"Order schema registration: {result.content[0].text}")
@@ -129,7 +129,7 @@ async def test_advanced_mcp_features():
                 
                 result = await session.call_tool("check_compatibility", {
                     "subject": "user-events-value",
-                    "schema": evolved_user_schema,
+                    "schema_definition": evolved_user_schema,
                     "context": "production"
                 })
                 print(f"Compatibility check: {result.content[0].text}")

@@ -94,7 +94,7 @@ async def test_mcp_server():
                     
                     result = await session.call_tool("register_schema", arguments={
                         "subject": "test-user-value",
-                        "schema": sample_schema,
+                        "schema_definition": sample_schema,
                         "schema_type": "AVRO"
                     })
                     print(f"Schema registration result: {result.content}")

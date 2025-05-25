@@ -56,7 +56,7 @@ def build_context_url(base_url: str, context: Optional[str] = None) -> str:
 @mcp.tool()
 def register_schema(
     subject: str,
-    schema: Dict[str, Any],
+    schema_definition: Dict[str, Any],
     schema_type: str = "AVRO",
     context: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -65,7 +65,7 @@ def register_schema(
     
     Args:
         subject: The subject name for the schema
-        schema: The schema definition as a dictionary
+        schema_definition: The schema definition as a dictionary
         schema_type: The schema type (AVRO, JSON, PROTOBUF)
         context: Optional schema context
     
@@ -74,7 +74,7 @@ def register_schema(
     """
     try:
         payload = {
-            "schema": json.dumps(schema),
+            "schema": json.dumps(schema_definition),
             "schemaType": schema_type
         }
         
@@ -152,7 +152,7 @@ def get_schema_versions(
 @mcp.tool()
 def check_compatibility(
     subject: str,
-    schema: Dict[str, Any],
+    schema_definition: Dict[str, Any],
     schema_type: str = "AVRO",
     context: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -161,7 +161,7 @@ def check_compatibility(
     
     Args:
         subject: The subject name
-        schema: The schema definition to check
+        schema_definition: The schema definition to check
         schema_type: The schema type (AVRO, JSON, PROTOBUF)
         context: Optional schema context
     
@@ -170,7 +170,7 @@ def check_compatibility(
     """
     try:
         payload = {
-            "schema": json.dumps(schema),
+            "schema": json.dumps(schema_definition),
             "schemaType": schema_type
         }
         
