@@ -1,11 +1,13 @@
 # Kafka Schema Registry MCP Server
 
-A comprehensive Message Control Protocol (MCP) server that provides a REST API interface for Kafka Schema Registry operations, including advanced **Schema Context** support for logical schema grouping and management.
+A comprehensive Message Control Protocol (MCP) server that provides a REST API interface for Kafka Schema Registry operations, including advanced **Schema Context** support for logical schema grouping and management, **Configuration Management** for compatibility settings, and **Mode Control** for operational state management.
 
 ## ✨ Features
 
 - **Complete Schema Management**: Register, retrieve, and manage Avro schemas
 - **Schema Contexts**: Logical grouping with separate "sub-registries" 
+- **Configuration Management**: Control compatibility levels globally and per-subject
+- **Mode Control**: Manage operational states (READWRITE, READONLY, IMPORT)
 - **Version Control**: Handle multiple schema versions with compatibility checking
 - **Authentication Support**: Optional basic authentication for Schema Registry
 - **Compatibility Testing**: Verify schema evolution compatibility
@@ -21,6 +23,7 @@ A comprehensive Message Control Protocol (MCP) server that provides a REST API i
 - **KRaft Mode**: Uses modern Kafka without Zookeeper dependency
 - **Context-Aware Operations**: All endpoints support optional context parameters
 - **Flexible Context Specification**: Context via request body or query parameters
+- **Enterprise-Ready Configuration**: Granular control over compatibility and operational modes
 
 ## 🚀 Quick Start
 
@@ -180,6 +183,88 @@ curl -X DELETE http://localhost:38000/subjects/user-value
 curl -X DELETE http://localhost:38000/subjects/user-value?context=production
 ```
 
+### Configuration Management
+
+#### Get Global Configuration
+```bash
+GET /config?context={context}
+```
+```bash
+curl http://localhost:38000/config
+curl http://localhost:38000/config?context=production
+```
+
+#### Update Global Configuration
+```bash
+PUT /config?context={context}
+```
+```bash
+curl -X PUT http://localhost:38000/config \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FULL"}'
+
+curl -X PUT http://localhost:38000/config?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "BACKWARD"}'
+```
+
+#### Get/Set Subject Configuration
+```bash
+GET /config/{subject}?context={context}
+PUT /config/{subject}?context={context}
+```
+```bash
+# Get subject-specific configuration
+curl http://localhost:38000/config/user-value
+
+# Set subject-specific compatibility level
+curl -X PUT http://localhost:38000/config/user-value \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FORWARD"}'
+
+# Subject config in specific context
+curl -X PUT http://localhost:38000/config/user-value?context=staging \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FULL"}'
+```
+
+### Mode Management
+
+#### Get/Set Global Mode
+```bash
+GET /mode?context={context}
+PUT /mode?context={context}
+```
+```bash
+# Get current mode
+curl http://localhost:38000/mode
+
+# Set to read-only mode
+curl -X PUT http://localhost:38000/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READONLY"}'
+
+# Set import mode for specific context
+curl -X PUT http://localhost:38000/mode?context=staging \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "IMPORT"}'
+```
+
+#### Get/Set Subject Mode
+```bash
+GET /mode/{subject}?context={context}
+PUT /mode/{subject}?context={context}
+```
+```bash
+# Get subject mode
+curl http://localhost:38000/mode/user-value
+
+# Set subject to read-only
+curl -X PUT http://localhost:38000/mode/user-value \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READONLY"}'
+```
+
 ## 🎯 Schema Context Benefits
 
 Schema Contexts provide powerful capabilities for enterprise schema management:
@@ -203,6 +288,27 @@ Schema Contexts provide powerful capabilities for enterprise schema management:
 - **Namespace Collision Prevention**: Same subject names in different contexts
 - **Access Control**: Context-based permissions and governance
 - **Monitoring & Metrics**: Context-aware observability
+
+## 🔧 Configuration & Mode Benefits
+
+### **Compatibility Management**
+- **Global Control**: Set default compatibility levels across all schemas
+- **Subject Override**: Fine-tune compatibility per schema subject
+- **Context Isolation**: Different compatibility rules per environment/context
+- **Evolution Safety**: Prevent breaking changes with strict compatibility levels
+
+### **Operational Modes**
+- **READWRITE**: Normal operation for active development and production
+- **READONLY**: Temporary read-only mode for maintenance or migrations  
+- **IMPORT**: Special mode for bulk schema imports and migrations
+- **Subject-Level Control**: Different modes per schema subject
+- **Context-Aware**: Mode settings per context for environment-specific control
+
+### **Governance Benefits**
+- **Policy Enforcement**: Automated compatibility checking
+- **Change Control**: Controlled schema evolution with approval workflows
+- **Risk Mitigation**: Read-only modes prevent accidental modifications
+- **Migration Support**: Import mode for safe schema migrations
 
 ## 🔐 Authentication
 
@@ -229,8 +335,11 @@ docker-compose restart mcp-server
 - ✅ **Context Management**: Create, list, delete contexts
 - ✅ **Context-Aware Operations**: All endpoints with context support
 - ✅ **Context Isolation**: Verify proper schema separation
+- ✅ **Configuration Management**: Global and subject-level compatibility settings
+- ✅ **Mode Control**: Operational state management (READWRITE, READONLY, IMPORT)
+- ✅ **Context-Aware Config/Mode**: Configuration and mode settings per context
 - ✅ **Compatibility Checking**: Both default and context-aware
-- ✅ **Error Handling**: Invalid schemas, missing subjects
+- ✅ **Error Handling**: Invalid schemas, missing subjects, invalid config/mode
 - ✅ **Authentication**: Optional auth support
 
 ### Manual Testing
@@ -250,6 +359,78 @@ curl -X POST http://localhost:38000/schemas \
 # Verify context isolation
 curl http://localhost:38000/subjects?context=test-env
 curl http://localhost:38000/subjects  # Default context - should be different
+```
+
+### Configuration & Mode Example
+```bash
+# 1. Check current global configuration and mode
+curl http://localhost:38000/config
+curl http://localhost:38000/mode
+
+# 2. Create production and staging contexts
+curl -X POST http://localhost:38000/contexts/production
+curl -X POST http://localhost:38000/contexts/staging
+
+# 3. Set strict compatibility for production
+curl -X PUT http://localhost:38000/config?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FULL"}'
+
+# 4. Set lenient compatibility for staging  
+curl -X PUT http://localhost:38000/config?context=staging \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "NONE"}'
+
+# 5. Register schema in production with strict rules
+curl -X POST http://localhost:38000/schemas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "user-events",
+    "schema": {
+      "type": "record", 
+      "name": "UserEvent",
+      "fields": [
+        {"name": "userId", "type": "string"},
+        {"name": "action", "type": "string"}
+      ]
+    },
+    "context": "production"
+  }'
+
+# 6. Test evolution in staging (should succeed with NONE compatibility)
+curl -X POST http://localhost:38000/schemas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "user-events",
+    "schema": {
+      "type": "record",
+      "name": "UserEvent", 
+      "fields": [
+        {"name": "userId", "type": "int"},
+        {"name": "action", "type": "string"}
+      ]
+    },
+    "context": "staging"
+  }'
+
+# 7. Set production to read-only for maintenance
+curl -X PUT http://localhost:38000/mode?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READONLY"}'
+
+# 8. Try to register in read-only production (should fail)
+curl -X POST http://localhost:38000/schemas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "new-events",
+    "schema": {"type": "record", "name": "NewEvent", "fields": []},
+    "context": "production"
+  }'
+
+# 9. Reset production to normal operation
+curl -X PUT http://localhost:38000/mode?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READWRITE"}'
 ```
 
 ## 🐳 Development
@@ -326,6 +507,18 @@ This MCP server integrates with [Confluent Schema Registry](https://docs.conflue
 
 ## 🎉 Success Metrics
 
-**Latest Test Results**: ✅ **21 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
+**Latest Test Results**: ✅ **21+ PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
 
-This includes comprehensive testing of both core functionality and advanced Schema Context features!
+This includes comprehensive testing of:
+- ✅ **Core Schema Operations**: Registration, retrieval, versioning, compatibility
+- ✅ **Schema Context Management**: Creation, isolation, context-aware operations  
+- ✅ **Configuration Management**: Global and subject-level compatibility controls
+- ✅ **Mode Control**: Operational state management across contexts
+- ✅ **Error Handling**: Invalid requests, missing resources, permission checks
+- ✅ **Authentication**: Optional basic auth support
+
+**New in v1.2.0:**
+- 🆕 **Configuration Management**: Complete compatibility level control
+- 🆕 **Mode Management**: Operational state control (READWRITE/READONLY/IMPORT)
+- 🆕 **Context-Aware Config**: Per-context configuration and mode settings
+- 🆕 **Enterprise Governance**: Advanced schema governance capabilities

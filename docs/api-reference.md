@@ -479,6 +479,38 @@ curl -X DELETE http://localhost:38000/subjects/user-value?context=development
 }
 ```
 
+### Config Request
+
+```json
+{
+    "compatibility": "string"      // Optional: Compatibility level
+}
+```
+
+### Config Response
+
+```json
+{
+    "compatibilityLevel": "string" // Current compatibility level
+}
+```
+
+### Mode Request
+
+```json
+{
+    "mode": "string"               // Required: Mode (IMPORT, READONLY, READWRITE)
+}
+```
+
+### Mode Response
+
+```json
+{
+    "mode": "string"               // Current mode
+}
+```
+
 ---
 
 ## Error Responses
@@ -549,6 +581,368 @@ curl -X DELETE http://localhost:38000/subjects/user-value?context=development
 {
     "detail": "Version 999 not found for subject 'user-value'"
 }
+```
+
+---
+
+## Configuration Management
+
+### Get Global Configuration
+
+#### GET `/config`
+
+Retrieve global Schema Registry configuration settings.
+
+**Query Parameters:**
+- `context` (optional): Schema context
+
+**Response:**
+```json
+{
+    "compatibilityLevel": "BACKWARD"
+}
+```
+
+**Examples:**
+
+Get global configuration:
+```bash
+curl http://localhost:38000/config
+```
+
+Get configuration for specific context:
+```bash
+curl http://localhost:38000/config?context=production
+```
+
+**Compatibility Levels:**
+- `BACKWARD`: New schema can read data written with previous schema
+- `FORWARD`: Previous schema can read data written with new schema  
+- `FULL`: Both backward and forward compatible
+- `NONE`: No compatibility checking
+- `BACKWARD_TRANSITIVE`: Backward compatible with all previous versions
+- `FORWARD_TRANSITIVE`: Forward compatible with all future versions
+- `FULL_TRANSITIVE`: Both backward and forward transitive compatible
+
+### Update Global Configuration
+
+#### PUT `/config`
+
+Update global Schema Registry configuration settings.
+
+**Query Parameters:**
+- `context` (optional): Schema context
+
+**Request Body:**
+```json
+{
+    "compatibility": "BACKWARD"
+}
+```
+
+**Response:**
+```json
+{
+    "compatibility": "BACKWARD"
+}
+```
+
+**Examples:**
+
+Update global compatibility:
+```bash
+curl -X PUT http://localhost:38000/config \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FULL"}'
+```
+
+Update for specific context:
+```bash
+curl -X PUT http://localhost:38000/config?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "BACKWARD"}'
+```
+
+### Get Subject Configuration
+
+#### GET `/config/{subject}`
+
+Get configuration settings for a specific subject.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Response:**
+```json
+{
+    "compatibilityLevel": "FORWARD"
+}
+```
+
+**Examples:**
+
+Get subject configuration:
+```bash
+curl http://localhost:38000/config/user-value
+```
+
+Get from specific context:
+```bash
+curl http://localhost:38000/config/user-value?context=production
+```
+
+**Error Responses:**
+- `404`: Subject not found or no specific configuration set
+
+### Update Subject Configuration
+
+#### PUT `/config/{subject}`
+
+Update configuration settings for a specific subject.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Request Body:**
+```json
+{
+    "compatibility": "FORWARD"
+}
+```
+
+**Response:**
+```json
+{
+    "compatibility": "FORWARD"
+}
+```
+
+**Examples:**
+
+Set subject-specific configuration:
+```bash
+curl -X PUT http://localhost:38000/config/user-value \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FORWARD"}'
+```
+
+Set in specific context:
+```bash
+curl -X PUT http://localhost:38000/config/user-value?context=staging \
+  -H "Content-Type: application/json" \
+  -d '{"compatibility": "FULL"}'
+```
+
+### Delete Subject Configuration
+
+#### DELETE `/config/{subject}`
+
+Delete configuration settings for a specific subject, reverting to global configuration.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Response:**
+```json
+{
+    "message": "Configuration for subject 'user-value' deleted successfully"
+}
+```
+
+**Examples:**
+
+Delete subject configuration:
+```bash
+curl -X DELETE http://localhost:38000/config/user-value
+```
+
+Delete from specific context:
+```bash
+curl -X DELETE http://localhost:38000/config/user-value?context=staging
+```
+
+---
+
+## Mode Management
+
+### Get Mode
+
+#### GET `/mode`
+
+Get the current operational mode of the Schema Registry.
+
+**Query Parameters:**
+- `context` (optional): Schema context
+
+**Response:**
+```json
+{
+    "mode": "READWRITE"
+}
+```
+
+**Examples:**
+
+Get global mode:
+```bash
+curl http://localhost:38000/mode
+```
+
+Get mode for specific context:
+```bash
+curl http://localhost:38000/mode?context=production
+```
+
+**Mode Types:**
+- `READWRITE`: Normal operation mode (default)
+- `READONLY`: Only read operations allowed
+- `IMPORT`: Special mode for importing schemas from external sources
+
+### Update Mode
+
+#### PUT `/mode`
+
+Update the operational mode of the Schema Registry.
+
+**Query Parameters:**
+- `context` (optional): Schema context
+
+**Request Body:**
+```json
+{
+    "mode": "READONLY"
+}
+```
+
+**Response:**
+```json
+{
+    "mode": "READONLY"
+}
+```
+
+**Examples:**
+
+Set to read-only mode:
+```bash
+curl -X PUT http://localhost:38000/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READONLY"}'
+```
+
+Set import mode for context:
+```bash
+curl -X PUT http://localhost:38000/mode?context=staging \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "IMPORT"}'
+```
+
+**Error Responses:**
+- `422`: Invalid mode value
+- `403`: Mode change not allowed
+
+### Get Subject Mode
+
+#### GET `/mode/{subject}`
+
+Get the operational mode for a specific subject.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Response:**
+```json
+{
+    "mode": "READWRITE"
+}
+```
+
+**Examples:**
+
+Get subject mode:
+```bash
+curl http://localhost:38000/mode/user-value
+```
+
+Get from specific context:
+```bash
+curl http://localhost:38000/mode/user-value?context=production
+```
+
+**Error Responses:**
+- `404`: Subject not found or no specific mode set
+
+### Update Subject Mode
+
+#### PUT `/mode/{subject}`
+
+Update the operational mode for a specific subject.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Request Body:**
+```json
+{
+    "mode": "READONLY"
+}
+```
+
+**Response:**
+```json
+{
+    "mode": "READONLY"
+}
+```
+
+**Examples:**
+
+Set subject to read-only:
+```bash
+curl -X PUT http://localhost:38000/mode/user-value \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READONLY"}'
+```
+
+Set in specific context:
+```bash
+curl -X PUT http://localhost:38000/mode/user-value?context=production \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "READWRITE"}'
+```
+
+### Delete Subject Mode
+
+#### DELETE `/mode/{subject}`
+
+Delete the mode setting for a specific subject, reverting to global mode.
+
+**Parameters:**
+- `subject` (path): Subject name
+- `context` (query, optional): Schema context
+
+**Response:**
+```json
+{
+    "message": "Mode setting for subject 'user-value' deleted successfully"
+}
+```
+
+**Examples:**
+
+Delete subject mode:
+```bash
+curl -X DELETE http://localhost:38000/mode/user-value
+```
+
+Delete from specific context:
+```bash
+curl -X DELETE http://localhost:38000/mode/user-value?context=staging
 ```
 
 ---

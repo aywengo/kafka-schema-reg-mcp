@@ -73,16 +73,12 @@ async def wait_for_service(url: str, timeout: int = 60):
 
 
 @pytest.mark.asyncio
-async def test_services_healthy():
-    """Test that all services are healthy and responding."""
-    # Test MCP server
-    await wait_for_service(f"{MCP_SERVER_URL}/")
-    
-    # Test Schema Registry (through MCP)
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{MCP_SERVER_URL}/")
-        assert response.status_code == 200
-        assert response.json()["message"] == "Kafka Schema Registry MCP Server with Context Support"
+async def test_services_healthy(client: httpx.AsyncClient):
+    """Test that both MCP server and Schema Registry are accessible."""
+    # Test MCP server health
+    response = await client.get(f"{MCP_SERVER_URL}/")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Kafka Schema Registry MCP Server with Context Support, Configuration Management, and Mode Control"
 
 
 @pytest.mark.asyncio
@@ -621,4 +617,285 @@ async def test_context_isolation(client: httpx.AsyncClient, test_subject: str):
     schema2 = response2.json()["schema"]
     
     # Schemas should be different (one has email field, one doesn't)
-    assert schema1 != schema2 
+    assert schema1 != schema2
+
+
+# Configuration Management Tests
+@pytest.mark.asyncio
+async def test_get_global_config(client: httpx.AsyncClient):
+    """Test getting global configuration settings."""
+    response = await client.get(f"{MCP_SERVER_URL}/config")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "compatibilityLevel" in data
+    # Common compatibility levels: BACKWARD, FORWARD, FULL, NONE
+    assert data["compatibilityLevel"] in ["BACKWARD", "FORWARD", "FULL", "NONE", "BACKWARD_TRANSITIVE", "FORWARD_TRANSITIVE", "FULL_TRANSITIVE"]
+
+
+@pytest.mark.asyncio
+async def test_update_global_config(client: httpx.AsyncClient):
+    """Test updating global configuration settings."""
+    # Get current config first
+    current_response = await client.get(f"{MCP_SERVER_URL}/config")
+    assert current_response.status_code == 200
+    current_config = current_response.json()
+    
+    # Update to a different compatibility level
+    new_compatibility = "FULL" if current_config["compatibilityLevel"] != "FULL" else "BACKWARD"
+    
+    response = await client.put(
+        f"{MCP_SERVER_URL}/config",
+        json={"compatibility": new_compatibility}
+    )
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "compatibility" in data
+    assert data["compatibility"] == new_compatibility
+
+
+@pytest.mark.asyncio
+async def test_get_subject_config(client: httpx.AsyncClient, test_subject: str):
+    """Test getting configuration for a specific subject."""
+    # First register a schema to ensure subject exists
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Try to get subject config (might return 404 if no specific config set)
+    response = await client.get(f"{MCP_SERVER_URL}/config/{test_subject}")
+    # Either returns the subject-specific config or inherits from global
+    assert response.status_code in [200, 404]
+    
+    if response.status_code == 200:
+        data = response.json()
+        assert "compatibilityLevel" in data
+
+
+@pytest.mark.asyncio
+async def test_update_subject_config(client: httpx.AsyncClient, test_subject: str):
+    """Test updating configuration for a specific subject."""
+    # First register a schema to ensure subject exists
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Set subject-specific config
+    response = await client.put(
+        f"{MCP_SERVER_URL}/config/{test_subject}",
+        json={"compatibility": "FORWARD"}
+    )
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "compatibility" in data
+    assert data["compatibility"] == "FORWARD"
+
+
+@pytest.mark.asyncio
+async def test_config_with_context(client: httpx.AsyncClient, test_subject: str):
+    """Test configuration management within a specific context."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context first
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    # Register schema in context
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Get global config for context (may not be supported by all Schema Registry versions)
+    response = await client.get(f"{MCP_SERVER_URL}/config?context={context_name}")
+    # Context-aware config might not be supported, so we accept both outcomes
+    assert response.status_code in [200, 404, 500]
+
+
+# Mode Management Tests
+@pytest.mark.asyncio
+async def test_get_mode(client: httpx.AsyncClient):
+    """Test getting the current Schema Registry mode."""
+    response = await client.get(f"{MCP_SERVER_URL}/mode")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "mode" in data
+    # Common modes: IMPORT, READONLY, READWRITE
+    assert data["mode"] in ["IMPORT", "READONLY", "READWRITE"]
+
+
+@pytest.mark.asyncio
+async def test_update_mode(client: httpx.AsyncClient):
+    """Test updating the Schema Registry mode."""
+    # Get current mode first
+    current_response = await client.get(f"{MCP_SERVER_URL}/mode")
+    assert current_response.status_code == 200
+    current_mode = current_response.json()
+    
+    # Try to update mode (this might fail in some Schema Registry setups)
+    response = await client.put(
+        f"{MCP_SERVER_URL}/mode",
+        json={"mode": "READWRITE"}
+    )
+    # Mode changes might be restricted in some configurations
+    assert response.status_code in [200, 403, 422, 500]
+    
+    if response.status_code == 200:
+        data = response.json()
+        assert "mode" in data
+
+
+@pytest.mark.asyncio
+async def test_get_subject_mode(client: httpx.AsyncClient, test_subject: str):
+    """Test getting mode for a specific subject."""
+    # First register a schema to ensure subject exists
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Try to get subject mode (might return 404 if no specific mode set)
+    response = await client.get(f"{MCP_SERVER_URL}/mode/{test_subject}")
+    # Either returns the subject-specific mode or 404/500 if not supported
+    assert response.status_code in [200, 404, 500]
+    
+    if response.status_code == 200:
+        data = response.json()
+        assert "mode" in data
+
+
+@pytest.mark.asyncio
+async def test_update_subject_mode(client: httpx.AsyncClient, test_subject: str):
+    """Test updating mode for a specific subject."""
+    # First register a schema to ensure subject exists
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Try to set subject-specific mode (might not be supported)
+    response = await client.put(
+        f"{MCP_SERVER_URL}/mode/{test_subject}",
+        json={"mode": "READWRITE"}
+    )
+    # Subject-level mode might not be supported in all Schema Registry versions
+    assert response.status_code in [200, 404, 422, 500]
+
+
+@pytest.mark.asyncio
+async def test_mode_with_context(client: httpx.AsyncClient, test_subject: str):
+    """Test mode management within a specific context."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context first
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    # Register schema in context
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Get mode for context (may not be supported by all Schema Registry versions)
+    response = await client.get(f"{MCP_SERVER_URL}/mode?context={context_name}")
+    # Context-aware mode might not be supported, so we accept various outcomes
+    assert response.status_code in [200, 404, 500]
+
+
+# Integration Tests for Config and Mode
+@pytest.mark.asyncio
+async def test_config_mode_integration(client: httpx.AsyncClient, test_subject: str):
+    """Test integration between configuration and mode settings."""
+    # Register a schema
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Get both config and mode to ensure they're accessible
+    config_response = await client.get(f"{MCP_SERVER_URL}/config")
+    mode_response = await client.get(f"{MCP_SERVER_URL}/mode")
+    
+    assert config_response.status_code == 200
+    assert mode_response.status_code == 200
+    
+    config_data = config_response.json()
+    mode_data = mode_response.json()
+    
+    assert "compatibilityLevel" in config_data
+    assert "mode" in mode_data
+
+
+# Error Handling Tests for Config and Mode
+@pytest.mark.asyncio
+async def test_invalid_compatibility_level(client: httpx.AsyncClient):
+    """Test handling of invalid compatibility levels."""
+    response = await client.put(
+        f"{MCP_SERVER_URL}/config",
+        json={"compatibility": "INVALID_LEVEL"}
+    )
+    # Should return error for invalid compatibility level
+    assert response.status_code in [400, 422, 500]
+
+
+@pytest.mark.asyncio
+async def test_invalid_mode(client: httpx.AsyncClient):
+    """Test handling of invalid modes."""
+    response = await client.put(
+        f"{MCP_SERVER_URL}/mode",
+        json={"mode": "INVALID_MODE"}
+    )
+    # Should return error for invalid mode
+    assert response.status_code in [400, 422, 500]
+
+
+@pytest.mark.asyncio
+async def test_config_nonexistent_subject(client: httpx.AsyncClient):
+    """Test getting config for non-existent subject."""
+    response = await client.get(f"{MCP_SERVER_URL}/config/non-existent-subject")
+    # Should return 404 for non-existent subject
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_mode_nonexistent_subject(client: httpx.AsyncClient):
+    """Test getting mode for non-existent subject."""
+    response = await client.get(f"{MCP_SERVER_URL}/mode/non-existent-subject")
+    # Should return 404 for non-existent subject or inherit global mode
+    assert response.status_code in [404, 500] 

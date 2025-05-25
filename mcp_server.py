@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
 import requests
@@ -13,8 +13,8 @@ load_dotenv()
 
 app = FastAPI(
     title="Kafka Schema Registry MCP",
-    description="Message Control Protocol server for Kafka Schema Registry with Context Support",
-    version="1.1.0"
+    description="Message Control Protocol server for Kafka Schema Registry with Context Support, Configuration Management, and Mode Control",
+    version="1.2.0"
 )
 
 # Configuration
@@ -26,11 +26,13 @@ API_VERSION = "v1"
 # Setup authentication
 auth = None
 headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
+standard_headers = {"Content-Type": "application/json"}
 if SCHEMA_REGISTRY_USER and SCHEMA_REGISTRY_PASSWORD:
     auth = HTTPBasicAuth(SCHEMA_REGISTRY_USER, SCHEMA_REGISTRY_PASSWORD)
     # Also prepare headers for compatibility
     credentials = base64.b64encode(f"{SCHEMA_REGISTRY_USER}:{SCHEMA_REGISTRY_PASSWORD}".encode()).decode()
     headers["Authorization"] = f"Basic {credentials}"
+    standard_headers["Authorization"] = f"Basic {credentials}"
 
 class SchemaRequest(BaseModel):
     subject: str
@@ -47,6 +49,12 @@ class CompatibilityRequest(BaseModel):
 class ContextRequest(BaseModel):
     context: str
 
+class ConfigRequest(BaseModel):
+    compatibility: Optional[str] = None  # BACKWARD, FORWARD, FULL, NONE, BACKWARD_TRANSITIVE, FORWARD_TRANSITIVE, FULL_TRANSITIVE
+
+class ModeRequest(BaseModel):
+    mode: str  # IMPORT, READONLY, READWRITE
+
 class SchemaRegistrationResponse(BaseModel):
     id: int
 
@@ -59,6 +67,12 @@ class SchemaResponse(BaseModel):
 class ContextResponse(BaseModel):
     contexts: List[str]
 
+class ConfigResponse(BaseModel):
+    compatibilityLevel: str
+
+class ModeResponse(BaseModel):
+    mode: str
+
 def build_context_url(base_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support."""
     if context:
@@ -67,7 +81,7 @@ def build_context_url(base_url: str, context: Optional[str] = None) -> str:
 
 @app.get("/")
 async def root():
-    return {"message": "Kafka Schema Registry MCP Server with Context Support"}
+    return {"message": "Kafka Schema Registry MCP Server with Context Support, Configuration Management, and Mode Control"}
 
 # Context Management Endpoints
 @app.get("/contexts", response_model=ContextResponse)
@@ -225,6 +239,184 @@ async def delete_subject(subject: str, context: Optional[str] = Query(None, desc
         )
         response.raise_for_status()
         return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Configuration Management Endpoints
+@app.get("/config", response_model=ConfigResponse)
+async def get_global_config(context: Optional[str] = Query(None, description="Schema context")):
+    """Get global configuration settings, optionally for a specific context."""
+    try:
+        url = build_context_url("/config", context)
+        
+        response = requests.get(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/config")
+async def update_global_config(config_request: ConfigRequest, context: Optional[str] = Query(None, description="Schema context")):
+    """Update global configuration settings, optionally for a specific context."""
+    try:
+        url = build_context_url("/config", context)
+        
+        payload = {}
+        if config_request.compatibility:
+            payload["compatibility"] = config_request.compatibility
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/config/{subject}", response_model=ConfigResponse)
+async def get_subject_config(subject: str, context: Optional[str] = Query(None, description="Schema context")):
+    """Get configuration settings for a specific subject, optionally in a specific context."""
+    try:
+        url = build_context_url(f"/config/{subject}", context)
+        
+        response = requests.get(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=404, detail=f"Subject config not found: {str(e)}")
+
+@app.put("/config/{subject}")
+async def update_subject_config(subject: str, config_request: ConfigRequest, context: Optional[str] = Query(None, description="Schema context")):
+    """Update configuration settings for a specific subject, optionally in a specific context."""
+    try:
+        url = build_context_url(f"/config/{subject}", context)
+        
+        payload = {}
+        if config_request.compatibility:
+            payload["compatibility"] = config_request.compatibility
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/config/{subject}")
+async def delete_subject_config(subject: str, context: Optional[str] = Query(None, description="Schema context")):
+    """Delete configuration settings for a specific subject, reverting to global config."""
+    try:
+        url = build_context_url(f"/config/{subject}", context)
+        
+        response = requests.delete(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return {"message": f"Configuration for subject '{subject}' deleted successfully"}
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Mode Management Endpoints
+@app.get("/mode", response_model=ModeResponse)
+async def get_mode(context: Optional[str] = Query(None, description="Schema context")):
+    """Get the current mode of the Schema Registry, optionally for a specific context."""
+    try:
+        url = build_context_url("/mode", context)
+        
+        response = requests.get(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/mode")
+async def update_mode(mode_request: ModeRequest, context: Optional[str] = Query(None, description="Schema context")):
+    """Update the mode of the Schema Registry, optionally for a specific context."""
+    try:
+        url = build_context_url("/mode", context)
+        
+        payload = {"mode": mode_request.mode}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/mode/{subject}", response_model=ModeResponse)
+async def get_subject_mode(subject: str, context: Optional[str] = Query(None, description="Schema context")):
+    """Get the mode for a specific subject, optionally in a specific context."""
+    try:
+        url = build_context_url(f"/mode/{subject}", context)
+        
+        response = requests.get(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=404, detail=f"Subject mode not found: {str(e)}")
+
+@app.put("/mode/{subject}")
+async def update_subject_mode(subject: str, mode_request: ModeRequest, context: Optional[str] = Query(None, description="Schema context")):
+    """Update the mode for a specific subject, optionally in a specific context."""
+    try:
+        url = build_context_url(f"/mode/{subject}", context)
+        
+        payload = {"mode": mode_request.mode}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/mode/{subject}")
+async def delete_subject_mode(subject: str, context: Optional[str] = Query(None, description="Schema context")):
+    """Delete the mode setting for a specific subject, reverting to global mode."""
+    try:
+        url = build_context_url(f"/mode/{subject}", context)
+        
+        response = requests.delete(
+            url,
+            auth=auth,
+            headers=standard_headers
+        )
+        response.raise_for_status()
+        return {"message": f"Mode setting for subject '{subject}' deleted successfully"}
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
