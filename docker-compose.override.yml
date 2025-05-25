@@ -4,11 +4,20 @@
 # Usage:
 #   docker-compose up -d
 #
-# The override file will automatically use the DockerHub image instead of building
+# Note: The MCP server communicates via stdio, not HTTP. For Claude Desktop integration,
+# use the image directly with docker run or configure Claude Desktop to use the container.
 
 version: '3.8'
 
 services:
   mcp-server:
     image: aywengo/kafka-schema-reg-mcp:latest
+    environment:
+      - SCHEMA_REGISTRY_URL=http://schema-registry-mcp:8081
+    depends_on:
+      schema-registry-mcp:
+        condition: service_healthy
+    # MCP servers use stdio communication, not HTTP ports
+    stdin_open: true
+    tty: true
     # Override: use DockerHub image instead of building locally 

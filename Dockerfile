@@ -7,7 +7,7 @@ ARG VCS_REF
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
-      org.opencontainers.image.description="Message Control Protocol server for Kafka Schema Registry with Context Support, Configuration Management, Mode Control, and Schema Export" \
+      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 20 tools, context support, schema export, and Claude Desktop integration" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.revision="$VCS_REF" \
@@ -30,8 +30,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose the port the app runs on
-EXPOSE 8000
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash mcp
+RUN chown -R mcp:mcp /app
+USER mcp
 
-# Command to run the application
-CMD ["python", "mcp_server.py"]
+# Command to run the MCP server
+CMD ["python", "kafka_schema_registry_mcp.py"]
