@@ -1,0 +1,136 @@
+name: Publish to DockerHub
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish'
+        required: true
+        default: 'latest'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: aywengo/kafka-schema-reg-mcp
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=tag
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=Kafka Schema Registry MCP Server
+            org.opencontainers.image.description=Message Control Protocol server for Kafka Schema Registry with Context Support, Configuration Management, Mode Control, and Schema Export
+            org.opencontainers.image.vendor=aywengo
+            org.opencontainers.image.version={{version}}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+            org.opencontainers.image.revision={{sha}}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            BUILD_DATE=${{ steps.meta.outputs.created }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: aywengo/kafka-schema-reg-mcp
+          short-description: "Kafka Schema Registry MCP Server v1.3.0 with Context Support and Export Capabilities"
+          readme-filepath: ./README.md
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }}
+            
+            ### Docker Image
+            ```bash
+            docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
+            ```
+            
+            ### Quick Start
+            ```bash
+            # Using DockerHub image
+            docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
+            
+            # Or with docker-compose
+            docker-compose up -d
+            ```
+            
+            ### 📋 Features
+            - ✅ **Complete Schema Management**: Register, retrieve, and manage Avro schemas
+            - ✅ **Schema Contexts**: Logical grouping with separate "sub-registries"
+            - ✅ **Configuration Management**: Control compatibility levels globally and per-subject
+            - ✅ **Mode Control**: Manage operational states (READWRITE, READONLY, IMPORT)
+            - ✅ **Schema Export**: 17 export endpoints with JSON, Avro IDL, and ZIP bundle formats
+            - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
+            
+            ### 📚 Documentation
+            - [Use Cases](docs/use-cases.md)
+            - [API Reference](docs/api-reference.md) 
+            - [IDE Integration](docs/ide-integration.md)
+            - [Deployment Guide](docs/deployment.md)
+            
+            ### 🧪 Test Results
+            All tests passing with comprehensive coverage including export functionality.
+          draft: false
+          prerelease: false 

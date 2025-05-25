@@ -1,4 +1,20 @@
-FROM python:3.8-slim
+FROM python:3.11-slim
+
+# Build arguments for metadata
+ARG VERSION="dev"
+ARG BUILD_DATE
+ARG VCS_REF
+
+# Metadata
+LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
+      org.opencontainers.image.description="Message Control Protocol server for Kafka Schema Registry with Context Support, Configuration Management, Mode Control, and Schema Export" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.created="$BUILD_DATE" \
+      org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.vendor="aywengo" \
+      org.opencontainers.image.source="https://github.com/aywengo/kafka-schema-reg-mcp" \
+      org.opencontainers.image.url="https://github.com/aywengo/kafka-schema-reg-mcp" \
+      org.opencontainers.image.documentation="https://github.com/aywengo/kafka-schema-reg-mcp#readme"
 
 WORKDIR /app
 

@@ -1,0 +1,71 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - '*.py'
+      - 'requirements.txt'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - '*.py'
+      - 'requirements.txt'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: kafka-schema-reg-mcp:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Load Docker image
+        run: |
+          docker load --input /tmp/image.tar
+
+      - name: Test Docker image startup
+        run: |
+          # Test that the image runs and responds
+          docker run -d --name test-container -p 8000:8000 kafka-schema-reg-mcp:test
+          sleep 10
+          
+          # Wait for the server to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:8000/; do sleep 1; done'
+          
+          # Test the health endpoint
+          response=$(curl -s http://localhost:8000/)
+          echo "Health check response: $response"
+          
+          # Cleanup
+          docker stop test-container
+          docker rm test-container
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: kafka-schema-reg-mcp:test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+        

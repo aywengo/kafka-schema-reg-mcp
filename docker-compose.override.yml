@@ -1,0 +1,14 @@
+# Docker Compose override to use pre-built DockerHub image
+# This file allows users to quickly start the MCP server without building from source
+# 
+# Usage:
+#   docker-compose up -d
+#
+# The override file will automatically use the DockerHub image instead of building
+
+version: '3.8'
+
+services:
+  mcp-server:
+    image: aywengo/kafka-schema-reg-mcp:latest
+    # Override: use DockerHub image instead of building locally 

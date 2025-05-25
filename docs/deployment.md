@@ -4,17 +4,71 @@ This guide covers various deployment scenarios for the Kafka Schema Registry MCP
 
 ## 🐳 Docker Deployment
 
+### Quick Start with Pre-built Images (Recommended)
+
+The fastest way to get started is using our pre-built DockerHub images:
+
+```bash
+# Option 1: Using Docker Compose with override (easiest)
+git clone <repository-url>
+cd kafka-schema-reg-mcp
+docker-compose up -d
+
+# Option 2: Direct Docker run
+docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
+
+# Option 3: With external Schema Registry
+docker run -p 38000:8000 \
+  -e SCHEMA_REGISTRY_URL=http://your-schema-registry:8081 \
+  aywengo/kafka-schema-reg-mcp:latest
+```
+
+**Available DockerHub Tags:**
+- `aywengo/kafka-schema-reg-mcp:latest` - Latest stable release
+- `aywengo/kafka-schema-reg-mcp:v1.3.0` - Specific version with export functionality  
+- `aywengo/kafka-schema-reg-mcp:v1.2.0` - Previous version
+- **Multi-Platform Support**: Automatically detects `linux/amd64` or `linux/arm64`
+
+### Docker Compose Override
+
+The repository includes a `docker-compose.override.yml` file that automatically uses the DockerHub image:
+
+```yaml
+# docker-compose.override.yml
+version: '3.8'
+services:
+  mcp-server:
+    image: aywengo/kafka-schema-reg-mcp:latest
+    # Override: use DockerHub image instead of building locally
+```
+
+**Switching between modes:**
+```bash
+# Use pre-built image (default)
+docker-compose up -d
+
+# Build from source (remove override)
+mv docker-compose.override.yml docker-compose.override.yml.bak
+docker-compose up -d --build
+
+# Restore pre-built mode
+mv docker-compose.override.yml.bak docker-compose.override.yml
+```
+
 ### Local Development
 
-The easiest way to get started is using Docker Compose for local development:
+For development or custom builds:
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd kafka-schema-reg-mcp
 
-# Start all services
-docker-compose up -d
+# Remove override to build locally
+mv docker-compose.override.yml docker-compose.override.yml.bak
+
+# Build and start all services
+docker-compose up -d --build
 
 # Verify deployment
 curl http://localhost:38000/
@@ -939,6 +993,85 @@ fi
 
 echo "✅ All health checks passed"
 ```
+
+---
+
+## 🚀 CI/CD & Automated Publishing
+
+### GitHub Actions Workflows
+
+The project includes production-ready GitHub Actions workflows for automated building, testing, and publishing:
+
+#### **Build Workflow** (`.github/workflows/build.yml`)
+Triggered on pushes to main and pull requests:
+- ✅ **Multi-platform builds** (AMD64 + ARM64)
+- ✅ **Security scanning** with Trivy vulnerability scanner
+- ✅ **Docker image testing** to verify startup
+- ✅ **GitHub Actions caching** for faster builds
+- ✅ **SARIF upload** to GitHub Security tab
+
+#### **Publish Workflow** (`.github/workflows/publish.yml`)
+Triggered on version tags (e.g., `v1.3.0`):
+- ✅ **Automated DockerHub publishing** with multiple tags
+- ✅ **Multi-platform images** (AMD64 + ARM64)
+- ✅ **Security vulnerability scanning** 
+- ✅ **Automatic DockerHub description updates**
+- ✅ **GitHub release creation** with Docker pull commands
+- ✅ **Semantic versioning** support (major.minor.patch)
+
+### Setting Up CI/CD
+
+1. **Configure DockerHub Secrets** in your GitHub repository:
+   ```bash
+   # Repository Settings → Secrets and variables → Actions
+   DOCKERHUB_USERNAME=your-username
+   DOCKERHUB_TOKEN=your-access-token
+   ```
+
+2. **Create and Push a Version Tag**:
+   ```bash
+   git tag v1.3.0
+   git push origin v1.3.0
+   ```
+
+3. **Automated Publishing Process**:
+   - GitHub Actions builds multi-platform images
+   - Runs security scans with Trivy
+   - Pushes to DockerHub with semantic versioning tags
+   - Updates DockerHub repository description
+   - Creates GitHub release with pull instructions
+
+### Image Metadata & Labels
+
+All published images include comprehensive OCI metadata:
+
+```dockerfile
+LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server"
+LABEL org.opencontainers.image.description="Message Control Protocol server with Context Support and Export"
+LABEL org.opencontainers.image.version="v1.3.0"
+LABEL org.opencontainers.image.vendor="aywengo"
+LABEL org.opencontainers.image.source="https://github.com/aywengo/kafka-schema-reg-mcp"
+```
+
+### Multi-Platform Support
+
+Images are built for multiple architectures:
+- **linux/amd64** - Intel/AMD 64-bit (standard servers, x86 Macs)
+- **linux/arm64** - ARM 64-bit (Apple Silicon, ARM servers, Raspberry Pi)
+
+Docker automatically selects the correct architecture:
+```bash
+# Works on both Intel and ARM systems
+docker run aywengo/kafka-schema-reg-mcp:latest
+```
+
+### Security & Vulnerability Scanning
+
+Every build and publish includes:
+- **Trivy security scanning** for known vulnerabilities
+- **SARIF reports** uploaded to GitHub Security tab
+- **Automated dependency updates** recommendations
+- **Base image security** with Python 3.11-slim
 
 ---
 

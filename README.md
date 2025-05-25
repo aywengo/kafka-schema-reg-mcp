@@ -14,7 +14,10 @@ A comprehensive Message Control Protocol (MCP) server that provides a REST API i
 - **Compatibility Testing**: Verify schema evolution compatibility
 - **Subject Management**: List and delete schema subjects
 - **Context Isolation**: Schemas in different contexts are completely isolated
-- **Docker Support**: Easy deployment with Docker Compose
+- **Docker Support**: Easy deployment with Docker Compose and pre-built DockerHub images
+- **Multi-Platform Support**: AMD64 and ARM64 architectures
+- **Security Scanning**: Automated vulnerability scanning with Trivy
+- **CI/CD Ready**: GitHub Actions workflows for automated builds and publishing
 - **Comprehensive Testing**: Full integration and unit test coverage
 
 ## 🏗️ Architecture
@@ -31,11 +34,41 @@ A comprehensive Message Control Protocol (MCP) server that provides a REST API i
 
 ### Prerequisites
 - Docker and Docker Compose
-- Python 3.8+ (for local development)
+- Python 3.11+ (for local development)
 
-### Start Services
+### Option 1: Using Pre-built DockerHub Image (Recommended)
 ```bash
+# Quick start with pre-built image
 docker-compose up -d
+```
+
+The `docker-compose.override.yml` file automatically uses the pre-built image from DockerHub instead of building locally.
+
+### Option 2: Using DockerHub Image Directly
+```bash
+# Run MCP server directly (latest version)
+docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
+
+# Run specific version
+docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:v1.3.0
+
+# With environment variables
+docker run -p 38000:8000 \
+  -e SCHEMA_REGISTRY_URL=http://your-schema-registry:8081 \
+  aywengo/kafka-schema-reg-mcp:latest
+```
+
+**Available Docker Tags:**
+- `latest` - Latest stable release
+- `v1.3.0` - Specific version (with export functionality)
+- `v1.2.0` - Previous version (configuration management)
+- Multi-platform support: `linux/amd64`, `linux/arm64`
+
+### Option 3: Build from Source
+```bash
+# Remove override file to build locally
+mv docker-compose.override.yml docker-compose.override.yml.bak
+docker-compose up -d --build
 ```
 
 This starts:
@@ -636,7 +669,32 @@ curl -X PUT http://localhost:38000/mode?context=production \
   -d '{"mode": "READWRITE"}'
 ```
 
-## 🐳 Development
+## 🚀 Production Deployment
+
+For production deployments, see the [Deployment Guide](docs/deployment.md) which covers:
+
+- **Docker Compose** production configurations
+- **Kubernetes** deployments with Helm charts
+- **Cloud platforms** (AWS EKS, Google Cloud Run, Azure)
+- **Security** considerations and best practices
+- **Monitoring** with Prometheus and Grafana
+- **Performance** optimization and scaling
+- **CI/CD** automated workflows and DockerHub publishing
+
+### Quick Production Start
+
+```bash
+# Production-ready deployment with pre-built images
+docker-compose up -d
+
+# Or direct production usage
+docker run -d -p 38000:8000 \
+  -e SCHEMA_REGISTRY_URL=http://your-registry:8081 \
+  --name kafka-schema-mcp \
+  aywengo/kafka-schema-reg-mcp:latest
+```
+
+## 🔧 Development
 
 ### Local Development
 ```bash
@@ -653,10 +711,24 @@ python mcp_server.py
 
 ### Docker Development
 ```bash
+# Remove override to build locally
+mv docker-compose.override.yml docker-compose.override.yml.bak
+
 # Rebuild after code changes
 docker-compose build --no-cache mcp-server
 docker-compose up -d
 ```
+
+### CI/CD Workflows
+
+The project includes automated GitHub Actions workflows:
+
+- **Build Workflow**: Multi-platform builds with security scanning on every push
+- **Publish Workflow**: Automated DockerHub publishing on version tags
+- **Security**: Trivy vulnerability scanning and SARIF reports
+- **Multi-Platform**: Supports AMD64 and ARM64 architectures
+
+See [Deployment Guide](docs/deployment.md#-cicd--automated-publishing) for setup instructions.
 
 ## 📚 Documentation
 
@@ -712,6 +784,13 @@ This MCP server integrates with [Confluent Schema Registry](https://docs.conflue
 
 **Latest Test Results**: ✅ **53 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
 
+**Production Ready**: 
+- 🐳 **DockerHub**: `aywengo/kafka-schema-reg-mcp` with 5+ tags
+- 🏗️ **Multi-Platform**: AMD64 + ARM64 support
+- 🔒 **Security**: Trivy vulnerability scanning on every build
+- 🚀 **CI/CD**: Automated GitHub Actions workflows
+- 📊 **Monitoring**: Prometheus metrics and Grafana dashboards
+
 This includes comprehensive testing of:
 - ✅ **Core Schema Operations**: Registration, retrieval, versioning, compatibility
 - ✅ **Schema Context Management**: Creation, isolation, context-aware operations  
@@ -728,6 +807,8 @@ This includes comprehensive testing of:
 - 🆕 **Multi-Scope Export**: Single schema, subject, context, or global exports with granular control
 - 🆕 **Export Metadata**: Comprehensive export tracking with timestamps, URLs, and context information
 - 🆕 **Flexible Versioning**: Export specific versions, latest, or all versions with validation
+- 🆕 **DockerHub Integration**: Pre-built multi-platform images with automated publishing
+- 🆕 **CI/CD Workflows**: GitHub Actions with security scanning and automated releases
 - 🆕 **Production-Ready**: 53 passing tests covering all export scenarios and edge cases
 
 **Previous Releases:**
