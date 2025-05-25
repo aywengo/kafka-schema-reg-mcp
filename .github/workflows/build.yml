@@ -25,19 +25,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build Docker image for testing (single platform)
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: kafka-schema-reg-mcp:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Load Docker image
-        run: |
-          docker load --input /tmp/image.tar
+          load: true
 
       - name: Test Docker image startup
         run: |
