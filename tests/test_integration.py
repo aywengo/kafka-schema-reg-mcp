@@ -78,7 +78,7 @@ async def test_services_healthy(client: httpx.AsyncClient):
     # Test MCP server health
     response = await client.get(f"{MCP_SERVER_URL}/")
     assert response.status_code == 200
-    assert response.json()["message"] == "Kafka Schema Registry MCP Server with Context Support, Configuration Management, and Mode Control"
+    assert response.json()["message"] == "Kafka Schema Registry MCP Server with Context Support, Configuration Management, Mode Control, and Schema Export"
 
 
 @pytest.mark.asyncio
@@ -898,4 +898,640 @@ async def test_mode_nonexistent_subject(client: httpx.AsyncClient):
     """Test getting mode for non-existent subject."""
     response = await client.get(f"{MCP_SERVER_URL}/mode/non-existent-subject")
     # Should return 404 for non-existent subject or inherit global mode
-    assert response.status_code in [404, 500] 
+    assert response.status_code in [404, 500]
+
+
+# Schema Export Tests
+@pytest.mark.asyncio
+async def test_export_single_schema_json(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a single schema in JSON format."""
+    # Register a schema first
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export schema in JSON format
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=json")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["subject"] == test_subject
+    assert data["version"] == 1
+    assert "id" in data
+    assert "schema" in data
+    assert data["schemaType"] == "AVRO"
+    assert "metadata" in data
+    assert data["metadata"]["exported_at"]
+
+
+@pytest.mark.asyncio
+async def test_export_single_schema_avro_idl(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a single schema in Avro IDL format."""
+    # Register a schema first
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export schema in IDL format
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=avro_idl")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    
+    idl_content = response.text
+    assert "record User" in idl_content
+    assert "int id" in idl_content
+    assert "string name" in idl_content
+
+
+@pytest.mark.asyncio
+async def test_export_schema_with_context(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a schema from a specific context."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context and register schema
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Export schema from context
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?context={context_name}")
+    assert response.status_code == 200
+    
+    data = response.json()
+    # Schema Registry returns subject with context prefix
+    expected_subject = f":.{context_name}:{test_subject}"
+    assert data["subject"] == expected_subject
+    assert data["metadata"]["context"] == context_name
+
+
+@pytest.mark.asyncio
+async def test_export_subject_all_versions(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting all versions of a subject."""
+    # Register multiple versions
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export all versions
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/subjects/{test_subject}",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["subject"] == test_subject
+    assert len(data["versions"]) == 2
+    assert data["versions"][0]["version"] == 1
+    assert data["versions"][1]["version"] == 2
+    
+    # Check that both schemas are different
+    schema1 = data["versions"][0]["schema"]
+    schema2 = data["versions"][1]["schema"]
+    assert schema1 != schema2
+
+
+@pytest.mark.asyncio
+async def test_export_subject_latest_only(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting only the latest version of a subject."""
+    # Register multiple versions
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export latest version only
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/subjects/{test_subject}",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "latest"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["subject"] == test_subject
+    assert len(data["versions"]) == 1
+    assert data["versions"][0]["version"] == 2  # Should be the latest
+
+
+@pytest.mark.asyncio
+async def test_export_context_json(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting all schemas from a context in JSON format."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context and register multiple subjects
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    # Register first subject
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Register second subject
+    test_subject_2 = f"{test_subject}-2"
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject_2,
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Export entire context
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/contexts/{context_name}",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["context"] == context_name
+    assert "exported_at" in data
+    assert isinstance(data["subjects"], list)
+    assert len(data["subjects"]) >= 2  # Should have at least our two subjects
+    
+    # Find our subjects in the export
+    exported_subjects = {subj["subject"] for subj in data["subjects"]}
+    assert test_subject in exported_subjects
+    assert test_subject_2 in exported_subjects
+
+
+@pytest.mark.asyncio
+async def test_export_context_bundle(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a context as a ZIP bundle."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context and register schema
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Export context as bundle
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/contexts/{context_name}",
+        json={
+            "format": "bundle",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "attachment" in response.headers["content-disposition"]
+    assert f"{context_name}_export.zip" in response.headers["content-disposition"]
+    
+    # Check that we got a ZIP file
+    zip_content = response.content
+    assert len(zip_content) > 0
+    assert zip_content[:2] == b'PK'  # ZIP file magic number
+
+
+@pytest.mark.asyncio
+async def test_list_exportable_subjects_default_context(client: httpx.AsyncClient, test_subject: str):
+    """Test listing exportable subjects in default context."""
+    # Register a schema in default context
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # List exportable subjects
+    response = await client.get(f"{MCP_SERVER_URL}/export/subjects")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["context"] is None  # Default context
+    assert isinstance(data["subjects"], list)
+    assert data["total_subjects"] > 0
+    
+    # Find our subject
+    subject_found = False
+    for subj in data["subjects"]:
+        if subj["subject"] == test_subject:
+            subject_found = True
+            assert subj["version_count"] == 1
+            assert subj["latest_version"] == 1
+            break
+    
+    assert subject_found, f"Subject {test_subject} not found in export list"
+
+
+@pytest.mark.asyncio
+async def test_list_exportable_subjects_with_context(client: httpx.AsyncClient, test_subject: str):
+    """Test listing exportable subjects in a specific context."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context and register schema
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # List exportable subjects in context
+    response = await client.get(f"{MCP_SERVER_URL}/export/subjects?context={context_name}")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["context"] == context_name
+    assert isinstance(data["subjects"], list)
+    assert data["total_subjects"] > 0
+    
+    # Find our subject
+    subject_found = False
+    for subj in data["subjects"]:
+        if subj["subject"] == test_subject:
+            subject_found = True
+            assert subj["context"] == context_name
+            assert subj["version_count"] == 1
+            assert subj["latest_version"] == 1
+            break
+    
+    assert subject_found, f"Subject {test_subject} not found in context export list"
+
+
+@pytest.mark.asyncio
+async def test_export_global_json(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting all schemas globally in JSON format."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Register schema in default context
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Create context and register schema there too
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": f"{test_subject}-context",
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO",
+            "context": context_name
+        }
+    )
+    
+    # Export everything globally
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/global",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert "exported_at" in data
+    assert "contexts" in data
+    assert "default_context" in data
+    
+    # Should have our created context
+    context_names = [ctx["context"] for ctx in data["contexts"]]
+    assert context_name in context_names
+    
+    # Default context should have our default schema
+    default_subjects = [subj["subject"] for subj in data["default_context"]["subjects"]]
+    assert test_subject in default_subjects
+
+
+@pytest.mark.asyncio
+async def test_export_global_bundle(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting all schemas globally as a ZIP bundle."""
+    # Register a schema in default context
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export everything as bundle
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/global",
+        json={
+            "format": "bundle",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "attachment" in response.headers["content-disposition"]
+    assert "schema_registry_export_" in response.headers["content-disposition"]
+    
+    # Check that we got a ZIP file
+    zip_content = response.content
+    assert len(zip_content) > 0
+    assert zip_content[:2] == b'PK'  # ZIP file magic number
+
+
+@pytest.mark.asyncio
+async def test_export_schema_specific_version(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a specific version of a schema."""
+    # Register multiple versions
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export version 1 specifically
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?version=1")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["subject"] == test_subject
+    assert data["version"] == 1
+    
+    # The schema should be the V1 schema (no email field)
+    import json
+    schema_obj = json.loads(data["schema"])
+    field_names = [field["name"] for field in schema_obj["fields"]]
+    assert "id" in field_names
+    assert "name" in field_names
+    assert "email" not in field_names  # V1 doesn't have email
+
+
+@pytest.mark.asyncio
+async def test_export_subject_specific_version(client: httpx.AsyncClient, test_subject: str):
+    """Test exporting a specific version using subject export."""
+    # Register multiple versions
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V2,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export version 2 specifically
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/subjects/{test_subject}",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "2"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["subject"] == test_subject
+    assert len(data["versions"]) == 1
+    assert data["versions"][0]["version"] == 2
+    
+    # The schema should be the V2 schema (has email field)
+    import json
+    schema_obj = json.loads(data["versions"][0]["schema"])
+    field_names = [field["name"] for field in schema_obj["fields"]]
+    assert "id" in field_names
+    assert "name" in field_names
+    assert "email" in field_names  # V2 has email
+
+
+@pytest.mark.asyncio
+async def test_export_nonexistent_schema(client: httpx.AsyncClient):
+    """Test exporting a non-existent schema."""
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/non-existent-subject")
+    assert response.status_code == 500  # Should fail with server error
+
+
+@pytest.mark.asyncio
+async def test_export_nonexistent_context(client: httpx.AsyncClient):
+    """Test exporting from a non-existent context."""
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/contexts/non-existent-context",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    assert response.status_code == 200  # Should handle gracefully
+    data = response.json()
+    assert data["context"] == "non-existent-context"
+    assert data["subjects"] == []  # Should be empty
+
+
+@pytest.mark.asyncio
+async def test_export_metadata_inclusion(client: httpx.AsyncClient, test_subject: str):
+    """Test that export metadata is properly included."""
+    # Register a schema
+    await client.post(
+        f"{MCP_SERVER_URL}/schemas",
+        json={
+            "subject": test_subject,
+            "schema": AVRO_SCHEMA_V1,
+            "schemaType": "AVRO"
+        }
+    )
+    
+    # Export with metadata
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=true")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "metadata" in data
+    assert "exported_at" in data["metadata"]
+    assert "registry_url" in data["metadata"]
+    assert data["metadata"]["registry_url"] == SCHEMA_REGISTRY_URL
+    
+    # Export without metadata
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=false")
+    assert response.status_code == 200
+    
+    data = response.json()
+    # Metadata should still be present as it's part of the model, but might be minimal
+    assert "metadata" in data
+
+
+# Performance and Edge Case Tests
+@pytest.mark.asyncio
+async def test_export_large_context(client: httpx.AsyncClient):
+    """Test exporting a context with multiple subjects and versions."""
+    import uuid
+    context_name = f"test-context-{uuid.uuid4().hex[:8]}"
+    
+    # Create context
+    await client.post(f"{MCP_SERVER_URL}/contexts/{context_name}")
+    
+    # Register multiple subjects with multiple versions
+    subjects = [f"subject-{i}" for i in range(5)]
+    for subject in subjects:
+        # Register 2 versions for each subject
+        await client.post(
+            f"{MCP_SERVER_URL}/schemas",
+            json={
+                "subject": subject,
+                "schema": AVRO_SCHEMA_V1,
+                "schemaType": "AVRO",
+                "context": context_name
+            }
+        )
+        
+        await client.post(
+            f"{MCP_SERVER_URL}/schemas",
+            json={
+                "subject": subject,
+                "schema": AVRO_SCHEMA_V2,
+                "schemaType": "AVRO",
+                "context": context_name
+            }
+        )
+    
+    # Export the entire context
+    response = await client.post(
+        f"{MCP_SERVER_URL}/export/contexts/{context_name}",
+        json={
+            "format": "json",
+            "include_metadata": True,
+            "include_config": True,
+            "include_versions": "all"
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["context"] == context_name
+    assert len(data["subjects"]) >= 5  # Should have at least our 5 subjects
+    
+    # Each subject should have 2 versions
+    for subject_export in data["subjects"]:
+        if subject_export["subject"] in subjects:
+            assert len(subject_export["versions"]) == 2 

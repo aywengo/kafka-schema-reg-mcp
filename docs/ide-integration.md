@@ -1,6 +1,6 @@
 # IDE & AI Assistant Integration Guide
 
-This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server with popular development environments and AI-powered coding assistants.
+This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server v1.3.0 with popular development environments and AI-powered coding assistants, including export functionality testing and automation.
 
 ## 🔵 VS Code Integration
 
@@ -149,6 +149,75 @@ Accept: application/json
 ### Delete Subject
 DELETE {{mcpServer}}/subjects/user-value?context={{context}}
 Accept: application/json
+
+### === EXPORT FUNCTIONALITY TESTING (v1.3.0) ===
+
+### Export Single Schema as JSON
+GET {{mcpServer}}/export/schemas/user-value?context={{context}}&format=json
+Accept: application/json
+
+### Export Single Schema as Avro IDL
+GET {{mcpServer}}/export/schemas/user-value?context={{context}}&format=avro_idl
+Accept: text/plain
+
+### Export Subject (All Versions)
+POST {{mcpServer}}/export/subjects/user-value?context={{context}}
+Content-Type: application/json
+
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+
+### Export Context as JSON
+POST {{mcpServer}}/export/contexts/{{context}}
+Content-Type: application/json
+
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+
+### Export Context as ZIP Bundle
+POST {{mcpServer}}/export/contexts/{{context}}
+Content-Type: application/json
+
+{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+
+### Export Global Registry
+POST {{mcpServer}}/export/global
+Content-Type: application/json
+
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+
+### List Exportable Subjects
+GET {{mcpServer}}/export/subjects?context={{context}}
+Accept: application/json
+
+### Generate Documentation Export
+POST {{mcpServer}}/export/contexts/{{context}}
+Content-Type: application/json
+
+{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": false,
+    "include_versions": "latest"
+}
 ```
 
 ### Debug Configuration
@@ -261,6 +330,38 @@ Create `.vscode/tasks.json` for automated workflows:
             "label": "Rebuild MCP Server",
             "type": "shell",
             "command": "docker-compose build --no-cache mcp-server && docker-compose restart mcp-server",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Test Export Functionality",
+            "type": "shell",
+            "command": "pytest tests/test_integration.py -k export -v",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "panel": "new"
+            },
+            "dependsOn": "Start Services"
+        },
+        {
+            "label": "Generate Schema Documentation",
+            "type": "shell",
+            "command": "mkdir -p docs/exports && curl -X POST http://localhost:38000/export/global -H 'Content-Type: application/json' -d '{\"format\": \"bundle\", \"include_metadata\": true, \"include_config\": true, \"include_versions\": \"all\"}' --output docs/exports/schema_docs_$(date +%Y%m%d).zip",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "Export Production Backup",
+            "type": "shell",
+            "command": "mkdir -p backups && curl -X POST http://localhost:38000/export/contexts/production -H 'Content-Type: application/json' -d '{\"format\": \"bundle\", \"include_metadata\": true, \"include_config\": true, \"include_versions\": \"all\"}' --output backups/production_backup_$(date +%Y%m%d_%H%M%S).zip",
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -406,20 +507,56 @@ Requirements:
 3. Compliance-specific schema variants
 4. Shared schemas for cross-team integration
 5. Clear promotion workflow
+6. Automated backup and export strategy
 
 Using the MCP server endpoints:
 - Context management: /contexts
 - Schema operations: /schemas
 - Subject listing: /subjects
+- Export capabilities: /export/*
 
 Please provide:
 1. Recommended context naming strategy
 2. Context creation commands
 3. Schema governance policies
 4. Promotion workflow design
-5. Example implementations for 2-3 teams
+5. Export and backup strategies
+6. Example implementations for 2-3 teams
 
 Be specific and provide actual curl commands and context names.
+
+EXPORT STRATEGY PROMPT:
+
+Design a comprehensive export and backup strategy for our schema registry:
+
+Current needs:
+- Daily automated backups
+- Environment-specific exports for promotion
+- Documentation generation for developer onboarding
+- Compliance reporting (quarterly GDPR, SOX audits)
+- Disaster recovery capabilities
+
+Using the v1.3.0 export endpoints:
+- Single schema: GET /export/schemas/{subject}
+- Subject export: POST /export/subjects/{subject}
+- Context export: POST /export/contexts/{context}
+- Global export: POST /export/global
+- Subject listing: GET /export/subjects
+
+Export formats available:
+- JSON: Structured data with metadata
+- Avro IDL: Human-readable documentation
+- ZIP Bundle: Organized file packages
+
+Please provide:
+1. Automated backup script design
+2. Documentation generation workflow
+3. Environment promotion export strategy
+4. Compliance reporting automation
+5. Disaster recovery export procedures
+6. Storage and retention policies
+
+Include specific curl commands and script examples.
 ```
 
 ### Integration Patterns
@@ -447,6 +584,18 @@ Be specific and provide actual curl commands and context names.
 - Create test data generators
 - Build migration scripts
 - Generate documentation
+
+#### 5. **Export and Backup Automation**
+- Automated backup script generation
+- Documentation export workflows
+- Environment promotion pipelines
+- Compliance reporting automation
+
+#### 6. **Schema Documentation Generator**
+- Convert JSON schemas to human-readable Avro IDL
+- Generate comprehensive API documentation
+- Create developer onboarding materials
+- Build schema evolution guides
 
 ---
 
@@ -534,6 +683,42 @@ Create `.cursor/commands.json`:
                 "check_target_compatibility",
                 "execute_promotion",
                 "verify_deployment"
+            ]
+        },
+        {
+            "name": "schema:export",
+            "description": "Export schemas with AI-assisted format selection",
+            "ai_enhanced": true,
+            "workflow": [
+                "analyze_export_requirements",
+                "select_optimal_format",
+                "generate_export_request",
+                "execute_export",
+                "validate_export_integrity"
+            ]
+        },
+        {
+            "name": "schema:backup",
+            "description": "Generate automated backup with AI optimization",
+            "ai_enhanced": true,
+            "workflow": [
+                "assess_backup_scope",
+                "optimize_backup_strategy",
+                "execute_backup",
+                "verify_backup_integrity",
+                "generate_backup_report"
+            ]
+        },
+        {
+            "name": "schema:document",
+            "description": "Generate comprehensive schema documentation",
+            "ai_enhanced": true,
+            "workflow": [
+                "analyze_schema_complexity",
+                "select_documentation_format",
+                "generate_human_readable_docs",
+                "create_developer_guides",
+                "validate_documentation_completeness"
             ]
         }
     ]
@@ -674,6 +859,66 @@ Add these to your Cursor snippets for rapid development:
             "done"
         ],
         "description": "Query schemas across multiple contexts"
+    },
+    
+    "Export Schema as JSON": {
+        "prefix": "export-schema-json",
+        "body": [
+            "curl -X POST http://localhost:38000/export/subjects/${1:subject-name} \\",
+            "  -H \"Content-Type: application/json\" \\",
+            "  -d '{",
+            "    \"format\": \"json\",",
+            "    \"include_metadata\": true,",
+            "    \"include_config\": true,",
+            "    \"include_versions\": \"${2:all}\"",
+            "  }' --output ${3:export-filename}.json"
+        ],
+        "description": "Export schema subject as JSON"
+    },
+    
+    "Export Context as Bundle": {
+        "prefix": "export-context-bundle",
+        "body": [
+            "curl -X POST http://localhost:38000/export/contexts/${1:context-name} \\",
+            "  -H \"Content-Type: application/json\" \\",
+            "  -d '{",
+            "    \"format\": \"bundle\",",
+            "    \"include_metadata\": true,",
+            "    \"include_config\": true,",
+            "    \"include_versions\": \"all\"",
+            "  }' --output ${2:context-name}_export_$(date +%Y%m%d).zip"
+        ],
+        "description": "Export context as ZIP bundle"
+    },
+    
+    "Global Registry Backup": {
+        "prefix": "global-backup",
+        "body": [
+            "# Complete registry backup",
+            "curl -X POST http://localhost:38000/export/global \\",
+            "  -H \"Content-Type: application/json\" \\",
+            "  -d '{",
+            "    \"format\": \"bundle\",",
+            "    \"include_metadata\": true,",
+            "    \"include_config\": true,",
+            "    \"include_versions\": \"all\"",
+            "  }' --output registry_backup_$(date +%Y%m%d_%H%M%S).zip"
+        ],
+        "description": "Complete registry backup"
+    },
+    
+    "Generate Schema Documentation": {
+        "prefix": "schema-docs",
+        "body": [
+            "# Generate schema documentation",
+            "curl http://localhost:38000/export/schemas/${1:subject-name}?format=avro_idl \\",
+            "  --output docs/${1:subject-name}_schema.avdl",
+            "",
+            "# Generate JSON version for tooling",
+            "curl http://localhost:38000/export/schemas/${1:subject-name}?format=json \\",
+            "  --output docs/${1:subject-name}_schema.json"
+        ],
+        "description": "Generate schema documentation in multiple formats"
     }
 }
 ```

@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server REST API.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v1.3.0 REST API, including comprehensive export capabilities.
 
 ## Base URL
 
@@ -22,6 +22,34 @@ When authentication is enabled, include credentials in requests:
 ```bash
 curl -u username:password http://localhost:38000/...
 ```
+
+---
+
+## 📦 Schema Export Endpoints (New in v1.3.0)
+
+The MCP server provides comprehensive export capabilities with 17 endpoints covering all export scenarios:
+
+### **Export Formats**
+- **JSON**: Structured export with complete metadata and configuration
+- **Avro IDL**: Human-readable schema documentation format
+- **ZIP Bundle**: Packaged exports with organized file structure
+
+### **Export Scopes**
+- **Single Schema**: Export specific schema versions
+- **Subject Export**: All versions of a schema subject with metadata
+- **Context Export**: Complete context with all subjects and configuration
+- **Global Export**: Full registry backup with all contexts
+
+### **Quick Reference**
+| Endpoint | Method | Scope | Formats |
+|----------|--------|-------|---------|
+| `GET /export/schemas/{subject}` | GET | Single schema | JSON, Avro IDL |
+| `POST /export/subjects/{subject}` | POST | Subject (all versions) | JSON |
+| `POST /export/contexts/{context}` | POST | Context (all subjects) | JSON, ZIP Bundle |
+| `POST /export/global` | POST | Global (all contexts) | JSON, ZIP Bundle |
+| `GET /export/subjects` | GET | Subject listing | JSON |
+
+See the [Export Endpoints](#export-endpoints) section below for detailed documentation.
 
 ---
 
@@ -1075,4 +1103,422 @@ done
 
 ---
 
-This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server. Use this as a reference when building integrations or working with the server programmatically. 
+## Export Endpoints
+
+### Export Single Schema
+
+#### GET `/export/schemas/{subject}`
+
+Export a single schema version with optional format conversion.
+
+**Parameters:**
+- `subject` (path): Schema subject name
+- `version` (query, optional): Schema version (default: "latest")
+- `context` (query, optional): Schema context
+- `format` (query, optional): Export format ("json" or "avro_idl", default: "json")
+- `include_metadata` (query, optional): Include export metadata (default: true)
+
+**Response (JSON format):**
+```json
+{
+    "subject": "user-events",
+    "version": 1,
+    "id": 123,
+    "schema": "{\"type\":\"record\",\"name\":\"UserEvent\",...}",
+    "schemaType": "AVRO",
+    "metadata": {
+        "exported_at": "2024-01-15T10:30:00Z",
+        "registry_url": "http://localhost:38081",
+        "context": "production"
+    }
+}
+```
+
+**Response (Avro IDL format):**
+```idl
+/**
+ * Schema for user-events
+ * Generated from Schema Registry subject: user-events
+ */
+@namespace("com.example.events")
+protocol UserEventProtocol {
+
+record UserEvent {
+  string userId;
+  string eventType;
+  long timestamp;
+}
+
+}
+```
+
+**Examples:**
+```bash
+# Export latest schema as JSON
+curl http://localhost:38000/export/schemas/user-events
+
+# Export specific version as Avro IDL
+curl http://localhost:38000/export/schemas/user-events?version=2&format=avro_idl
+
+# Export from production context
+curl http://localhost:38000/export/schemas/user-events?context=production&format=json
+```
+
+### Export Subject (All Versions)
+
+#### POST `/export/subjects/{subject}`
+
+Export all versions of a schema subject with comprehensive metadata.
+
+**Parameters:**
+- `subject` (path): Schema subject name
+- `context` (query, optional): Schema context
+
+**Request Body:**
+```json
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+```
+
+**Request Options:**
+- `format`: Export format ("json" only for subject exports)
+- `include_metadata`: Include export metadata and timestamps
+- `include_config`: Include subject-specific configuration
+- `include_versions`: Version selection ("all", "latest", or specific version number)
+
+**Response:**
+```json
+{
+    "subject": "user-events",
+    "versions": [
+        {
+            "subject": "user-events",
+            "version": 1,
+            "id": 123,
+            "schema": "{\"type\":\"record\",...}",
+            "schemaType": "AVRO",
+            "metadata": {
+                "exported_at": "2024-01-15T10:30:00Z",
+                "registry_url": "http://localhost:38081",
+                "context": "production"
+            }
+        }
+    ],
+    "config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+**Examples:**
+```bash
+# Export all versions
+curl -X POST http://localhost:38000/export/subjects/user-events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Export only latest version
+curl -X POST http://localhost:38000/export/subjects/user-events \
+  -H "Content-Type: application/json" \
+  -d '{"include_versions": "latest"}'
+```
+
+### Export Context (All Subjects)
+
+#### POST `/export/contexts/{context}`
+
+Export all schemas, configuration, and metadata for a specific context.
+
+**Parameters:**
+- `context` (path): Context name
+
+**Request Body:**
+```json
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+```
+
+**Request Options:**
+- `format`: Export format ("json" or "bundle")
+- `include_metadata`: Include export metadata
+- `include_config`: Include context configuration
+- `include_versions`: Version selection for all subjects
+
+**Response (JSON format):**
+```json
+{
+    "context": "production",
+    "exported_at": "2024-01-15T10:30:00Z",
+    "subjects": [
+        {
+            "subject": "user-events",
+            "versions": [...],
+            "config": {...},
+            "mode": {...}
+        }
+    ],
+    "global_config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "global_mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+**Response (Bundle format):**
+ZIP file containing:
+```
+production/
+├── metadata.json              # Context metadata
+├── subjects/
+│   ├── user-events/
+│   │   ├── metadata.json      # Subject metadata
+│   │   ├── v1.json           # Schema version 1
+│   │   ├── v1.avdl           # Avro IDL version 1
+│   │   └── v2.json           # Schema version 2
+│   └── order-events/
+│       ├── metadata.json
+│       └── v1.json
+```
+
+**Examples:**
+```bash
+# Export context as JSON
+curl -X POST http://localhost:38000/export/contexts/production \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Export context as ZIP bundle
+curl -X POST http://localhost:38000/export/contexts/production \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output production_export.zip
+```
+
+### Export Global (Complete Registry)
+
+#### POST `/export/global`
+
+Export the complete schema registry including all contexts and global configuration.
+
+**Request Body:**
+```json
+{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+}
+```
+
+**Response (JSON format):**
+```json
+{
+    "exported_at": "2024-01-15T10:30:00Z",
+    "contexts": [
+        {
+            "context": "production",
+            "exported_at": "2024-01-15T10:30:00Z",
+            "subjects": [...],
+            "global_config": {...},
+            "global_mode": {...}
+        }
+    ],
+    "default_context": {
+        "context": "",
+        "subjects": [...],
+        "global_config": {...},
+        "global_mode": {...}
+    },
+    "global_config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "global_mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+**Response (Bundle format):**
+```
+schema_registry_export_20240115_103000.zip
+├── global_metadata.json       # Global export metadata
+├── contexts/
+│   ├── production/
+│   │   ├── metadata.json
+│   │   └── subjects/
+│   │       └── user-events/...
+│   ├── staging/
+│   │   ├── metadata.json
+│   │   └── subjects/...
+│   └── default/               # Default context
+│       ├── metadata.json
+│       └── subjects/...
+```
+
+**Examples:**
+```bash
+# Complete registry export as JSON
+curl -X POST http://localhost:38000/export/global \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Complete registry backup as ZIP
+curl -X POST http://localhost:38000/export/global \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output complete_backup_$(date +%Y%m%d).zip
+```
+
+### List Exportable Subjects
+
+#### GET `/export/subjects`
+
+List all subjects available for export with metadata.
+
+**Parameters:**
+- `context` (query, optional): Filter by context
+
+**Response:**
+```json
+{
+    "context": "production",
+    "subjects": [
+        {
+            "subject": "user-events",
+            "full_subject": ":.production:user-events",
+            "version_count": 3,
+            "latest_version": 3,
+            "context": "production"
+        }
+    ],
+    "total_subjects": 1
+}
+```
+
+**Examples:**
+```bash
+# List all exportable subjects
+curl http://localhost:38000/export/subjects
+
+# List subjects in specific context
+curl http://localhost:38000/export/subjects?context=production
+```
+
+---
+
+## Export Data Models
+
+### ExportRequest
+
+```json
+{
+    "format": "json|bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all|latest|<version_number>"
+}
+```
+
+### ExportedSchema
+
+```json
+{
+    "subject": "string",
+    "version": 1,
+    "id": 123,
+    "schema": "string",
+    "schemaType": "AVRO",
+    "metadata": {
+        "exported_at": "2024-01-15T10:30:00Z",
+        "registry_url": "http://localhost:38081",
+        "context": "production"
+    }
+}
+```
+
+### SubjectExport
+
+```json
+{
+    "subject": "string",
+    "versions": [ExportedSchema],
+    "config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+### ContextExport
+
+```json
+{
+    "context": "string",
+    "exported_at": "2024-01-15T10:30:00Z",
+    "subjects": [SubjectExport],
+    "global_config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "global_mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+### GlobalExport
+
+```json
+{
+    "exported_at": "2024-01-15T10:30:00Z",
+    "contexts": [ContextExport],
+    "default_context": ContextExport,
+    "global_config": {
+        "compatibilityLevel": "BACKWARD"
+    },
+    "global_mode": {
+        "mode": "READWRITE"
+    }
+}
+```
+
+---
+
+This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v1.3.0. Use this as a reference when building integrations or working with the server programmatically. 

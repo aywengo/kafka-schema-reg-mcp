@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server, from local development to production environments.
+This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v1.3.0, from local development to production environments, including export infrastructure and backup strategies.
 
 ## 🐳 Docker Deployment
 
@@ -942,4 +942,280 @@ echo "✅ All health checks passed"
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server across various environments, from local development to production-ready cloud deployments with proper security, monitoring, and scaling configurations. 
+## 📦 Export Infrastructure & Backup Strategies
+
+### Export Storage Configuration
+
+For production deployments, configure dedicated storage for schema exports and backups:
+
+```yaml
+# k8s/export-storage.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: schema-export-storage
+  namespace: kafka-schema-registry
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+
+---
+# Mount export storage in MCP server deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: mcp-server
+        volumeMounts:
+        - name: export-storage
+          mountPath: /exports
+        env:
+        - name: EXPORT_STORAGE_PATH
+          value: "/exports"
+      volumes:
+      - name: export-storage
+        persistentVolumeClaim:
+          claimName: schema-export-storage
+```
+
+### Automated Backup CronJob
+
+```yaml
+# k8s/backup-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: schema-registry-backup
+  namespace: kafka-schema-registry
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: curlimages/curl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              DATE=$(date +%Y%m%d_%H%M%S)
+              echo "Starting backup at $DATE"
+              
+              # Global backup
+              curl -X POST http://mcp-server-service:8000/export/global \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "format": "bundle",
+                  "include_metadata": true,
+                  "include_config": true,
+                  "include_versions": "all"
+                }' --output /backups/global_backup_$DATE.zip
+              
+              # Production context backup
+              curl -X POST http://mcp-server-service:8000/export/contexts/production \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "format": "json",
+                  "include_metadata": true,
+                  "include_config": true,
+                  "include_versions": "all"
+                }' --output /backups/production_backup_$DATE.json
+              
+              echo "Backup completed: $DATE"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: schema-export-storage
+          restartPolicy: OnFailure
+```
+
+### Export Performance Optimization
+
+For high-volume registries, configure export performance:
+
+```yaml
+# Production MCP server with export optimization
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: mcp-server
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"      # Increased for large exports
+            cpu: "1000m"
+        env:
+        - name: EXPORT_CHUNK_SIZE
+          value: "1000"        # Process exports in chunks
+        - name: EXPORT_TIMEOUT
+          value: "600"         # 10 minute timeout for large exports
+        - name: EXPORT_COMPRESSION_LEVEL
+          value: "6"           # Balance between speed and compression
+```
+
+### Cloud Storage Integration
+
+#### AWS S3 Integration
+
+```yaml
+# Export with S3 storage
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: schema-backup-s3
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: s3-backup-service-account
+          containers:
+          - name: s3-backup
+            image: amazon/aws-cli:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              DATE=$(date +%Y%m%d_%H%M%S)
+              
+              # Export to local file
+              curl -X POST http://mcp-server-service:8000/export/global \
+                -H "Content-Type: application/json" \
+                -d '{"format": "bundle", "include_metadata": true, "include_config": true, "include_versions": "all"}' \
+                --output /tmp/backup_$DATE.zip
+              
+              # Upload to S3
+              aws s3 cp /tmp/backup_$DATE.zip s3://schema-registry-backups/daily/
+              
+              # Cleanup old backups (keep 30 days)
+              aws s3 ls s3://schema-registry-backups/daily/ | \
+                awk '$1 < "'$(date -d '30 days ago' '+%Y-%m-%d')'" {print $4}' | \
+                xargs -I {} aws s3 rm s3://schema-registry-backups/daily/{}
+```
+
+#### Azure Blob Storage
+
+```yaml
+# Export with Azure Blob storage
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: schema-backup-azure
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: azure-backup
+            image: mcr.microsoft.com/azure-cli:latest
+            env:
+            - name: AZURE_STORAGE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage-secret
+                  key: account
+            - name: AZURE_STORAGE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: azure-storage-secret
+                  key: key
+            command:
+            - /bin/bash
+            - -c
+            - |
+              DATE=$(date +%Y%m%d_%H%M%S)
+              
+              # Export schemas
+              curl -X POST http://mcp-server-service:8000/export/global \
+                -H "Content-Type: application/json" \
+                -d '{"format": "bundle", "include_metadata": true, "include_config": true, "include_versions": "all"}' \
+                --output /tmp/backup_$DATE.zip
+              
+              # Upload to Azure Blob
+              az storage blob upload \
+                --container-name schema-backups \
+                --file /tmp/backup_$DATE.zip \
+                --name daily/backup_$DATE.zip
+```
+
+### Export Monitoring & Alerting
+
+```yaml
+# ServiceMonitor for export metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mcp-export-metrics
+spec:
+  selector:
+    matchLabels:
+      app: mcp-server
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+
+---
+# PrometheusRule for export alerting
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: schema-export-alerts
+spec:
+  groups:
+  - name: schema.export
+    rules:
+    - alert: ExportJobFailed
+      expr: increase(mcp_export_failures_total[1h]) > 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Schema export job failed"
+        description: "Export job has failed {{ $value }} times in the last hour"
+    
+    - alert: ExportDurationHigh
+      expr: histogram_quantile(0.95, rate(mcp_export_duration_seconds_bucket[5m])) > 300
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Schema export taking too long"
+        description: "95th percentile export duration is {{ $value }} seconds"
+    
+    - alert: BackupJobMissing
+      expr: time() - schema_registry_last_backup_timestamp > 86400
+      for: 1h
+      labels:
+        severity: critical
+      annotations:
+        summary: "Schema registry backup is overdue"
+        description: "Last backup was {{ $value }} seconds ago (>24h)"
+```
+
+---
+
+This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v1.3.0 across various environments, from local development to production-ready cloud deployments with proper security, monitoring, scaling configurations, and comprehensive export infrastructure. 

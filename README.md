@@ -1,6 +1,6 @@
-# Kafka Schema Registry MCP Server
+# Kafka Schema Registry MCP Server v1.3.0
 
-A comprehensive Message Control Protocol (MCP) server that provides a REST API interface for Kafka Schema Registry operations, including advanced **Schema Context** support for logical schema grouping and management, **Configuration Management** for compatibility settings, and **Mode Control** for operational state management.
+A comprehensive Message Control Protocol (MCP) server that provides a REST API interface for Kafka Schema Registry operations, including advanced **Schema Context** support for logical schema grouping and management, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
 
 ## ✨ Features
 
@@ -8,6 +8,7 @@ A comprehensive Message Control Protocol (MCP) server that provides a REST API i
 - **Schema Contexts**: Logical grouping with separate "sub-registries" 
 - **Configuration Management**: Control compatibility levels globally and per-subject
 - **Mode Control**: Manage operational states (READWRITE, READONLY, IMPORT)
+- **Schema Export**: Comprehensive export capabilities with JSON, Avro IDL, and ZIP bundle formats
 - **Version Control**: Handle multiple schema versions with compatibility checking
 - **Authentication Support**: Optional basic authentication for Schema Registry
 - **Compatibility Testing**: Verify schema evolution compatibility
@@ -24,6 +25,7 @@ A comprehensive Message Control Protocol (MCP) server that provides a REST API i
 - **Context-Aware Operations**: All endpoints support optional context parameters
 - **Flexible Context Specification**: Context via request body or query parameters
 - **Enterprise-Ready Configuration**: Granular control over compatibility and operational modes
+- **Multi-Format Export**: JSON, Avro IDL, and ZIP bundle export formats
 
 ## 🚀 Quick Start
 
@@ -265,6 +267,200 @@ curl -X PUT http://localhost:38000/mode/user-value \
   -d '{"mode": "READONLY"}'
 ```
 
+### Schema Export
+
+#### Export Single Schema
+```bash
+GET /export/schemas/{subject}?version=latest&context={context}&format={format}
+```
+```bash
+# Export latest schema as JSON
+curl http://localhost:38000/export/schemas/user-value
+
+# Export specific version as Avro IDL
+curl http://localhost:38000/export/schemas/user-value?version=2&format=avro_idl
+
+# Export from specific context
+curl http://localhost:38000/export/schemas/user-value?context=production&format=json
+```
+
+#### Export Subject (All Versions)
+```bash
+POST /export/subjects/{subject}?context={context}
+```
+```bash
+curl -X POST http://localhost:38000/export/subjects/user-value \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Export only latest version
+curl -X POST http://localhost:38000/export/subjects/user-value \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_versions": "latest"
+  }'
+```
+
+#### Export Context (All Subjects)
+```bash
+POST /export/contexts/{context}
+```
+```bash
+# Export context as JSON
+curl -X POST http://localhost:38000/export/contexts/production \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Export context as ZIP bundle
+curl -X POST http://localhost:38000/export/contexts/production \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output production_export.zip
+```
+
+#### Export Global (All Contexts)
+```bash
+POST /export/global
+```
+```bash
+# Export everything as JSON
+curl -X POST http://localhost:38000/export/global \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }'
+
+# Export everything as comprehensive ZIP bundle
+curl -X POST http://localhost:38000/export/global \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output complete_registry_export.zip
+```
+
+#### List Exportable Subjects
+```bash
+GET /export/subjects?context={context}
+```
+```bash
+# List all exportable subjects in default context
+curl http://localhost:38000/export/subjects
+
+# List exportable subjects in specific context
+curl http://localhost:38000/export/subjects?context=production
+```
+
+## 📦 Schema Export Features
+
+The Schema Export functionality provides comprehensive capabilities for backing up, migrating, and documenting your schema registry:
+
+### **Export Formats**
+- **JSON**: Structured export with complete metadata
+- **Avro IDL**: Human-readable schema documentation
+- **ZIP Bundle**: Packaged exports with organized file structure
+
+### **Export Scopes**
+- **Single Schema**: Export specific schema versions
+- **Subject Export**: All versions of a schema subject
+- **Context Export**: All schemas within a context
+- **Global Export**: Complete registry backup
+
+### **Export Options**
+- **Version Control**: Export all versions, latest only, or specific versions
+- **Metadata Inclusion**: Export timestamps, registry URLs, and context information
+- **Configuration Export**: Include compatibility settings and operational modes
+- **Flexible Filtering**: Context-aware exports with granular control
+
+### **Use Cases**
+- **🔄 Migration**: Move schemas between environments or registries
+- **💾 Backup**: Regular backups of schema registry state
+- **📋 Documentation**: Generate human-readable schema documentation
+- **🔍 Auditing**: Export for compliance and schema governance
+- **🧪 Testing**: Create test datasets with schema versions
+- **📊 Analysis**: Schema evolution analysis and reporting
+
+### **Export Endpoints Quick Reference**
+
+| Endpoint | Method | Description | Output Format |
+|----------|--------|-------------|---------------|
+| `/export/schemas/{subject}` | GET | Export single schema | JSON, Avro IDL |
+| `/export/subjects/{subject}` | POST | Export all versions of subject | JSON |
+| `/export/contexts/{context}` | POST | Export entire context | JSON, ZIP Bundle |
+| `/export/global` | POST | Export complete registry | JSON, ZIP Bundle |
+| `/export/subjects` | GET | List exportable subjects | JSON |
+
+### **Advanced Export Examples**
+
+#### Backup Production Environment
+```bash
+# Export entire production context as ZIP bundle
+curl -X POST http://localhost:38000/export/contexts/production \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "bundle",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output production_backup_$(date +%Y%m%d).zip
+```
+
+#### Generate Schema Documentation
+```bash
+# Export all schemas as Avro IDL for documentation
+curl http://localhost:38000/export/schemas/user-events?format=avro_idl \
+  --output user-events-schema.avdl
+
+# Export specific version for historical documentation
+curl http://localhost:38000/export/schemas/user-events?version=3&format=avro_idl \
+  --output user-events-v3-schema.avdl
+```
+
+#### Migration Between Environments
+```bash
+# 1. Export from staging
+curl -X POST http://localhost:38000/export/contexts/staging \
+  -d '{"format": "json", "include_versions": "latest"}' \
+  --output staging_schemas.json
+
+# 2. Process and import to production (external tooling)
+# 3. Verify with specific version exports
+curl http://localhost:38000/export/schemas/user-events?context=production&version=latest
+```
+
+#### Schema Governance and Auditing
+```bash
+# Export with full metadata for compliance
+curl -X POST http://localhost:38000/export/global \
+  -H "Content-Type: application/json" \
+  -d '{
+    "format": "json",
+    "include_metadata": true,
+    "include_config": true,
+    "include_versions": "all"
+  }' --output compliance_export_$(date +%Y%m%d_%H%M%S).json
+```
+
 ## 🎯 Schema Context Benefits
 
 Schema Contexts provide powerful capabilities for enterprise schema management:
@@ -338,6 +534,9 @@ docker-compose restart mcp-server
 - ✅ **Configuration Management**: Global and subject-level compatibility settings
 - ✅ **Mode Control**: Operational state management (READWRITE, READONLY, IMPORT)
 - ✅ **Context-Aware Config/Mode**: Configuration and mode settings per context
+- ✅ **Schema Export**: Single schemas, subjects, contexts, and global exports (17 export tests)
+- ✅ **Export Formats**: JSON, Avro IDL, and ZIP bundle formats with metadata
+- ✅ **Export Validation**: Content verification, format validation, and metadata inclusion
 - ✅ **Compatibility Checking**: Both default and context-aware
 - ✅ **Error Handling**: Invalid schemas, missing subjects, invalid config/mode
 - ✅ **Authentication**: Optional auth support
@@ -359,6 +558,10 @@ curl -X POST http://localhost:38000/schemas \
 # Verify context isolation
 curl http://localhost:38000/subjects?context=test-env
 curl http://localhost:38000/subjects  # Default context - should be different
+
+# Test export functionality
+curl http://localhost:38000/export/schemas/test-user?context=test-env&format=json
+curl http://localhost:38000/export/schemas/test-user?context=test-env&format=avro_idl
 ```
 
 ### Configuration & Mode Example
@@ -507,18 +710,27 @@ This MCP server integrates with [Confluent Schema Registry](https://docs.conflue
 
 ## 🎉 Success Metrics
 
-**Latest Test Results**: ✅ **21+ PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
+**Latest Test Results**: ✅ **53 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
 
 This includes comprehensive testing of:
 - ✅ **Core Schema Operations**: Registration, retrieval, versioning, compatibility
 - ✅ **Schema Context Management**: Creation, isolation, context-aware operations  
 - ✅ **Configuration Management**: Global and subject-level compatibility controls
 - ✅ **Mode Control**: Operational state management across contexts
+- ✅ **Schema Export**: All export formats and scopes with comprehensive validation
 - ✅ **Error Handling**: Invalid requests, missing resources, permission checks
 - ✅ **Authentication**: Optional basic auth support
 
-**New in v1.2.0:**
-- 🆕 **Configuration Management**: Complete compatibility level control
-- 🆕 **Mode Management**: Operational state control (READWRITE/READONLY/IMPORT)
-- 🆕 **Context-Aware Config**: Per-context configuration and mode settings
-- 🆕 **Enterprise Governance**: Advanced schema governance capabilities
+**New in v1.3.0:**
+- 🆕 **Schema Export**: Comprehensive export functionality with multiple formats (17 export endpoints)
+- 🆕 **Avro IDL Support**: Export schemas in human-readable Avro IDL format for documentation
+- 🆕 **ZIP Bundle Export**: Package schemas with metadata, configuration, and organized file structure
+- 🆕 **Multi-Scope Export**: Single schema, subject, context, or global exports with granular control
+- 🆕 **Export Metadata**: Comprehensive export tracking with timestamps, URLs, and context information
+- 🆕 **Flexible Versioning**: Export specific versions, latest, or all versions with validation
+- 🆕 **Production-Ready**: 53 passing tests covering all export scenarios and edge cases
+
+**Previous Releases:**
+- **v1.2.0**: Configuration Management, Mode Control, Context-Aware Config/Mode
+- **v1.1.0**: Schema Context Support, Context-Aware Operations  
+- **v1.0.0**: Core Schema Registry MCP functionality
