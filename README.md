@@ -67,7 +67,7 @@ docker-compose up -d
 #### Step 1: Install Dependencies
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/kafka-schema-reg-mcp
+git clone https://github.com/aywengo/kafka-schema-reg-mcp
 cd kafka-schema-reg-mcp
 
 # Install Python dependencies
