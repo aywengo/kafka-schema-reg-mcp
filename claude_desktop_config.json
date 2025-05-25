@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "python",
+      "args": ["kafka_schema_registry_mcp.py"],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": ""
+      }
+    }
+  }
+} 

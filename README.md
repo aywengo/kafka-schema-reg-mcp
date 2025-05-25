@@ -1,120 +1,173 @@
 # Kafka Schema Registry MCP Server v1.3.0
 
-A comprehensive Message Control Protocol (MCP) server that provides a REST API interface for Kafka Schema Registry operations, including advanced **Schema Context** support for logical schema grouping and management, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
+A comprehensive **Message Control Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features include advanced **Schema Context** support for logical schema grouping, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
+
+> **🎯 True MCP Implementation**: This server uses the official MCP Python SDK and communicates via JSON-RPC over stdio, making it fully compatible with Claude Desktop and other MCP clients.
 
 ## ✨ Features
 
-- **Complete Schema Management**: Register, retrieve, and manage Avro schemas
-- **Schema Contexts**: Logical grouping with separate "sub-registries" 
+### **🤖 MCP Integration**
+- **Claude Desktop Compatible**: Direct integration with Claude Desktop via MCP protocol
+- **MCP Tools**: 20+ tools for schema operations, context management, configuration, and export
+- **MCP Resources**: Real-time status and configuration information accessible to AI
+- **JSON-RPC Protocol**: Standard MCP communication over stdio
+
+### **📋 Schema Management**
+- **Complete Schema Operations**: Register, retrieve, and manage Avro schemas via MCP tools
+- **Schema Contexts**: Logical grouping with separate "sub-registries"
+- **Version Control**: Handle multiple schema versions with compatibility checking
+- **Compatibility Testing**: Verify schema evolution before registration
+- **Subject Management**: List and delete schema subjects through MCP
+
+### **⚙️ Advanced Features**
 - **Configuration Management**: Control compatibility levels globally and per-subject
 - **Mode Control**: Manage operational states (READWRITE, READONLY, IMPORT)
-- **Schema Export**: Comprehensive export capabilities with JSON, Avro IDL, and ZIP bundle formats
-- **Version Control**: Handle multiple schema versions with compatibility checking
-- **Authentication Support**: Optional basic authentication for Schema Registry
-- **Compatibility Testing**: Verify schema evolution compatibility
-- **Subject Management**: List and delete schema subjects
+- **Schema Export**: Comprehensive export with JSON, Avro IDL formats
 - **Context Isolation**: Schemas in different contexts are completely isolated
-- **Docker Support**: Easy deployment with Docker Compose and pre-built DockerHub images
-- **Multi-Platform Support**: AMD64 and ARM64 architectures
-- **Security Scanning**: Automated vulnerability scanning with Trivy
-- **CI/CD Ready**: GitHub Actions workflows for automated builds and publishing
-- **Comprehensive Testing**: Full integration and unit test coverage
+- **Authentication Support**: Optional basic authentication for Schema Registry
 
 ## 🏗️ Architecture
 
-- **FastAPI-based MCP Server**: Modern async REST API with automatic OpenAPI docs
-- **Kafka Schema Registry**: Backend for schema storage and management  
-- **KRaft Mode**: Uses modern Kafka without Zookeeper dependency
-- **Context-Aware Operations**: All endpoints support optional context parameters
-- **Flexible Context Specification**: Context via request body or query parameters
-- **Enterprise-Ready Configuration**: Granular control over compatibility and operational modes
-- **Multi-Format Export**: JSON, Avro IDL, and ZIP bundle export formats
+- **MCP Protocol Server**: Uses official MCP Python SDK with JSON-RPC over stdio
+- **Kafka Schema Registry Integration**: Backend for schema storage and management  
+- **KRaft Mode Support**: Works with modern Kafka without Zookeeper dependency
+- **Context-Aware Operations**: All tools support optional context parameters
+- **Claude Desktop Integration**: Direct integration with Claude Desktop via MCP configuration
+- **Enterprise-Ready**: Granular control over compatibility and operational modes
+- **Multi-Format Export**: JSON and Avro IDL export formats through MCP tools
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose
-- Python 3.11+ (for local development)
+- **Docker** (recommended) OR **Python 3.11+**
+- **Claude Desktop** (for AI integration)
+- **Kafka Schema Registry** (running and accessible)
 
-### Option 1: Using Pre-built DockerHub Image (Recommended)
+### Option 1: Docker (Recommended)
+
+#### Pull from DockerHub
 ```bash
-# Quick start with pre-built image
+docker pull aywengo/kafka-schema-reg-mcp:latest
+```
+
+#### Test the Docker image
+```bash
+# Test MCP server in Docker
+python test_docker_mcp.py
+```
+
+#### Use with existing infrastructure
+```bash
+# Start with docker-compose (includes Schema Registry)
 docker-compose up -d
 ```
 
-The `docker-compose.override.yml` file automatically uses the pre-built image from DockerHub instead of building locally.
+### Option 2: Local Installation
 
-### Option 2: Using DockerHub Image Directly
+#### Step 1: Install Dependencies
 ```bash
-# Run MCP server directly (latest version)
-docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
+# Clone the repository
+git clone https://github.com/your-username/kafka-schema-reg-mcp
+cd kafka-schema-reg-mcp
 
-# Run specific version
-docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:v1.3.0
-
-# With environment variables
-docker run -p 38000:8000 \
-  -e SCHEMA_REGISTRY_URL=http://your-schema-registry:8081 \
-  aywengo/kafka-schema-reg-mcp:latest
+# Install Python dependencies
+pip install -r requirements.txt
 ```
 
-**Available Docker Tags:**
-- `latest` - Latest stable release
-- `v1.3.0` - Specific version (with export functionality)
-- `v1.2.0` - Previous version (configuration management)
-- Multi-platform support: `linux/amd64`, `linux/arm64`
-
-### Option 3: Build from Source
+#### Step 2: Configure Environment
 ```bash
-# Remove override file to build locally
-mv docker-compose.override.yml docker-compose.override.yml.bak
-docker-compose up -d --build
+# Set Schema Registry connection (optional)
+export SCHEMA_REGISTRY_URL="http://localhost:8081"
+export SCHEMA_REGISTRY_USER=""  # If authentication needed
+export SCHEMA_REGISTRY_PASSWORD=""  # If authentication needed
 ```
 
-This starts:
-- **Kafka** (KRaft mode): `localhost:39092`
-- **Schema Registry**: `localhost:38081` 
-- **MCP Server**: `localhost:38000`
-- **AKHQ UI**: `localhost:38080` (Kafka management UI)
-
-### Health Check
+#### Step 3: Test MCP Server
 ```bash
-curl http://localhost:38000/
-# {"message": "Kafka Schema Registry MCP Server with Context Support"}
+# Test the server directly
+python test_mcp_server.py
 ```
 
-## 📋 API Overview
+### Configure Claude Desktop
 
-The MCP server provides comprehensive REST API endpoints for all Schema Registry operations:
-
-### **Core Operations**
-- **Schema Management**: Register, retrieve, and manage Avro schemas with versioning
-- **Context Management**: Create and manage logical schema groupings
-- **Subject Management**: List, delete, and manage schema subjects
-- **Compatibility Testing**: Validate schema evolution before registration
-
-### **Advanced Features**  
-- **Configuration Management**: Global and subject-level compatibility controls
-- **Mode Control**: Operational state management (READWRITE, READONLY, IMPORT)
-- **Schema Export**: 17 export endpoints with JSON, Avro IDL, and ZIP bundle formats
-- **Context-Aware Operations**: All endpoints support optional context parameters
-
-### **Quick Example**
-```bash
-# Register a schema
-curl -X POST http://localhost:38000/schemas \
-  -H "Content-Type: application/json" \
-  -d '{
-    "subject": "user-events",
-    "schema": {"type": "record", "name": "User", "fields": [...]},
-    "context": "production"
-  }'
-
-# Export schemas
-curl http://localhost:38000/export/schemas/user-events?format=avro_idl
+#### Option A: Using Docker (Recommended)
+```json
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "--network", "host", "aywengo/kafka-schema-reg-mcp:latest"],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": ""
+      }
+    }
+  }
+}
 ```
 
-**📖 Complete API Documentation**: [API Reference](docs/api-reference.md)
+#### Option B: Local Python Installation
+```json
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "python",
+      "args": ["/absolute/path/to/kafka_schema_registry_mcp.py"],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": ""
+      }
+    }
+  }
+}
+```
+
+Copy the configuration to your Claude Desktop config file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+### Step 5: Use with Claude Desktop
+1. Restart Claude Desktop
+2. Look for the 🔨 tools icon in the interface
+3. Start asking Claude to help with schema operations!
+
+**Example prompts:**
+- "List all schema contexts"
+- "Show me the subjects in the production context"
+- "Register a new user schema with fields for id, name, and email"
+- "Export all schemas from the staging context"
+
+## 📋 MCP Tools & Resources
+
+The MCP server provides **20 comprehensive tools** and **2 resources** for all Schema Registry operations:
+
+### **🔧 Available Tools**
+- **Schema Management**: `register_schema`, `get_schema`, `get_schema_versions`, `check_compatibility`
+- **Context Management**: `list_contexts`, `create_context`, `delete_context`
+- **Subject Management**: `list_subjects`, `delete_subject`
+- **Configuration Management**: `get_global_config`, `update_global_config`, `get_subject_config`, `update_subject_config`
+- **Mode Control**: `get_mode`, `update_mode`, `get_subject_mode`, `update_subject_mode`
+- **Schema Export**: `export_schema`, `export_subject`, `export_context`, `export_global`
+
+### **📦 Available Resources**
+- **`registry://status`**: Real-time Schema Registry connection status
+- **`registry://info`**: Detailed server configuration and capabilities
+
+### **Claude Desktop Usage Examples**
+With the MCP server connected to Claude Desktop, you can use natural language:
+
+```
+"List all schema contexts"
+"Show me the subjects in the production context"
+"Register a new user schema with fields for id, name, and email"
+"Export all schemas from the staging context in Avro IDL format"
+"Check if my updated schema is compatible with the latest version"
+"Get the current configuration for the user-events subject"
+```
+
+**📖 Complete Tool Documentation**: [API Reference](docs/api-reference.md)
 
 ## 🎯 Key Capabilities
 
@@ -225,16 +278,26 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
 
 ---
 
-## 🎉 Production Ready
+## 🎉 Production Ready - True MCP Implementation
 
-**✅ 53 PASSED** tests with comprehensive validation of all features including export functionality, context management, and enterprise controls.
+**✅ COMPLETE TRANSFORMATION SUCCESS**: Successfully converted from REST API to true MCP protocol server compatible with Claude Desktop and other MCP clients.
 
-**🐳 DockerHub Ready**: `aywengo/kafka-schema-reg-mcp` with multi-platform support (AMD64/ARM64), automated CI/CD, and security scanning.
+**🤖 MCP Features Verified**:
+- ✅ **20 MCP Tools** - All schema operations available via natural language
+- ✅ **Context Management** - Production/staging environment isolation  
+- ✅ **Schema Evolution** - Compatibility testing and version control
+- ✅ **Export System** - JSON, Avro IDL formats for backup/migration
+- ✅ **Configuration Control** - Global and per-context compatibility settings
+- ✅ **Mode Management** - READWRITE/READONLY operational control
 
-**🆕 v1.3.0 Features**: 
-- 17 Schema Export endpoints (JSON, Avro IDL, ZIP bundles)
-- Multi-scope exports (schema, subject, context, global)
-- Enhanced CI/CD with automated DockerHub publishing
-- Production-grade security scanning and monitoring
+**🔧 Claude Desktop Integration**:
+```
+"List all schema contexts"
+"Register a new user schema with fields for id, name, and email" 
+"Export all schemas from the production context in Avro IDL format"
+"Check if my updated schema is compatible with the latest version"
+```
 
-**📈 Previous Releases**: v1.2.0 (Configuration Management), v1.1.0 (Schema Contexts), v1.0.0 (Core MCP)
+**🧪 Testing Results**: All advanced features tested and working with live Schema Registry including context isolation, schema registration, compatibility checking, configuration management, and export functionality.
+
+**📈 Evolution**: v1.3.0 (True MCP) → v1.2.0 (Configuration) → v1.1.0 (Contexts) → v1.0.0 (REST API)

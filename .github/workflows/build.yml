@@ -38,22 +38,36 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
 
-      - name: Test Docker image startup
+      - name: Test MCP server Docker image
         run: |
-          # Test that the image runs and responds
-          docker run -d --name test-container -p 8000:8000 kafka-schema-reg-mcp:test
-          sleep 10
+          # Test that the MCP server starts correctly
+          echo "Testing MCP server startup..."
           
-          # Wait for the server to be ready
-          timeout 30 bash -c 'until curl -f http://localhost:8000/; do sleep 1; done'
+          # Run the container briefly to test startup
+          timeout 10s docker run --name test-container kafka-schema-reg-mcp:test &
+          CONTAINER_PID=$!
           
-          # Test the health endpoint
-          response=$(curl -s http://localhost:8000/)
-          echo "Health check response: $response"
+          # Give it time to start
+          sleep 5
+          
+          # Check if container is running
+          if docker ps | grep -q test-container; then
+            echo "✅ MCP server container started successfully"
+          else
+            echo "❌ MCP server container failed to start"
+            docker logs test-container || true
+            exit 1
+          fi
+          
+          # Test that the image contains the correct files
+          docker run --rm kafka-schema-reg-mcp:test ls -la | grep kafka_schema_registry_mcp.py
+          
+          # Test that dependencies are installed
+          docker run --rm kafka-schema-reg-mcp:test python -c "import mcp; print('✅ MCP SDK installed')"
           
           # Cleanup
-          docker stop test-container
-          docker rm test-container
+          docker stop test-container || true
+          docker rm test-container || true
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
