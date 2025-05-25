@@ -1351,4 +1351,193 @@ spec:
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v1.3.0 across various environments, from local development to production-ready cloud deployments with proper security, monitoring, scaling configurations, and comprehensive export infrastructure. 
+## 🤖 Claude Desktop Integration
+
+### MCP Server Configuration
+
+Once your Kafka Schema Registry MCP Server is deployed, configure Claude Desktop for seamless integration.
+
+#### Docker-based Integration (Recommended)
+
+For deployments using Docker, use this Claude Desktop configuration pattern:
+
+```json
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i", "--network", "host",
+        "-e", "SCHEMA_REGISTRY_URL",
+        "-e", "SCHEMA_REGISTRY_USER",
+        "-e", "SCHEMA_REGISTRY_PASSWORD",
+        "aywengo/kafka-schema-reg-mcp:latest"
+      ],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": ""
+      }
+    }
+  }
+}
+```
+
+#### Configuration for Different Environments
+
+**Local Development:**
+```json
+{
+  "env": {
+    "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+    "SCHEMA_REGISTRY_USER": "",
+    "SCHEMA_REGISTRY_PASSWORD": ""
+  }
+}
+```
+
+**Remote Deployment:**
+```json
+{
+  "env": {
+    "SCHEMA_REGISTRY_URL": "https://schema-registry.your-domain.com",
+    "SCHEMA_REGISTRY_USER": "your-username",
+    "SCHEMA_REGISTRY_PASSWORD": "your-password"
+  }
+}
+```
+
+**Production with Authentication:**
+```json
+{
+  "env": {
+    "SCHEMA_REGISTRY_URL": "https://prod-schema-registry.company.com:8081",
+    "SCHEMA_REGISTRY_USER": "${SCHEMA_REGISTRY_PROD_USER}",
+    "SCHEMA_REGISTRY_PASSWORD": "${SCHEMA_REGISTRY_PROD_PASSWORD}"
+  }
+}
+```
+
+### Configuration Best Practices
+
+#### 1. Environment Variable Pattern
+Always use the `-e VARIABLE_NAME` pattern (without values) in args combined with the `env` section:
+
+**✅ Recommended:**
+```json
+{
+  "args": ["-e", "SCHEMA_REGISTRY_URL"],
+  "env": {"SCHEMA_REGISTRY_URL": "http://localhost:8081"}
+}
+```
+
+**❌ Not Recommended:**
+```json
+{
+  "args": ["-e", "SCHEMA_REGISTRY_URL=http://localhost:8081"]
+}
+```
+
+**Benefits:**
+- ✅ **Maintainable**: Configuration values separated from Docker arguments
+- ✅ **Secure**: Environment variables not exposed in process lists
+- ✅ **Flexible**: Easy to change values without modifying args array
+- ✅ **Standard**: Follows Docker and MCP best practices
+
+#### 2. Network Configuration
+
+**Local Development (host network):**
+```json
+{"args": ["--network", "host"]}
+```
+
+**Production (bridge network):**
+```json
+{
+  "args": ["--network", "kafka-network"],
+  "env": {"SCHEMA_REGISTRY_URL": "http://schema-registry:8081"}
+}
+```
+
+#### 3. Security Considerations
+
+**Environment Variables:**
+- Store sensitive credentials in environment variables
+- Use tools like `direnv` for local development
+- Configure proper secret management for production
+
+**Network Isolation:**
+- Use Docker networks for service isolation
+- Consider VPN or SSH tunneling for remote access
+- Implement proper firewall rules
+
+### Claude Desktop Integration Testing
+
+Verify your configuration with these commands:
+
+1. **Test Connection:**
+   ```
+   "Check the status of the Schema Registry connection"
+   ```
+
+2. **List Resources:**
+   ```
+   "List all available schema contexts"
+   ```
+
+3. **Test Schema Operations:**
+   ```
+   "Show me all subjects in the production context"
+   ```
+
+4. **Test Export Functionality:**
+   ```
+   "Export all schemas from the development context in JSON format"
+   ```
+
+### Troubleshooting Claude Desktop Integration
+
+#### Common Issues
+
+1. **Connection Refused:**
+   - Check SCHEMA_REGISTRY_URL is correct
+   - Verify network connectivity with `--network host`
+   - Ensure Schema Registry is running and accessible
+
+2. **Environment Variables Not Working:**
+   - Use `-e VARIABLE_NAME` pattern in args
+   - Define values in `env` section
+   - Restart Claude Desktop after configuration changes
+
+3. **Docker Network Issues:**
+   - For local development, use `--network host`
+   - For containerized Schema Registry, use custom Docker network
+   - Check Docker network connectivity with `docker exec`
+
+4. **Authentication Failures:**
+   - Verify username/password in environment variables
+   - Test credentials directly with curl
+   - Check Schema Registry authentication configuration
+
+#### Debug Commands
+
+```bash
+# Test Docker configuration manually
+docker run --rm -i --network host \
+  -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  aywengo/kafka-schema-reg-mcp:latest \
+  python -c "import os; print(f'URL: {os.getenv(\"SCHEMA_REGISTRY_URL\")}')"
+
+# Test Schema Registry connectivity
+curl -I http://localhost:8081/subjects
+
+# Test MCP server Docker container
+docker run --rm --network host \
+  -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  aywengo/kafka-schema-reg-mcp:latest \
+  python -c "import requests; print(requests.get('http://localhost:8081/subjects').json())"
+```
+
+---
+
+This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v1.3.0 across various environments, from local development to production-ready cloud deployments with proper security, monitoring, scaling configurations, comprehensive export infrastructure, and seamless Claude Desktop integration. 

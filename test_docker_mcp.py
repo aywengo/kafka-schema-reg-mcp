@@ -19,6 +19,7 @@ async def test_docker_mcp_server():
             "--rm", 
             "-i",
             "--network", "host",
+            "-e", "SCHEMA_REGISTRY_URL",
             "kafka-schema-reg-mcp:test"
         ],
         env={

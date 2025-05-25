@@ -96,7 +96,13 @@ python test_mcp_server.py
   "mcpServers": {
     "kafka-schema-registry": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "--network", "host", "aywengo/kafka-schema-reg-mcp:latest"],
+      "args": [
+        "run", "--rm", "-i", "--network", "host",
+        "-e", "SCHEMA_REGISTRY_URL",
+        "-e", "SCHEMA_REGISTRY_USER",
+        "-e", "SCHEMA_REGISTRY_PASSWORD",
+        "aywengo/kafka-schema-reg-mcp:latest"
+      ],
       "env": {
         "SCHEMA_REGISTRY_URL": "http://localhost:8081",
         "SCHEMA_REGISTRY_USER": "",
@@ -127,6 +133,8 @@ python test_mcp_server.py
 Copy the configuration to your Claude Desktop config file:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+> **💡 Configuration Pattern**: The `-e VARIABLE_NAME` pattern (without values) in args combined with the `env` section is the recommended approach. This separates Docker arguments from configuration values, making the setup more maintainable and secure.
 
 ### Step 5: Use with Claude Desktop
 1. Restart Claude Desktop
