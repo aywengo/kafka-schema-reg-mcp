@@ -5,6 +5,10 @@ Kafka Schema Registry MCP Server
 A Message Control Protocol (MCP) server that provides tools for interacting with
 Kafka Schema Registry, including schema management, context operations, configuration
 management, mode control, and comprehensive export functionality.
+
+Safety Features:
+- READONLY mode: Set READONLY=true environment variable to block all modification
+  operations while allowing read and export operations for production safety.
 """
 
 import os
@@ -30,6 +34,7 @@ load_dotenv()
 SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081")
 SCHEMA_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SCHEMA_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
+READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
 
 # Setup authentication
 auth = None
@@ -50,6 +55,16 @@ def build_context_url(base_url: str, context: Optional[str] = None) -> str:
     if context:
         return f"{SCHEMA_REGISTRY_URL}/contexts/{context}{base_url}"
     return f"{SCHEMA_REGISTRY_URL}{base_url}"
+
+def check_readonly_mode() -> Optional[Dict[str, str]]:
+    """Check if the server is in readonly mode and return error if so."""
+    if READONLY:
+        return {
+            "error": "Operation blocked: MCP server is running in READONLY mode. "
+                    "Set READONLY=false to enable modification operations.",
+            "readonly_mode": True
+        }
+    return None
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
 
@@ -72,6 +87,11 @@ def register_schema(
     Returns:
         Dictionary containing the schema ID
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         payload = {
             "schema": json.dumps(schema_definition),
@@ -219,6 +239,11 @@ def create_context(context: str) -> Dict[str, str]:
     Returns:
         Success message
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         response = requests.post(
             f"{SCHEMA_REGISTRY_URL}/contexts/{context}",
@@ -241,6 +266,11 @@ def delete_context(context: str) -> Dict[str, str]:
     Returns:
         Success message
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         response = requests.delete(
             f"{SCHEMA_REGISTRY_URL}/contexts/{context}",
@@ -293,6 +323,11 @@ def delete_subject(
     Returns:
         List of deleted version numbers
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         url = build_context_url(f"/subjects/{subject}", context)
         
@@ -347,6 +382,11 @@ def update_global_config(
     Returns:
         Updated configuration
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         url = build_context_url("/config", context)
         payload = {"compatibility": compatibility}
@@ -407,6 +447,11 @@ def update_subject_config(
     Returns:
         Updated configuration
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         url = build_context_url(f"/config/{subject}", context)
         payload = {"compatibility": compatibility}
@@ -463,6 +508,11 @@ def update_mode(
     Returns:
         Updated mode information
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         url = build_context_url("/mode", context)
         payload = {"mode": mode}
@@ -523,6 +573,11 @@ def update_subject_mode(
     Returns:
         Updated mode information
     """
+    # Check readonly mode
+    readonly_check = check_readonly_mode()
+    if readonly_check:
+        return readonly_check
+    
     try:
         url = build_context_url(f"/mode/{subject}", context)
         payload = {"mode": mode}
@@ -859,13 +914,15 @@ def get_registry_info():
     info = {
         "registry_url": SCHEMA_REGISTRY_URL,
         "authentication_enabled": bool(SCHEMA_REGISTRY_USER and SCHEMA_REGISTRY_PASSWORD),
-        "server_version": "1.3.0",
+        "readonly_mode": READONLY,
+        "server_version": "1.4.0",
         "features": [
-            "Schema Registration",
-            "Context Management", 
-            "Configuration Management",
-            "Mode Control",
-            "Schema Export (JSON, Avro IDL)"
+            "Schema Registration" + (" (READONLY MODE - BLOCKED)" if READONLY else ""),
+            "Context Management" + (" (READONLY MODE - BLOCKED)" if READONLY else ""), 
+            "Configuration Management" + (" (READONLY MODE - BLOCKED)" if READONLY else ""),
+            "Mode Control" + (" (READONLY MODE - BLOCKED)" if READONLY else ""),
+            "Schema Export (JSON, Avro IDL)",
+            "READONLY Mode Protection"
         ]
     }
     return json.dumps(info, indent=2)

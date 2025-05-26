@@ -63,6 +63,7 @@ Production deployment instructions covering:
 - **✅ Claude Desktop Ready**: Seamless AI integration
 - **✅ No Pydantic Warnings**: Clean MCP protocol implementation
 - **✅ Field Name Conflicts Resolved**: `schema` → `schema_definition` parameter updates
+- **✅ Production Safety**: READONLY mode for safe production access
 
 ### **Enhanced Claude Desktop Integration**
 - **Natural Language Commands**: "Register a user schema with fields for id, name, and email"

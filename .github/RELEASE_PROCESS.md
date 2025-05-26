@@ -35,7 +35,7 @@ The GitHub Actions workflows will automatically:
 
 1. **Build Multi-Platform Images**: AMD64 + ARM64
 2. **Security Scan**: Trivy vulnerability scanning
-3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest)
+3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest, stable)
 4. **Update DockerHub Description**: Sync README with repository
 5. **Create GitHub Release**: With Docker pull commands and changelog
 6. **Upload Security Reports**: SARIF files to GitHub Security tab
@@ -45,9 +45,13 @@ The GitHub Actions workflows will automatically:
 After the workflows complete:
 
 ```bash
-# Test DockerHub image
+# Test DockerHub image (specific version)
 docker pull aywengo/kafka-schema-reg-mcp:v1.3.0
 docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:v1.3.0
+
+# Test stable tag
+docker pull aywengo/kafka-schema-reg-mcp:stable
+docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:stable
 
 # Verify health
 curl http://localhost:38000/
@@ -119,6 +123,18 @@ We follow semantic versioning (SemVer):
 - **Major** (v2.0.0): Breaking changes
 - **Minor** (v1.3.0): New features, backward compatible  
 - **Patch** (v1.3.1): Bug fixes, backward compatible
+
+### Docker Tag Strategy
+
+Each release creates multiple Docker tags for flexibility:
+
+- **`v1.3.0`**: Exact version tag
+- **`v1.3`**: Minor version tag (gets updates with patch releases)
+- **`v1`**: Major version tag (gets updates with minor/patch releases)
+- **`latest`**: Always points to the most recent release
+- **`stable`**: Always points to the most recent release (alias for latest)
+
+The `stable` tag provides a semantic alias to `latest` for users who prefer explicit stable naming.
 
 ### Tag Examples
 

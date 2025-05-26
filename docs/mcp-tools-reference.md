@@ -12,6 +12,7 @@ The Kafka Schema Registry MCP Server provides **20 comprehensive MCP tools** tha
 - ✅ **20 MCP Tools**: Complete schema operations without API knowledge
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
+- ✅ **Production Safety**: READONLY mode blocks modifications in production
 
 ### **Tool Categories:**
 - **Schema Management** (4 tools): register, retrieve, versions, compatibility
@@ -699,4 +700,60 @@ Claude: I'll check the Schema Registry status for you.
 
 ---
 
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 20 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation. 
+## 🔒 READONLY Mode (Production Safety)
+
+The MCP server includes a **production safety feature** that can be enabled by setting the `READONLY=true` environment variable. When enabled, all modification operations are blocked while read and export operations remain fully functional.
+
+### **Environment Setup**
+```bash
+# Enable READONLY mode for production safety
+export READONLY=true
+
+# Or in Docker/Claude Desktop
+"env": {
+  "READONLY": "true",
+  "SCHEMA_REGISTRY_URL": "http://localhost:8081"
+}
+```
+
+### **Blocked Operations in READONLY Mode**
+When READONLY mode is enabled, the following tools will return an error:
+- 🚫 `register_schema` - Cannot register new schemas
+- 🚫 `create_context` / `delete_context` - Cannot modify contexts
+- 🚫 `delete_subject` - Cannot delete subjects
+- 🚫 `update_global_config` / `update_subject_config` - Cannot modify configuration
+- 🚫 `update_mode` / `update_subject_mode` - Cannot change operational modes
+
+### **Allowed Operations in READONLY Mode**
+These tools continue to work normally:
+- ✅ All `get_*` tools - Read schema information and configuration
+- ✅ All `list_*` tools - Browse available schemas and contexts
+- ✅ `check_compatibility` - Test schema compatibility (no modifications)
+- ✅ All `export_*` tools - Generate backups and documentation
+
+### **Claude Desktop Usage in READONLY Mode**
+```
+Human: "Register a new user schema with id and name fields"
+
+Claude: I attempted to register the schema, but the operation was blocked because the MCP server is running in READONLY mode for production safety. 
+
+Error: Operation blocked: MCP server is running in READONLY mode. Set READONLY=false to enable modification operations.
+
+However, I can help you with read-only operations like:
+- Viewing existing schemas
+- Checking compatibility
+- Exporting schemas for documentation
+- Browsing contexts and subjects
+
+Would you like me to show you the current schemas instead?
+```
+
+### **Benefits**
+- 🛡️ **Production Safety**: Prevents accidental modifications to critical schemas
+- 📊 **Full Visibility**: Complete read access for monitoring and analysis
+- 📤 **Backup Capability**: All export operations remain available
+- 🔍 **Compatibility Testing**: Can still validate schema changes without applying them
+
+---
+
+This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 20 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 

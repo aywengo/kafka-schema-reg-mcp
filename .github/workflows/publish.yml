@@ -42,6 +42,7 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=stable
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
             org.opencontainers.image.description=True MCP server for Kafka Schema Registry with 20 tools, context support, schema export, and Claude Desktop integration
@@ -114,7 +115,11 @@ jobs:
             
             ### Docker Image
             ```bash
+            # Specific version
             docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
+            
+            # Latest stable release
+            docker pull aywengo/kafka-schema-reg-mcp:stable
             ```
             
             ### 🤖 Claude Desktop Integration
@@ -129,7 +134,7 @@ jobs:
                     "-e", "SCHEMA_REGISTRY_URL",
                     "-e", "SCHEMA_REGISTRY_USER", 
                     "-e", "SCHEMA_REGISTRY_PASSWORD",
-                    "aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}"
+                    "aywengo/kafka-schema-reg-mcp:stable"
                   ],
                   "env": {
                     "SCHEMA_REGISTRY_URL": "http://localhost:8081",
@@ -158,6 +163,7 @@ jobs:
             - ✅ **Mode Management**: READWRITE/READONLY operational control
             - ✅ **Claude Desktop Ready**: Direct integration with AI workflows
             - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
+            - ✅ **Stable Tag**: Use `:stable` for production deployments (always latest release)
             
             ### 📚 Documentation
             - [MCP Transformation Guide](MCP_TRANSFORMATION.md)

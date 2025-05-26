@@ -1,4 +1,4 @@
-# Kafka Schema Registry MCP Server v1.3.0
+# Kafka Schema Registry MCP Server
 
 A comprehensive **Message Control Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features include advanced **Schema Context** support for logical schema grouping, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
 
@@ -47,7 +47,14 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 
 #### Pull from DockerHub
 ```bash
+# Latest stable release
+docker pull aywengo/kafka-schema-reg-mcp:stable
+
+# Or use latest (same as stable)
 docker pull aywengo/kafka-schema-reg-mcp:latest
+
+# Or specific version
+docker pull aywengo/kafka-schema-reg-mcp:v1.4.0
 ```
 
 #### Test the Docker image
@@ -80,6 +87,50 @@ pip install -r requirements.txt
 export SCHEMA_REGISTRY_URL="http://localhost:8081"
 export SCHEMA_REGISTRY_USER=""  # If authentication needed
 export SCHEMA_REGISTRY_PASSWORD=""  # If authentication needed
+export READONLY="false"  # Set to "true" for production safety
+```
+
+#### Environment Variables
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `SCHEMA_REGISTRY_URL` | Schema Registry endpoint | `http://localhost:8081` | `http://schema-registry:8081` |
+| `SCHEMA_REGISTRY_USER` | Username for authentication | *(empty)* | `admin` |
+| `SCHEMA_REGISTRY_PASSWORD` | Password for authentication | *(empty)* | `password123` |
+| `READONLY` | Enable read-only mode | `false` | `true` |
+
+#### 🔒 READONLY Mode (Production Safety Feature)
+
+When `READONLY=true` is set, the MCP server blocks all modification operations while keeping read and export operations available. Perfect for production environments where you want to prevent accidental changes.
+
+**Blocked Operations:**
+- ❌ Schema registration and deletion
+- ❌ Context creation and deletion  
+- ❌ Configuration changes
+- ❌ Mode modifications
+
+**Allowed Operations:**
+- ✅ Schema browsing and retrieval
+- ✅ Compatibility checking (read-only)
+- ✅ All export operations
+- ✅ Configuration reading
+
+**Usage Examples:**
+```bash
+# Production environment with read-only protection
+export READONLY=true
+python kafka_schema_registry_mcp.py
+
+# Docker with read-only mode
+docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:latest
+
+# Claude Desktop configuration with read-only mode
+{
+  "env": {
+    "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+    "READONLY": "true"
+  }
+}
 ```
 
 #### Step 3: Test MCP Server
@@ -91,6 +142,31 @@ python test_mcp_server.py
 ### Configure Claude Desktop
 
 #### Option A: Using Docker (Recommended)
+
+**Stable Tag (Recommended for Production):**
+```json
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i", "--network", "host",
+        "-e", "SCHEMA_REGISTRY_URL",
+        "-e", "SCHEMA_REGISTRY_USER",
+        "-e", "SCHEMA_REGISTRY_PASSWORD",
+        "aywengo/kafka-schema-reg-mcp:stable"
+      ],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": ""
+      }
+    }
+  }
+}
+```
+
+**Latest Tag (Same as stable):**
 ```json
 {
   "mcpServers": {
@@ -238,7 +314,10 @@ Production-ready with pre-built DockerHub images and comprehensive deployment op
 # Quick production start with pre-built images
 docker-compose up -d
 
-# Or direct Docker usage
+# Or direct Docker usage with stable tag
+docker run -d -p 38000:8000 aywengo/kafka-schema-reg-mcp:stable
+
+# Or with latest tag
 docker run -d -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
 ```
 

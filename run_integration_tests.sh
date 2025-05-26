@@ -295,6 +295,32 @@ else
 fi
 
 echo -e "\n${PURPLE}=================================================="
+echo -e "                READONLY MODE TESTS"
+echo -e "==================================================${NC}"
+
+# Test: READONLY mode functionality
+echo -e "\n${BLUE}🧪 Running: READONLY Mode Functionality Test${NC}"
+if python test_readonly_mode.py > /tmp/test_output.log 2>&1; then
+    log_test_result "READONLY Mode Functionality" "PASS"
+    # Show summary of READONLY tests
+    grep -E "(Testing|✅|❌)" /tmp/test_output.log | tail -5 | sed 's/^/     /'
+else
+    log_test_result "READONLY Mode Functionality" "FAIL"
+    head -10 /tmp/test_output.log | sed 's/^/     /'
+fi
+
+# Test: READONLY mode with MCP client
+echo -e "\n${BLUE}🧪 Running: READONLY Mode MCP Client Test${NC}"
+if python test_readonly_mcp_client.py > /tmp/test_output.log 2>&1; then
+    log_test_result "READONLY Mode MCP Protocol" "PASS"
+    # Show key results
+    grep -E "(correctly blocked|correctly allowed)" /tmp/test_output.log | sed 's/^/     /'
+else
+    log_test_result "READONLY Mode MCP Protocol" "FAIL"
+    head -10 /tmp/test_output.log | sed 's/^/     /'
+fi
+
+echo -e "\n${PURPLE}=================================================="
 echo -e "                FILE VALIDATION TESTS"
 echo -e "==================================================${NC}"
 
@@ -345,6 +371,7 @@ echo -e "==================================================${NC}"
 if [ $FAILED_TESTS -eq 0 ]; then
     echo -e "${GREEN}🎉 ALL TESTS COMPLETED SUCCESSFULLY!${NC}"
     echo -e "${GREEN}✅ MCP Server is ready for Claude Desktop integration${NC}"
+    echo -e "${GREEN}🔒 READONLY mode provides production safety protection${NC}"
 else
     echo -e "${RED}❌ Some tests failed - review the results above${NC}"
 fi
