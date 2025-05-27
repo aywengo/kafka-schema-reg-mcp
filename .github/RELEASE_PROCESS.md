@@ -45,10 +45,21 @@ The GitHub Actions workflows will automatically:
 
 1. **Build Multi-Platform Images**: AMD64 + ARM64
 2. **Security Scan**: Trivy vulnerability scanning
-3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest, stable)
+3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest)
 4. **Update DockerHub Description**: Sync README with repository
 5. **Create GitHub Release**: With Docker pull commands and changelog
 6. **Upload Security Reports**: SARIF files to GitHub Security tab
+
+### 5. Promote to Stable (Optional)
+
+To promote a specific release as stable:
+
+```bash
+# Go to GitHub Actions > "Tag as Stable" workflow
+# Click "Run workflow" and enter:
+# - Source tag: v1.3.0 (the version you want to promote)
+# - Confirm: yes
+```
 
 ### 4. Verify Release
 
@@ -157,9 +168,9 @@ Each release creates multiple Docker tags for flexibility:
 - **`v1.3`**: Minor version tag (gets updates with patch releases)
 - **`v1`**: Major version tag (gets updates with minor/patch releases)
 - **`latest`**: Always points to the most recent release
-- **`stable`**: Always points to the most recent release (alias for latest)
+- **`stable`**: Manually promoted stable release (use "Tag as Stable" workflow)
 
-The `stable` tag provides a semantic alias to `latest` for users who prefer explicit stable naming.
+The `stable` tag is manually managed to ensure only thoroughly tested releases are marked as stable. Use the "Tag as Stable" workflow to promote a specific version to stable.
 
 ### Tag Examples
 

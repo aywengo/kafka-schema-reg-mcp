@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to publish'
+        description: 'Tag to publish (e.g., v1.3.0, dev-build, test, latest)'
         required: true
-        default: 'latest'
+        default: 'dev-build'
 
 jobs:
   publish:
@@ -42,7 +42,7 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=stable
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
             org.opencontainers.image.description=True MCP server for Kafka Schema Registry with single & multi-registry support, 48 tools, numbered env config, context isolation, schema export, and Claude Desktop integration
@@ -89,7 +89,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "True MCP Server for Kafka Schema Registry - 20 tools, Claude Desktop ready, context support"
+          short-description: "True MCP Server for Kafka Schema Registry - 48 tools, multi-registry support, Claude Desktop ready"
           readme-filepath: ./README.md
 
   create-release:
