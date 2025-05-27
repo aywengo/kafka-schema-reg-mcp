@@ -20,6 +20,9 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 - **Subject Management**: List and delete schema subjects through MCP
 
 ### **⚙️ Advanced Features**
+- **Multi-Registry Support**: Connect to up to 8 Schema Registry instances simultaneously
+- **Per-Registry READONLY Mode**: Individual readonly protection per registry for production safety
+- **Cross-Registry Operations**: Compare, migrate, and synchronize schemas between registries
 - **Configuration Management**: Control compatibility levels globally and per-subject
 - **Mode Control**: Manage operational states (READWRITE, READONLY, IMPORT)
 - **Schema Export**: Comprehensive export with JSON, Avro IDL formats
@@ -60,7 +63,7 @@ docker pull aywengo/kafka-schema-reg-mcp:v1.4.0
 #### Test the Docker image
 ```bash
 # Test MCP server in Docker
-python test_docker_mcp.py
+python tests/test_docker_mcp.py
 ```
 
 #### Use with existing infrastructure
@@ -82,22 +85,48 @@ pip install -r requirements.txt
 ```
 
 #### Step 2: Configure Environment
+
+**Single Registry Mode (Backward Compatible):**
 ```bash
-# Set Schema Registry connection (optional)
+# Basic Schema Registry connection
 export SCHEMA_REGISTRY_URL="http://localhost:8081"
-export SCHEMA_REGISTRY_USER=""  # If authentication needed
-export SCHEMA_REGISTRY_PASSWORD=""  # If authentication needed
-export READONLY="false"  # Set to "true" for production safety
+export SCHEMA_REGISTRY_USER=""           # Optional
+export SCHEMA_REGISTRY_PASSWORD=""       # Optional
+export READONLY="false"                  # Global readonly mode
+```
+
+**Multi-Registry Mode (New - Up to 8 Registries):**
+```bash
+# Registry 1 - Development
+export SCHEMA_REGISTRY_NAME_1="development"
+export SCHEMA_REGISTRY_URL_1="http://dev-schema-registry:8081"
+export SCHEMA_REGISTRY_USER_1="dev-user"      # Optional
+export SCHEMA_REGISTRY_PASSWORD_1="dev-pass"  # Optional
+export READONLY_1="false"                     # Per-registry readonly
+
+# Registry 2 - Production (with safety)
+export SCHEMA_REGISTRY_NAME_2="production"
+export SCHEMA_REGISTRY_URL_2="http://prod-schema-registry:8081"
+export SCHEMA_REGISTRY_USER_2="prod-user"
+export SCHEMA_REGISTRY_PASSWORD_2="prod-pass"
+export READONLY_2="true"                      # Production safety
 ```
 
 #### Environment Variables
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
+| **Single Registry Mode** | | | |
 | `SCHEMA_REGISTRY_URL` | Schema Registry endpoint | `http://localhost:8081` | `http://schema-registry:8081` |
 | `SCHEMA_REGISTRY_USER` | Username for authentication | *(empty)* | `admin` |
 | `SCHEMA_REGISTRY_PASSWORD` | Password for authentication | *(empty)* | `password123` |
-| `READONLY` | Enable read-only mode | `false` | `true` |
+| `READONLY` | Global read-only mode | `false` | `true` |
+| **Multi-Registry Mode** | | | |
+| `SCHEMA_REGISTRY_NAME_X` | Registry alias (X=1-8) | *(required)* | `production` |
+| `SCHEMA_REGISTRY_URL_X` | Registry endpoint (X=1-8) | *(required)* | `http://prod-registry:8081` |
+| `SCHEMA_REGISTRY_USER_X` | Username (X=1-8) | *(empty)* | `prod-user` |
+| `SCHEMA_REGISTRY_PASSWORD_X` | Password (X=1-8) | *(empty)* | `prod-password` |
+| `READONLY_X` | Per-registry readonly (X=1-8) | `false` | `true` |
 
 #### 🔒 READONLY Mode (Production Safety Feature)
 
@@ -136,7 +165,7 @@ docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo
 #### Step 3: Test MCP Server
 ```bash
 # Test the server directly
-python test_mcp_server.py
+python tests/test_mcp_server.py
 ```
 
 ### Configure Claude Desktop
@@ -217,11 +246,18 @@ Copy the configuration to your Claude Desktop config file:
 2. Look for the 🔨 tools icon in the interface
 3. Start asking Claude to help with schema operations!
 
-**Example prompts:**
+**Single Registry Example prompts:**
 - "List all schema contexts"
 - "Show me the subjects in the production context"
 - "Register a new user schema with fields for id, name, and email"
 - "Export all schemas from the staging context"
+
+**Multi-Registry Example prompts:**
+- "List all my Schema Registry instances"
+- "Compare development and production registries"
+- "Migrate user-events schema from staging to production"
+- "Test connections to all registries"
+- "Register a schema in the development registry"
 
 ## 📋 MCP Tools & Resources
 
@@ -300,8 +336,12 @@ Comprehensive test suite with 53 passing tests covering all functionality:
 - ✅ **Error Handling** for invalid requests and edge cases
 
 ```bash
-# Run all tests
-./run_integration_tests.sh
+# Run all tests (from project root)
+./tests/run_integration_tests.sh
+
+# Or run individual tests
+python tests/test_simple_config.py
+python tests/test_numbered_config.py
 ```
 
 **📖 Testing Guide**: [Deployment Guide - Testing](docs/deployment.md#-troubleshooting)

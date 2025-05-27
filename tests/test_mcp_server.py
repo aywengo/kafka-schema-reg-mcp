@@ -50,16 +50,16 @@ async def test_mcp_server():
                 # Test registry status resource
                 print("\n🔍 Testing registry status resource...")
                 try:
-                    content, mime_type = await session.read_resource("registry://status")
-                    print(f"Registry Status: {content.text}")
+                    result = await session.read_resource("registry://status")
+                    print(f"Registry Status: {result.contents[0].text}")
                 except Exception as e:
                     print(f"❌ Error reading registry status: {e}")
 
                 # Test registry info resource
                 print("\n📋 Testing registry info resource...")
                 try:
-                    content, mime_type = await session.read_resource("registry://info")
-                    print(f"Registry Info: {content.text}")
+                    result = await session.read_resource("registry://info")
+                    print(f"Registry Info: {result.contents[0].text}")
                 except Exception as e:
                     print(f"❌ Error reading registry info: {e}")
 

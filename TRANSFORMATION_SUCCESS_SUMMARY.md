@@ -156,7 +156,7 @@ record User {
 
 ### **Core Implementation**
 - ✅ `kafka_schema_registry_mcp.py` - True MCP server implementation (876 lines)
-- ✅ `test_mcp_server.py` - Basic MCP client test script
+- ✅ `tests/test_mcp_server.py` - Basic MCP client test script
 - ✅ `advanced_mcp_test.py` - Comprehensive feature testing
 - ✅ `claude_desktop_config.json` - Claude Desktop integration config
 

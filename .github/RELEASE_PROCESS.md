@@ -9,8 +9,18 @@ This document outlines the process for creating releases of the Kafka Schema Reg
 Ensure all changes are merged to `main` and tests are passing:
 
 ```bash
-# Verify tests pass
-./run_integration_tests.sh
+# Verify configuration tests pass
+python tests/test_simple_config.py
+python tests/test_numbered_config.py
+
+# Verify MCP server tests pass
+python tests/test_mcp_server.py
+
+# Run full integration test suite
+./tests/run_integration_tests.sh
+
+# Run numbered configuration integration tests
+./tests/run_numbered_integration_tests.sh
 
 # Check current status
 git status
@@ -35,10 +45,21 @@ The GitHub Actions workflows will automatically:
 
 1. **Build Multi-Platform Images**: AMD64 + ARM64
 2. **Security Scan**: Trivy vulnerability scanning
-3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest, stable)
+3. **Push to DockerHub**: Multiple tags (v1.3.0, v1.3, v1, latest)
 4. **Update DockerHub Description**: Sync README with repository
 5. **Create GitHub Release**: With Docker pull commands and changelog
 6. **Upload Security Reports**: SARIF files to GitHub Security tab
+
+### 5. Promote to Stable (Optional)
+
+To promote a specific release as stable:
+
+```bash
+# Go to GitHub Actions > "Tag as Stable" workflow
+# Click "Run workflow" and enter:
+# - Source tag: v1.3.0 (the version you want to promote)
+# - Confirm: yes
+```
 
 ### 4. Verify Release
 
@@ -55,6 +76,14 @@ docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:stable
 
 # Verify health
 curl http://localhost:38000/
+
+# Test multi-registry mode
+docker run --rm -i \
+  -e SCHEMA_REGISTRY_NAME_1=test1 \
+  -e SCHEMA_REGISTRY_URL_1=http://localhost:8081 \
+  -e READONLY_1=false \
+  aywengo/kafka-schema-reg-mcp:stable \
+  python kafka_schema_registry_multi_mcp.py
 ```
 
 ## 🔧 Workflow Permissions
@@ -100,11 +129,18 @@ If you see "Resource not accessible by integration" errors:
 
 Before creating a release:
 
-- [ ] All tests passing (53/53)
+- [ ] Configuration tests passing (single & multi-registry modes)
+- [ ] MCP server tests passing (both `kafka_schema_registry_mcp.py` and `kafka_schema_registry_multi_mcp.py`)
+- [ ] Integration tests passing (full test suite)
+- [ ] Numbered config integration tests passing (real Schema Registry operations)
+- [ ] All 48 MCP tools functional (20 original + 28 multi-registry)
+- [ ] Multi-registry support tested (up to 8 registries)
+- [ ] Per-registry READONLY mode working
+- [ ] Cross-registry operations functional (compare, migrate, sync)
 - [ ] Documentation updated
 - [ ] Version bumped in relevant files
 - [ ] CHANGELOG.md updated
-- [ ] Docker image builds successfully
+- [ ] Docker image builds successfully (both MCP servers)
 - [ ] Security scan passes
 - [ ] Export functionality tested
 
@@ -132,9 +168,9 @@ Each release creates multiple Docker tags for flexibility:
 - **`v1.3`**: Minor version tag (gets updates with patch releases)
 - **`v1`**: Major version tag (gets updates with minor/patch releases)
 - **`latest`**: Always points to the most recent release
-- **`stable`**: Always points to the most recent release (alias for latest)
+- **`stable`**: Manually promoted stable release (use "Tag as Stable" workflow)
 
-The `stable` tag provides a semantic alias to `latest` for users who prefer explicit stable naming.
+The `stable` tag is manually managed to ensure only thoroughly tested releases are marked as stable. Use the "Tag as Stable" workflow to promote a specific version to stable.
 
 ### Tag Examples
 
@@ -153,9 +189,18 @@ git tag v1.3.1
 
 After each release, ensure documentation is updated:
 
-- README.md
+- README.md (multi-registry configuration examples)
+- NUMBERED_CONFIG_GUIDE.md (numbered environment variables)
+- COMPLETE_CONFIGURATION_EXAMPLES.md (all configuration scenarios)
+- NUMBERED_CONFIG_SUMMARY.md (feature summary)
 - docs/deployment.md  
 - docs/api-reference.md
 - Docker tags and examples
+
+Key documentation files for multi-registry features:
+- `claude_desktop_numbered_config.json` - Multi-registry Claude Desktop config
+- `tests/` directory - Comprehensive test suite
+- `MCP_TRANSFORMATION.md` - Background on MCP conversion
+- `MULTI_REGISTRY_IMPLEMENTATION.md` - Multi-registry architecture
 
 The workflows automatically update DockerHub descriptions from README.md. 

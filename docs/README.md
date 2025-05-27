@@ -99,8 +99,8 @@ Production deployment instructions covering:
 
 ### **Development & Testing**
 1. Review [MCP Tools Reference](mcp-tools-reference.md) for tool development
-2. Use the test scripts: `test_mcp_server.py`, `advanced_mcp_test.py`
-3. Run integration tests: `./run_integration_tests.sh`
+2. Use the test scripts: `tests/test_mcp_server.py`, `tests/advanced_mcp_test.py`
+3. Run integration tests: `./tests/run_integration_tests.sh`
 
 ### **Production Deployment**
 1. Review [Deployment Guide](deployment.md) for your target platform
@@ -140,8 +140,8 @@ Human: "Show me the configuration differences between our development and produc
 ### **MCP Implementation**
 - **Main Project**: [README](../README.md) - Claude Desktop setup
 - **MCP Server**: [kafka_schema_registry_mcp.py](../kafka_schema_registry_mcp.py)
-- **Test Scripts**: [test_mcp_server.py](../test_mcp_server.py), [advanced_mcp_test.py](../advanced_mcp_test.py)
-- **Integration Tests**: [run_integration_tests.sh](../run_integration_tests.sh)
+- **Test Scripts**: [test_mcp_server.py](../tests/test_mcp_server.py), [advanced_mcp_test.py](../tests/advanced_mcp_test.py)
+- **Integration Tests**: [run_integration_tests.sh](../tests/run_integration_tests.sh)
 
 ### **Configuration Examples**
 - **Claude Desktop Docker**: [claude_desktop_docker_config.json](../claude_desktop_docker_config.json)

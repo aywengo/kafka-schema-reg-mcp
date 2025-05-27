@@ -5,6 +5,13 @@ set -e
 echo "Running Kafka Schema Registry MCP Server Integration Tests"
 echo "========================================================"
 
+# Directory configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Change to project root for all docker-compose and file operations
+cd "$PROJECT_ROOT"
+
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -154,13 +161,13 @@ echo -e "                 MCP TESTS"
 echo -e "==================================================${NC}"
 
 # Test 1: Basic MCP Server Test
-run_test "Basic MCP Server Functionality" "python test_mcp_server.py"
+run_test "Basic MCP Server Functionality" "python tests/test_mcp_server.py"
 
 # Test 2: Advanced MCP Integration Test
-run_test "Advanced MCP Integration Test" "python advanced_mcp_test.py"
+run_test "Advanced MCP Integration Test" "python tests/advanced_mcp_test.py"
 
 # Test 3: Docker MCP Test
-run_test "Docker MCP Server Test" "python test_docker_mcp.py"
+run_test "Docker MCP Server Test" "python tests/test_docker_mcp.py"
 
 # Test 4: Check if MCP server script is valid Python
 run_test "MCP Server Script Syntax Check" "python -m py_compile kafka_schema_registry_mcp.py"
@@ -300,7 +307,7 @@ echo -e "==================================================${NC}"
 
 # Test: READONLY mode functionality
 echo -e "\n${BLUE}🧪 Running: READONLY Mode Functionality Test${NC}"
-if python test_readonly_mode.py > /tmp/test_output.log 2>&1; then
+if python tests/test_readonly_mode.py > /tmp/test_output.log 2>&1; then
     log_test_result "READONLY Mode Functionality" "PASS"
     # Show summary of READONLY tests
     grep -E "(Testing|✅|❌)" /tmp/test_output.log | tail -5 | sed 's/^/     /'
@@ -311,7 +318,7 @@ fi
 
 # Test: READONLY mode with MCP client
 echo -e "\n${BLUE}🧪 Running: READONLY Mode MCP Client Test${NC}"
-if python test_readonly_mcp_client.py > /tmp/test_output.log 2>&1; then
+if python tests/test_readonly_mcp_client.py > /tmp/test_output.log 2>&1; then
     log_test_result "READONLY Mode MCP Protocol" "PASS"
     # Show key results
     grep -E "(correctly blocked|correctly allowed)" /tmp/test_output.log | sed 's/^/     /'
@@ -401,7 +408,7 @@ echo -e "\n${BLUE}🔧 Useful Commands:${NC}"
 echo -e "  ${BLUE}• View logs: docker-compose logs -f${NC}"
 echo -e "  ${BLUE}• Test Schema Registry: curl http://localhost:38081/subjects${NC}"
 echo -e "  ${BLUE}• Restart services: docker-compose restart${NC}"
-echo -e "  ${BLUE}• Test MCP manually: python test_mcp_server.py${NC}"
+echo -e "  ${BLUE}• Test MCP manually: python tests/test_mcp_server.py${NC}"
 
 echo -e "\n${PURPLE}=================================================="
 echo -e "                  FINISHED"
