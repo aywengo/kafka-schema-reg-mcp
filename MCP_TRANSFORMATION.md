@@ -80,7 +80,7 @@ Added MCP resources for real-time information access:
 
 ### **New Files**
 - `kafka_schema_registry_mcp.py` - True MCP server implementation
-- `test_mcp_server.py` - MCP client test script
+- `tests/test_mcp_server.py` - MCP client test script
 - `claude_desktop_config.json` - Claude Desktop configuration example
 - `MCP_TRANSFORMATION.md` - This summary document
 

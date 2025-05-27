@@ -9,8 +9,18 @@ This document outlines the process for creating releases of the Kafka Schema Reg
 Ensure all changes are merged to `main` and tests are passing:
 
 ```bash
-# Verify tests pass
-./run_integration_tests.sh
+# Verify configuration tests pass
+python tests/test_simple_config.py
+python tests/test_numbered_config.py
+
+# Verify MCP server tests pass
+python tests/test_mcp_server.py
+
+# Run full integration test suite
+./tests/run_integration_tests.sh
+
+# Run numbered configuration integration tests
+./tests/run_numbered_integration_tests.sh
 
 # Check current status
 git status
@@ -55,6 +65,14 @@ docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:stable
 
 # Verify health
 curl http://localhost:38000/
+
+# Test multi-registry mode
+docker run --rm -i \
+  -e SCHEMA_REGISTRY_NAME_1=test1 \
+  -e SCHEMA_REGISTRY_URL_1=http://localhost:8081 \
+  -e READONLY_1=false \
+  aywengo/kafka-schema-reg-mcp:stable \
+  python kafka_schema_registry_multi_mcp.py
 ```
 
 ## 🔧 Workflow Permissions
@@ -100,11 +118,18 @@ If you see "Resource not accessible by integration" errors:
 
 Before creating a release:
 
-- [ ] All tests passing (53/53)
+- [ ] Configuration tests passing (single & multi-registry modes)
+- [ ] MCP server tests passing (both `kafka_schema_registry_mcp.py` and `kafka_schema_registry_multi_mcp.py`)
+- [ ] Integration tests passing (full test suite)
+- [ ] Numbered config integration tests passing (real Schema Registry operations)
+- [ ] All 48 MCP tools functional (20 original + 28 multi-registry)
+- [ ] Multi-registry support tested (up to 8 registries)
+- [ ] Per-registry READONLY mode working
+- [ ] Cross-registry operations functional (compare, migrate, sync)
 - [ ] Documentation updated
 - [ ] Version bumped in relevant files
 - [ ] CHANGELOG.md updated
-- [ ] Docker image builds successfully
+- [ ] Docker image builds successfully (both MCP servers)
 - [ ] Security scan passes
 - [ ] Export functionality tested
 
@@ -153,9 +178,18 @@ git tag v1.3.1
 
 After each release, ensure documentation is updated:
 
-- README.md
+- README.md (multi-registry configuration examples)
+- NUMBERED_CONFIG_GUIDE.md (numbered environment variables)
+- COMPLETE_CONFIGURATION_EXAMPLES.md (all configuration scenarios)
+- NUMBERED_CONFIG_SUMMARY.md (feature summary)
 - docs/deployment.md  
 - docs/api-reference.md
 - Docker tags and examples
+
+Key documentation files for multi-registry features:
+- `claude_desktop_numbered_config.json` - Multi-registry Claude Desktop config
+- `tests/` directory - Comprehensive test suite
+- `MCP_TRANSFORMATION.md` - Background on MCP conversion
+- `MULTI_REGISTRY_IMPLEMENTATION.md` - Multi-registry architecture
 
 The workflows automatically update DockerHub descriptions from README.md. 

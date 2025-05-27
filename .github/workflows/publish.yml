@@ -45,7 +45,7 @@ jobs:
             type=raw,value=stable
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
-            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with 20 tools, context support, schema export, and Claude Desktop integration
+            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with single & multi-registry support, 48 tools, numbered env config, context isolation, schema export, and Claude Desktop integration
             org.opencontainers.image.vendor=aywengo
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
@@ -123,7 +123,8 @@ jobs:
             ```
             
             ### 🤖 Claude Desktop Integration
-            Add to your Claude Desktop config:
+            
+            **Single Registry Mode:**
             ```json
             {
               "mcpServers": {
@@ -146,6 +147,31 @@ jobs:
             }
             ```
             
+            **Multi-Registry Mode (up to 8 registries):**
+            ```json
+            {
+              "mcpServers": {
+                "kafka-schema-registry-multi": {
+                  "command": "docker",
+                  "args": [
+                    "run", "--rm", "-i", "--network", "host",
+                    "-e", "SCHEMA_REGISTRY_NAME_1", "-e", "SCHEMA_REGISTRY_URL_1", "-e", "READONLY_1",
+                    "-e", "SCHEMA_REGISTRY_NAME_2", "-e", "SCHEMA_REGISTRY_URL_2", "-e", "READONLY_2",
+                    "aywengo/kafka-schema-reg-mcp:stable", "python", "kafka_schema_registry_multi_mcp.py"
+                  ],
+                  "env": {
+                    "SCHEMA_REGISTRY_NAME_1": "development",
+                    "SCHEMA_REGISTRY_URL_1": "http://localhost:8081",
+                    "READONLY_1": "false",
+                    "SCHEMA_REGISTRY_NAME_2": "production", 
+                    "SCHEMA_REGISTRY_URL_2": "http://localhost:8082",
+                    "READONLY_2": "true"
+                  }
+                }
+              }
+            }
+            ```
+            
             ### 🗣️ Natural Language Usage
             ```
             "List all schema contexts"
@@ -155,12 +181,15 @@ jobs:
             ```
             
             ### 📋 MCP Features
-            - ✅ **20 MCP Tools**: Complete schema operations via natural language
+            - ✅ **48 MCP Tools**: Complete schema operations via natural language (20 original + 28 multi-registry)
+            - ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances simultaneously
+            - ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern (X=1-8)
+            - ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control for each registry
+            - ✅ **Cross-Registry Operations**: Compare, migrate, and sync schemas between registries
             - ✅ **Context Management**: Production/staging environment isolation  
             - ✅ **Schema Evolution**: Compatibility testing and version control
             - ✅ **Export System**: JSON, Avro IDL formats for backup/migration
             - ✅ **Configuration Control**: Global and per-context compatibility settings
-            - ✅ **Mode Management**: READWRITE/READONLY operational control
             - ✅ **Claude Desktop Ready**: Direct integration with AI workflows
             - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
             - ✅ **Stable Tag**: Use `:stable` for production deployments (always latest release)

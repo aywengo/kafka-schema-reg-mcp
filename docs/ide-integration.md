@@ -296,7 +296,7 @@ Create `.vscode/tasks.json` for automated workflows:
         {
             "label": "Run Integration Tests",
             "type": "shell",
-            "command": "./run_integration_tests.sh",
+            "command": "./tests/run_integration_tests.sh",
             "group": "test",
             "presentation": {
                 "echo": true,
