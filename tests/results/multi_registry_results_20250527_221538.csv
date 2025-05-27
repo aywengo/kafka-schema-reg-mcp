@@ -1,8 +1,0 @@
-Status,TestName,Duration,Description
-PASS,multi_config,1,Multi-registry MCP server configuration
-PASS,numbered_config,1,Numbered configuration validation
-PASS,readonly_enforcement,0,Read-only mode enforcement
-PASS,cross_registry_workflows,2,Cross-registry workflow validation
-PASS,production_deployment,1,Production deployment workflows
-PASS,all_tools_multi,1,All 68 tools with multi-registry setup
-PASS,multi_performance,4,Multi-registry performance testing

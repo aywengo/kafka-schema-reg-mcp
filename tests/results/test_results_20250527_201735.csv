@@ -1,8 +1,0 @@
-Status,TestName,Duration,Description
-PASS,simple_config,0,Single registry configuration validation
-PASS,numbered_config,1,Multi-registry numbered configuration
-FAIL,mcp_server,241,Basic MCP server functionality
-PASS,end_to_end_workflows,2,Complete schema lifecycle workflows
-PASS,error_handling,2,Error handling and edge cases
-PASS,performance_load,6,Performance and load testing
-PASS,production_readiness,2,Enterprise production readiness

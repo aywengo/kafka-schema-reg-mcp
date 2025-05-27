@@ -1,4 +1,0 @@
-Status,TestName,Duration,Description
-PASS,multi_mode_configs,1,Different modes and configs per registry
-PASS,readonly_validation,0,Read-only mode enforcement validation
-PASS,readonly_verification,0,Read-only enforcement verification
