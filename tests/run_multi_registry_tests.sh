@@ -187,6 +187,36 @@ run_workflow_tests() {
     return $((total - passed))
 }
 
+# Function to run multi-mode configuration tests
+run_multi_mode_tests() {
+    print_header "MULTI-MODE CONFIGURATION TESTS"
+    
+    local passed=0
+    local total=0
+    
+    tests=(
+        "multi_mode_configs:test_multi_mode_configs.py:Different modes and configs per registry"
+        "readonly_validation:test_readonly_validation.py:Read-only mode enforcement validation"
+        "readonly_verification:test_readonly_verification.py:Read-only enforcement verification"
+    )
+    
+    for test_spec in "${tests[@]}"; do
+        IFS=':' read -r test_name test_file description <<< "$test_spec"
+        total=$((total + 1))
+        
+        if [[ -f "$SCRIPT_DIR/$test_file" ]]; then
+            if run_test "$test_name" "$SCRIPT_DIR/$test_file" "$description"; then
+                passed=$((passed + 1))
+            fi
+        else
+            print_color $YELLOW "⚠️  Test file not found: $test_file"
+        fi
+    done
+    
+    print_color $WHITE "Multi-Mode Tests: $passed/$total passed"
+    return $((total - passed))
+}
+
 # Function to run multi-registry tool validation
 run_tool_validation_tests() {
     print_header "MULTI-REGISTRY TOOL VALIDATION"
@@ -301,7 +331,10 @@ generate_summary() {
         echo "==============================="
         echo "✅ Multi-Registry Configuration (numbered configs)"
         echo "✅ Cross-Registry Workflows"
-        echo "✅ Read-Only Mode Enforcement"
+        echo "✅ Multi-Mode Configurations (IMPORT/READWRITE per registry)"
+        echo "✅ Read-Only Mode Enforcement (per registry)"
+        echo "✅ Different Compatibility Levels per Registry"
+        echo "✅ Subject-Specific Configurations"
         echo "✅ Schema Migration and Comparison"
         echo "✅ All 68 MCP Tools (multi-registry mode)"
         echo "✅ Performance and Scalability"
@@ -310,9 +343,10 @@ generate_summary() {
         echo ""
         echo "REGISTRY SETUP:"
         echo "=============="
-        echo "• DEV Registry: development, read-write, backward compatibility"
-        echo "• PROD Registry: production, read-only, forward compatibility"
+        echo "• DEV Registry: development, configurable mode, customizable compatibility"
+        echo "• PROD Registry: production, configurable read-only, customizable compatibility"
         echo "• Cross-Registry Operations: migration, comparison, validation"
+        echo "• Multi-Mode Support: IMPORT, READWRITE, READONLY modes per registry"
         echo "• High Availability: failover, disaster recovery"
         
     } | tee "$summary_file"
@@ -328,6 +362,7 @@ show_usage() {
     echo "OPTIONS:"
     echo "  --config        Run only multi-registry configuration tests"
     echo "  --workflows     Run only cross-registry workflow tests"
+    echo "  --multi-mode    Run only multi-mode configuration tests"
     echo "  --tools         Run only tool validation tests"
     echo "  --performance   Run only performance tests"
     echo "  --migration     Run migration and comparison tests"
@@ -337,8 +372,17 @@ show_usage() {
     echo "EXAMPLES:"
     echo "  $0                        # Run all multi-registry tests"
     echo "  $0 --config              # Run only configuration tests"
+    echo "  $0 --multi-mode          # Run multi-mode configuration tests"
     echo "  $0 --migration           # Run migration and comparison tests"
     echo "  $0 --workflows --tools   # Run workflows and tool validation"
+    echo ""
+    echo "TEST CATEGORIES:"
+    echo "  --config:     Multi-registry setup and numbered configs"
+    echo "  --workflows:  Cross-registry workflows and production deployment"
+    echo "  --multi-mode: Different SR modes (IMPORT/READWRITE) and configurations"
+    echo "  --tools:      All 68 MCP tools validation in multi-registry mode"
+    echo "  --performance: Multi-registry performance and scalability"
+    echo "  --migration:  Schema migration and registry comparison"
     echo ""
     echo "PREREQUISITES:"
     echo "  Multi-registry environment must be running:"
@@ -350,6 +394,7 @@ show_usage() {
 main() {
     local run_config=false
     local run_workflows=false
+    local run_multi_mode_tests=false
     local run_tools=false
     local run_performance=false
     local run_migration=false
@@ -365,6 +410,11 @@ main() {
                 ;;
             --workflows)
                 run_workflows=true
+                run_all=false
+                shift
+                ;;
+            --multi-mode)
+                run_multi_mode_tests=true
                 run_all=false
                 shift
                 ;;
@@ -417,6 +467,7 @@ main() {
     if [[ "$run_all" == true ]]; then
         run_multi_config_tests || total_failures=$((total_failures + $?))
         run_workflow_tests || total_failures=$((total_failures + $?))
+        run_multi_mode_tests || total_failures=$((total_failures + $?))
         run_tool_validation_tests || total_failures=$((total_failures + $?))
         run_performance_tests || total_failures=$((total_failures + $?))
         
@@ -433,6 +484,7 @@ main() {
     else
         [[ "$run_config" == true ]] && { run_multi_config_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_workflows" == true ]] && { run_workflow_tests || total_failures=$((total_failures + $?)); }
+        [[ "$run_multi_mode_tests" == true ]] && { run_multi_mode_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_tools" == true ]] && { run_tool_validation_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_performance" == true ]] && { run_performance_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_migration" == true ]] && { 

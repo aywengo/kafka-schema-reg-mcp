@@ -318,6 +318,7 @@ export SCHEMA_REGISTRY_PASSWORD="your-password"
 Comprehensive test suite with multi-registry support and migration testing:
 - ✅ **Multi-Registry Environment**: DEV (38081) + PROD (38082) + AKHQ UI (38080)
 - ✅ **68 MCP Tools Validation** covering all schema operations
+- ✅ **Multi-Mode Configuration Testing**: Different modes and configs per registry
 - ✅ **Migration Testing**: Schema migration from DEV → PROD with read-only enforcement
 - ✅ **Performance Testing**: Load testing and cross-registry operations
 - ✅ **Production Readiness**: Enterprise features and security validation
@@ -349,6 +350,9 @@ cd tests/
 # All multi-registry tests including migration
 ./tests/run_multi_registry_tests.sh
 
+# Multi-mode configuration tests (NEW)
+./tests/run_multi_registry_tests.sh --multi-mode
+
 # Schema migration and comparison tests
 ./tests/run_migration_tests.sh
 
@@ -357,6 +361,23 @@ cd tests/
 ./tests/run_comprehensive_tests.sh --workflows
 ./tests/run_comprehensive_tests.sh --performance
 ```
+
+### Multi-Mode Configuration Testing
+
+The test suite now includes comprehensive testing for different Schema Registry modes and configurations:
+
+- **🔧 Mode Scenarios**: DEV=IMPORT, PROD=READWRITE
+- **⚙️ Compatibility Levels**: Different per registry (BACKWARD vs FORWARD)
+- **🔒 Mixed Read-Only**: MCP read-only enforcement with SR modes
+- **🔄 Cross-Registry Operations**: Migration with different modes
+- **📋 Subject-Specific Configs**: Per-subject compatibility and modes
+
+**Test Files:**
+- `test_multi_mode_configs.py` - Comprehensive multi-mode testing
+- `test_readonly_validation.py` - Read-only enforcement validation
+- `test_readonly_verification.py` - Read-only verification
+
+**📖 Complete Multi-Mode Guide**: [MULTI_MODE_CONFIGURATION_GUIDE.md](tests/MULTI_MODE_CONFIGURATION_GUIDE.md)
 
 ### Test Results
 All test results are saved to `tests/results/` with detailed logs, CSV reports, and summaries.
