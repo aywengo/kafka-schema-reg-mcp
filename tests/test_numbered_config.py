@@ -15,7 +15,7 @@ async def test_single_registry_mode():
     
     # Single registry configuration
     env = os.environ.copy()
-    env["SCHEMA_REGISTRY_URL"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     env["SCHEMA_REGISTRY_USER"] = "test-user"
     env["SCHEMA_REGISTRY_PASSWORD"] = "test-password"
     env["READONLY"] = "false"
@@ -71,10 +71,10 @@ async def test_multi_registry_mode():
     
     # Clear single registry variables
     env.pop("SCHEMA_REGISTRY_URL", None)
-    
+        
     # Set up numbered registries
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["SCHEMA_REGISTRY_USER_1"] = "dev-user"
     env["SCHEMA_REGISTRY_PASSWORD_1"] = "dev-pass"
     env["READONLY_1"] = "false"

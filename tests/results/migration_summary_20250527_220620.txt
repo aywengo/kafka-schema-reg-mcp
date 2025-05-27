@@ -1,0 +1,65 @@
+Multi-Registry Migration and Comparison Test Report
+==================================================
+Test Run Timestamp: Tue May 27 22:06:23 CEST 2025
+Environment: DEV (localhost:38081) + PROD (localhost:38082)
+
+DETAILED TEST RESULTS:
+=====================
+[Status] TestName (Duration seconds)
+  Description: Description
+
+[PASS] dev_to_prod_migration (1 seconds)
+  Description: Schema migration from DEV to PROD
+
+[PASS] compatibility_check (0 seconds)
+  Description: Compatibility validation during migration
+
+[PASS] bulk_migration (0 seconds)
+  Description: Bulk schema migration across registries
+
+[PASS] version_migration (0 seconds)
+  Description: Specific version migration
+
+[PASS] subject_migration (0 seconds)
+  Description: Subject-level migration with evolution
+
+[PASS] registry_comparison (1 seconds)
+  Description: Full registry comparison DEV vs PROD
+
+[PASS] subject_comparison (0 seconds)
+  Description: Subject-level schema comparison
+
+[PASS] version_comparison (0 seconds)
+  Description: Version-by-version comparison
+
+[PASS] compatibility_analysis (0 seconds)
+  Description: Cross-registry compatibility analysis
+
+[PASS] drift_detection (0 seconds)
+  Description: Schema drift detection between registries
+
+[FAIL] readonly_validation (0 seconds)
+  Description: PROD registry read-only enforcement
+
+[PASS] sync_validation (1 seconds)
+  Description: Registry synchronization validation
+
+[PASS] rollback_validation (0 seconds)
+  Description: Migration rollback capabilities
+
+SUMMARY STATISTICS:
+==================
+Total Tests: 14
+Passed: 12
+Failed: 2
+Success Rate: 85%
+
+FEATURES TESTED:
+===============
+✅ Schema Migration (DEV → PROD)
+✅ Schema Comparison (Cross-Registry)
+✅ Compatibility Validation
+✅ Bulk Operations
+✅ Read-Only Enforcement
+✅ Version Management
+✅ Drift Detection

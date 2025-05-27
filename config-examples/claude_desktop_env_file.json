@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry-multi": {
+      "command": "docker-compose",
+      "args": [
+        "-f", "docker-compose.multi-registry.yml",
+        "run", "--rm", "kafka-schema-registry-multi"
+      ],
+      "cwd": "/path/to/your/kafka-schema-reg-mcp"
+    }
+  }
+} 

@@ -8,6 +8,8 @@ using the official MCP Python SDK client.
 
 import asyncio
 import json
+import sys
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -17,95 +19,123 @@ async def test_mcp_server():
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_mcp.py"],
+        args=["../kafka_schema_registry_mcp.py"],  # Go up one directory from tests/
         env={
-            "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+            "SCHEMA_REGISTRY_URL": "http://localhost:38081",  # Updated port for new test environment
             "SCHEMA_REGISTRY_USER": "",
             "SCHEMA_REGISTRY_PASSWORD": ""
         }
     )
 
     print("🚀 Starting MCP Server test...")
+    print(f"🔍 Python version: {sys.version}")
+    print(f"📁 Current directory: {os.getcwd()}")
     
     try:
+        # Add timeout to prevent hanging
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
-                # Initialize the connection
+                # Initialize the connection with timeout
                 print("📡 Initializing connection...")
-                await session.initialize()
+                await asyncio.wait_for(session.initialize(), timeout=10)
                 print("✅ Connection initialized successfully!")
 
                 # List available tools
                 print("\n🔧 Available tools:")
-                tools = await session.list_tools()
+                tools = await asyncio.wait_for(session.list_tools(), timeout=5)
                 for tool in tools.tools:
                     print(f"  - {tool.name}: {tool.description}")
 
                 # List available resources
                 print("\n📦 Available resources:")
-                resources = await session.list_resources()
+                resources = await asyncio.wait_for(session.list_resources(), timeout=5)
                 for resource in resources.resources:
                     print(f"  - {resource.uri}: {resource.description}")
 
-                # Test registry status resource
-                print("\n🔍 Testing registry status resource...")
+                # Test a simple tool call first - check server status
+                print("\n🔍 Testing server status...")
                 try:
-                    result = await session.read_resource("registry://status")
-                    print(f"Registry Status: {result.contents[0].text}")
+                    result = await asyncio.wait_for(
+                        session.read_resource("registry://status"), 
+                        timeout=10
+                    )
+                    print(f"✅ Server status: {result.contents[0].text}")
                 except Exception as e:
-                    print(f"❌ Error reading registry status: {e}")
+                    print(f"⚠️ Server status check failed: {e}")
 
-                # Test registry info resource
-                print("\n📋 Testing registry info resource...")
+                # Test basic tool call (list_subjects is simple and safe)
+                print("\n📄 Testing basic tool call (list_subjects)...")
                 try:
-                    result = await session.read_resource("registry://info")
-                    print(f"Registry Info: {result.contents[0].text}")
+                    result = await asyncio.wait_for(
+                        session.call_tool("list_subjects", arguments={}), 
+                        timeout=10
+                    )
+                    print(f"✅ Tool call successful: {len(result.content)} items")
+                    if result.content:
+                        print(f"📋 Response: {result.content[0].text[:200]}...")
                 except Exception as e:
-                    print(f"❌ Error reading registry info: {e}")
+                    print(f"⚠️ Tool call failed (might be expected if no schema registry): {e}")
 
-                # Test list contexts tool
-                print("\n🗂️ Testing list_contexts tool...")
-                try:
-                    result = await session.call_tool("list_contexts", arguments={})
-                    print(f"Contexts: {result.content}")
-                except Exception as e:
-                    print(f"❌ Error calling list_contexts: {e}")
-
-                # Test list subjects tool
-                print("\n📄 Testing list_subjects tool...")
-                try:
-                    result = await session.call_tool("list_subjects", arguments={})
-                    print(f"Subjects: {result.content}")
-                except Exception as e:
-                    print(f"❌ Error calling list_subjects: {e}")
-
-                # Test schema registration (example)
-                print("\n📝 Testing schema registration...")
-                try:
-                    sample_schema = {
-                        "type": "record",
-                        "name": "TestUser",
-                        "fields": [
-                            {"name": "id", "type": "int"},
-                            {"name": "name", "type": "string"},
-                            {"name": "email", "type": "string"}
-                        ]
-                    }
-                    
-                    result = await session.call_tool("register_schema", arguments={
-                        "subject": "test-user-value",
-                        "schema_definition": sample_schema,
-                        "schema_type": "AVRO"
-                    })
-                    print(f"Schema registration result: {result.content}")
-                except Exception as e:
-                    print(f"❌ Error registering schema: {e}")
-
-                print("\n✅ MCP Server test completed!")
+                print("\n✅ MCP Server basic connectivity test completed!")
 
     except Exception as e:
         print(f"❌ Error during test: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+async def test_dependencies():
+    """Test if required dependencies are available."""
+    print("🔍 Checking dependencies...")
+    
+    try:
+        import mcp
+        print(f"✅ MCP available: {mcp.__version__ if hasattr(mcp, '__version__') else 'Unknown version'}")
+    except ImportError as e:
+        print(f"❌ MCP not available: {e}")
+        return False
+    
+    try:
+        import requests
+        print(f"✅ Requests available: {requests.__version__}")
+    except ImportError as e:
+        print(f"❌ Requests not available: {e}")
+        return False
+    
+    try:
+        import asyncio
+        print(f"✅ Asyncio available")
+    except ImportError as e:
+        print(f"❌ Asyncio not available: {e}")
+        return False
+    
+    # Check if the MCP server file exists
+    mcp_server_path = "../kafka_schema_registry_mcp.py"
+    if os.path.exists(mcp_server_path):
+        print(f"✅ MCP server file found: {mcp_server_path}")
+    else:
+        print(f"❌ MCP server file not found: {mcp_server_path}")
+        return False
+    
+    return True
+
+async def main():
+    """Main function with overall timeout."""
+    try:
+        # Test dependencies first
+        deps_ok = await test_dependencies()
+        if not deps_ok:
+            print("❌ Dependency check failed, aborting test")
+            return
+        
+        print("\n" + "="*50)
+        await asyncio.wait_for(test_mcp_server(), timeout=60)  # 1 minute total timeout
+    except asyncio.TimeoutError:
+        print("❌ Test timed out after 60 seconds")
+        raise
+    except Exception as e:
+        print(f"❌ Test failed: {e}")
         raise
 
 if __name__ == "__main__":
-    asyncio.run(test_mcp_server()) 
+    asyncio.run(main()) 

@@ -1,0 +1,14 @@
+Status,TestName,Duration,Description
+PASS,dev_to_prod_migration,0,Schema migration from DEV to PROD
+PASS,compatibility_check,0,Compatibility validation during migration
+PASS,bulk_migration,0,Bulk schema migration across registries
+PASS,version_migration,0,Specific version migration
+PASS,subject_migration,0,Subject-level migration with evolution
+PASS,registry_comparison,0,Full registry comparison DEV vs PROD
+PASS,subject_comparison,1,Subject-level schema comparison
+PASS,version_comparison,0,Version-by-version comparison
+PASS,compatibility_analysis,0,Cross-registry compatibility analysis
+PASS,drift_detection,0,Schema drift detection between registries
+PASS,readonly_validation,0,PROD registry read-only enforcement
+PASS,sync_validation,0,Registry synchronization validation
+PASS,rollback_validation,0,Migration rollback capabilities

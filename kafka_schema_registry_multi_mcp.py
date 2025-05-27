@@ -742,6 +742,565 @@ def sync_schema(
     except Exception as e:
         return {"error": str(e)}
 
+# ===== CONTEXT MANAGEMENT TOOLS =====
+
+@mcp.tool()
+def list_contexts(registry: Optional[str] = None) -> List[str]:
+    """
+    List all available schema contexts.
+    
+    Args:
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        List of context names
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        return client.get_contexts()
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def create_context(
+    context: str,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Create a new schema context.
+    
+    Args:
+        context: The context name to create
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Success message
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        response = requests.post(
+            f"{client.config.url}/contexts/{context}",
+            auth=client.auth,
+            headers=client.headers
+        )
+        response.raise_for_status()
+        return {"message": f"Context '{context}' created successfully in registry '{client.config.name}'"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def delete_context(
+    context: str,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Delete a schema context.
+    
+    Args:
+        context: The context name to delete
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Success message
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        response = requests.delete(
+            f"{client.config.url}/contexts/{context}",
+            auth=client.auth,
+            headers=client.headers
+        )
+        response.raise_for_status()
+        return {"message": f"Context '{context}' deleted successfully from registry '{client.config.name}'"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== SUBJECT MANAGEMENT TOOLS =====
+
+@mcp.tool()
+def list_subjects(
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> List[str]:
+    """
+    List all subjects, optionally filtered by context.
+    
+    Args:
+        context: Optional schema context to filter by
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        List of subject names
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        return client.get_subjects(context)
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def delete_subject(
+    subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> List[int]:
+    """
+    Delete a subject and all its versions.
+    
+    Args:
+        subject: The subject name to delete
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        List of deleted version numbers
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/subjects/{subject}", context)
+        
+        response = requests.delete(
+            url,
+            auth=client.auth,
+            headers=client.headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== CONFIGURATION MANAGEMENT TOOLS =====
+
+@mcp.tool()
+def get_global_config(
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get global configuration settings.
+    
+    Args:
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Dictionary containing configuration
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url("/config", context)
+        
+        response = requests.get(
+            url,
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def update_global_config(
+    compatibility: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update global configuration settings.
+    
+    Args:
+        compatibility: Compatibility level (BACKWARD, FORWARD, FULL, NONE, etc.)
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Updated configuration
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url("/config", context)
+        payload = {"compatibility": compatibility}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def get_subject_config(
+    subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Get configuration settings for a specific subject.
+    
+    Args:
+        subject: The subject name
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Dictionary containing subject configuration
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/config/{subject}", context)
+        
+        response = requests.get(
+            url,
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def update_subject_config(
+    subject: str,
+    compatibility: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update configuration settings for a specific subject.
+    
+    Args:
+        subject: The subject name
+        compatibility: Compatibility level (BACKWARD, FORWARD, FULL, NONE, etc.)
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Updated configuration
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/config/{subject}", context)
+        payload = {"compatibility": compatibility}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== MODE MANAGEMENT TOOLS =====
+
+@mcp.tool()
+def get_mode(
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Get the current mode of the Schema Registry.
+    
+    Args:
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Dictionary containing the current mode
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url("/mode", context)
+        
+        response = requests.get(
+            url,
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def update_mode(
+    mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Update the mode of the Schema Registry.
+    
+    Args:
+        mode: The mode to set (IMPORT, READONLY, READWRITE)
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Updated mode information
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url("/mode", context)
+        payload = {"mode": mode}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def get_subject_mode(
+    subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Get the mode for a specific subject.
+    
+    Args:
+        subject: The subject name
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Dictionary containing the subject mode
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/mode/{subject}", context)
+        
+        response = requests.get(
+            url,
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def update_subject_mode(
+    subject: str,
+    mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, str]:
+    """
+    Update the mode for a specific subject.
+    
+    Args:
+        subject: The subject name
+        mode: The mode to set (IMPORT, READONLY, READWRITE)
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Updated mode information
+    """
+    # Check readonly mode
+    readonly_check = check_readonly_mode(registry)
+    if readonly_check:
+        return readonly_check
+    
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/mode/{subject}", context)
+        payload = {"mode": mode}
+        
+        response = requests.put(
+            url,
+            data=json.dumps(payload),
+            auth=client.auth,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===== ENHANCED SCHEMA TOOLS =====
+
+@mcp.tool()
+def get_schema_versions(
+    subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> List[int]:
+    """
+    Get all versions of a schema for a subject.
+    
+    Args:
+        subject: The subject name
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        List of version numbers
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        url = client.build_context_url(f"/subjects/{subject}/versions", context)
+        
+        response = requests.get(
+            url,
+            auth=client.auth,
+            headers=client.headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def check_compatibility(
+    subject: str,
+    schema_definition: Dict[str, Any],
+    schema_type: str = "AVRO",
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Check if a schema is compatible with the latest version.
+    
+    Args:
+        subject: The subject name
+        schema_definition: The schema definition to check
+        schema_type: The schema type (AVRO, JSON, PROTOBUF)
+        context: Optional schema context
+        registry: Optional registry name (uses default if not specified)
+    
+    Returns:
+        Compatibility check result
+    """
+    try:
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        payload = {
+            "schema": json.dumps(schema_definition),
+            "schemaType": schema_type
+        }
+        
+        url = client.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
+        
+        response = requests.post(
+            url,
+            data=json.dumps(payload),
+            auth=client.auth,
+            headers=client.headers
+        )
+        response.raise_for_status()
+        result = response.json()
+        result["registry"] = client.config.name
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
 # ===== ORIGINAL SCHEMA MANAGEMENT TOOLS (Enhanced with Multi-Registry Support) =====
 
 @mcp.tool()
@@ -875,7 +1434,7 @@ def get_registry_info_resource():
             "server_version": "1.5.0-multi-registry",
             "multi_registry_support": True,
             "max_registries_supported": MAX_REGISTRIES,
-            "total_tools": 48,
+            "total_tools": 68,
             "configuration_mode": "numbered_env_vars" if len(registries_info) > 1 else "single_registry",
             "features": [
                 "Multi-Registry Support (Numbered Env Vars)",

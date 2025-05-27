@@ -133,7 +133,7 @@ Before creating a release:
 - [ ] MCP server tests passing (both `kafka_schema_registry_mcp.py` and `kafka_schema_registry_multi_mcp.py`)
 - [ ] Integration tests passing (full test suite)
 - [ ] Numbered config integration tests passing (real Schema Registry operations)
-- [ ] All 48 MCP tools functional (20 original + 28 multi-registry)
+- [ ] All 68 MCP tools functional (20 original enhanced + 48 multi-registry)
 - [ ] Multi-registry support tested (up to 8 registries)
 - [ ] Per-registry READONLY mode working
 - [ ] Cross-registry operations functional (compare, migrate, sync)

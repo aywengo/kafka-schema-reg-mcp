@@ -25,13 +25,13 @@ async def test_multi_registry_mcp():
     
     # Configure 3 registries using numbered approach
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["SCHEMA_REGISTRY_USER_1"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_1"] = ""
     env["READONLY_1"] = "false"
     
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
-    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:8082"
+    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
     env["SCHEMA_REGISTRY_USER_2"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_2"] = ""
     env["READONLY_2"] = "false"

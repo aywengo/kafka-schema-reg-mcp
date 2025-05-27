@@ -53,7 +53,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Or use latest (same as stable)
+# Or use latest (might be not released yet)
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
 # Or specific version
@@ -170,70 +170,56 @@ python tests/test_mcp_server.py
 
 ### Configure Claude Desktop
 
+#### Ready-to-Use Configuration Examples
+
+All configuration examples are available in the [`config-examples/`](config-examples/) directory with updated port configurations.
+
+**Quick Setup:**
+```bash
+# Copy the configuration that matches your use case
+cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+
+# Or for Linux
+cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
+```
+
 #### Option A: Using Docker (Recommended)
 
 **Stable Tag (Recommended for Production):**
-```json
-{
-  "mcpServers": {
-    "kafka-schema-registry": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i", "--network", "host",
-        "-e", "SCHEMA_REGISTRY_URL",
-        "-e", "SCHEMA_REGISTRY_USER",
-        "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "aywengo/kafka-schema-reg-mcp:stable"
-      ],
-      "env": {
-        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-        "SCHEMA_REGISTRY_USER": "",
-        "SCHEMA_REGISTRY_PASSWORD": ""
-      }
-    }
-  }
-}
+```bash
+# Use the pre-configured stable setup
+cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-**Latest Tag (Same as stable):**
-```json
-{
-  "mcpServers": {
-    "kafka-schema-registry": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i", "--network", "host",
-        "-e", "SCHEMA_REGISTRY_URL",
-        "-e", "SCHEMA_REGISTRY_USER",
-        "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "aywengo/kafka-schema-reg-mcp:latest"
-      ],
-      "env": {
-        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-        "SCHEMA_REGISTRY_USER": "",
-        "SCHEMA_REGISTRY_PASSWORD": ""
-      }
-    }
-  }
-}
+**Latest Tag:**
+```bash
+# Use the latest Docker image
+cp config-examples/claude_desktop_docker_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+**Multi-Registry Setup:**
+```bash
+# For multi-environment schema management
+cp config-examples/claude_desktop_multi_registry_docker.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
 #### Option B: Local Python Installation
-```json
-{
-  "mcpServers": {
-    "kafka-schema-registry": {
-      "command": "python",
-      "args": ["/absolute/path/to/kafka_schema_registry_mcp.py"],
-      "env": {
-        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-        "SCHEMA_REGISTRY_USER": "",
-        "SCHEMA_REGISTRY_PASSWORD": ""
-      }
-    }
-  }
-}
+```bash
+# For local development
+cp config-examples/claude_desktop_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
+
+#### Configuration Options Available
+
+| Configuration | Use Case | Description |
+|---------------|----------|-------------|
+| `claude_desktop_stable_config.json` | **Production** | Docker stable tag, single registry |
+| `claude_desktop_multi_registry_docker.json` | **Multi-Environment** | Docker with DEV/STAGING/PROD registries |
+| `claude_desktop_config.json` | **Local Development** | Python local execution |
+| `claude_desktop_readonly_config.json` | **Production Safety** | Read-only mode enforced |
+| `claude_desktop_simple_multi.json` | **Simple Multi-Registry** | 2-registry setup (dev + prod) |
+
+**📖 Complete Configuration Guide**: [`config-examples/README.md`](config-examples/README.md)
 
 Copy the configuration to your Claude Desktop config file:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
@@ -329,22 +315,53 @@ export SCHEMA_REGISTRY_PASSWORD="your-password"
 
 ## 🧪 Testing
 
-Comprehensive test suite with 53 passing tests covering all functionality:
-- ✅ **53 PASSED**, ⚠️ **1 SKIPPED** (auth), ❌ **0 FAILED**
-- ✅ **17 Export Tests** covering all export scenarios and formats
-- ✅ **Context Isolation** verification and multi-environment testing
-- ✅ **Error Handling** for invalid requests and edge cases
+Comprehensive test suite with multi-registry support and migration testing:
+- ✅ **Multi-Registry Environment**: DEV (38081) + PROD (38082) + AKHQ UI (38080)
+- ✅ **68 MCP Tools Validation** covering all schema operations
+- ✅ **Migration Testing**: Schema migration from DEV → PROD with read-only enforcement
+- ✅ **Performance Testing**: Load testing and cross-registry operations
+- ✅ **Production Readiness**: Enterprise features and security validation
+- ✅ **Comprehensive Test Suite**: End-to-end workflows and error handling
+
+### Quick Start Testing
 
 ```bash
-# Run all tests (from project root)
-./tests/run_integration_tests.sh
+# Single Registry Testing
+cd tests/
+./start_test_environment.sh
+./run_comprehensive_tests.sh
+./stop_test_environment.sh
 
-# Or run individual tests
-python tests/test_simple_config.py
-python tests/test_numbered_config.py
+# Multi-Registry Testing (Recommended)
+cd tests/
+./start_multi_registry_environment.sh
+./run_multi_registry_tests.sh
+./run_migration_tests.sh
+./stop_multi_registry_environment.sh
 ```
 
-**📖 Testing Guide**: [Deployment Guide - Testing](docs/deployment.md#-troubleshooting)
+### Test Categories
+
+```bash
+# All comprehensive tests (single registry)
+./tests/run_comprehensive_tests.sh
+
+# All multi-registry tests including migration
+./tests/run_multi_registry_tests.sh
+
+# Schema migration and comparison tests
+./tests/run_migration_tests.sh
+
+# Individual test categories
+./tests/run_comprehensive_tests.sh --basic
+./tests/run_comprehensive_tests.sh --workflows
+./tests/run_comprehensive_tests.sh --performance
+```
+
+### Test Results
+All test results are saved to `tests/results/` with detailed logs, CSV reports, and summaries.
+
+**📖 Complete Testing Guide**: [TESTING_SETUP_GUIDE.md](TESTING_SETUP_GUIDE.md)
 
 ## 🚀 Production Deployment
 

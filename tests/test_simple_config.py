@@ -14,7 +14,7 @@ def test_single_registry_config():
     print("-" * 50)
     
     # Set single registry environment variables
-    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:8081"
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["SCHEMA_REGISTRY_USER"] = "test-user"
     os.environ["SCHEMA_REGISTRY_PASSWORD"] = "test-password"
     os.environ["READONLY"] = "false"
@@ -63,13 +63,13 @@ def test_multi_registry_config():
     
     # Set up numbered registries
     os.environ["SCHEMA_REGISTRY_NAME_1"] = "development"
-    os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     os.environ["SCHEMA_REGISTRY_USER_1"] = "dev-user"
     os.environ["SCHEMA_REGISTRY_PASSWORD_1"] = "dev-password"
     os.environ["READONLY_1"] = "false"
     
     os.environ["SCHEMA_REGISTRY_NAME_2"] = "staging"
-    os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:8082"
+    os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
     os.environ["SCHEMA_REGISTRY_USER_2"] = "staging-user"
     os.environ["SCHEMA_REGISTRY_PASSWORD_2"] = "staging-password"
     os.environ["READONLY_2"] = "false"

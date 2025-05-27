@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  kafka-schema-registry-multi:
+    image: aywengo/kafka-schema-reg-mcp:stable
+    command: python kafka_schema_registry_multi_mcp.py
+    stdin_open: true
+    tty: true
+    network_mode: host
+    environment:
+      # Registry 1: Development
+      SCHEMA_REGISTRY_NAME_1: development
+      SCHEMA_REGISTRY_URL_1: http://localhost:8081
+      SCHEMA_REGISTRY_USER_1: ""
+      SCHEMA_REGISTRY_PASSWORD_1: ""
+      READONLY_1: "false"
+      
+      # Registry 2: Staging
+      SCHEMA_REGISTRY_NAME_2: staging
+      SCHEMA_REGISTRY_URL_2: http://localhost:8082
+      SCHEMA_REGISTRY_USER_2: ""
+      SCHEMA_REGISTRY_PASSWORD_2: ""
+      READONLY_2: "false"
+      
+      # Registry 3: Production (Read-only)
+      SCHEMA_REGISTRY_NAME_3: production
+      SCHEMA_REGISTRY_URL_3: http://localhost:8083
+      SCHEMA_REGISTRY_USER_3: prod-user
+      SCHEMA_REGISTRY_PASSWORD_3: prod-password
+      READONLY_3: "true" 
