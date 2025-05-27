@@ -571,20 +571,106 @@ def migrate_schema(
         if target_client is None:
             return {"error": f"Target registry '{target_registry}' not found"}
         
-        # Create migration task
         task_id = str(uuid.uuid4())
+        target_ctx = target_context or source_context
+        migration_results = {
+            "successful_versions": [],
+            "failed_versions": [],
+            "skipped_versions": []
+        }
+        
+        # Get versions to migrate
+        if migrate_all_versions:
+            try:
+                source_url = source_client.build_context_url(f"/subjects/{subject}/versions", source_context)
+                response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                response.raise_for_status()
+                versions = response.json()
+            except Exception as e:
+                return {"error": f"Failed to get versions for {subject}: {str(e)}"}
+        else:
+            versions = ["latest"]
+        
+        if dry_run:
+            return {
+                "migration_id": task_id,
+                "subject": subject,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "source_context": source_context,
+                "target_context": target_ctx,
+                "versions_to_migrate": versions,
+                "version_count": len(versions),
+                "dry_run": True,
+                "status": "preview",
+                "preview_at": datetime.now().isoformat()
+            }
+        
+        # Perform actual migration
+        for version in versions:
+            try:
+                # Get schema from source
+                source_url = source_client.build_context_url(f"/subjects/{subject}/versions/{version}", source_context)
+                response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                response.raise_for_status()
+                schema_data = response.json()
+                
+                # Check if already exists in target
+                target_url = target_client.build_context_url(f"/subjects/{subject}/versions/{version}", target_ctx)
+                check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                
+                if check_response.status_code == 200:
+                    migration_results["skipped_versions"].append({
+                        "version": version,
+                        "reason": "Already exists in target"
+                    })
+                    continue
+                
+                # Register in target
+                payload = {
+                    "schema": schema_data["schema"],
+                    "schemaType": schema_data.get("schemaType", "AVRO")
+                }
+                
+                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                register_response = requests.post(
+                    target_register_url,
+                    json=payload,
+                    auth=target_client.auth,
+                    headers=target_client.headers,
+                    timeout=10
+                )
+                register_response.raise_for_status()
+                result = register_response.json()
+                
+                migration_results["successful_versions"].append({
+                    "version": version,
+                    "schema_id": result.get("id"),
+                    "source_id": schema_data.get("id")
+                })
+                
+            except Exception as e:
+                migration_results["failed_versions"].append({
+                    "version": version,
+                    "error": str(e)
+                })
+        
+        # Create migration task
         task = MigrationTask(
             id=task_id,
             source_registry=source_registry,
             target_registry=target_registry,
             scope=f"schema:{subject}",
-            status="completed" if dry_run else "completed",
+            status="completed",
             created_at=datetime.now().isoformat(),
-            dry_run=dry_run
+            completed_at=datetime.now().isoformat(),
+            results=migration_results,
+            dry_run=False
         )
+        registry_manager.migration_tasks[task_id] = task
         
-        if not dry_run:
-            registry_manager.migration_tasks[task_id] = task
+        success_count = len(migration_results["successful_versions"])
+        total_attempted = success_count + len(migration_results["failed_versions"])
         
         return {
             "migration_id": task_id,
@@ -592,9 +678,14 @@ def migrate_schema(
             "source_registry": source_registry,
             "target_registry": target_registry,
             "source_context": source_context,
-            "target_context": target_context or source_context,
+            "target_context": target_ctx,
             "migrate_all_versions": migrate_all_versions,
-            "dry_run": dry_run,
+            "total_versions": len(versions),
+            "successful_migrations": success_count,
+            "failed_migrations": len(migration_results["failed_versions"]),
+            "skipped_migrations": len(migration_results["skipped_versions"]),
+            "success_rate": f"{(success_count / total_attempted * 100):.1f}%" if total_attempted > 0 else "0%",
+            "results": migration_results,
             "status": "completed",
             "migrated_at": datetime.now().isoformat()
         }
@@ -639,19 +730,124 @@ def migrate_context(
             return {"error": f"Target registry '{target_registry}' not found"}
         
         task_id = str(uuid.uuid4())
+        target_ctx = target_context or context
         
         # Get subjects in the context
         subjects = source_client.get_subjects(context)
+        
+        if not subjects:
+            return {
+                "migration_id": task_id,
+                "context": context,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "target_context": target_ctx,
+                "subjects_found": 0,
+                "error": f"No subjects found in context '{context}' in source registry"
+            }
+        
+        if dry_run:
+            return {
+                "migration_id": task_id,
+                "context": context,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "target_context": target_ctx,
+                "subjects_to_migrate": subjects,
+                "subject_count": len(subjects),
+                "dry_run": True,
+                "status": "preview",
+                "preview_at": datetime.now().isoformat()
+            }
+        
+        # Perform actual migration
+        migration_results = {
+            "successful_subjects": [],
+            "failed_subjects": [],
+            "skipped_subjects": []
+        }
+        
+        for subject in subjects:
+            try:
+                # Get latest schema from source
+                source_url = source_client.build_context_url(f"/subjects/{subject}/versions/latest", context)
+                response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                response.raise_for_status()
+                schema_data = response.json()
+                
+                # Check if already exists in target
+                target_url = target_client.build_context_url(f"/subjects/{subject}/versions/latest", target_ctx)
+                check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                
+                if check_response.status_code == 200:
+                    # Compare schemas to see if they're the same
+                    target_schema_data = check_response.json()
+                    if schema_data["schema"] == target_schema_data["schema"]:
+                        migration_results["skipped_subjects"].append({
+                            "subject": subject,
+                            "reason": "Identical schema already exists"
+                        })
+                        continue
+                
+                # Register in target
+                payload = {
+                    "schema": schema_data["schema"],
+                    "schemaType": schema_data.get("schemaType", "AVRO")
+                }
+                
+                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                register_response = requests.post(
+                    target_register_url,
+                    json=payload,
+                    auth=target_client.auth,
+                    headers=target_client.headers,
+                    timeout=10
+                )
+                register_response.raise_for_status()
+                result = register_response.json()
+                
+                migration_results["successful_subjects"].append({
+                    "subject": subject,
+                    "schema_id": result.get("id"),
+                    "source_id": schema_data.get("id"),
+                    "version": schema_data.get("version")
+                })
+                
+            except Exception as e:
+                migration_results["failed_subjects"].append({
+                    "subject": subject,
+                    "error": str(e)
+                })
+        
+        # Create migration task
+        task = MigrationTask(
+            id=task_id,
+            source_registry=source_registry,
+            target_registry=target_registry,
+            scope=f"context:{context}",
+            status="completed",
+            created_at=datetime.now().isoformat(),
+            completed_at=datetime.now().isoformat(),
+            results=migration_results,
+            dry_run=False
+        )
+        registry_manager.migration_tasks[task_id] = task
+        
+        success_count = len(migration_results["successful_subjects"])
+        total_attempted = success_count + len(migration_results["failed_subjects"])
         
         return {
             "migration_id": task_id,
             "context": context,
             "source_registry": source_registry,
             "target_registry": target_registry,
-            "target_context": target_context or context,
-            "subjects_to_migrate": subjects,
-            "subject_count": len(subjects),
-            "dry_run": dry_run,
+            "target_context": target_ctx,
+            "total_subjects": len(subjects),
+            "successful_migrations": success_count,
+            "failed_migrations": len(migration_results["failed_subjects"]),
+            "skipped_migrations": len(migration_results["skipped_subjects"]),
+            "success_rate": f"{(success_count / total_attempted * 100):.1f}%" if total_attempted > 0 else "0%",
+            "results": migration_results,
             "status": "completed",
             "migrated_at": datetime.now().isoformat()
         }
