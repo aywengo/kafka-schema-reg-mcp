@@ -94,8 +94,8 @@ print_color $YELLOW "   Note: Schema Registry may take up to 2 minutes to initia
 timeout=120
 elapsed=0
 while [ $elapsed -lt $timeout ]; do
-    if curl -s http://localhost:8081/subjects &> /dev/null; then
-        print_color $GREEN "✅ Schema Registry is ready on http://localhost:8081"
+    if curl -s http://localhost:38081/subjects &> /dev/null; then
+        print_color $GREEN "✅ Schema Registry is ready on http://localhost:38081"
         break
     fi
     sleep 10
@@ -122,7 +122,7 @@ fi
 
 # Final verification
 print_color $BLUE "🔍 Final verification..."
-response=$(curl -s http://localhost:8081/subjects)
+response=$(curl -s http://localhost:38081/subjects)
 if [ "$response" = "[]" ]; then
     print_color $GREEN "✅ Schema Registry is responding correctly"
 else
@@ -134,7 +134,7 @@ print_header "TEST ENVIRONMENT READY"
 print_color $GREEN "🎉 Test environment is ready!"
 print_color $WHITE "Services running:"
 print_color $WHITE "  • Kafka: localhost:9092"
-print_color $WHITE "  • Schema Registry: localhost:8081"
+print_color $WHITE "  • Schema Registry: localhost:38081"
 echo
 print_color $BLUE "To run tests:"
 print_color $WHITE "  ./run_comprehensive_tests.sh"

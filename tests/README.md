@@ -142,6 +142,7 @@ Run multi-registry specific tests:
 - `test_simple_config.py` - Single registry configuration
 - `test_numbered_config.py` - Multi-registry numbered configuration
 - `test_config.py` - Flexible test configuration with auto-detection
+- `test_default_context_dot_migration.py` - Default context '.' migration bug fix validation
 
 ### Infrastructure Tests
 - `test_mcp_server.py` - Basic MCP server functionality
@@ -168,6 +169,7 @@ Run multi-registry specific tests:
 - `run_comprehensive_tests.sh` - Main test runner with reporting (single registry)
 - `run_multi_registry_tests.sh` - Multi-registry test runner with all categories
 - `run_migration_tests.sh` - Schema migration and comparison tests
+- `run_default_context_dot_tests.sh` - Default context '.' migration bug fix tests
 - `run_integration_tests.sh` - Legacy integration test runner
 - `run_numbered_integration_tests.sh` - Numbered config test runner
 

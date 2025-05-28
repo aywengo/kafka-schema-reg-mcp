@@ -132,6 +132,7 @@ run_basic_tests() {
         "simple_config:test_simple_config.py:Single registry configuration validation"
         "numbered_config:test_numbered_config.py:Multi-registry numbered configuration"
         "mcp_server:test_mcp_server.py:Basic MCP server functionality"
+        "default_context_dot:test_default_context_dot_migration.py:Default context '.' migration bug fix validation"
     )
     
     for test_spec in "${tests[@]}"; do
@@ -346,6 +347,7 @@ generate_summary() {
         echo "• Cross-Registry Operations"
         echo "• Schema Evolution and Migration"
         echo "• Context Management"
+        echo "• Default Context '.' Migration Bug Fix"
         echo "• Enterprise Security and Compliance"
         echo "• High Availability and Disaster Recovery"
         echo "• Performance and Scalability"

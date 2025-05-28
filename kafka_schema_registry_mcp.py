@@ -90,7 +90,8 @@ class RegistryClient:
     
     def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
         """Build URL with optional context support."""
-        if context:
+        # Handle default context "." as no context
+        if context and context != ".":
             return f"{self.config.url}/contexts/{context}{base_url}"
         return f"{self.config.url}{base_url}"
     
@@ -209,7 +210,8 @@ if SCHEMA_REGISTRY_USER and SCHEMA_REGISTRY_PASSWORD:
 
 def build_context_url(base_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support (global function for backward compatibility)."""
-    if context:
+    # Handle default context "." as no context
+    if context and context != ".":
         return f"{SCHEMA_REGISTRY_URL}/contexts/{context}{base_url}"
     return f"{SCHEMA_REGISTRY_URL}{base_url}"
 

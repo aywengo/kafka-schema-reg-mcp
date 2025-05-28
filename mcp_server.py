@@ -113,7 +113,8 @@ class GlobalExport(BaseModel):
 
 def build_context_url(base_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support."""
-    if context:
+    # Handle default context "." as no context
+    if context and context != ".":
         return f"{SCHEMA_REGISTRY_URL}/contexts/{context}{base_url}"
     return f"{SCHEMA_REGISTRY_URL}{base_url}"
 

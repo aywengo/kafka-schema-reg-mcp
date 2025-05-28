@@ -42,7 +42,7 @@ services:
       kafka-test:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "38081:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry-test
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-test:9092
