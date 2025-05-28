@@ -315,68 +315,27 @@ export SCHEMA_REGISTRY_PASSWORD="your-password"
 
 ## 🧪 Testing
 
-The project provides **two comprehensive test suites** designed for different testing scenarios:
+The project includes comprehensive test suites for both single-registry and multi-registry configurations.
 
-### **🔍 Testing Overview**
+#### Single-Registry Tests
 
-| Test Suite | Purpose | Environment | Use Case |
-|------------|---------|-------------|----------|
-| **Single-Registry** | Backward compatibility testing | Single Schema Registry (port 38081) | Development, CI/CD, basic functionality |
-| **Multi-Registry** | Advanced features testing | DEV (38081) + PROD (38082) + AKHQ UI (38080) | Production readiness, migration testing |
-
----
-
-## **🔧 Single-Registry Testing**
-
-**Purpose**: Tests basic MCP server functionality with a single Schema Registry instance, focusing on backward compatibility and core features.
-
-### Environment Management
 ```bash
-# Start single registry test environment
-cd tests/
-./start_test_environment.sh
+# Start single-registry test environment
+./tests/start_single_registry_environment.sh
 
-# Run single registry integration tests
-./run_comprehensive_tests.sh
-
-# Stop single registry environment
-./stop_test_environment.sh
-```
-
-### Test Categories
-```bash
-# All single-registry tests
+# Run comprehensive single-registry tests
 ./tests/run_comprehensive_tests.sh
 
-# Individual test categories
-./tests/run_comprehensive_tests.sh --basic      # Basic server functionality
-./tests/run_comprehensive_tests.sh --workflows  # Integration workflows  
-./tests/run_comprehensive_tests.sh --errors     # Validation tests
-./tests/run_comprehensive_tests.sh --help       # Show all options
+# Run specific test categories
+./tests/run_comprehensive_tests.sh --basic
+./tests/run_comprehensive_tests.sh --workflows
+
+# Stop single-registry test environment
+./tests/stop_single_registry_environment.sh
 ```
 
-### Infrastructure
-- **Docker Compose**: `tests/docker-compose.test.yml`
-- **Schema Registry**: Single instance on port 38081
-- **MCP Server**: `kafka_schema_registry_mcp.py` (single-registry mode)
-- **Environment**: Development-focused, simple setup
+#### Multi-Registry Tests
 
-### Key Tests
-- ✅ **Basic Server**: MCP server import and FastMCP structure validation
-- ✅ **MCP Integration**: Tool registration and JSON-RPC communication
-- ✅ **Schema Operations**: Register, retrieve, compatibility checking
-- ✅ **Context Management**: Default context operations
-- ✅ **Configuration**: Global and subject-level compatibility settings
-- ✅ **READONLY Mode**: Production safety validation
-- ✅ **Docker Integration**: Container-based testing
-
----
-
-## **🚀 Multi-Registry Testing**
-
-**Purpose**: Tests advanced multi-registry features including migration, cross-registry operations, and production readiness scenarios.
-
-### Environment Management
 ```bash
 # Start multi-registry test environment  
 cd tests/
@@ -388,117 +347,12 @@ cd tests/
 # Run schema migration tests
 ./run_migration_tests.sh
 
+# Run batch cleanup tests
+./run_multi_registry_batch_cleanup_tests.sh
+
 # Stop multi-registry environment
 ./stop_multi_registry_environment.sh
 ```
-
-### Test Categories
-```bash
-# All multi-registry tests
-./tests/run_multi_registry_tests.sh
-
-# Advanced test categories
-./tests/run_multi_registry_tests.sh --multi-mode    # Multi-mode configuration
-./tests/run_multi_registry_tests.sh --migration     # Schema migration
-./tests/run_multi_registry_tests.sh --performance   # Load testing
-./tests/run_multi_registry_tests.sh --production    # Enterprise readiness
-
-# Schema migration testing
-./tests/run_migration_tests.sh                      # Full migration suite
-```
-
-### Infrastructure
-- **Docker Compose**: `tests/docker-compose.multi-test.yml`
-- **Schema Registries**: 
-  - DEV Registry (port 38081) - IMPORT mode
-  - PROD Registry (port 38082) - READWRITE mode
-- **AKHQ UI**: Web interface on port 38080
-- **MCP Server**: `kafka_schema_registry_multi_mcp.py` (multi-registry mode)
-- **Environment**: Production-like, enterprise-focused
-
-### Key Tests
-- ✅ **Multi-Registry Operations**: Cross-registry comparison and synchronization
-- ✅ **Schema Migration**: DEV → PROD with validation and rollback
-- ✅ **Multi-Mode Configuration**: Different modes per registry
-- ✅ **Performance Testing**: Load testing and concurrent operations
-- ✅ **Production Readiness**: Enterprise features and security
-- ✅ **68 MCP Tools Validation**: All tools across multiple registries
-- ✅ **Migration Testing**: Schema migration with read-only enforcement
-- ✅ **Cross-Registry Workflows**: End-to-end enterprise scenarios
-
----
-
-## **📊 Test Results & Reporting**
-
-Both test suites generate comprehensive reports:
-
-```bash
-# Test results location
-tests/results/
-├── comprehensive_test_TIMESTAMP.log          # Single-registry full log
-├── multi_registry_test_TIMESTAMP.log         # Multi-registry full log
-├── test_summary_TIMESTAMP.txt                # Human-readable summary
-├── test_results_TIMESTAMP.csv                # Machine-readable results
-└── individual_test_logs/                     # Per-test detailed logs
-```
-
-### Result Categories
-- **PASS/FAIL Status**: Individual test results with timing
-- **Performance Metrics**: Response times and throughput
-- **Coverage Reports**: Feature and tool coverage validation
-- **Error Analysis**: Detailed failure diagnostics
-- **Summary Statistics**: Success rates and test categories
-
----
-
-## **🎯 Quick Start Testing**
-
-### For Development (Single-Registry)
-```bash
-cd tests/
-./start_test_environment.sh      # Start environment
-./run_comprehensive_tests.sh     # Run tests  
-./stop_test_environment.sh       # Cleanup
-```
-
-### For Production Validation (Multi-Registry)
-```bash
-cd tests/
-./start_multi_registry_environment.sh    # Start environment
-./run_multi_registry_tests.sh           # Run core tests
-./run_migration_tests.sh                # Run migration tests
-./stop_multi_registry_environment.sh    # Cleanup
-```
-
----
-
-## **🔧 Test Environment Details**
-
-### Single-Registry Environment
-- **Services**: Schema Registry, Kafka, Zookeeper
-- **Ports**: 38081 (Schema Registry), 38092 (Kafka)
-- **Focus**: Core MCP functionality, backward compatibility
-- **Duration**: ~5-10 minutes
-
-### Multi-Registry Environment  
-- **Services**: 2x Schema Registry, 2x Kafka, Zookeeper, AKHQ UI
-- **Ports**: 38081 (DEV), 38082 (PROD), 38080 (AKHQ), 38092/38093 (Kafka)
-- **Focus**: Enterprise features, migration, multi-registry operations
-- **Duration**: ~15-25 minutes
-
-### Environment Validation
-```bash
-# Validate single-registry setup
-python tests/validate_single_registry_runner.py
-
-# Validate multi-registry setup  
-python tests/validate_multi_registry_runner.py
-
-# Quick environment diagnosis
-python tests/diagnose_test_environment.py
-```
-
-**📖 Complete Testing Guide**: [TESTING_SETUP_GUIDE.md](TESTING_SETUP_GUIDE.md)
 
 ## 🚀 Production Deployment
 

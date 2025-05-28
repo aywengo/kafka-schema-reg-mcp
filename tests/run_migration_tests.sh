@@ -119,6 +119,44 @@ check_prerequisites() {
     print_color $GREEN "✅ All migration test prerequisites satisfied"
 }
 
+# Function to fix registry modes for testing
+fix_registry_modes() {
+    print_header "FIXING REGISTRY MODES FOR TESTING"
+    
+    print_color $BLUE "🔧 Ensuring registries are in correct mode for migration testing..."
+    
+    # Check if fix_registry_modes.py exists
+    if [[ -f "$SCRIPT_DIR/fix_registry_modes.py" ]]; then
+        # Run the fix script and capture output
+        local fix_log="$TEST_RESULTS_DIR/fix_registry_modes_$TIMESTAMP.log"
+        
+        if python3 "$SCRIPT_DIR/fix_registry_modes.py" > "$fix_log" 2>&1; then
+            print_color $GREEN "✅ Registry modes fixed successfully"
+            
+            # Show key information from the fix
+            if grep -q "DEV: READWRITE" "$fix_log"; then
+                print_color $GREEN "   • DEV Registry: READWRITE mode (allows schema creation)"
+            fi
+            if grep -q "PROD: READWRITE" "$fix_log"; then
+                print_color $GREEN "   • PROD Registry: READWRITE mode (allows migration testing)"
+            fi
+        else
+            print_color $YELLOW "⚠️  Registry mode fix encountered issues"
+            print_color $YELLOW "   Check log: $fix_log"
+            
+            # Show last few lines of error
+            print_color $YELLOW "   Last 5 lines of output:"
+            tail -5 "$fix_log" | sed 's/^/   /'
+            
+            # Continue anyway - tests might still work
+            print_color $YELLOW "   Continuing with tests..."
+        fi
+    else
+        print_color $YELLOW "⚠️  fix_registry_modes.py not found - skipping mode fix"
+        print_color $YELLOW "   Tests may fail if registries are in READONLY mode"
+    fi
+}
+
 # Function to setup test data
 setup_test_data() {
     print_header "SETTING UP TEST DATA"
@@ -375,6 +413,9 @@ main() {
     
     # Check prerequisites first
     check_prerequisites
+    
+    # Fix registry modes to ensure they're in READWRITE mode for testing
+    fix_registry_modes
     
     # Setup test data
     setup_test_data

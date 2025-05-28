@@ -114,6 +114,29 @@ check_multi_registry_environment() {
     return 0
 }
 
+# Fix registry modes for testing
+fix_registry_modes() {
+    header "Fixing Registry Modes"
+    log "Ensuring registries are in correct mode for testing..."
+    
+    # Check if fix_registry_modes.py exists
+    if [ -f "tests/fix_registry_modes.py" ]; then
+        # Run the fix script
+        if python3 tests/fix_registry_modes.py > /dev/null 2>&1; then
+            success "✅ Registry modes fixed successfully"
+            info "• DEV Registry: READWRITE mode (allows schema creation)"
+            info "• PROD Registry: READWRITE mode (allows migration testing)"
+        else
+            warning "⚠️  Registry mode fix encountered issues"
+            warning "Tests may fail if registries are in READONLY mode"
+            warning "You can manually fix by running: python3 tests/fix_registry_modes.py"
+        fi
+    else
+        warning "⚠️  fix_registry_modes.py not found - skipping mode fix"
+        warning "Tests may fail if registries are in READONLY mode"
+    fi
+}
+
 # Recheck connectivity between tests
 recheck_connectivity() {
     log "Rechecking registry connectivity..."
@@ -270,6 +293,9 @@ main() {
         error "Cannot proceed without healthy multi-registry environment"
         exit 1
     fi
+    
+    # Fix registry modes to ensure they're in READWRITE mode for testing
+    fix_registry_modes
     
     echo ""
     info "🚀 Running Multi-Registry Test Suite"

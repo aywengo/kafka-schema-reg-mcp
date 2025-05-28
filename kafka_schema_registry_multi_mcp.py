@@ -1930,6 +1930,382 @@ def get_schema(
     except Exception as e:
         return {"error": str(e)}
 
+# ===== BATCH CLEANUP TOOLS =====
+
+@mcp.tool()
+def clear_context_batch(
+    context: str,
+    registry: str,
+    delete_context_after: bool = True,
+    dry_run: bool = True
+) -> Dict[str, Any]:
+    """
+    Efficiently remove all subjects from a context in batch mode.
+    
+    Args:
+        context: The context name to clear
+        registry: The registry name to target
+        delete_context_after: Whether to delete the context itself after clearing subjects
+        dry_run: If True, show what would be deleted without actually deleting (default: True for safety)
+    
+    Returns:
+        Dictionary containing cleanup results and statistics
+    """
+    # Check readonly mode for actual deletions
+    if not dry_run:
+        readonly_check = check_readonly_mode(registry)
+        if readonly_check:
+            return readonly_check
+    
+    try:
+        # Get the registry client
+        client = registry_manager.get_registry(registry)
+        if client is None:
+            return {"error": f"Registry '{registry}' not found"}
+        
+        start_time = datetime.now()
+        
+        # Step 1: List all subjects in the context
+        print(f"🔍 Scanning context '{context}' in registry '{registry}' for subjects...")
+        subjects_list = list_subjects(context, registry)
+        
+        if isinstance(subjects_list, dict) and "error" in subjects_list:
+            return subjects_list
+        
+        if not subjects_list:
+            result = {
+                "context": context,
+                "registry": registry,
+                "dry_run": dry_run,
+                "subjects_found": 0,
+                "subjects_deleted": 0,
+                "context_deleted": False,
+                "duration_seconds": 0,
+                "message": f"Context '{context}' is already empty in registry '{registry}'"
+            }
+            return result
+        
+        print(f"📋 Found {len(subjects_list)} subjects to process")
+        
+        # Step 2: Batch delete subjects
+        deleted_subjects = []
+        failed_deletions = []
+        
+        if dry_run:
+            print(f"🔍 DRY RUN: Would delete {len(subjects_list)} subjects:")
+            for subject in subjects_list:
+                print(f"   - {subject}")
+            deleted_subjects = subjects_list.copy()
+        else:
+            print(f"🗑️  Deleting {len(subjects_list)} subjects in batch...")
+            
+            # Use concurrent deletions for better performance
+            import concurrent.futures
+            import threading
+            
+            def delete_single_subject(subject):
+                try:
+                    # Use the existing delete_subject function which handles multi-registry properly
+                    deletion_result = delete_subject(subject, context, registry)
+                    
+                    if isinstance(deletion_result, list):  # Success - returns version list
+                        return {"subject": subject, "status": "deleted", "versions": deletion_result}
+                    elif isinstance(deletion_result, dict) and "error" in deletion_result:
+                        return {"subject": subject, "status": "failed", "error": deletion_result["error"]}
+                    else:
+                        return {"subject": subject, "status": "deleted", "versions": deletion_result}
+                        
+                except Exception as e:
+                    return {"subject": subject, "status": "failed", "error": str(e)}
+            
+            # Execute deletions in parallel (max 10 concurrent)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                deletion_results = list(executor.map(delete_single_subject, subjects_list))
+            
+            # Process results
+            for result in deletion_results:
+                if result["status"] == "deleted":
+                    deleted_subjects.append(result["subject"])
+                    print(f"   ✅ Deleted {result['subject']}")
+                else:
+                    failed_deletions.append(result)
+                    print(f"   ❌ Failed to delete {result['subject']}: {result['error']}")
+        
+        # Step 3: Optionally delete the context itself
+        context_deleted = False
+        context_deletion_error = None
+        
+        if delete_context_after and (deleted_subjects or dry_run):
+            if dry_run:
+                print(f"🔍 DRY RUN: Would delete context '{context}' in registry '{registry}'")
+                context_deleted = True
+            else:
+                print(f"🗑️  Deleting context '{context}' in registry '{registry}'...")
+                try:
+                    deletion_result = delete_context(context, registry)
+                    if "error" not in deletion_result:
+                        context_deleted = True
+                        print(f"   ✅ Context '{context}' deleted from registry '{registry}'")
+                    else:
+                        context_deletion_error = deletion_result["error"]
+                        print(f"   ⚠️  Failed to delete context: {context_deletion_error}")
+                except Exception as e:
+                    context_deletion_error = str(e)
+                    print(f"   ⚠️  Error deleting context: {context_deletion_error}")
+        
+        # Calculate metrics
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        
+        # Build comprehensive result
+        result = {
+            "context": context,
+            "registry": registry,
+            "dry_run": dry_run,
+            "started_at": start_time.isoformat(),
+            "completed_at": end_time.isoformat(),
+            "duration_seconds": round(duration, 2),
+            "subjects_found": len(subjects_list),
+            "subjects_deleted": len(deleted_subjects),
+            "subjects_failed": len(failed_deletions),
+            "context_deleted": context_deleted,
+            "success_rate": round((len(deleted_subjects) / len(subjects_list)) * 100, 1) if subjects_list else 100,
+            "deleted_subjects": deleted_subjects,
+            "failed_deletions": failed_deletions[:5],  # Show first 5 failures
+            "performance": {
+                "subjects_per_second": round(len(deleted_subjects) / max(duration, 0.1), 1),
+                "parallel_execution": not dry_run,
+                "max_concurrent_deletions": 10
+            }
+        }
+        
+        if context_deletion_error:
+            result["context_deletion_error"] = context_deletion_error
+        
+        # Summary message
+        if dry_run:
+            result["message"] = f"DRY RUN: Would delete {len(subjects_list)} subjects from context '{context}' in registry '{registry}'"
+        elif len(deleted_subjects) == len(subjects_list):
+            result["message"] = f"Successfully cleared context '{context}' in registry '{registry}' - deleted {len(deleted_subjects)} subjects"
+        else:
+            result["message"] = f"Partially cleared context '{context}' in registry '{registry}' - deleted {len(deleted_subjects)}/{len(subjects_list)} subjects"
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"Batch cleanup failed: {str(e)}"}
+
+@mcp.tool()
+def clear_multiple_contexts_batch(
+    contexts: List[str],
+    registry: str,
+    delete_contexts_after: bool = True,
+    dry_run: bool = True
+) -> Dict[str, Any]:
+    """
+    Efficiently clear multiple contexts in batch mode within a single registry.
+    
+    Args:
+        contexts: List of context names to clear
+        registry: The registry name to target
+        delete_contexts_after: Whether to delete contexts after clearing subjects
+        dry_run: If True, show what would be deleted without actually deleting (default: True for safety)
+    
+    Returns:
+        Dictionary containing overall cleanup results
+    """
+    # Check readonly mode for actual deletions
+    if not dry_run:
+        readonly_check = check_readonly_mode(registry)
+        if readonly_check:
+            return readonly_check
+    
+    try:
+        start_time = datetime.now()
+        context_results = []
+        total_subjects_deleted = 0
+        total_subjects_found = 0
+        total_contexts_deleted = 0
+        
+        print(f"🚀 Starting batch cleanup of {len(contexts)} contexts in registry '{registry}'...")
+        
+        for i, context in enumerate(contexts, 1):
+            print(f"\n📂 Processing context {i}/{len(contexts)}: '{context}'")
+            
+            context_result = clear_context_batch(
+                context=context,
+                registry=registry,
+                delete_context_after=delete_contexts_after,
+                dry_run=dry_run
+            )
+            
+            if "error" in context_result:
+                context_results.append({
+                    "context": context,
+                    "status": "failed",
+                    "error": context_result["error"]
+                })
+            else:
+                context_results.append({
+                    "context": context,
+                    "status": "completed",
+                    "subjects_deleted": context_result["subjects_deleted"],
+                    "subjects_found": context_result["subjects_found"],
+                    "context_deleted": context_result["context_deleted"],
+                    "duration_seconds": context_result["duration_seconds"]
+                })
+                
+                total_subjects_deleted += context_result["subjects_deleted"]
+                total_subjects_found += context_result["subjects_found"]
+                if context_result["context_deleted"]:
+                    total_contexts_deleted += 1
+        
+        end_time = datetime.now()
+        total_duration = (end_time - start_time).total_seconds()
+        
+        # Build summary result
+        completed_contexts = sum(1 for r in context_results if r["status"] == "completed")
+        failed_contexts = sum(1 for r in context_results if r["status"] == "failed")
+        
+        result = {
+            "operation": "batch_multi_context_cleanup",
+            "registry": registry,
+            "dry_run": dry_run,
+            "started_at": start_time.isoformat(),
+            "completed_at": end_time.isoformat(),
+            "total_duration_seconds": round(total_duration, 2),
+            "contexts_processed": len(contexts),
+            "contexts_completed": completed_contexts,
+            "contexts_failed": failed_contexts,
+            "contexts_deleted": total_contexts_deleted,
+            "total_subjects_found": total_subjects_found,
+            "total_subjects_deleted": total_subjects_deleted,
+            "overall_success_rate": round((completed_contexts / len(contexts)) * 100, 1) if contexts else 100,
+            "performance": {
+                "contexts_per_second": round(len(contexts) / max(total_duration, 0.1), 2),
+                "subjects_per_second": round(total_subjects_deleted / max(total_duration, 0.1), 1),
+                "parallel_execution": True
+            },
+            "context_results": context_results
+        }
+        
+        # Summary message
+        if dry_run:
+            result["message"] = f"DRY RUN: Would delete {total_subjects_found} subjects from {len(contexts)} contexts in registry '{registry}'"
+        else:
+            result["message"] = f"Batch cleanup completed: {total_subjects_deleted} subjects deleted from {completed_contexts} contexts in registry '{registry}'"
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"Multi-context batch cleanup failed: {str(e)}"}
+
+@mcp.tool()
+def clear_context_across_registries_batch(
+    context: str,
+    registries: List[str],
+    delete_context_after: bool = True,
+    dry_run: bool = True
+) -> Dict[str, Any]:
+    """
+    Efficiently clear the same context across multiple registries in batch mode.
+    
+    Args:
+        context: The context name to clear
+        registries: List of registry names to target
+        delete_context_after: Whether to delete the context after clearing subjects
+        dry_run: If True, show what would be deleted without actually deleting (default: True for safety)
+    
+    Returns:
+        Dictionary containing cross-registry cleanup results
+    """
+    try:
+        start_time = datetime.now()
+        registry_results = []
+        total_subjects_deleted = 0
+        total_subjects_found = 0
+        total_registries_processed = 0
+        
+        print(f"🌐 Starting cross-registry cleanup of context '{context}' across {len(registries)} registries...")
+        
+        for i, registry in enumerate(registries, 1):
+            print(f"\n🏢 Processing registry {i}/{len(registries)}: '{registry}'")
+            
+            # Check if registry exists
+            if registry not in registry_manager.list_registries():
+                registry_results.append({
+                    "registry": registry,
+                    "status": "failed",
+                    "error": f"Registry '{registry}' not found"
+                })
+                continue
+            
+            registry_result = clear_context_batch(
+                context=context,
+                registry=registry,
+                delete_context_after=delete_context_after,
+                dry_run=dry_run
+            )
+            
+            if "error" in registry_result:
+                registry_results.append({
+                    "registry": registry,
+                    "status": "failed",
+                    "error": registry_result["error"]
+                })
+            else:
+                registry_results.append({
+                    "registry": registry,
+                    "status": "completed",
+                    "subjects_deleted": registry_result["subjects_deleted"],
+                    "subjects_found": registry_result["subjects_found"],
+                    "context_deleted": registry_result["context_deleted"],
+                    "duration_seconds": registry_result["duration_seconds"]
+                })
+                
+                total_subjects_deleted += registry_result["subjects_deleted"]
+                total_subjects_found += registry_result["subjects_found"]
+                total_registries_processed += 1
+        
+        end_time = datetime.now()
+        total_duration = (end_time - start_time).total_seconds()
+        
+        # Build summary result
+        completed_registries = sum(1 for r in registry_results if r["status"] == "completed")
+        failed_registries = sum(1 for r in registry_results if r["status"] == "failed")
+        
+        result = {
+            "operation": "cross_registry_context_cleanup",
+            "context": context,
+            "dry_run": dry_run,
+            "started_at": start_time.isoformat(),
+            "completed_at": end_time.isoformat(),
+            "total_duration_seconds": round(total_duration, 2),
+            "registries_targeted": len(registries),
+            "registries_completed": completed_registries,
+            "registries_failed": failed_registries,
+            "total_subjects_found": total_subjects_found,
+            "total_subjects_deleted": total_subjects_deleted,
+            "overall_success_rate": round((completed_registries / len(registries)) * 100, 1) if registries else 100,
+            "performance": {
+                "registries_per_second": round(len(registries) / max(total_duration, 0.1), 2),
+                "subjects_per_second": round(total_subjects_deleted / max(total_duration, 0.1), 1),
+                "parallel_registry_processing": False  # Sequential for safety
+            },
+            "registry_results": registry_results
+        }
+        
+        # Summary message
+        if dry_run:
+            result["message"] = f"DRY RUN: Would delete {total_subjects_found} subjects from context '{context}' across {len(registries)} registries"
+        else:
+            result["message"] = f"Cross-registry cleanup completed: {total_subjects_deleted} subjects deleted from context '{context}' across {completed_registries} registries"
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"Cross-registry batch cleanup failed: {str(e)}"}
+
 # ===== RESOURCES =====
 
 @mcp.resource("registry://status")
