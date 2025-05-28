@@ -1,143 +1,152 @@
 #!/usr/bin/env python3
 """
-Validate Migration Bug Fix
+Simple validation script for the migration integration fix
 
-Simple script to confirm that the "0 subjects migrated" bug has been fixed
-by checking that the migration functions contain actual migration logic.
+This script tests the migration functionality with simplified settings
+to validate that the fix works correctly.
 """
 
-import inspect
-import sys
 import os
+import sys
+import uuid
 
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def validate_migration_fix():
-    """Validate that migration functions actually perform migrations"""
-    print("🔍 Validating Migration Bug Fix")
-    print("=" * 40)
+def main():
+    print("🔧 Validating Migration Integration Fix")
+    print("=" * 50)
+    
+    # Setup environment for multi-registry mode
+    os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
+    os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
+    os.environ["READONLY_1"] = "false"
+    
+    os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
+    os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
+    os.environ["READONLY_2"] = "false"
+    
+    # Clear global READONLY
+    if "READONLY" in os.environ:
+        del os.environ["READONLY"]
     
     try:
-        import kafka_schema_registry_multi_mcp as mcp
-        print("✅ MCP module imported successfully")
-    except Exception as e:
-        print(f"❌ Failed to import MCP module: {e}")
-        return False
-    
-    # Check migrate_context function
-    print("\n🧪 Checking migrate_context function...")
-    try:
-        source = inspect.getsource(mcp.migrate_context)
+        import kafka_schema_registry_multi_mcp as mcp_server
         
-        # Key indicators that actual migration is implemented
-        migration_indicators = [
-            ("migration_results", "Migration results tracking structure"),
-            ("successful_subjects", "Success tracking array"),
-            ("failed_subjects", "Failure tracking array"),
-            ("for subject in subjects:", "Subject iteration loop"),
-            ("requests.get", "Schema retrieval from source"),
-            ("requests.post", "Schema registration in target"),
-            ("migration_results[\"successful_subjects\"].append", "Success recording"),
-            ("len(migration_results[\"successful_subjects\"])", "Success counting"),
-            ("success_rate", "Success rate calculation")
-        ]
+        # Force reload configuration
+        mcp_server.registry_manager._load_registries()
         
-        found_indicators = 0
-        for indicator, description in migration_indicators:
-            if indicator in source:
-                print(f"   ✅ {description}")
-                found_indicators += 1
-            else:
-                print(f"   ❌ {description} - NOT FOUND")
+        print("✅ Multi-registry server loaded")
         
-        # Check that skeleton indicators are NOT present
-        skeleton_indicators = [
-            ("subjects_to_migrate", "Old skeleton return field"),
-            ("subject_count", "Old skeleton count field")
-        ]
+        # Test context
+        test_context = f"validation-{uuid.uuid4().hex[:8]}"
+        print(f"🧪 Using test context: {test_context}")
         
-        skeleton_found = 0
-        for indicator, description in skeleton_indicators:
-            if indicator in source:
-                print(f"   ⚠️  {description} - still present (may be ok)")
-                skeleton_found += 1
+        # Step 1: Create a test schema in DEV
+        test_subject = f"test-schema-{uuid.uuid4().hex[:6]}"
+        test_schema = {
+            "type": "record",
+            "name": "ValidationEvent",
+            "fields": [
+                {"name": "id", "type": "string"},
+                {"name": "timestamp", "type": "long"}
+            ]
+        }
         
-        print(f"\n📊 Migration Implementation Score: {found_indicators}/{len(migration_indicators)}")
+        print(f"📝 Creating test schema: {test_subject}")
+        create_result = mcp_server.register_schema(
+            subject=test_subject,
+            schema_definition=test_schema,
+            context=test_context,
+            registry="dev"
+        )
         
-        if found_indicators >= 6:  # Most critical indicators
-            print("✅ migrate_context contains REAL migration logic")
-            context_fixed = True
-        else:
-            print("❌ migrate_context appears to be skeleton implementation")
-            context_fixed = False
+        if "error" in create_result:
+            print(f"❌ Failed to create schema: {create_result['error']}")
+            return False
+        
+        print(f"✅ Schema created with ID: {create_result.get('id')}")
+        
+        # Step 2: Verify schema exists in DEV
+        dev_subjects = mcp_server.list_subjects(context=test_context, registry="dev")
+        expected_subject = f":.{test_context}:{test_subject}"
+        
+        if expected_subject not in dev_subjects:
+            print(f"❌ Schema not found in DEV: {dev_subjects}")
+            return False
+        
+        print(f"✅ Schema found in DEV with context prefix")
+        
+        # Step 3: Perform migration with simplified settings
+        print(f"🚀 Testing migration with simplified settings...")
+        migration_result = mcp_server.migrate_context(
+            context=test_context,
+            source_registry="dev",
+            target_registry="prod",
+            migrate_all_versions=False,  # Only latest version
+            preserve_ids=False,         # No ID preservation
+            dry_run=False
+        )
+        
+        if "error" in migration_result:
+            print(f"❌ Migration failed: {migration_result['error']}")
+            return False
+        
+        successful_migrations = migration_result.get("successful_migrations", 0)
+        total_subjects = migration_result.get("total_subjects", 0)
+        
+        print(f"📊 Migration result: {successful_migrations}/{total_subjects} subjects")
+        
+        if successful_migrations == 0:
+            print(f"❌ No subjects migrated!")
             
-    except Exception as e:
-        print(f"❌ Failed to inspect migrate_context: {e}")
-        context_fixed = False
-    
-    # Check migrate_schema function
-    print("\n🧪 Checking migrate_schema function...")
-    try:
-        source = inspect.getsource(mcp.migrate_schema)
-        
-        schema_indicators = [
-            ("migration_results", "Migration results tracking"),
-            ("successful_versions", "Version success tracking"),
-            ("requests.get", "Schema retrieval"),
-            ("requests.post", "Schema registration")
-        ]
-        
-        found_schema_indicators = 0
-        for indicator, description in schema_indicators:
-            if indicator in source:
-                print(f"   ✅ {description}")
-                found_schema_indicators += 1
-            else:
-                print(f"   ❌ {description} - NOT FOUND")
-        
-        print(f"\n📊 Schema Migration Score: {found_schema_indicators}/{len(schema_indicators)}")
-        
-        if found_schema_indicators >= 3:
-            print("✅ migrate_schema contains REAL migration logic")
-            schema_fixed = True
-        else:
-            print("❌ migrate_schema appears to be skeleton implementation")
-            schema_fixed = False
+            # Show detailed error info
+            if "results" in migration_result:
+                results = migration_result["results"]
+                version_details = results.get('version_details', [])
+                for detail in version_details:
+                    if detail.get('status') == 'failed':
+                        error = detail.get('error', 'no details')
+                        print(f"   Error: {error}")
             
-    except Exception as e:
-        print(f"❌ Failed to inspect migrate_schema: {e}")
-        schema_fixed = False
-    
-    # Overall assessment
-    print(f"\n🎯 Overall Assessment:")
-    if context_fixed and schema_fixed:
-        print("🎉 MIGRATION BUG FIX CONFIRMED!")
-        print("✅ Both migrate_context and migrate_schema contain real migration logic")
-        print("✅ The '0 subjects migrated' bug has been resolved")
-        print("✅ Functions now actually transfer schemas between registries")
+            return False
         
-        print(f"\n💡 Usage Example:")
-        print("import kafka_schema_registry_multi_mcp as mcp")
-        print("result = mcp.migrate_context('user-events', 'dev', 'prod')")
-        print("print(f'Migrated: {result[\"successful_migrations\"]} subjects')")
+        print(f"✅ Migration successful!")
+        
+        # Step 4: Verify schema exists in PROD
+        prod_subjects = mcp_server.list_subjects(context=test_context, registry="prod")
+        
+        if expected_subject not in prod_subjects:
+            print(f"❌ Schema not found in PROD after migration: {prod_subjects}")
+            return False
+        
+        print(f"✅ Schema found in PROD after migration")
+        
+        print(f"\n🎉 Migration integration fix validation PASSED!")
+        print(f"✅ Schema creation works")
+        print(f"✅ Context prefixing works")
+        print(f"✅ Migration works with simplified settings")
+        print(f"✅ Cross-registry migration successful")
         
         return True
-    else:
-        print("⚠️  Migration bug fix validation failed")
-        print("❌ Some functions still appear to be skeleton implementations")
+        
+    except Exception as e:
+        print(f"❌ Validation failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
-
-def main():
-    """Main validation runner"""
-    success = validate_migration_fix()
-    print(f"\n{'='*40}")
-    if success:
-        print("🎉 VALIDATION PASSED - Migration bug fix is working!")
-    else:
-        print("❌ VALIDATION FAILED - Migration bug may still exist")
     
-    return success
+    finally:
+        # Cleanup
+        try:
+            import requests
+            for registry_url in ["http://localhost:38081", "http://localhost:38082"]:
+                try:
+                    requests.delete(f"{registry_url}/contexts/{test_context}", timeout=5)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     success = main()

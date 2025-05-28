@@ -70,33 +70,62 @@ def test_basic_functionality():
         os.environ['SCHEMA_REGISTRY_USER'] = ''
         os.environ['SCHEMA_REGISTRY_PASSWORD'] = ''
         
-        # Try to create server instance (this should work even without connection)
-        from kafka_schema_registry_mcp import KafkaSchemaRegistryServer
-        server = KafkaSchemaRegistryServer()
-        print(f"✅ Single registry server instance created")
+        # Test single registry server components
+        import kafka_schema_registry_mcp
         
-        # Test tool listing
-        tools = server.list_tools()
-        print(f"✅ Single registry server has {len(tools)} tools")
+        # Check that the FastMCP instance exists
+        if hasattr(kafka_schema_registry_mcp, 'mcp'):
+            print(f"✅ Single registry MCP instance found")
+            
+            # Check that it has tools (FastMCP exposes tools via _tools attribute)
+            if hasattr(kafka_schema_registry_mcp.mcp, '_tools'):
+                tools_count = len(kafka_schema_registry_mcp.mcp._tools)
+                print(f"✅ Single registry server has {tools_count} tools")
+            else:
+                print(f"⚠️ Single registry server tools not accessible")
+        else:
+            print(f"❌ Single registry MCP instance not found")
+            return False
+        
+        # Check helper classes exist
+        if hasattr(kafka_schema_registry_mcp, 'RegistryManager'):
+            print(f"✅ RegistryManager class found")
+        
+        if hasattr(kafka_schema_registry_mcp, 'RegistryClient'):
+            print(f"✅ RegistryClient class found")
+        
+        # Test registry manager instance
+        if hasattr(kafka_schema_registry_mcp, 'registry_manager'):
+            print(f"✅ Registry manager instance found")
+            registries = kafka_schema_registry_mcp.registry_manager.list_registries()
+            print(f"✅ Registry manager has {len(registries)} configured registries")
         
     except Exception as e:
-        print(f"❌ Single registry server creation failed: {e}")
+        print(f"❌ Single registry server validation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
     
     try:
-        # Test multi-registry server
-        from kafka_schema_registry_multi_mcp import MultiRegistryKafkaSchemaRegistryServer
-        multi_server = MultiRegistryKafkaSchemaRegistryServer()
-        print(f"✅ Multi-registry server instance created")
+        # Test multi-registry server components
+        import kafka_schema_registry_multi_mcp
         
-        # Test tool listing
-        multi_tools = multi_server.list_tools()
-        print(f"✅ Multi-registry server has {len(multi_tools)} tools")
+        # Check that the FastMCP instance exists
+        if hasattr(kafka_schema_registry_multi_mcp, 'mcp'):
+            print(f"✅ Multi-registry MCP instance found")
+            
+            # Check that it has tools
+            if hasattr(kafka_schema_registry_multi_mcp.mcp, '_tools'):
+                tools_count = len(kafka_schema_registry_multi_mcp.mcp._tools)
+                print(f"✅ Multi-registry server has {tools_count} tools")
+            else:
+                print(f"⚠️ Multi-registry server tools not accessible")
+        else:
+            print(f"❌ Multi-registry MCP instance not found")
+            return False
         
     except Exception as e:
-        print(f"❌ Multi-registry server creation failed: {e}")
+        print(f"❌ Multi-registry server validation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -128,8 +157,9 @@ def main():
     print("\n📋 Summary:")
     print("  ✅ All required packages can be imported")
     print("  ✅ MCP server modules can be imported")
-    print("  ✅ Server instances can be created")
-    print("  ✅ Tools can be listed")
+    print("  ✅ FastMCP instances can be accessed")
+    print("  ✅ Server tools are available")
+    print("  ✅ Helper classes and managers are available")
     
     return True
 

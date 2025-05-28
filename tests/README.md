@@ -73,9 +73,69 @@ Run the complete test suite with:
 ```
 
 ### Multi-Registry Test Suite
-Run multi-registry specific tests:
+
+The **comprehensive multi-registry test runner** orchestrates all tests specifically designed for multi-registry environments:
+
 ```bash
+# Run all multi-registry tests (comprehensive)
 ./run_multi_registry_tests.sh
+
+# Show usage and options
+./run_multi_registry_tests.sh --help
+
+# Run essential tests only (future feature)
+./run_multi_registry_tests.sh --quick
+```
+
+**Features:**
+- **Automatic Environment Detection**: Validates DEV + PROD registries are healthy
+- **8 Test Categories**: Covers all multi-registry functionality
+- **Comprehensive Reporting**: Detailed success/failure analysis
+- **Duration Tracking**: Performance metrics for each test category
+- **Production Safety**: Validates production-ready configurations
+
+**Test Categories Executed:**
+1. **Multi-Registry Configuration** - Numbered environment variable setup
+2. **Migration Integration** - End-to-end migration functionality 
+3. **Default Context '.' Migration** - Fixes the "0 subjects migrated" bug
+4. **All Versions Migration** - Complete schema evolution preservation
+5. **ID Preservation Migration** - Schema ID preservation using IMPORT mode
+6. **End-to-End Workflows** - Complete business workflow scenarios
+7. **Error Handling** - Multi-registry error scenarios and edge cases
+8. **Performance & Load** - Multi-registry performance validation
+
+**Prerequisites:**
+- Multi-registry environment on ports 38081-38082
+- Start with: `./start_multi_registry_environment.sh`
+
+**Sample Output:**
+```
+🚀 Kafka Schema Registry Multi-Registry Test Suite
+==================================================
+✅ DEV Registry at http://localhost:38081 is healthy
+✅ PROD Registry at http://localhost:38082 is healthy
+🎉 Multi-registry environment is ready!
+
+🚀 Running Multi-Registry Test Suite
+Total test categories: 8
+
+======================================
+ Running: Multi-Registry Configuration
+======================================
+✅ Multi-Registry Configuration PASSED (45s)
+
+======================================
+ Running: Migration Integration  
+======================================
+✅ Migration Integration PASSED (73s)
+
+...
+
+🎉 ALL MULTI-REGISTRY TESTS PASSED!
+✅ Multi-registry configuration works correctly
+✅ Cross-registry operations function properly  
+✅ Schema migration preserves data integrity
+✅ ID preservation maintains referential integrity
 ```
 
 ### Individual Test Categories

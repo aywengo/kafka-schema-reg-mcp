@@ -17,11 +17,11 @@ async def test_readonly_with_mcp_client():
     # Set READONLY mode
     env = os.environ.copy()
     env["READONLY"] = "true"
-    env["SCHEMA_REGISTRY_URL"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_mcp.py"],
+        args=["../kafka_schema_registry_mcp.py"],
         env=env
     )
     

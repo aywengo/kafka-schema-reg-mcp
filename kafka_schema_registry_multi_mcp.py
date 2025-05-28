@@ -539,8 +539,9 @@ def migrate_schema(
     target_registry: str,
     source_context: Optional[str] = None,
     target_context: Optional[str] = None,
-    migrate_all_versions: bool = False,
-    dry_run: bool = False
+    migrate_all_versions: bool = True,
+    preserve_ids: bool = True,
+    dry_run: bool = True
 ) -> Dict[str, Any]:
     """
     Migrate a schema from one registry to another.
@@ -551,8 +552,9 @@ def migrate_schema(
         target_registry: Target registry name
         source_context: Source context (optional)
         target_context: Target context (optional, defaults to source_context)
-        migrate_all_versions: Migrate all versions or just latest
-        dry_run: Preview migration without executing
+        migrate_all_versions: Migrate all versions or just latest (default: True)
+        preserve_ids: Preserve original schema IDs (requires IMPORT mode) (default: True)
+        dry_run: Preview migration without executing (default: True)
     
     Returns:
         Migration results
@@ -602,59 +604,176 @@ def migrate_schema(
                 "target_context": target_ctx,
                 "versions_to_migrate": versions,
                 "version_count": len(versions),
+                "preserve_ids": preserve_ids,
                 "dry_run": True,
                 "status": "preview",
                 "preview_at": datetime.now().isoformat()
             }
         
-        # Perform actual migration
-        for version in versions:
+        # Handle IMPORT mode for ID preservation
+        original_mode = None
+        if preserve_ids:
             try:
-                # Get schema from source
-                source_url = source_client.build_context_url(f"/subjects/{subject}/versions/{version}", source_context)
-                response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
-                response.raise_for_status()
-                schema_data = response.json()
+                # Get current mode
+                mode_url = target_client.build_context_url("/mode", target_ctx)
+                mode_response = requests.get(mode_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                if mode_response.status_code == 200:
+                    original_mode = mode_response.json().get("mode")
                 
-                # Check if already exists in target
-                target_url = target_client.build_context_url(f"/subjects/{subject}/versions/{version}", target_ctx)
-                check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
-                
-                if check_response.status_code == 200:
-                    migration_results["skipped_versions"].append({
-                        "version": version,
-                        "reason": "Already exists in target"
-                    })
-                    continue
-                
-                # Register in target
-                payload = {
-                    "schema": schema_data["schema"],
-                    "schemaType": schema_data.get("schemaType", "AVRO")
-                }
-                
-                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
-                register_response = requests.post(
-                    target_register_url,
-                    json=payload,
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    timeout=10
-                )
-                register_response.raise_for_status()
-                result = register_response.json()
-                
-                migration_results["successful_versions"].append({
-                    "version": version,
-                    "schema_id": result.get("id"),
-                    "source_id": schema_data.get("id")
-                })
-                
+                # Set IMPORT mode if not already
+                if original_mode != "IMPORT":
+                    import_payload = {"mode": "IMPORT"}
+                    import_response = requests.put(
+                        mode_url,
+                        data=json.dumps(import_payload),
+                        auth=target_client.auth,
+                        headers=target_client.headers,
+                        timeout=10
+                    )
+                    import_response.raise_for_status()
+                    
             except Exception as e:
-                migration_results["failed_versions"].append({
-                    "version": version,
-                    "error": str(e)
-                })
+                # If IMPORT mode is not supported, fall back to standard migration
+                logging.warning(f"IMPORT mode not available, falling back to standard migration: {e}")
+                preserve_ids = False
+        
+        # Perform actual migration
+        try:
+            for version in versions:
+                try:
+                    # Get schema from source
+                    source_url = source_client.build_context_url(f"/subjects/{subject}/versions/{version}", source_context)
+                    response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                    response.raise_for_status()
+                    schema_data = response.json()
+                    
+                    # Check if already exists in target
+                    target_url = target_client.build_context_url(f"/subjects/{subject}/versions/{version}", target_ctx)
+                    check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                    
+                    if check_response.status_code == 200:
+                        migration_results["skipped_versions"].append({
+                            "version": version,
+                            "reason": "Already exists in target",
+                            "source_id": schema_data.get("id"),
+                            "target_id": check_response.json().get("id")
+                        })
+                        continue
+                    
+                    # Register in target with or without ID preservation
+                    if preserve_ids:
+                        # Use import endpoint to preserve ID
+                        source_id = schema_data.get("id")
+                        import_payload = {
+                            "schema": schema_data["schema"],
+                            "schemaType": schema_data.get("schemaType", "AVRO")
+                        }
+                        
+                        # First register the schema by ID
+                        import_url = f"{target_client.config.url}/schemas/ids/{source_id}"
+                        import_response = requests.post(
+                            import_url,
+                            data=json.dumps(import_payload),
+                            auth=target_client.auth,
+                            headers=target_client.headers,
+                            timeout=10
+                        )
+                        
+                        if import_response.status_code == 409:
+                            # Schema ID already exists - check if it's the same schema
+                            existing_response = requests.get(
+                                f"{target_client.config.url}/schemas/{source_id}",
+                                auth=target_client.auth,
+                                headers=target_client.headers,
+                                timeout=10
+                            )
+                            if existing_response.status_code == 200:
+                                existing_schema = existing_response.json()
+                                if existing_schema.get("schema") == schema_data["schema"]:
+                                    migration_results["skipped_versions"].append({
+                                        "version": version,
+                                        "reason": "Schema with same ID already exists",
+                                        "source_id": source_id,
+                                        "target_id": source_id
+                                    })
+                                    continue
+                                else:
+                                    raise Exception(f"Schema ID {source_id} exists but with different content")
+                            else:
+                                import_response.raise_for_status()
+                        else:
+                            import_response.raise_for_status()
+                        
+                        # Then associate it with the subject
+                        subject_payload = {"id": source_id}
+                        target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                        register_response = requests.post(
+                            target_register_url,
+                            data=json.dumps(subject_payload),
+                            auth=target_client.auth,
+                            headers=target_client.headers,
+                            timeout=10
+                        )
+                        register_response.raise_for_status()
+                        result = register_response.json()
+                        
+                        migration_results["successful_versions"].append({
+                            "version": version,
+                            "schema_id": source_id,
+                            "source_id": source_id,
+                            "target_version": result.get("version"),
+                            "id_preserved": True
+                        })
+                        
+                    else:
+                        # Standard migration without ID preservation
+                        payload = {
+                            "schema": schema_data["schema"],
+                            "schemaType": schema_data.get("schemaType", "AVRO")
+                        }
+                        
+                        target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                        register_response = requests.post(
+                            target_register_url,
+                            json=payload,
+                            auth=target_client.auth,
+                            headers=target_client.headers,
+                            timeout=10
+                        )
+                        register_response.raise_for_status()
+                        result = register_response.json()
+                        
+                        migration_results["successful_versions"].append({
+                            "version": version,
+                            "schema_id": result.get("id"),
+                            "source_id": schema_data.get("id"),
+                            "target_version": result.get("version"),
+                            "id_preserved": False
+                        })
+                        
+                except Exception as e:
+                    migration_results["failed_versions"].append({
+                        "version": version,
+                        "error": str(e),
+                        "source_id": schema_data.get("id") if 'schema_data' in locals() else None
+                    })
+        
+        finally:
+            # Restore original mode if we changed it
+            if preserve_ids and original_mode and original_mode != "IMPORT":
+                try:
+                    restore_payload = {"mode": original_mode}
+                    mode_url = target_client.build_context_url("/mode", target_ctx)
+                    requests.put(
+                        mode_url,
+                        data=json.dumps(restore_payload),
+                        auth=target_client.auth,
+                        headers=target_client.headers,
+                        timeout=10
+                    )
+                except Exception as e:
+                    # Log error but don't fail the migration
+                    logging.warning(f"Failed to restore original mode {original_mode}: {e}")
         
         # Create migration task
         task = MigrationTask(
@@ -681,6 +800,7 @@ def migrate_schema(
             "source_context": source_context,
             "target_context": target_ctx,
             "migrate_all_versions": migrate_all_versions,
+            "preserve_ids": preserve_ids,
             "total_versions": len(versions),
             "successful_migrations": success_count,
             "failed_migrations": len(migration_results["failed_versions"]),
@@ -700,7 +820,9 @@ def migrate_context(
     source_registry: str,
     target_registry: str,
     target_context: Optional[str] = None,
-    dry_run: bool = False
+    migrate_all_versions: bool = True,
+    preserve_ids: bool = True,
+    dry_run: bool = True
 ) -> Dict[str, Any]:
     """
     Migrate an entire context from one registry to another.
@@ -710,7 +832,9 @@ def migrate_context(
         source_registry: Source registry name
         target_registry: Target registry name
         target_context: Target context name (optional, defaults to source context)
-        dry_run: Preview migration without executing
+        migrate_all_versions: Migrate all versions or just latest (default: True)
+        preserve_ids: Preserve original schema IDs (requires IMPORT mode) (default: True)
+        dry_run: Preview migration without executing (default: True)
     
     Returns:
         Migration results
@@ -748,6 +872,20 @@ def migrate_context(
             }
         
         if dry_run:
+            # For dry run, calculate total versions if migrating all
+            total_versions = 0
+            if migrate_all_versions:
+                for subject in subjects:
+                    try:
+                        versions_url = source_client.build_context_url(f"/subjects/{subject}/versions", context)
+                        response = requests.get(versions_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                        if response.status_code == 200:
+                            total_versions += len(response.json())
+                    except Exception:
+                        total_versions += 1  # Assume at least one version
+            else:
+                total_versions = len(subjects)  # One latest version per subject
+                
             return {
                 "migration_id": task_id,
                 "context": context,
@@ -756,69 +894,266 @@ def migrate_context(
                 "target_context": target_ctx,
                 "subjects_to_migrate": subjects,
                 "subject_count": len(subjects),
+                "total_versions_to_migrate": total_versions,
+                "migrate_all_versions": migrate_all_versions,
+                "preserve_ids": preserve_ids,
                 "dry_run": True,
                 "status": "preview",
                 "preview_at": datetime.now().isoformat()
             }
         
+        # Handle IMPORT mode for ID preservation
+        original_mode = None
+        if preserve_ids:
+            try:
+                # Get current mode
+                mode_url = target_client.build_context_url("/mode", target_ctx)
+                mode_response = requests.get(mode_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                if mode_response.status_code == 200:
+                    original_mode = mode_response.json().get("mode")
+                
+                # Set IMPORT mode if not already
+                if original_mode != "IMPORT":
+                    import_payload = {"mode": "IMPORT"}
+                    import_response = requests.put(
+                        mode_url,
+                        data=json.dumps(import_payload),
+                        auth=target_client.auth,
+                        headers=target_client.headers,
+                        timeout=10
+                    )
+                    import_response.raise_for_status()
+                    
+            except Exception as e:
+                # If IMPORT mode is not supported, fall back to standard migration
+                logging.warning(f"IMPORT mode not available, falling back to standard migration: {e}")
+                preserve_ids = False
+        
         # Perform actual migration
         migration_results = {
             "successful_subjects": [],
             "failed_subjects": [],
-            "skipped_subjects": []
+            "skipped_subjects": [],
+            "version_details": []  # Track individual version migrations
         }
         
-        for subject in subjects:
-            try:
-                # Get latest schema from source
-                source_url = source_client.build_context_url(f"/subjects/{subject}/versions/latest", context)
-                response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
-                response.raise_for_status()
-                schema_data = response.json()
-                
-                # Check if already exists in target
-                target_url = target_client.build_context_url(f"/subjects/{subject}/versions/latest", target_ctx)
-                check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
-                
-                if check_response.status_code == 200:
-                    # Compare schemas to see if they're the same
-                    target_schema_data = check_response.json()
-                    if schema_data["schema"] == target_schema_data["schema"]:
+        total_versions_migrated = 0
+        total_versions_skipped = 0
+        total_versions_failed = 0
+        
+        try:
+            for subject in subjects:
+                try:
+                    if migrate_all_versions:
+                        # Get all versions for this subject
+                        versions_url = source_client.build_context_url(f"/subjects/{subject}/versions", context)
+                        versions_response = requests.get(versions_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                        versions_response.raise_for_status()
+                        versions = sorted(versions_response.json())  # Migrate oldest to newest
+                    else:
+                        # Only migrate latest version
+                        versions = ["latest"]
+                    
+                    subject_success = True
+                    subject_versions_migrated = 0
+                    subject_versions_skipped = 0
+                    subject_versions_failed = 0
+                    
+                    for version in versions:
+                        try:
+                            # Get schema from source
+                            source_url = source_client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
+                            response = requests.get(source_url, auth=source_client.auth, headers=source_client.headers, timeout=10)
+                            response.raise_for_status()
+                            schema_data = response.json()
+                            
+                            # Check if already exists in target
+                            target_url = target_client.build_context_url(f"/subjects/{subject}/versions/{version}", target_ctx)
+                            check_response = requests.get(target_url, auth=target_client.auth, headers=target_client.headers, timeout=10)
+                            
+                            if check_response.status_code == 200:
+                                # Compare schemas to see if they're the same
+                                target_schema_data = check_response.json()
+                                if schema_data["schema"] == target_schema_data["schema"]:
+                                    migration_results["version_details"].append({
+                                        "subject": subject,
+                                        "version": version,
+                                        "status": "skipped",
+                                        "reason": "Identical schema already exists",
+                                        "source_id": schema_data.get("id"),
+                                        "target_id": target_schema_data.get("id")
+                                    })
+                                    subject_versions_skipped += 1
+                                    total_versions_skipped += 1
+                                    continue
+                            
+                            # Register in target with or without ID preservation
+                            if preserve_ids:
+                                # Use import endpoint to preserve ID
+                                source_id = schema_data.get("id")
+                                import_payload = {
+                                    "schema": schema_data["schema"],
+                                    "schemaType": schema_data.get("schemaType", "AVRO")
+                                }
+                                
+                                # First register the schema by ID
+                                import_url = f"{target_client.config.url}/schemas/ids/{source_id}"
+                                import_response = requests.post(
+                                    import_url,
+                                    data=json.dumps(import_payload),
+                                    auth=target_client.auth,
+                                    headers=target_client.headers,
+                                    timeout=10
+                                )
+                                
+                                if import_response.status_code == 409:
+                                    # Schema ID already exists - check if it's the same schema
+                                    existing_response = requests.get(
+                                        f"{target_client.config.url}/schemas/{source_id}",
+                                        auth=target_client.auth,
+                                        headers=target_client.headers,
+                                        timeout=10
+                                    )
+                                    if existing_response.status_code == 200:
+                                        existing_schema = existing_response.json()
+                                        if existing_schema.get("schema") == schema_data["schema"]:
+                                            migration_results["version_details"].append({
+                                                "subject": subject,
+                                                "version": version,
+                                                "status": "skipped",
+                                                "reason": "Schema with same ID already exists",
+                                                "source_id": source_id,
+                                                "target_id": source_id
+                                            })
+                                            subject_versions_skipped += 1
+                                            total_versions_skipped += 1
+                                            continue
+                                        else:
+                                            raise Exception(f"Schema ID {source_id} exists but with different content")
+                                    else:
+                                        import_response.raise_for_status()
+                                else:
+                                    import_response.raise_for_status()
+                                
+                                # Then associate it with the subject
+                                subject_payload = {"id": source_id}
+                                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                                register_response = requests.post(
+                                    target_register_url,
+                                    data=json.dumps(subject_payload),
+                                    auth=target_client.auth,
+                                    headers=target_client.headers,
+                                    timeout=10
+                                )
+                                register_response.raise_for_status()
+                                result = register_response.json()
+                                
+                                migration_results["version_details"].append({
+                                    "subject": subject,
+                                    "version": version,
+                                    "status": "success",
+                                    "source_id": source_id,
+                                    "target_id": source_id,
+                                    "target_version": result.get("version"),
+                                    "id_preserved": True
+                                })
+                                subject_versions_migrated += 1
+                                total_versions_migrated += 1
+                                
+                            else:
+                                # Standard migration without ID preservation
+                                payload = {
+                                    "schema": schema_data["schema"],
+                                    "schemaType": schema_data.get("schemaType", "AVRO")
+                                }
+                                
+                                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
+                                register_response = requests.post(
+                                    target_register_url,
+                                    json=payload,
+                                    auth=target_client.auth,
+                                    headers=target_client.headers,
+                                    timeout=10
+                                )
+                                register_response.raise_for_status()
+                                result = register_response.json()
+                                
+                                migration_results["version_details"].append({
+                                    "subject": subject,
+                                    "version": version,
+                                    "status": "success",
+                                    "source_id": schema_data.get("id"),
+                                    "target_id": result.get("id"),
+                                    "target_version": result.get("version"),
+                                    "id_preserved": False
+                                })
+                                subject_versions_migrated += 1
+                                total_versions_migrated += 1
+                            
+                        except Exception as e:
+                            migration_results["version_details"].append({
+                                "subject": subject,
+                                "version": version,
+                                "status": "failed",
+                                "error": str(e),
+                                "source_id": schema_data.get("id") if 'schema_data' in locals() else None
+                            })
+                            subject_versions_failed += 1
+                            total_versions_failed += 1
+                            subject_success = False
+                    
+                    # Record subject-level results
+                    if subject_success and subject_versions_migrated > 0:
+                        migration_results["successful_subjects"].append({
+                            "subject": subject,
+                            "versions_migrated": subject_versions_migrated,
+                            "versions_skipped": subject_versions_skipped,
+                            "total_versions": len(versions) if isinstance(versions, list) else 1
+                        })
+                    elif subject_versions_skipped > 0 and subject_versions_failed == 0:
                         migration_results["skipped_subjects"].append({
                             "subject": subject,
-                            "reason": "Identical schema already exists"
+                            "reason": "All versions already exist",
+                            "versions_skipped": subject_versions_skipped,
+                            "total_versions": len(versions) if isinstance(versions, list) else 1
                         })
-                        continue
-                
-                # Register in target
-                payload = {
-                    "schema": schema_data["schema"],
-                    "schemaType": schema_data.get("schemaType", "AVRO")
-                }
-                
-                target_register_url = target_client.build_context_url(f"/subjects/{subject}/versions", target_ctx)
-                register_response = requests.post(
-                    target_register_url,
-                    json=payload,
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    timeout=10
-                )
-                register_response.raise_for_status()
-                result = register_response.json()
-                
-                migration_results["successful_subjects"].append({
-                    "subject": subject,
-                    "schema_id": result.get("id"),
-                    "source_id": schema_data.get("id"),
-                    "version": schema_data.get("version")
-                })
-                
-            except Exception as e:
-                migration_results["failed_subjects"].append({
-                    "subject": subject,
-                    "error": str(e)
-                })
+                    else:
+                        migration_results["failed_subjects"].append({
+                            "subject": subject,
+                            "versions_failed": subject_versions_failed,
+                            "versions_migrated": subject_versions_migrated,
+                            "versions_skipped": subject_versions_skipped,
+                            "total_versions": len(versions) if isinstance(versions, list) else 1,
+                            "error": f"Failed to migrate {subject_versions_failed} version(s)"
+                        })
+                    
+                except Exception as e:
+                    migration_results["failed_subjects"].append({
+                        "subject": subject,
+                        "error": str(e),
+                        "versions_failed": 1,
+                        "versions_migrated": 0,
+                        "versions_skipped": 0,
+                        "total_versions": 1
+                    })
+                    total_versions_failed += 1
+        
+        finally:
+            # Restore original mode if we changed it
+            if preserve_ids and original_mode and original_mode != "IMPORT":
+                try:
+                    restore_payload = {"mode": original_mode}
+                    mode_url = target_client.build_context_url("/mode", target_ctx)
+                    requests.put(
+                        mode_url,
+                        data=json.dumps(restore_payload),
+                        auth=target_client.auth,
+                        headers=target_client.headers,
+                        timeout=10
+                    )
+                except Exception as e:
+                    # Log error but don't fail the migration
+                    logging.warning(f"Failed to restore original mode {original_mode}: {e}")
         
         # Create migration task
         task = MigrationTask(
@@ -843,11 +1178,17 @@ def migrate_context(
             "source_registry": source_registry,
             "target_registry": target_registry,
             "target_context": target_ctx,
+            "migrate_all_versions": migrate_all_versions,
+            "preserve_ids": preserve_ids,
             "total_subjects": len(subjects),
             "successful_migrations": success_count,
             "failed_migrations": len(migration_results["failed_subjects"]),
             "skipped_migrations": len(migration_results["skipped_subjects"]),
+            "total_versions_migrated": total_versions_migrated,
+            "total_versions_skipped": total_versions_skipped,
+            "total_versions_failed": total_versions_failed,
             "success_rate": f"{(success_count / total_attempted * 100):.1f}%" if total_attempted > 0 else "0%",
+            "version_success_rate": f"{(total_versions_migrated / (total_versions_migrated + total_versions_failed) * 100):.1f}%" if (total_versions_migrated + total_versions_failed) > 0 else "0%",
             "results": migration_results,
             "status": "completed",
             "migrated_at": datetime.now().isoformat()

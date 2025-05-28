@@ -163,12 +163,12 @@ async def test_schema_registration_performance():
     env.pop("SCHEMA_REGISTRY_URL", None)
     
     env["SCHEMA_REGISTRY_NAME_1"] = "perf_test"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_multi_mcp.py"],
         env=env
     )
     
@@ -225,12 +225,12 @@ async def test_concurrent_operations():
     env.pop("SCHEMA_REGISTRY_URL", None)
     
     env["SCHEMA_REGISTRY_NAME_1"] = "concurrent_test"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_multi_mcp.py"],
         env=env
     )
     
@@ -309,12 +309,12 @@ async def test_multi_registry_performance():
     # Setup 4 registries for performance testing
     for i in range(1, 5):
         env[f"SCHEMA_REGISTRY_NAME_{i}"] = f"registry_{i}"
-        env[f"SCHEMA_REGISTRY_URL_{i}"] = "http://localhost:8081"
+        env[f"SCHEMA_REGISTRY_URL_{i}"] = "http://localhost:38081"
         env[f"READONLY_{i}"] = "false"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_multi_mcp.py"],
         env=env
     )
     
@@ -388,12 +388,12 @@ async def test_large_schema_performance():
     env.pop("SCHEMA_REGISTRY_URL", None)
     
     env["SCHEMA_REGISTRY_NAME_1"] = "large_schema_test"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_multi_mcp.py"],
         env=env
     )
     
@@ -467,12 +467,12 @@ async def test_memory_and_resource_usage():
     env.pop("SCHEMA_REGISTRY_URL", None)
     
     env["SCHEMA_REGISTRY_NAME_1"] = "resource_test"
-    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:8081"
+    env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_multi_mcp.py"],
         env=env
     )
     

@@ -54,6 +54,7 @@ class MigrationIntegrationTests:
                 "schema": {
                     "type": "record",
                     "name": "UserEvent",
+                    "namespace": "com.example.migration.integration",
                     "fields": [
                         {"name": "userId", "type": "string"},
                         {"name": "eventType", "type": "string"},
@@ -66,6 +67,7 @@ class MigrationIntegrationTests:
                 "schema": {
                     "type": "record",
                     "name": "OrderEvent",
+                    "namespace": "com.example.migration.integration",
                     "fields": [
                         {"name": "orderId", "type": "string"},
                         {"name": "customerId", "type": "string"},
@@ -78,7 +80,8 @@ class MigrationIntegrationTests:
                 "subject": f"product-events",
                 "schema": {
                     "type": "record",
-                    "name": "ProductEvent", 
+                    "name": "ProductEvent",
+                    "namespace": "com.example.migration.integration",
                     "fields": [
                         {"name": "productId", "type": "string"},
                         {"name": "name", "type": "string"},
@@ -168,6 +171,8 @@ class MigrationIntegrationTests:
                 context=self.test_context,
                 source_registry="dev",
                 target_registry="prod",
+                migrate_all_versions=False,
+                preserve_ids=False,
                 dry_run=False
             )
             
@@ -228,6 +233,7 @@ class MigrationIntegrationTests:
             test_schema = {
                 "type": "record",
                 "name": "NewTestEvent",
+                "namespace": "com.example.migration.integration",
                 "fields": [
                     {"name": "testId", "type": "string"},
                     {"name": "testValue", "type": "int"}
@@ -257,6 +263,7 @@ class MigrationIntegrationTests:
                 source_context=self.test_context,
                 target_context=self.test_context,
                 migrate_all_versions=True,
+                preserve_ids=False,  # Match original test expectations
                 dry_run=False
             )
             
@@ -340,6 +347,8 @@ class MigrationIntegrationTests:
                 context=empty_context,
                 source_registry="dev",
                 target_registry="prod",
+                migrate_all_versions=False,  # Match original test expectations
+                preserve_ids=False,          # Match original test expectations
                 dry_run=False
             )
             
@@ -374,7 +383,9 @@ class MigrationIntegrationTests:
             migration_result = mcp_server.migrate_context(
                 context=self.test_context,
                 source_registry="nonexistent",
-                target_registry="prod", 
+                target_registry="prod",
+                migrate_all_versions=False,  # Match original test expectations
+                preserve_ids=False,          # Match original test expectations
                 dry_run=False
             )
             
@@ -410,6 +421,7 @@ class MigrationIntegrationTests:
             test_schema = {
                 "type": "record",
                 "name": "TrackingTestEvent",
+                "namespace": "com.example.migration.integration",
                 "fields": [{"name": "trackingId", "type": "string"}]
             }
             
@@ -433,6 +445,8 @@ class MigrationIntegrationTests:
                 source_registry="dev",
                 target_registry="prod",
                 source_context=self.test_context,
+                migrate_all_versions=False,  # Match original test expectations
+                preserve_ids=False,          # Match original test expectations
                 dry_run=False
             )
             

@@ -17,7 +17,7 @@ async def test_advanced_mcp_features():
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_mcp.py"],
+        args=["../kafka_schema_registry_mcp.py"],
         env={
             "SCHEMA_REGISTRY_URL": "http://localhost:38081",
             "SCHEMA_REGISTRY_USER": "",

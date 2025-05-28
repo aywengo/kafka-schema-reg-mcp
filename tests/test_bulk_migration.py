@@ -39,6 +39,7 @@ def test_test_bulk_migration():
                 "schema": {
                     "type": "record",
                     "name": "User",
+                    "namespace": "com.example.bulk.test",
                     "fields": [
                         {"name": "id", "type": "int"},
                         {"name": "name", "type": "string"},
@@ -51,6 +52,7 @@ def test_test_bulk_migration():
                 "schema": {
                     "type": "record", 
                     "name": "Order",
+                    "namespace": "com.example.bulk.test",
                     "fields": [
                         {"name": "orderId", "type": "string"},
                         {"name": "customerId", "type": "int"},
@@ -63,7 +65,8 @@ def test_test_bulk_migration():
                 "subject": "bulk-test-product",
                 "schema": {
                     "type": "record",
-                    "name": "Product", 
+                    "name": "Product",
+                    "namespace": "com.example.bulk.test", 
                     "fields": [
                         {"name": "productId", "type": "string"},
                         {"name": "name", "type": "string"},
@@ -84,6 +87,7 @@ def test_test_bulk_migration():
             subject = schema_def["subject"]
             schema = schema_def["schema"]
             
+            # Correct payload format - schema should be a JSON string, not double-encoded
             payload = {"schema": json.dumps(schema)}
             
             try:
@@ -94,12 +98,19 @@ def test_test_bulk_migration():
                     timeout=5
                 )
                 
+                # Add more detailed error logging
                 if create_response.status_code in [200, 409]:  # 409 = already exists
                     created_subjects.append(subject)
                     print(f"   ✅ Created {subject}")
                 else:
                     failed_subjects.append(subject)
                     print(f"   ❌ Failed to create {subject}: {create_response.status_code}")
+                    # Print response details for debugging
+                    try:
+                        error_details = create_response.json()
+                        print(f"      Error details: {error_details}")
+                    except:
+                        print(f"      Error response: {create_response.text}")
                     
             except Exception as e:
                 failed_subjects.append(subject)

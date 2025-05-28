@@ -80,7 +80,7 @@ async def test_multi_registry_mode():
     env["READONLY_1"] = "false"
     
     env["SCHEMA_REGISTRY_NAME_2"] = "production"
-    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:8083"
+    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38083"
     env["SCHEMA_REGISTRY_USER_2"] = "prod-user"
     env["SCHEMA_REGISTRY_PASSWORD_2"] = "prod-pass"
     env["READONLY_2"] = "true"

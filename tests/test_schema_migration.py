@@ -36,7 +36,8 @@ def test_test_schema_migration():
         test_subject = "migration-test-user"
         test_schema = {
             "type": "record",
-            "name": "User", 
+            "name": "User",
+            "namespace": "com.example.migration.test",
             "fields": [
                 {"name": "id", "type": "int"},
                 {"name": "name", "type": "string"},

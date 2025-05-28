@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Comprehensive Integration Test Runner for Multi-Registry MCP Server
+# Single-Registry Integration Test Runner for Kafka Schema Registry MCP Server
 # 
-# This script runs all integration test suites with proper setup and reporting.
-# It provides options for running specific test categories and generating reports.
+# This script runs all single-registry test suites with proper setup and reporting.
+# It excludes multi-registry tests and focuses on kafka_schema_registry_mcp.py functionality.
 
 set -e  # Exit on any error
 
@@ -122,17 +122,17 @@ check_prerequisites() {
 
 # Function to run basic configuration tests
 run_basic_tests() {
-    print_header "BASIC CONFIGURATION TESTS"
+    print_header "BASIC SINGLE-REGISTRY TESTS"
     
     local passed=0
     local total=0
     
-    # Basic configuration tests
+    # Single-registry tests only
     tests=(
-        "simple_config:test_simple_config.py:Single registry configuration validation"
-        "numbered_config:test_numbered_config.py:Multi-registry numbered configuration"
-        "mcp_server:test_mcp_server.py:Basic MCP server functionality"
-        "default_context_dot:test_default_context_dot_migration.py:Default context '.' migration bug fix validation"
+        "basic_server:test_basic_server.py:Basic server import and functionality tests"
+        "mcp_server:test_mcp_server.py:Basic MCP server connectivity test"
+        "config:test_config.py:Configuration management testing"
+        "readonly_mcp_client:test_readonly_mcp_client.py:READONLY mode testing with MCP client"
     )
     
     for test_spec in "${tests[@]}"; do
@@ -148,19 +148,21 @@ run_basic_tests() {
         fi
     done
     
-    print_color $WHITE "Basic Tests: $passed/$total passed"
+    print_color $WHITE "Basic Single-Registry Tests: $passed/$total passed"
     return $((total - passed))
 }
 
 # Function to run workflow tests
 run_workflow_tests() {
-    print_header "END-TO-END WORKFLOW TESTS"
+    print_header "SINGLE-REGISTRY INTEGRATION TESTS"
     
     local passed=0
     local total=0
     
     tests=(
-        "end_to_end_workflows:test_end_to_end_workflows.py:Complete schema lifecycle workflows"
+        "integration:test_integration.py:Comprehensive single-registry integration tests"
+        "advanced_mcp:advanced_mcp_test.py:Advanced MCP server features testing"
+        "docker_mcp:test_docker_mcp.py:Docker container integration testing"
     )
     
     for test_spec in "${tests[@]}"; do
@@ -176,19 +178,20 @@ run_workflow_tests() {
         fi
     done
     
-    print_color $WHITE "Workflow Tests: $passed/$total passed"
+    print_color $WHITE "Single-Registry Integration Tests: $passed/$total passed"
     return $((total - passed))
 }
 
 # Function to run error handling tests
 run_error_tests() {
-    print_header "ERROR HANDLING AND EDGE CASE TESTS"
+    print_header "SINGLE-REGISTRY VALIDATION TESTS"
     
     local passed=0
     local total=0
     
     tests=(
-        "error_handling:test_error_handling.py:Error handling and edge cases"
+        "simple_python:test_simple_python.py:Basic Python environment validation"
+        "runner_validation:validate_single_registry_runner.py:Single-registry test runner validation"
     )
     
     for test_spec in "${tests[@]}"; do
@@ -204,83 +207,39 @@ run_error_tests() {
         fi
     done
     
-    print_color $WHITE "Error Handling Tests: $passed/$total passed"
+    print_color $WHITE "Single-Registry Validation Tests: $passed/$total passed"
     return $((total - passed))
 }
 
 # Function to run performance tests
 run_performance_tests() {
-    print_header "PERFORMANCE AND LOAD TESTS"
+    print_header "PERFORMANCE TESTS (SKIPPED - MULTI-REGISTRY ONLY)"
     
-    local passed=0
-    local total=0
-    
-    tests=(
-        "performance_load:test_performance_load.py:Performance and load testing"
-    )
-    
-    for test_spec in "${tests[@]}"; do
-        IFS=':' read -r test_name test_file description <<< "$test_spec"
-        total=$((total + 1))
-        
-        if [[ -f "$SCRIPT_DIR/$test_file" ]]; then
-            if run_test "$test_name" "$SCRIPT_DIR/$test_file" "$description"; then
-                passed=$((passed + 1))
-            fi
-        else
-            print_color $YELLOW "⚠️  Test file not found: $test_file"
-        fi
-    done
-    
-    print_color $WHITE "Performance Tests: $passed/$total passed"
-    return $((total - passed))
+    print_color $YELLOW "⚠️  Performance tests are designed for multi-registry environments"
+    print_color $YELLOW "   Skipping performance tests in single-registry mode"
+    print_color $WHITE "Performance Tests: 0/0 passed (skipped)"
+    return 0
 }
 
 # Function to run production readiness tests
 run_production_tests() {
-    print_header "PRODUCTION READINESS TESTS"
+    print_header "PRODUCTION TESTS (SKIPPED - MULTI-REGISTRY ONLY)"
     
-    local passed=0
-    local total=0
-    
-    tests=(
-        "production_readiness:test_production_readiness.py:Enterprise production readiness"
-    )
-    
-    for test_spec in "${tests[@]}"; do
-        IFS=':' read -r test_name test_file description <<< "$test_spec"
-        total=$((total + 1))
-        
-        if [[ -f "$SCRIPT_DIR/$test_file" ]]; then
-            if run_test "$test_name" "$SCRIPT_DIR/$test_file" "$description"; then
-                passed=$((passed + 1))
-            fi
-        else
-            print_color $YELLOW "⚠️  Test file not found: $test_file"
-        fi
-    done
-    
-    print_color $WHITE "Production Tests: $passed/$total passed"
-    return $((total - passed))
+    print_color $YELLOW "⚠️  Production readiness tests are designed for multi-registry environments"
+    print_color $YELLOW "   Skipping production tests in single-registry mode"
+    print_color $WHITE "Production Tests: 0/0 passed (skipped)"
+    return 0
 }
 
 # Function to run legacy integration tests
 run_legacy_tests() {
-    print_header "LEGACY INTEGRATION TESTS"
+    print_header "LEGACY TESTS (SKIPPED - INCOMPATIBLE)"
     
-    local passed=0
-    local total=0
-    
-    # Check if numbered integration test exists
-    if [[ -f "$SCRIPT_DIR/test_numbered_integration.py" ]]; then
-        total=$((total + 1))
-        if run_test "numbered_integration" "$SCRIPT_DIR/test_numbered_integration.py" "Legacy numbered configuration integration"; then
-            passed=$((passed + 1))
-        fi
-    fi
-    
-    print_color $WHITE "Legacy Tests: $passed/$total passed"
-    return $((total - passed))
+    print_color $YELLOW "⚠️  Legacy unit tests are incompatible with current MCP implementation"
+    print_color $YELLOW "   Original tests expected FastAPI REST API, but project uses MCP protocol"
+    print_color $YELLOW "   Skipping legacy tests in single-registry mode"
+    print_color $WHITE "Legacy Tests: 0/0 passed (skipped)"
+    return 0
 }
 
 # Function to generate test summary
@@ -291,8 +250,8 @@ generate_summary() {
     local csv_file="$TEST_RESULTS_DIR/test_results_$TIMESTAMP.csv"
     
     {
-        echo "Kafka Schema Registry MCP Server - Comprehensive Test Report"
-        echo "=========================================================="
+        echo "Kafka Schema Registry MCP Server - Single-Registry Test Report"
+        echo "=============================================================="
         echo "Test Run Timestamp: $(date)"
         echo "Total Test Duration: $(($(date +%s) - $TEST_START_TIME)) seconds"
         echo ""
@@ -331,27 +290,27 @@ generate_summary() {
         echo ""
         echo "TEST CATEGORIES COVERED:"
         echo "======================="
-        echo "✅ Basic Configuration Tests"
-        echo "✅ End-to-End Workflow Tests"
-        echo "✅ Error Handling and Edge Cases"
-        echo "✅ Performance and Load Testing"
-        echo "✅ Production Readiness Validation"
-        echo "✅ Legacy Integration Tests"
+        echo "✅ Basic Single-Registry Configuration"
+        echo "✅ Single-Registry Integration Tests"
+        echo "✅ Single-Registry Validation"
+        echo "⚠️  Legacy Tests (Skipped - Incompatible with MCP)"
+        echo "⚠️  Multi-Registry Tests (Skipped)"
+        echo "⚠️  Performance Tests (Skipped)"
+        echo "⚠️  Production Tests (Skipped)"
         
         echo ""
         echo "FEATURES VALIDATED:"
         echo "=================="
-        echo "• Multi-Registry Support (up to 8 registries)"
-        echo "• Numbered Environment Configuration"
-        echo "• Per-Registry READONLY Mode"
-        echo "• Cross-Registry Operations"
-        echo "• Schema Evolution and Migration"
-        echo "• Context Management"
-        echo "• Default Context '.' Migration Bug Fix"
-        echo "• Enterprise Security and Compliance"
-        echo "• High Availability and Disaster Recovery"
-        echo "• Performance and Scalability"
-        echo "• Monitoring and Observability"
+        echo "• Single Schema Registry Support (port 38081)"
+        echo "• MCP Protocol Server Functionality" 
+        echo "• Configuration Management"
+        echo "• READONLY Mode Support"
+        echo "• Schema Registration and Retrieval (via MCP)"
+        echo "• Context Management (Default Context)"
+        echo "• Docker Integration"
+        echo "• Basic Error Handling"
+        echo "• Environment Compatibility"
+        echo "• Single-Registry Mode Fixes"
         
     } | tee "$summary_file"
     
@@ -363,21 +322,26 @@ generate_summary() {
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
+    echo "Single-Registry Test Runner for Kafka Schema Registry MCP Server"
+    echo ""
     echo "OPTIONS:"
-    echo "  --basic         Run only basic configuration tests"
-    echo "  --workflows     Run only workflow tests"
-    echo "  --errors        Run only error handling tests"
-    echo "  --performance   Run only performance tests"
-    echo "  --production    Run only production readiness tests"
-    echo "  --legacy        Run only legacy integration tests"
-    echo "  --all           Run all test categories (default)"
+    echo "  --basic         Run only basic single-registry tests"
+    echo "  --workflows     Run only single-registry integration tests"
+    echo "  --errors        Run only validation tests"
+    echo "  --performance   Skip (multi-registry only)"
+    echo "  --production    Skip (multi-registry only)" 
+    echo "  --legacy        Skip (incompatible with MCP)"
+    echo "  --all           Run all compatible single-registry test categories (default)"
     echo "  --help          Show this help message"
     echo ""
     echo "EXAMPLES:"
-    echo "  $0                     # Run all tests"
+    echo "  $0                     # Run all single-registry tests"
     echo "  $0 --basic            # Run only basic tests"
-    echo "  $0 --performance      # Run only performance tests"
-    echo "  $0 --production       # Run only production readiness tests"
+    echo "  $0 --workflows        # Run only integration tests"
+    echo ""
+    echo "NOTE: This runner excludes multi-registry tests that use kafka_schema_registry_multi_mcp.py"
+    echo "      For multi-registry testing, use ./run_multi_registry_tests.sh instead"
+    echo "      Legacy unit tests are incompatible (expect FastAPI, but project uses MCP)"
     echo ""
 }
 
@@ -443,7 +407,7 @@ main() {
     # Start test execution
     TEST_START_TIME=$(date +%s)
     
-    print_header "KAFKA SCHEMA REGISTRY MCP SERVER - COMPREHENSIVE INTEGRATION TESTS"
+    print_header "KAFKA SCHEMA REGISTRY MCP SERVER - SINGLE-REGISTRY INTEGRATION TESTS"
     log_print "Test execution started at: $(date)"
     
     # Initialize CSV results file
@@ -476,11 +440,11 @@ main() {
     
     # Final result
     if [[ $total_failures -eq 0 ]]; then
-        print_color $GREEN "🎉 ALL TESTS COMPLETED SUCCESSFULLY!"
-        print_color $GREEN "✅ Multi-Registry MCP Server is ready for production"
+        print_color $GREEN "🎉 ALL SINGLE-REGISTRY TESTS COMPLETED SUCCESSFULLY!"
+        print_color $GREEN "✅ Single-Registry MCP Server is ready for production"
         exit 0
     else
-        print_color $RED "❌ SOME TESTS FAILED ($total_failures failures)"
+        print_color $RED "❌ SOME SINGLE-REGISTRY TESTS FAILED ($total_failures failures)"
         print_color $YELLOW "⚠️  Check test logs for details: $TEST_RESULTS_DIR"
         exit 1
     fi

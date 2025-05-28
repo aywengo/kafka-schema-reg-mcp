@@ -19,9 +19,9 @@ async def test_mcp_server():
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_mcp.py"],  # Go up one directory from tests/
+        args=["kafka_schema_registry_mcp.py"],  # Correct path for single-registry server
         env={
-            "SCHEMA_REGISTRY_URL": "http://localhost:38081",  # Updated port for new test environment
+            "SCHEMA_REGISTRY_URL": "http://localhost:38081",  # Actual Schema Registry port
             "SCHEMA_REGISTRY_USER": "",
             "SCHEMA_REGISTRY_PASSWORD": ""
         }
@@ -110,7 +110,7 @@ async def test_dependencies():
         return False
     
     # Check if the MCP server file exists
-    mcp_server_path = "../kafka_schema_registry_mcp.py"
+    mcp_server_path = "kafka_schema_registry_mcp.py"
     if os.path.exists(mcp_server_path):
         print(f"✅ MCP server file found: {mcp_server_path}")
     else:

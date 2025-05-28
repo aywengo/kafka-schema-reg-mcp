@@ -102,6 +102,8 @@ def test_migrate_context_bug_fix():
             context=test_context,
             source_registry="dev",
             target_registry="prod",
+            migrate_all_versions=False,  # Match original test expectations
+            preserve_ids=False,          # Match original test expectations
             dry_run=False
         )
         
@@ -162,6 +164,8 @@ def test_dry_run_vs_actual_migration():
             context="test-context",
             source_registry="dev",
             target_registry="prod",
+            migrate_all_versions=False,  # Match original test expectations
+            preserve_ids=False,          # Match original test expectations
             dry_run=True
         )
         
@@ -198,6 +202,8 @@ def test_empty_context_handling():
             context="empty-context",
             source_registry="dev", 
             target_registry="prod",
+            migrate_all_versions=False,  # Match original test expectations
+            preserve_ids=False,          # Match original test expectations
             dry_run=False
         )
         
