@@ -123,7 +123,11 @@ OPERATION_METADATA = {
     "clear_context_batch": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
     "clear_multiple_contexts_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
     "clear_context_across_registries_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "compare_contexts_across_registries": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
+    "compare_contexts_across_registries": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "compare_different_contexts": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "get_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_comparison_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "watch_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
 }
 
 def get_operation_info(operation_name: str) -> Dict[str, Any]:
@@ -814,20 +818,26 @@ async def compare_registries(
 async def compare_contexts_across_registries(
     source_registry: str,
     target_registry: str,
-    context: str
+    source_context: str,
+    target_context: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Compare a specific context across two registries.
+    Compare contexts across two registries (can be different contexts).
     
     Args:
         source_registry: Source registry name
         target_registry: Target registry name
-        context: Context name to compare
+        source_context: Context name in source registry
+        target_context: Context name in target registry (defaults to source_context if not provided)
     
     Returns:
         Context comparison results
     """
     try:
+        # If target_context not provided, use source_context (backward compatibility)
+        if target_context is None:
+            target_context = source_context
+            
         # Create async task
         task = task_manager.create_task(
             TaskType.MIGRATION,
@@ -835,7 +845,8 @@ async def compare_contexts_across_registries(
                 "operation": "compare_contexts",
                 "source_registry": source_registry,
                 "target_registry": target_registry,
-                "context": context
+                "source_context": source_context,
+                "target_context": target_context
             }
         )
         
@@ -846,7 +857,8 @@ async def compare_contexts_across_registries(
                 _execute_compare_contexts,
                 source_registry=source_registry,
                 target_registry=target_registry,
-                context=context
+                source_context=source_context,
+                target_context=target_context
             )
         )
         
@@ -862,10 +874,27 @@ async def compare_contexts_across_registries(
 async def _execute_compare_contexts(
     source_registry: str,
     target_registry: str,
-    context: str
+    source_context: str,
+    target_context: str
 ) -> Dict[str, Any]:
     """Execute the actual context comparison logic."""
     try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "compare_contexts" and
+                task.metadata.get("source_registry") == source_registry and
+                task.metadata.get("target_registry") == target_registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+        
+        update_progress(5.0)  # Starting
+        
         # Get registry clients
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
@@ -873,44 +902,64 @@ async def _execute_compare_contexts(
         if not source_client or not target_client:
             return {"error": "Invalid registry configuration"}
         
-        # Get subjects from both registries for the specific context
-        source_subjects = source_client.get_subjects(context)
-        target_subjects = target_client.get_subjects(context)
+        update_progress(10.0)  # Registry clients obtained
+        
+        # Get subjects from both registries for their respective contexts
+        source_subjects = source_client.get_subjects(source_context)
+        update_progress(25.0)  # Source subjects retrieved
+        
+        target_subjects = target_client.get_subjects(target_context)
+        update_progress(40.0)  # Target subjects retrieved
         
         # Compare contexts
         source_only = list(set(source_subjects) - set(target_subjects))
         target_only = list(set(target_subjects) - set(source_subjects))
         common = list(set(source_subjects) & set(target_subjects))
         
+        update_progress(50.0)  # Basic comparison completed
+        
         # Get detailed comparison for common subjects
         subject_details = []
-        for subject in common:
-            try:
-                source_versions = get_schema_versions(subject, context=context, registry=source_registry)
-                target_versions = get_schema_versions(subject, context=context, registry=target_registry)
-                
-                # Handle cases where get_schema_versions returns error dict
-                if isinstance(source_versions, dict) and "error" in source_versions:
-                    source_versions = []
-                if isinstance(target_versions, dict) and "error" in target_versions:
-                    target_versions = []
-                
-                subject_details.append({
-                    "subject": subject,
-                    "source_versions": len(source_versions) if source_versions else 0,
-                    "target_versions": len(target_versions) if target_versions else 0,
-                    "version_match": source_versions == target_versions
-                })
-            except Exception as e:
-                subject_details.append({
-                    "subject": subject,
-                    "error": str(e)
-                })
+        total_common = len(common)
         
-        return {
+        if total_common > 0:
+            for i, subject in enumerate(common):
+                try:
+                    source_versions = get_schema_versions(subject, context=source_context, registry=source_registry)
+                    target_versions = get_schema_versions(subject, context=target_context, registry=target_registry)
+                    
+                    # Handle cases where get_schema_versions returns error dict
+                    if isinstance(source_versions, dict) and "error" in source_versions:
+                        source_versions = []
+                    if isinstance(target_versions, dict) and "error" in target_versions:
+                        target_versions = []
+                    
+                    subject_details.append({
+                        "subject": subject,
+                        "source_versions": len(source_versions) if source_versions else 0,
+                        "target_versions": len(target_versions) if target_versions else 0,
+                        "version_match": source_versions == target_versions
+                    })
+                    
+                    # Update progress based on subjects processed
+                    progress = 50.0 + ((i + 1) / total_common) * 40.0  # 50% to 90%
+                    update_progress(progress)
+                    
+                except Exception as e:
+                    subject_details.append({
+                        "subject": subject,
+                        "error": str(e)
+                    })
+        else:
+            update_progress(90.0)  # No common subjects to analyze
+        
+        update_progress(95.0)  # Building final result
+        
+        result = {
             "source_registry": source_registry,
             "target_registry": target_registry,
-            "context": context,
+            "source_context": source_context,
+            "target_context": target_context,
             "compared_at": datetime.now().isoformat(),
             "summary": {
                 "source_only_subjects": len(source_only),
@@ -926,6 +975,239 @@ async def _execute_compare_contexts(
             },
             "subject_details": subject_details
         }
+        
+        update_progress(100.0)  # Completed
+        return result
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def compare_different_contexts(
+    source_registry: str,
+    source_context: str,
+    target_registry: str,
+    target_context: str,
+    include_schema_analysis: bool = True
+) -> Dict[str, Any]:
+    """
+    Compare different contexts across registries with enhanced analysis.
+    
+    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
+    
+    This function is specifically designed for comparing different contexts 
+    (e.g., 'production' context in Registry A vs 'staging' context in Registry B).
+    
+    Args:
+        source_registry: Source registry name
+        source_context: Context name in source registry
+        target_registry: Target registry name  
+        target_context: Context name in target registry
+        include_schema_analysis: Include detailed schema version analysis
+    
+    Returns:
+        Task information with task_id for monitoring progress
+    """
+    try:
+        # Create async task
+        task = task_manager.create_task(
+            TaskType.MIGRATION,
+            metadata={
+                "operation": "compare_different_contexts",
+                "source_registry": source_registry,
+                "source_context": source_context,
+                "target_registry": target_registry,
+                "target_context": target_context,
+                "include_schema_analysis": include_schema_analysis
+            }
+        )
+        
+        # Start async execution
+        asyncio.create_task(
+            task_manager.execute_task(
+                task,
+                _execute_compare_different_contexts,
+                source_registry=source_registry,
+                source_context=source_context,
+                target_registry=target_registry,
+                target_context=target_context,
+                include_schema_analysis=include_schema_analysis
+            )
+        )
+        
+        return {
+            "message": f"Comparing '{source_context}' in {source_registry} vs '{target_context}' in {target_registry}",
+            "task_id": task.id,
+            "task": task.to_dict(),
+            "operation_info": get_operation_info("compare_contexts_across_registries")
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+async def _execute_compare_different_contexts(
+    source_registry: str,
+    source_context: str,
+    target_registry: str,
+    target_context: str,
+    include_schema_analysis: bool = True
+) -> Dict[str, Any]:
+    """Execute enhanced different contexts comparison."""
+    try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "compare_different_contexts" and
+                task.metadata.get("source_registry") == source_registry and
+                task.metadata.get("target_registry") == target_registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float, message: str = ""):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+                if message:
+                    logger.info(f"Progress {progress:.1f}%: {message}")
+        
+        update_progress(2.0, "Starting comparison")
+        
+        # Get registry clients
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+        
+        if not source_client or not target_client:
+            return {"error": "Invalid registry configuration"}
+        
+        update_progress(8.0, "Registry clients obtained")
+        
+        # Get subjects from both contexts
+        source_subjects = source_client.get_subjects(source_context)
+        update_progress(20.0, f"Retrieved {len(source_subjects)} subjects from source context")
+        
+        target_subjects = target_client.get_subjects(target_context)
+        update_progress(35.0, f"Retrieved {len(target_subjects)} subjects from target context")
+        
+        # Calculate differences
+        source_only = list(set(source_subjects) - set(target_subjects))
+        target_only = list(set(target_subjects) - set(source_subjects))
+        common = list(set(source_subjects) & set(target_subjects))
+        
+        # Calculate similarity metrics
+        total_unique_subjects = len(set(source_subjects) | set(target_subjects))
+        similarity_percent = (len(common) / max(1, total_unique_subjects)) * 100
+        
+        update_progress(45.0, f"Basic analysis complete: {len(common)} common subjects")
+        
+        result = {
+            "source_registry": source_registry,
+            "source_context": source_context,
+            "target_registry": target_registry,
+            "target_context": target_context,
+            "compared_at": datetime.now().isoformat(),
+            "same_registry": source_registry == target_registry,
+            "same_context": source_context == target_context,
+            "summary": {
+                "total_source_subjects": len(source_subjects),
+                "total_target_subjects": len(target_subjects),
+                "source_only_subjects": len(source_only),
+                "target_only_subjects": len(target_only),
+                "common_subjects": len(common),
+                "similarity_percent": round(similarity_percent, 2),
+                "total_unique_subjects": total_unique_subjects
+            },
+            "subjects": {
+                "source_only": source_only,
+                "target_only": target_only,
+                "common": common
+            }
+        }
+        
+        # Enhanced schema analysis for common subjects
+        if include_schema_analysis and common:
+            update_progress(50.0, f"Starting schema analysis for {len(common)} subjects")
+            
+            schema_analysis = []
+            total_subjects = len(common)
+            
+            for i, subject in enumerate(common):
+                try:
+                    # Get versions from both contexts
+                    source_versions = get_schema_versions(subject, context=source_context, registry=source_registry)
+                    target_versions = get_schema_versions(subject, context=target_context, registry=target_registry)
+                    
+                    # Handle error cases
+                    if isinstance(source_versions, dict) and "error" in source_versions:
+                        source_versions = []
+                    if isinstance(target_versions, dict) and "error" in target_versions:
+                        target_versions = []
+                    
+                    # Version analysis
+                    version_analysis = {
+                        "subject": subject,
+                        "source_versions": sorted(source_versions) if source_versions else [],
+                        "target_versions": sorted(target_versions) if target_versions else [],
+                        "source_version_count": len(source_versions) if source_versions else 0,
+                        "target_version_count": len(target_versions) if target_versions else 0,
+                        "versions_identical": sorted(source_versions) == sorted(target_versions) if source_versions and target_versions else False
+                    }
+                    
+                    # Check latest version compatibility
+                    if source_versions and target_versions:
+                        latest_source = max(source_versions)
+                        latest_target = max(target_versions)
+                        version_analysis["latest_source_version"] = latest_source
+                        version_analysis["latest_target_version"] = latest_target
+                        version_analysis["latest_versions_match"] = latest_source == latest_target
+                        
+                        # Get latest schema content for comparison
+                        try:
+                            source_schema = get_schema(subject, version=str(latest_source), context=source_context, registry=source_registry)
+                            target_schema = get_schema(subject, version=str(latest_target), context=target_context, registry=target_registry)
+                            
+                            if (isinstance(source_schema, dict) and "schema" in source_schema and
+                                isinstance(target_schema, dict) and "schema" in target_schema):
+                                version_analysis["latest_schemas_identical"] = source_schema["schema"] == target_schema["schema"]
+                                version_analysis["latest_schema_ids_match"] = source_schema.get("id") == target_schema.get("id")
+                            
+                        except Exception as schema_e:
+                            version_analysis["schema_comparison_error"] = str(schema_e)
+                    
+                    schema_analysis.append(version_analysis)
+                    
+                    # Update progress for schema analysis (50% to 85%)
+                    analysis_progress = 50.0 + ((i + 1) / total_subjects) * 35.0
+                    update_progress(analysis_progress, f"Analyzed {i + 1}/{total_subjects} subjects")
+                    
+                except Exception as e:
+                    schema_analysis.append({
+                        "subject": subject,
+                        "error": str(e)
+                    })
+            
+            result["schema_analysis"] = schema_analysis
+            
+            update_progress(90.0, "Computing schema analysis summary")
+            
+            # Add schema analysis summary
+            if schema_analysis:
+                identical_schemas = sum(1 for s in schema_analysis if s.get("latest_schemas_identical", False))
+                matching_versions = sum(1 for s in schema_analysis if s.get("latest_versions_match", False))
+                
+                result["schema_summary"] = {
+                    "subjects_analyzed": len(schema_analysis),
+                    "identical_latest_schemas": identical_schemas,
+                    "matching_latest_versions": matching_versions,
+                    "schema_compatibility_percent": round((identical_schemas / len(schema_analysis)) * 100, 2) if schema_analysis else 0,
+                    "version_compatibility_percent": round((matching_versions / len(schema_analysis)) * 100, 2) if schema_analysis else 0
+                }
+        else:
+            update_progress(85.0, "Skipping schema analysis")
+        
+        update_progress(98.0, "Finalizing results")
+        
+        update_progress(100.0, "Comparison completed")
+        return result
         
     except Exception as e:
         return {"error": str(e)}
@@ -2377,6 +2659,218 @@ async def _execute_migrate_context(
                f"{final_result['failed_subjects']} failed, {final_result['skipped_subjects']} skipped")
     
     return final_result
+
+@mcp.tool()
+async def get_comparison_progress(task_id: str) -> Dict[str, Any]:
+    """
+    Get detailed progress information for comparison operations.
+    
+    Args:
+        task_id: Task ID of the comparison operation
+    
+    Returns:
+        Detailed progress information with status and completion percentage
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        # Check if this is a comparison operation
+        operation = task.metadata.get("operation", "") if task.metadata else ""
+        if not operation.startswith("compare"):
+            return {
+                "error": f"Task '{task_id}' is not a comparison operation. Operation: {operation}",
+                "task_type": operation
+            }
+        
+        # Build detailed progress info
+        progress_info = {
+            "task_id": task_id,
+            "operation": operation,
+            "status": task.status.value,
+            "progress_percent": round(task.progress, 1),
+            "created_at": task.created_at,
+            "started_at": task.started_at,
+            "completed_at": task.completed_at,
+        }
+        
+        # Add operation-specific metadata
+        if task.metadata:
+            if "source_registry" in task.metadata:
+                progress_info["source_registry"] = task.metadata["source_registry"]
+            if "target_registry" in task.metadata:
+                progress_info["target_registry"] = task.metadata["target_registry"]
+            if "source_context" in task.metadata:
+                progress_info["source_context"] = task.metadata["source_context"]
+            if "target_context" in task.metadata:
+                progress_info["target_context"] = task.metadata["target_context"]
+        
+        # Calculate duration if running
+        if task.started_at:
+            try:
+                start_time = datetime.fromisoformat(task.started_at.replace('Z', '+00:00'))
+                if task.status == TaskStatus.RUNNING:
+                    current_time = datetime.now()
+                    duration = (current_time - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["duration_seconds"] = round(duration, 1)
+                    
+                    # Estimate remaining time based on progress
+                    if task.progress > 0:
+                        estimated_total = duration / (task.progress / 100.0)
+                        remaining = estimated_total - duration
+                        progress_info["estimated_remaining_seconds"] = round(max(0, remaining), 1)
+                elif task.completed_at:
+                    end_time = datetime.fromisoformat(task.completed_at.replace('Z', '+00:00'))
+                    duration = (end_time.replace(tzinfo=None) - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["total_duration_seconds"] = round(duration, 1)
+            except Exception as date_error:
+                # If datetime parsing fails, just skip duration calculation
+                logger.debug(f"Could not parse datetime: {date_error}")
+        
+        # Add progress stage description
+        progress_info["progress_stage"] = _get_progress_stage_description(operation, task.progress)
+        
+        # Add result preview if completed
+        if task.status == TaskStatus.COMPLETED and task.result:
+            if "summary" in task.result:
+                progress_info["result_preview"] = task.result["summary"]
+        
+        # Add error if failed
+        if task.status == TaskStatus.FAILED and task.error:
+            progress_info["error"] = task.error
+        
+        return progress_info
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+def _get_progress_stage_description(operation: str, progress: float) -> str:
+    """Get human-readable description of current progress stage."""
+    if progress < 5:
+        return "Initializing comparison"
+    elif progress < 15:
+        return "Connecting to registries"
+    elif progress < 30:
+        return "Retrieving subjects from source"
+    elif progress < 45:
+        return "Retrieving subjects from target"
+    elif progress < 55:
+        return "Analyzing subject differences"
+    elif progress < 85:
+        return "Performing detailed schema analysis"
+    elif progress < 95:
+        return "Computing compatibility metrics"
+    elif progress < 100:
+        return "Finalizing results"
+    else:
+        return "Completed"
+
+@mcp.tool()
+async def list_comparison_tasks(
+    include_completed: bool = False,
+    registry_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    List all comparison tasks with their current progress.
+    
+    Args:
+        include_completed: Include completed/failed tasks in results
+        registry_filter: Filter tasks by registry name (source or target)
+    
+    Returns:
+        List of comparison tasks with progress information
+    """
+    try:
+        # Get all tasks
+        all_tasks = task_manager.list_tasks()
+        
+        # Filter for comparison operations
+        comparison_tasks = []
+        for task in all_tasks:
+            operation = task.metadata.get("operation", "") if task.metadata else ""
+            if operation.startswith("compare"):
+                # Apply status filter
+                if not include_completed and task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+                    continue
+                
+                # Apply registry filter
+                if registry_filter:
+                    source_reg = task.metadata.get("source_registry", "") if task.metadata else ""
+                    target_reg = task.metadata.get("target_registry", "") if task.metadata else ""
+                    if registry_filter not in [source_reg, target_reg]:
+                        continue
+                
+                # Build task info
+                task_info = {
+                    "task_id": task.id,
+                    "operation": operation,
+                    "status": task.status.value,
+                    "progress_percent": round(task.progress, 1),
+                    "created_at": task.created_at,
+                    "progress_stage": _get_progress_stage_description(operation, task.progress)
+                }
+                
+                # Add metadata
+                if task.metadata:
+                    for key in ["source_registry", "target_registry", "source_context", "target_context"]:
+                        if key in task.metadata:
+                            task_info[key] = task.metadata[key]
+                
+                comparison_tasks.append(task_info)
+        
+        return sorted(comparison_tasks, key=lambda x: x["created_at"], reverse=True)
+        
+    except Exception as e:
+        return [{"error": str(e)}]
+
+@mcp.tool()
+async def watch_comparison_progress(
+    task_id: str,
+    update_interval_seconds: int = 2,
+    max_updates: int = 30
+) -> Dict[str, Any]:
+    """
+    Watch progress of a comparison operation with periodic updates.
+    
+    **Note:** This returns a stream of progress updates. For real-time monitoring,
+    call this function and then poll get_comparison_progress() separately.
+    
+    Args:
+        task_id: Task ID to monitor
+        update_interval_seconds: Seconds between progress checks
+        max_updates: Maximum number of updates to return
+    
+    Returns:
+        Progress monitoring session information
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        operation = task.metadata.get("operation", "") if task.metadata else ""
+        if not operation.startswith("compare"):
+            return {
+                "error": f"Task '{task_id}' is not a comparison operation",
+                "task_type": operation
+            }
+        
+        return {
+            "message": f"Use get_comparison_progress('{task_id}') to monitor progress",
+            "task_id": task_id,
+            "operation": operation,
+            "current_status": task.status.value,
+            "current_progress": round(task.progress, 1),
+            "monitoring_guidance": {
+                "recommended_interval": f"{update_interval_seconds} seconds",
+                "suggested_max_polls": max_updates,
+                "stop_when": "status is 'completed', 'failed', or 'cancelled'"
+            }
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 # ===== SERVER ENTRY POINT =====
 
