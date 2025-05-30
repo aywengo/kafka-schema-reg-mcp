@@ -632,8 +632,12 @@ class RegistryManager:
             for name, client in self.registries.items():
                 try:
                     start_time = time.time()
+                    auth = None
+                    if client.config.user and client.config.password:
+                        auth = aiohttp.BasicAuth(client.config.user, client.config.password)
+                    
                     async with session.get(f"{client.config.url}/subjects", 
-                                         auth=aiohttp.BasicAuth(client.auth[0], client.auth[1]) if client.auth else None,
+                                         auth=auth,
                                          headers=client.headers,
                                          timeout=10) as response:
                         response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
@@ -692,8 +696,12 @@ class RegistryManager:
     async def _get_subjects_async(self, session: aiohttp.ClientSession, client: RegistryClient) -> List[str]:
         """Get subjects from a registry asynchronously."""
         try:
+            auth = None
+            if client.config.user and client.config.password:
+                auth = aiohttp.BasicAuth(client.config.user, client.config.password)
+            
             async with session.get(f"{client.config.url}/subjects",
-                                 auth=aiohttp.BasicAuth(client.auth[0], client.auth[1]) if client.auth else None,
+                                 auth=auth,
                                  headers=client.headers) as response:
                 if response.status == 200:
                     return await response.json()
@@ -2351,9 +2359,13 @@ async def delete_subject(
         
         # Use aiohttp for async HTTP requests
         async with aiohttp.ClientSession() as session:
+            auth = None
+            if client.config.user and client.config.password:
+                auth = aiohttp.BasicAuth(client.config.user, client.config.password)
+            
             async with session.delete(
                 url,
-                auth=aiohttp.BasicAuth(client.auth[0], client.auth[1]) if client.auth else None,
+                auth=auth,
                 headers=client.headers
             ) as response:
                 response.raise_for_status()
@@ -2636,14 +2648,21 @@ async def _execute_migrate_schema(
         original_mode = None
         if preserve_ids:
             try:
-                # Get current mode
+                # Get current global mode of target registry
                 mode_url = f"{target_client.config.url}/mode"
+                logger.info(f"Getting current mode from target registry")
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(mode_url) as response:
+                    auth = None
+                    if target_client.config.user and target_client.config.password:
+                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
+                    
+                    async with session.get(mode_url, auth=auth, headers=target_client.standard_headers) as response:
                         if response.status == 200:
                             mode_data = await response.json()
                             original_mode = mode_data.get("mode")
-                            logger.debug(f"Current registry mode: {original_mode}")
+                            logger.info(f"Current registry mode: {original_mode}")
+                        else:
+                            logger.warning(f"Could not get current mode: {response.status}")
                 
                 # If subject exists in target, we need to delete it first
                 if target_subject_exists:
@@ -2654,19 +2673,27 @@ async def _execute_migrate_schema(
                 
                 update_progress(45.0, "Setting IMPORT mode for ID preservation")
                 
-                # Set IMPORT mode at the subject level (not context level)
-                mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
-                logger.info(f"Setting IMPORT mode for subject '{target_subject_name}' in context '{target_context}'")
+                # Set IMPORT mode globally on the target registry
+                logger.info(f"Setting global IMPORT mode on target registry")
                 async with aiohttp.ClientSession() as session:
-                    async with session.put(mode_url, json={"mode": "IMPORT"}) as response:
+                    auth = None
+                    if target_client.config.user and target_client.config.password:
+                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
+                    
+                    async with session.put(
+                        mode_url, 
+                        json={"mode": "IMPORT"},
+                        auth=auth,
+                        headers=target_client.standard_headers
+                    ) as response:
                         if response.status == 405:
                             logger.warning("IMPORT mode not supported by target registry, will proceed without ID preservation")
                             preserve_ids = False
                         elif response.status != 200:
-                            logger.warning(f"Failed to set IMPORT mode: {response.status}")
+                            logger.warning(f"Failed to set IMPORT mode: {response.status} - {await response.text()}")
                             preserve_ids = False
                         else:
-                            logger.info("Successfully set IMPORT mode")
+                            logger.info("Successfully set global IMPORT mode")
             except Exception as e:
                 logger.warning(f"Error setting IMPORT mode: {e}")
                 preserve_ids = False
@@ -2710,10 +2737,14 @@ async def _execute_migrate_schema(
                     url = target_client.build_context_url(f"/subjects/{target_subject_name}/versions", target_context)
                     logger.info(f"Registering schema version {version} in target registry")
                     async with aiohttp.ClientSession() as session:
+                        auth = None
+                        if target_client.config.user and target_client.config.password:
+                            auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
+                        
                         async with session.post(
                             url,
                             json=payload,
-                            auth=aiohttp.BasicAuth(target_client.auth[0], target_client.auth[1]) if target_client.auth else None,
+                            auth=auth,
                             headers=target_client.headers
                         ) as response:
                             if response.status == 200:
@@ -2745,7 +2776,16 @@ async def _execute_migrate_schema(
                 mode_url = f"{target_client.config.url}/mode"
                 logger.info(f"Restoring original mode: {original_mode}")
                 async with aiohttp.ClientSession() as session:
-                    async with session.put(mode_url, json={"mode": original_mode}) as response:
+                    auth = None
+                    if target_client.config.user and target_client.config.password:
+                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
+                    
+                    async with session.put(
+                        mode_url, 
+                        json={"mode": original_mode},
+                        auth=auth,
+                        headers=target_client.standard_headers
+                    ) as response:
                         if response.status == 200:
                             logger.info(f"Restored original mode: {original_mode}")
                         else:

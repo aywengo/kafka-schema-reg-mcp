@@ -325,7 +325,7 @@ main() {
     
     echo ""
     info "🚀 Running Multi-Registry Test Suite"
-    info "Total test categories: 6 (core functionality)"
+    info "Total test categories: 9 (core functionality)"
     echo ""
     
     # 1. Multi-Registry Configuration Tests
@@ -338,7 +338,17 @@ main() {
         warning "⚠️  Multi-registry configuration tests not found"
     fi
     
-    # 2. Migration Integration Tests
+    # 2. Cross-Registry Comparison Tests
+    if [ -f "test_compare_registries.py" ]; then
+        run_python_test \
+            "Cross-Registry Comparison" \
+            "test_compare_registries.py" \
+            "Compare subjects between registries (authentication fix validation)"
+    else
+        warning "⚠️  Cross-registry comparison tests not found"
+    fi
+    
+    # 3. Migration Integration Tests
     if [ -f "tests/test_lightweight_migration_integration.py" ]; then
         run_python_test \
             "Migration Integration" \
@@ -348,7 +358,7 @@ main() {
         warning "⚠️  Lightweight migration integration tests not found"
     fi
     
-    # 3. Default Context Migration Tests  
+    # 4. Default Context Migration Tests  
     if [ -f "tests/test_lightweight_migration.py" ]; then
         run_python_test \
             "Default Context & Migration" \
@@ -358,7 +368,7 @@ main() {
         warning "⚠️  Lightweight migration tests not found"
     fi
     
-    # 4. All Versions Migration Tests
+    # 5. All Versions Migration Tests
     if [ -f "tests/run_all_versions_migration_tests.sh" ]; then
         info "Running All Versions Migration test..."
         if run_test \
@@ -373,7 +383,7 @@ main() {
         error "❌ All versions migration tests not found"
     fi
     
-    # 5. ID Preservation Migration Tests
+    # 6. ID Preservation Migration Tests
     if [ -f "tests/run_id_preservation_tests.sh" ]; then
         run_test \
             "ID Preservation Migration" \
@@ -383,7 +393,7 @@ main() {
         warning "⚠️  ID preservation tests not found"
     fi
     
-    # 6. End-to-End Workflow Tests
+    # 7. End-to-End Workflow Tests
     if [ -f "tests/test_end_to_end_workflows.py" ]; then
         run_python_test \
             "End-to-End Workflows" \
@@ -393,7 +403,7 @@ main() {
         warning "⚠️  End-to-end workflow tests not found"
     fi
     
-    # 7. Error Handling Tests
+    # 8. Error Handling Tests
     if [ -f "tests/test_error_handling.py" ]; then
         run_python_test \
             "Error Handling" \
@@ -403,7 +413,7 @@ main() {
         warning "⚠️  Error handling tests not found"
     fi
     
-    # 8. Performance Tests
+    # 9. Performance Tests
     if [ -f "tests/test_performance_load.py" ]; then
         run_python_test \
             "Performance & Load" \
