@@ -128,6 +128,12 @@ OPERATION_METADATA = {
     "get_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_comparison_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "watch_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_migration_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_cleanup_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_migration_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_cleanup_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_task_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_all_active_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
 }
 
 def get_operation_info(operation_name: str) -> Dict[str, Any]:
@@ -599,15 +605,17 @@ class RegistryManager:
         async with aiohttp.ClientSession() as session:
             for name, client in self.registries.items():
                 try:
+                    start_time = time.time()
                     async with session.get(f"{client.config.url}/subjects", 
                                          auth=aiohttp.BasicAuth(client.auth[0], client.auth[1]) if client.auth else None,
                                          headers=client.headers,
                                          timeout=10) as response:
+                        response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
                         if response.status == 200:
                             results[name] = {
                                 "status": "connected",
                                 "url": client.config.url,
-                                "response_time_ms": response.elapsed.total_seconds() * 1000
+                                "response_time_ms": response_time
                             }
                         else:
                             results[name] = {
@@ -1871,6 +1879,24 @@ def _execute_clear_context_batch(
     errors = []
     
     try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "clear_context_batch" and
+                task.metadata.get("context") == context and
+                task.metadata.get("registry") == registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float, message: str = ""):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+                if message:
+                    logger.info(f"Clear Context Progress {progress:.1f}%: {message}")
+        
+        update_progress(5.0, f"Starting cleanup of context '{context}' in registry '{registry}'")
+        
         # Get registry client
         registry_client = registry_manager.get_registry(registry)
         if not registry_client:
@@ -1886,6 +1912,8 @@ def _execute_clear_context_batch(
                 "error": f"Registry '{registry}' not found",
                 "registry": registry
             }
+        
+        update_progress(10.0, "Registry client connected")
             
         # Check if registry is in read-only mode
         readonly_check = check_readonly_mode(registry)
@@ -1902,12 +1930,15 @@ def _execute_clear_context_batch(
                 "error": f"Registry '{registry}' is in read-only mode",
                 "registry": registry
             }
+        
+        update_progress(20.0, "Fetching subjects from context")
             
         # Get all subjects in the context
         subjects = registry_client.get_subjects(context)
         subjects_found = len(subjects)
         
         if subjects_found == 0:
+            update_progress(100.0, "Context is already empty")
             return {
                 "subjects_found": 0,
                 "subjects_deleted": 0,
@@ -1919,8 +1950,11 @@ def _execute_clear_context_batch(
                 "message": f"Context '{context}' is already empty",
                 "registry": registry
             }
+        
+        update_progress(30.0, f"Found {subjects_found} subjects to {'delete' if not dry_run else 'analyze'}")
             
         if dry_run:
+            update_progress(100.0, f"DRY RUN: Would delete {subjects_found} subjects")
             return {
                 "subjects_found": subjects_found,
                 "subjects_deleted": 0,
@@ -1932,6 +1966,8 @@ def _execute_clear_context_batch(
                 "message": f"DRY RUN: Would delete {subjects_found} subjects from context '{context}'",
                 "registry": registry
             }
+        
+        update_progress(40.0, f"Starting deletion of {subjects_found} subjects")
             
         # Delete subjects in parallel
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -1939,12 +1975,19 @@ def _execute_clear_context_batch(
             for subject in subjects:
                 futures.append(executor.submit(registry_client.delete_subject, subject, context))
                 
-            for future in as_completed(futures):
+            total_futures = len(futures)
+            for i, future in enumerate(as_completed(futures)):
                 try:
                     if future.result():
                         subjects_deleted += 1
                 except Exception as e:
                     errors.append(str(e))
+                
+                # Update progress for deletions (40% to 85%)
+                deletion_progress = 40.0 + ((i + 1) / total_futures) * 45.0
+                update_progress(deletion_progress, f"Deleted {subjects_deleted} of {subjects_found} subjects")
+        
+        update_progress(90.0, "Computing cleanup results")
                     
         # Calculate metrics
         duration = time.time() - start_time
@@ -1957,8 +2000,11 @@ def _execute_clear_context_batch(
                 # Note: Context deletion is not supported in the API
                 # This is just a placeholder for future implementation
                 context_deleted = False
+                update_progress(95.0, "Context deletion not supported by API")
             except Exception as e:
                 errors.append(f"Failed to delete context: {str(e)}")
+        
+        update_progress(100.0, f"Cleanup completed - deleted {subjects_deleted} subjects")
                 
         return {
             "subjects_found": subjects_found,
@@ -2026,26 +2072,189 @@ def clear_multiple_contexts_batch(
         asyncio.create_task(
             task_manager.execute_task(
                 task,
-                _execute_migrate_context,
-                source_registry=source_registry,
-                target_registry=target_registry,
-                context=context,
-                target_context=target_context,
-                preserve_ids=preserve_ids,
-                dry_run=dry_run,
-                migrate_all_versions=migrate_all_versions
+                _execute_clear_multiple_contexts_batch,
+                contexts=contexts,
+                registry=registry,
+                delete_contexts_after=delete_contexts_after,
+                dry_run=dry_run
             )
         )
         
         return {
-            "message": "Context migration started as async task",
+            "message": "Context cleanup started as async task",
             "task_id": task.id,
             "task": task.to_dict(),
-            "operation_info": get_operation_info("migrate_context")
+            "operation_info": get_operation_info("clear_multiple_contexts_batch")
         }
         
     except Exception as e:
         return {"error": str(e)}
+
+def _execute_clear_multiple_contexts_batch(
+    contexts: List[str],
+    registry: str,
+    delete_contexts_after: bool = True,
+    dry_run: bool = True
+) -> Dict[str, Any]:
+    """Execute the actual multiple contexts cleanup logic."""
+    start_time = time.time()
+    total_subjects_found = 0
+    total_subjects_deleted = 0
+    contexts_deleted = 0
+    errors = []
+    
+    try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "clear_multiple_contexts_batch" and
+                task.metadata.get("registry") == registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float, message: str = ""):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+                if message:
+                    logger.info(f"Multi-Context Clear Progress {progress:.1f}%: {message}")
+        
+        update_progress(3.0, f"Starting cleanup of {len(contexts)} contexts in registry '{registry}'")
+    
+        print(f"🚀 Starting batch cleanup of {len(contexts)} contexts in registry '{registry}'...")
+        
+        # Get registry client
+        registry_client = registry_manager.get_registry(registry)
+        if not registry_client:
+            return {
+                "contexts_processed": 0,
+                "total_subjects_found": 0,
+                "total_subjects_deleted": 0,
+                "contexts_deleted": 0,
+                "dry_run": dry_run,
+                "duration": time.time() - start_time,
+                "success_rate": 0.0,
+                "performance": 0.0,
+                "message": f"Registry '{registry}' not found",
+                "errors": [f"Registry '{registry}' not found"]
+            }
+        
+        update_progress(8.0, "Registry client connected")
+        
+        # Check if registry is in read-only mode
+        readonly_info = check_readonly_mode(registry)
+        if readonly_info and readonly_info.get("mode") == "READONLY":
+            return {
+                "contexts_processed": 0,
+                "total_subjects_found": 0,
+                "total_subjects_deleted": 0,
+                "contexts_deleted": 0,
+                "dry_run": dry_run,
+                "duration": time.time() - start_time,
+                "success_rate": 0.0,
+                "performance": 0.0,
+                "message": f"Registry '{registry}' is in read-only mode",
+                "errors": [f"Registry '{registry}' is in read-only mode"]
+            }
+        
+        update_progress(15.0, "Starting context processing")
+        
+        # Process each context
+        total_contexts = len(contexts)
+        for i, context in enumerate(contexts, 1):
+            print(f"\n📂 Processing context {i}/{len(contexts)}: '{context}'")
+            
+            try:
+                # Get subjects in context
+                subjects = registry_client.get_subjects(context)
+                total_subjects_found += len(subjects)
+                
+                context_progress_start = 15.0 + ((i - 1) / total_contexts) * 70.0
+                context_progress_end = 15.0 + (i / total_contexts) * 70.0
+                
+                update_progress(context_progress_start, f"Processing context {i}/{total_contexts}: '{context}' ({len(subjects)} subjects)")
+                
+                if dry_run:
+                    print(f"🔍 DRY RUN: Would delete {len(subjects)} subjects from context '{context}'")
+                    continue
+                
+                # Delete subjects in parallel
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = []
+                    for subject in subjects:
+                        future = executor.submit(registry_client.delete_subject, subject, context)
+                        futures.append(future)
+                    
+                    # Wait for all deletions to complete
+                    context_deleted_count = 0
+                    for future in as_completed(futures):
+                        try:
+                            future.result()
+                            total_subjects_deleted += 1
+                            context_deleted_count += 1
+                        except Exception as e:
+                            errors.append(str(e))
+                
+                # Delete context if requested
+                if delete_contexts_after:
+                    try:
+                        # Delete context by deleting a dummy subject and then the subject
+                        dummy_subject = f"dummy-{uuid.uuid4().hex[:8]}"
+                        registry_client.register_schema(
+                            subject=dummy_subject,
+                            schema_definition={"type": "string"},
+                            context=context
+                        )
+                        registry_client.delete_subject(dummy_subject, context)
+                        contexts_deleted += 1
+                    except Exception as e:
+                        errors.append(f"Failed to delete context '{context}': {str(e)}")
+                
+                update_progress(context_progress_end, f"Completed context '{context}' - deleted {context_deleted_count} subjects")
+            
+            except Exception as e:
+                errors.append(f"Error processing context '{context}': {str(e)}")
+        
+        update_progress(90.0, "Computing final results")
+        
+        duration = time.time() - start_time
+        success_rate = (total_subjects_deleted / total_subjects_found * 100) if total_subjects_found > 0 else 0.0
+        performance = total_subjects_deleted / duration if duration > 0 else 0.0
+        
+        message = (
+            f"DRY RUN: Would delete {total_subjects_found} subjects from {len(contexts)} contexts"
+            if dry_run else
+            f"Successfully cleared {len(contexts)} contexts - deleted {total_subjects_deleted}/{total_subjects_found} subjects"
+        )
+        
+        update_progress(100.0, message)
+        
+        return {
+            "contexts_processed": len(contexts),
+            "total_subjects_found": total_subjects_found,
+            "total_subjects_deleted": total_subjects_deleted,
+            "contexts_deleted": contexts_deleted,
+            "dry_run": dry_run,
+            "duration": duration,
+            "success_rate": success_rate,
+            "performance": performance,
+            "message": message,
+            "errors": errors if errors else None
+        }
+        
+    except Exception as e:
+        return {
+            "contexts_processed": 0,
+            "total_subjects_found": total_subjects_found,
+            "total_subjects_deleted": total_subjects_deleted,
+            "contexts_deleted": contexts_deleted,
+            "dry_run": dry_run,
+            "duration": time.time() - start_time,
+            "success_rate": 0.0,
+            "performance": 0.0,
+            "message": f"Multi-context cleanup failed: {str(e)}",
+            "error": str(e)
+        }
 
 @mcp.tool()
 async def delete_subject(
@@ -2241,6 +2450,25 @@ async def _execute_migrate_schema(
 ) -> Dict[str, Any]:
     """Execute the actual schema migration logic."""
     try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "migrate_schema" and
+                task.metadata.get("subject") == subject and
+                task.metadata.get("source_registry") == source_registry and
+                task.metadata.get("target_registry") == target_registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float, message: str = ""):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+                if message:
+                    logger.info(f"Schema Migration Progress {progress:.1f}%: {message}")
+        
+        update_progress(3.0, f"Starting migration for subject '{subject}'")
+        
         logger.info(f"Starting schema migration for subject '{subject}'")
         logger.info(f"Source: {source_registry} ({source_context}), Target: {target_registry} ({target_context})")
         logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}")
@@ -2252,6 +2480,8 @@ async def _execute_migrate_schema(
         if not source_client or not target_client:
             logger.error("Invalid registry configuration")
             return {"error": "Invalid registry configuration"}
+        
+        update_progress(10.0, "Registry clients connected")
         
         # Extract the actual subject name without context prefix
         actual_subject = subject
@@ -2272,9 +2502,13 @@ async def _execute_migrate_schema(
             logger.error(f"Subject {actual_subject} not found in source registry")
             return {"error": f"Subject {actual_subject} not found in source registry"}
         
+        update_progress(20.0, f"Found {len(versions_result)} versions in source")
+        
         # If specific versions are provided, use those; otherwise use all versions
         versions_to_migrate = versions if versions is not None else sorted(versions_result)
         logger.info(f"Versions to migrate: {versions_to_migrate}")
+        
+        update_progress(25.0, f"Will migrate {len(versions_to_migrate)} versions")
         
         # Check if target context exists
         target_context_exists = False
@@ -2291,6 +2525,8 @@ async def _execute_migrate_schema(
             logger.debug(f"Error checking target context existence: {e}")
             # If we can't check contexts, assume it doesn't exist
             target_context_exists = False
+        
+        update_progress(30.0, "Checking target context and subject status")
         
         # Only check subject existence if context exists
         target_subject_exists = False
@@ -2319,6 +2555,8 @@ async def _execute_migrate_schema(
             target_context_exists = True
             target_subject_exists = False
         
+        update_progress(40.0, "Preparing target registry for migration")
+        
         # Store original mode for restoration
         original_mode = None
         if preserve_ids:
@@ -2339,6 +2577,8 @@ async def _execute_migrate_schema(
                     # After deletion, subject no longer exists
                     target_subject_exists = False
                 
+                update_progress(45.0, "Setting IMPORT mode for ID preservation")
+                
                 # Set IMPORT mode at the subject level (not context level)
                 mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{actual_subject}"
                 logger.info(f"Setting IMPORT mode for subject '{actual_subject}' in context '{target_context}'")
@@ -2356,9 +2596,13 @@ async def _execute_migrate_schema(
                 logger.warning(f"Error setting IMPORT mode: {e}")
                 preserve_ids = False
         
+        update_progress(50.0, f"Starting migration of {len(versions_to_migrate)} versions")
+        
         # Migrate each version
         migrated_versions = []
-        for version in versions_to_migrate:
+        total_versions = len(versions_to_migrate)
+        
+        for i, version in enumerate(versions_to_migrate):
             try:
                 logger.info(f"Processing version {version} of subject '{actual_subject}'")
                 # Get schema from source
@@ -2410,9 +2654,15 @@ async def _execute_migrate_schema(
                                 logger.error(f"Error migrating version {version}: {error_text}")
                                 continue
                 
+                # Update progress for version migration (50% to 85%)
+                version_progress = 50.0 + ((i + 1) / total_versions) * 35.0
+                update_progress(version_progress, f"Migrated version {version} ({i + 1}/{total_versions})")
+                
             except Exception as e:
                 logger.error(f"Error migrating version {version}: {e}")
                 continue
+        
+        update_progress(90.0, "Restoring registry mode")
         
         # Restore original mode if we changed it
         if preserve_ids and original_mode:
@@ -2428,8 +2678,11 @@ async def _execute_migrate_schema(
             except Exception as e:
                 logger.warning(f"Error restoring original mode: {e}")
         
+        update_progress(95.0, "Building migration results")
+        
         logger.info(f"Migration completed for subject '{actual_subject}'. Migrated {len(migrated_versions)} versions")
-        return {
+        
+        result = {
             "task_id": str(uuid.uuid4()),
             "subject": actual_subject,
             "source_registry": source_registry,
@@ -2444,6 +2697,9 @@ async def _execute_migrate_schema(
             "versions_migrated": len(migrated_versions),
             "total_versions": len(versions_to_migrate)
         }
+        
+        update_progress(100.0, f"Schema migration completed - {len(migrated_versions)} versions migrated")
+        return result
         
     except Exception as e:
         logger.error(f"Error in migrate_schema: {e}")
@@ -2529,136 +2785,174 @@ async def _execute_migrate_context(
     migrate_all_versions: bool = True
 ) -> Dict[str, Any]:
     """Execute the actual context migration logic."""
-    logger.info(f"Starting context migration from {source_registry} to {target_registry}")
-    logger.info(f"Source context: {context}, Target context: {target_context or context}")
-    logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}, Migrate all versions: {migrate_all_versions}")
-    
-    # Get source client
-    source_client = registry_manager.get_registry(source_registry)
-    if source_client is None:
-        logger.error(f"Source registry '{source_registry}' not found")
-        return {"error": f"Source registry '{source_registry}' not found"}
-    
-    # Get target client
-    target_client = registry_manager.get_registry(target_registry)
-    if target_client is None:
-        logger.error(f"Target registry '{target_registry}' not found")
-        return {"error": f"Target registry '{target_registry}' not found"}
-    
-    # Get all subjects from source context
-    logger.info(f"Fetching subjects from source context '{context}' in registry '{source_registry}'")
-    subjects = source_client.get_subjects(context)
-    if not subjects:
-        logger.info(f"No subjects found in context '{context}' of registry '{source_registry}'")
-        return {
-            "message": f"No subjects found in context '{context}' of registry '{source_registry}'",
+    try:
+        # Get the current task ID from task manager for progress updates
+        current_task = None
+        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
+            if (task.metadata and 
+                task.metadata.get("operation") == "migrate_context" and
+                task.metadata.get("source_registry") == source_registry and
+                task.metadata.get("target_registry") == target_registry):
+                current_task = task
+                break
+        
+        def update_progress(progress: float, message: str = ""):
+            if current_task:
+                task_manager.update_progress(current_task.id, progress)
+                if message:
+                    logger.info(f"Migration Progress {progress:.1f}%: {message}")
+        
+        update_progress(2.0, "Starting context migration")
+        
+        logger.info(f"Starting context migration from {source_registry} to {target_registry}")
+        logger.info(f"Source context: {context}, Target context: {target_context or context}")
+        logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}, Migrate all versions: {migrate_all_versions}")
+        
+        # Get source client
+        source_client = registry_manager.get_registry(source_registry)
+        if source_client is None:
+            logger.error(f"Source registry '{source_registry}' not found")
+            return {"error": f"Source registry '{source_registry}' not found"}
+        
+        update_progress(8.0, "Source registry connected")
+        
+        # Get target client
+        target_client = registry_manager.get_registry(target_registry)
+        if target_client is None:
+            logger.error(f"Target registry '{target_registry}' not found")
+            return {"error": f"Target registry '{target_registry}' not found"}
+        
+        update_progress(15.0, "Target registry connected")
+        
+        # Get all subjects from source context
+        logger.info(f"Fetching subjects from source context '{context}' in registry '{source_registry}'")
+        subjects = source_client.get_subjects(context)
+        if not subjects:
+            logger.info(f"No subjects found in context '{context}' of registry '{source_registry}'")
+            return {
+                "message": f"No subjects found in context '{context}' of registry '{source_registry}'",
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "source_context": context,
+                "target_context": target_context or context,
+                "subjects_migrated": 0,
+                "dry_run": dry_run,
+                "migrate_all_versions": migrate_all_versions
+            }
+        
+        update_progress(25.0, f"Found {len(subjects)} subjects to migrate")
+        logger.info(f"Found {len(subjects)} subjects to migrate")
+        
+        # Initialize results
+        migration_results = {
+            "successful_subjects": [],
+            "failed_subjects": [],
+            "skipped_subjects": []
+        }
+        
+        # Use target_context if provided, else default to context
+        dest_context = target_context if target_context is not None else context
+        logger.info(f"Using target context: {dest_context}")
+        
+        update_progress(30.0, f"Starting migration of {len(subjects)} subjects")
+        
+        # Migrate each subject
+        total_subjects = len(subjects)
+        for i, subject in enumerate(subjects):
+            logger.info(f"Processing subject: {subject}")
+            try:
+                # Get versions for this subject
+                logger.info(f"Fetching versions for subject '{subject}' from source registry")
+                versions_result = get_schema_versions(subject, context=context, registry=source_registry)
+                if isinstance(versions_result, dict) and "error" in versions_result:
+                    logger.error(f"Failed to get versions for subject '{subject}': {versions_result['error']}")
+                    migration_results["failed_subjects"].append({
+                        "subject": subject,
+                        "error": versions_result["error"]
+                    })
+                    continue
+                
+                if not versions_result:
+                    logger.warning(f"No versions found for subject '{subject}', skipping")
+                    migration_results["skipped_subjects"].append({
+                        "subject": subject,
+                        "reason": "No versions found"
+                    })
+                    continue
+                
+                logger.info(f"Found {len(versions_result)} versions for subject '{subject}'")
+                
+                # If not migrating all versions, only use the latest version
+                versions_to_migrate = sorted(versions_result) if migrate_all_versions else [max(versions_result)]
+                logger.info(f"Will migrate versions: {versions_to_migrate}")
+                
+                # Run migrate_schema asynchronously
+                logger.info(f"Starting schema migration for subject '{subject}'")
+                result = await migrate_schema(
+                    subject=subject,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                    source_context=context,  # Source context
+                    target_context=dest_context,  # Target context
+                    preserve_ids=preserve_ids,
+                    dry_run=dry_run,
+                    versions=versions_to_migrate  # Pass specific versions to migrate
+                )
+                
+                if "error" in result:
+                    logger.error(f"Migration failed for subject '{subject}': {result['error']}")
+                    migration_results["failed_subjects"].append({
+                        "subject": subject,
+                        "error": result["error"]
+                    })
+                else:
+                    logger.info(f"Successfully migrated subject '{subject}'")
+                    migration_results["successful_subjects"].append({
+                        "subject": subject,
+                        "result": result
+                    })
+                
+                # Update progress based on subjects processed (30% to 85%)
+                subject_progress = 30.0 + ((i + 1) / total_subjects) * 55.0
+                update_progress(subject_progress, f"Migrated {i + 1}/{total_subjects} subjects")
+                    
+            except Exception as e:
+                logger.error(f"Unexpected error processing subject '{subject}': {str(e)}")
+                migration_results["failed_subjects"].append({
+                    "subject": subject,
+                    "error": str(e)
+                })
+        
+        update_progress(90.0, "Building migration summary")
+        
+        # Build final result
+        logger.info("Migration completed. Building final results...")
+        final_result = {
             "source_registry": source_registry,
             "target_registry": target_registry,
             "source_context": context,
-            "target_context": target_context or context,
-            "subjects_migrated": 0,
+            "target_context": dest_context,
+            "preserve_ids": preserve_ids,
             "dry_run": dry_run,
-            "migrate_all_versions": migrate_all_versions
+            "migrate_all_versions": migrate_all_versions,
+            "total_subjects": len(subjects),
+            "successful_subjects": len(migration_results["successful_subjects"]),
+            "failed_subjects": len(migration_results["failed_subjects"]),
+            "skipped_subjects": len(migration_results["skipped_subjects"]),
+            "results": migration_results,
+            "status": "completed" if migration_results["failed_subjects"] == [] else "failed",
+            "migrated_at": datetime.now().isoformat()
         }
-    
-    logger.info(f"Found {len(subjects)} subjects to migrate")
-    
-    # Initialize results
-    migration_results = {
-        "successful_subjects": [],
-        "failed_subjects": [],
-        "skipped_subjects": []
-    }
-    
-    # Use target_context if provided, else default to context
-    dest_context = target_context if target_context is not None else context
-    logger.info(f"Using target context: {dest_context}")
-    
-    # Migrate each subject
-    for subject in subjects:
-        logger.info(f"Processing subject: {subject}")
-        try:
-            # Get versions for this subject
-            logger.info(f"Fetching versions for subject '{subject}' from source registry")
-            versions_result = get_schema_versions(subject, context=context, registry=source_registry)
-            if isinstance(versions_result, dict) and "error" in versions_result:
-                logger.error(f"Failed to get versions for subject '{subject}': {versions_result['error']}")
-                migration_results["failed_subjects"].append({
-                    "subject": subject,
-                    "error": versions_result["error"]
-                })
-                continue
-            
-            if not versions_result:
-                logger.warning(f"No versions found for subject '{subject}', skipping")
-                migration_results["skipped_subjects"].append({
-                    "subject": subject,
-                    "reason": "No versions found"
-                })
-                continue
-            
-            logger.info(f"Found {len(versions_result)} versions for subject '{subject}'")
-            
-            # If not migrating all versions, only use the latest version
-            versions_to_migrate = sorted(versions_result) if migrate_all_versions else [max(versions_result)]
-            logger.info(f"Will migrate versions: {versions_to_migrate}")
-            
-            # Run migrate_schema asynchronously
-            logger.info(f"Starting schema migration for subject '{subject}'")
-            result = await migrate_schema(
-                subject=subject,
-                source_registry=source_registry,
-                target_registry=target_registry,
-                source_context=context,  # Source context
-                target_context=dest_context,  # Target context
-                preserve_ids=preserve_ids,
-                dry_run=dry_run,
-                versions=versions_to_migrate  # Pass specific versions to migrate
-            )
-            
-            if "error" in result:
-                logger.error(f"Migration failed for subject '{subject}': {result['error']}")
-                migration_results["failed_subjects"].append({
-                    "subject": subject,
-                    "error": result["error"]
-                })
-            else:
-                logger.info(f"Successfully migrated subject '{subject}'")
-                migration_results["successful_subjects"].append({
-                    "subject": subject,
-                    "result": result
-                })
-                
-        except Exception as e:
-            logger.error(f"Unexpected error processing subject '{subject}': {str(e)}")
-            migration_results["failed_subjects"].append({
-                "subject": subject,
-                "error": str(e)
-            })
-    
-    # Build final result
-    logger.info("Migration completed. Building final results...")
-    final_result = {
-        "source_registry": source_registry,
-        "target_registry": target_registry,
-        "source_context": context,
-        "target_context": dest_context,
-        "preserve_ids": preserve_ids,
-        "dry_run": dry_run,
-        "migrate_all_versions": migrate_all_versions,
-        "total_subjects": len(subjects),
-        "successful_subjects": len(migration_results["successful_subjects"]),
-        "failed_subjects": len(migration_results["failed_subjects"]),
-        "skipped_subjects": len(migration_results["skipped_subjects"]),
-        "results": migration_results,
-        "status": "completed" if migration_results["failed_subjects"] == [] else "failed",
-        "migrated_at": datetime.now().isoformat()
-    }
-    
-    logger.info(f"Migration summary: {final_result['successful_subjects']} successful, "
-               f"{final_result['failed_subjects']} failed, {final_result['skipped_subjects']} skipped")
-    
-    return final_result
+        
+        logger.info(f"Migration summary: {final_result['successful_subjects']} successful, "
+                   f"{final_result['failed_subjects']} failed, {final_result['skipped_subjects']} skipped")
+        
+        update_progress(100.0, "Context migration completed")
+        return final_result
+        
+    except Exception as e:
+        logger.error(f"Error in migrate_context: {str(e)}")
+        return {"error": str(e)}
 
 @mcp.tool()
 async def get_comparison_progress(task_id: str) -> Dict[str, Any]:
@@ -2747,24 +3041,69 @@ async def get_comparison_progress(task_id: str) -> Dict[str, Any]:
 
 def _get_progress_stage_description(operation: str, progress: float) -> str:
     """Get human-readable description of current progress stage."""
-    if progress < 5:
-        return "Initializing comparison"
-    elif progress < 15:
-        return "Connecting to registries"
-    elif progress < 30:
-        return "Retrieving subjects from source"
-    elif progress < 45:
-        return "Retrieving subjects from target"
-    elif progress < 55:
-        return "Analyzing subject differences"
-    elif progress < 85:
-        return "Performing detailed schema analysis"
-    elif progress < 95:
-        return "Computing compatibility metrics"
-    elif progress < 100:
-        return "Finalizing results"
+    if operation.startswith("compare"):
+        if progress < 5:
+            return "Initializing comparison"
+        elif progress < 15:
+            return "Connecting to registries"
+        elif progress < 30:
+            return "Retrieving subjects from source"
+        elif progress < 45:
+            return "Retrieving subjects from target"
+        elif progress < 55:
+            return "Analyzing subject differences"
+        elif progress < 85:
+            return "Performing detailed schema analysis"
+        elif progress < 95:
+            return "Computing compatibility metrics"
+        elif progress < 100:
+            return "Finalizing results"
+        else:
+            return "Completed"
+    elif operation.startswith("migrate"):
+        if progress < 5:
+            return "Initializing migration"
+        elif progress < 15:
+            return "Connecting to registries"
+        elif progress < 30:
+            return "Analyzing source schemas"
+        elif progress < 50:
+            return "Preparing target registry"
+        elif progress < 85:
+            return "Migrating schema versions"
+        elif progress < 95:
+            return "Restoring registry settings"
+        elif progress < 100:
+            return "Finalizing migration"
+        else:
+            return "Migration completed"
+    elif operation.startswith("clear"):
+        if progress < 10:
+            return "Initializing cleanup"
+        elif progress < 20:
+            return "Connecting to registry"
+        elif progress < 40:
+            return "Scanning for subjects"
+        elif progress < 85:
+            return "Deleting subjects"
+        elif progress < 95:
+            return "Computing cleanup results"
+        elif progress < 100:
+            return "Finalizing cleanup"
+        else:
+            return "Cleanup completed"
     else:
-        return "Completed"
+        # Generic progress descriptions
+        if progress < 10:
+            return "Starting operation"
+        elif progress < 50:
+            return "Processing"
+        elif progress < 90:
+            return "Completing operation"
+        elif progress < 100:
+            return "Finalizing"
+        else:
+            return "Completed"
 
 @mcp.tool()
 async def list_comparison_tasks(
@@ -2871,6 +3210,389 @@ async def watch_comparison_progress(
         
     except Exception as e:
         return {"error": str(e)}
+
+@mcp.tool()
+async def get_migration_progress(task_id: str) -> Dict[str, Any]:
+    """
+    Get detailed progress information for migration operations.
+    
+    Args:
+        task_id: Task ID of the migration operation
+    
+    Returns:
+        Detailed progress information with status and completion percentage
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        # Check if this is a migration operation
+        operation = task.metadata.get("operation", "") if task.metadata else ""
+        if not operation.startswith("migrate"):
+            return {
+                "error": f"Task '{task_id}' is not a migration operation. Operation: {operation}",
+                "task_type": operation
+            }
+        
+        # Build detailed progress info
+        progress_info = {
+            "task_id": task_id,
+            "operation": operation,
+            "status": task.status.value,
+            "progress_percent": round(task.progress, 1),
+            "created_at": task.created_at,
+            "started_at": task.started_at,
+            "completed_at": task.completed_at,
+            "progress_stage": _get_progress_stage_description(operation, task.progress)
+        }
+        
+        # Add operation-specific metadata
+        if task.metadata:
+            for key in ["source_registry", "target_registry", "source_context", "target_context", "subject", "preserve_ids", "dry_run"]:
+                if key in task.metadata:
+                    progress_info[key] = task.metadata[key]
+        
+        # Calculate duration and estimates
+        if task.started_at:
+            try:
+                start_time = datetime.fromisoformat(task.started_at.replace('Z', '+00:00'))
+                if task.status == TaskStatus.RUNNING:
+                    current_time = datetime.now()
+                    duration = (current_time - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["duration_seconds"] = round(duration, 1)
+                    
+                    if task.progress > 0:
+                        estimated_total = duration / (task.progress / 100.0)
+                        remaining = estimated_total - duration
+                        progress_info["estimated_remaining_seconds"] = round(max(0, remaining), 1)
+                elif task.completed_at:
+                    end_time = datetime.fromisoformat(task.completed_at.replace('Z', '+00:00'))
+                    duration = (end_time.replace(tzinfo=None) - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["total_duration_seconds"] = round(duration, 1)
+            except Exception:
+                pass
+        
+        # Add result preview if completed
+        if task.status == TaskStatus.COMPLETED and task.result:
+            if operation == "migrate_context":
+                progress_info["result_preview"] = {
+                    "total_subjects": task.result.get("total_subjects", 0),
+                    "successful_subjects": task.result.get("successful_subjects", 0),
+                    "failed_subjects": task.result.get("failed_subjects", 0),
+                    "status": task.result.get("status", "unknown")
+                }
+            elif operation == "migrate_schema":
+                progress_info["result_preview"] = {
+                    "subject": task.result.get("subject", ""),
+                    "versions_migrated": task.result.get("versions_migrated", 0),
+                    "total_versions": task.result.get("total_versions", 0)
+                }
+        
+        if task.status == TaskStatus.FAILED and task.error:
+            progress_info["error"] = task.error
+        
+        return progress_info
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def get_cleanup_progress(task_id: str) -> Dict[str, Any]:
+    """
+    Get detailed progress information for cleanup operations.
+    
+    Args:
+        task_id: Task ID of the cleanup operation
+    
+    Returns:
+        Detailed progress information with status and completion percentage
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        # Check if this is a cleanup operation
+        operation = task.metadata.get("operation", "") if task.metadata else ""
+        if not operation.startswith("clear"):
+            return {
+                "error": f"Task '{task_id}' is not a cleanup operation. Operation: {operation}",
+                "task_type": operation
+            }
+        
+        # Build detailed progress info
+        progress_info = {
+            "task_id": task_id,
+            "operation": operation,
+            "status": task.status.value,
+            "progress_percent": round(task.progress, 1),
+            "created_at": task.created_at,
+            "started_at": task.started_at,
+            "completed_at": task.completed_at,
+            "progress_stage": _get_progress_stage_description(operation, task.progress)
+        }
+        
+        # Add operation-specific metadata
+        if task.metadata:
+            for key in ["registry", "context", "contexts", "delete_context_after", "dry_run"]:
+                if key in task.metadata:
+                    progress_info[key] = task.metadata[key]
+        
+        # Calculate duration and estimates
+        if task.started_at:
+            try:
+                start_time = datetime.fromisoformat(task.started_at.replace('Z', '+00:00'))
+                if task.status == TaskStatus.RUNNING:
+                    current_time = datetime.now()
+                    duration = (current_time - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["duration_seconds"] = round(duration, 1)
+                    
+                    if task.progress > 0:
+                        estimated_total = duration / (task.progress / 100.0)
+                        remaining = estimated_total - duration
+                        progress_info["estimated_remaining_seconds"] = round(max(0, remaining), 1)
+                elif task.completed_at:
+                    end_time = datetime.fromisoformat(task.completed_at.replace('Z', '+00:00'))
+                    duration = (end_time.replace(tzinfo=None) - start_time.replace(tzinfo=None)).total_seconds()
+                    progress_info["total_duration_seconds"] = round(duration, 1)
+            except Exception:
+                pass
+        
+        # Add result preview if completed
+        if task.status == TaskStatus.COMPLETED and task.result:
+            if "subjects_deleted" in task.result:
+                progress_info["result_preview"] = {
+                    "subjects_found": task.result.get("subjects_found", 0),
+                    "subjects_deleted": task.result.get("subjects_deleted", 0),
+                    "success_rate": task.result.get("success_rate", 0),
+                    "contexts_processed": task.result.get("contexts_processed", 1)
+                }
+        
+        if task.status == TaskStatus.FAILED and task.error:
+            progress_info["error"] = task.error
+        
+        return progress_info
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def list_migration_tasks(
+    include_completed: bool = False,
+    registry_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    List all migration tasks with their current progress.
+    
+    Args:
+        include_completed: Include completed/failed tasks in results
+        registry_filter: Filter tasks by registry name (source or target)
+    
+    Returns:
+        List of migration tasks with progress information
+    """
+    try:
+        all_tasks = task_manager.list_tasks()
+        
+        migration_tasks = []
+        for task in all_tasks:
+            operation = task.metadata.get("operation", "") if task.metadata else ""
+            if operation.startswith("migrate"):
+                if not include_completed and task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+                    continue
+                
+                if registry_filter:
+                    source_reg = task.metadata.get("source_registry", "") if task.metadata else ""
+                    target_reg = task.metadata.get("target_registry", "") if task.metadata else ""
+                    if registry_filter not in [source_reg, target_reg]:
+                        continue
+                
+                task_info = {
+                    "task_id": task.id,
+                    "operation": operation,
+                    "status": task.status.value,
+                    "progress_percent": round(task.progress, 1),
+                    "created_at": task.created_at,
+                    "progress_stage": _get_progress_stage_description(operation, task.progress)
+                }
+                
+                if task.metadata:
+                    for key in ["source_registry", "target_registry", "source_context", "target_context", "subject"]:
+                        if key in task.metadata:
+                            task_info[key] = task.metadata[key]
+                
+                migration_tasks.append(task_info)
+        
+        return sorted(migration_tasks, key=lambda x: x["created_at"], reverse=True)
+        
+    except Exception as e:
+        return [{"error": str(e)}]
+
+@mcp.tool()
+async def list_cleanup_tasks(
+    include_completed: bool = False,
+    registry_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    List all cleanup tasks with their current progress.
+    
+    Args:
+        include_completed: Include completed/failed tasks in results
+        registry_filter: Filter tasks by registry name
+    
+    Returns:
+        List of cleanup tasks with progress information
+    """
+    try:
+        all_tasks = task_manager.list_tasks()
+        
+        cleanup_tasks = []
+        for task in all_tasks:
+            operation = task.metadata.get("operation", "") if task.metadata else ""
+            if operation.startswith("clear"):
+                if not include_completed and task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
+                    continue
+                
+                if registry_filter:
+                    registry = task.metadata.get("registry", "") if task.metadata else ""
+                    if registry_filter != registry:
+                        continue
+                
+                task_info = {
+                    "task_id": task.id,
+                    "operation": operation,
+                    "status": task.status.value,
+                    "progress_percent": round(task.progress, 1),
+                    "created_at": task.created_at,
+                    "progress_stage": _get_progress_stage_description(operation, task.progress)
+                }
+                
+                if task.metadata:
+                    for key in ["registry", "context", "contexts", "dry_run"]:
+                        if key in task.metadata:
+                            task_info[key] = task.metadata[key]
+                
+                cleanup_tasks.append(task_info)
+        
+        return sorted(cleanup_tasks, key=lambda x: x["created_at"], reverse=True)
+        
+    except Exception as e:
+        return [{"error": str(e)}]
+
+@mcp.tool()
+async def get_task_progress(task_id: str) -> Dict[str, Any]:
+    """
+    Get detailed progress information for any task (comparison, migration, or cleanup).
+    
+    This is a unified progress monitoring tool that automatically detects the operation type
+    and provides appropriate progress information.
+    
+    Args:
+        task_id: Task ID of any operation
+    
+    Returns:
+        Detailed progress information with status and completion percentage
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        operation = task.metadata.get("operation", "") if task.metadata else ""
+        
+        # Route to specific progress handler based on operation type
+        if operation.startswith("compare"):
+            return await get_comparison_progress(task_id)
+        elif operation.startswith("migrate"):
+            return await get_migration_progress(task_id)
+        elif operation.startswith("clear"):
+            return await get_cleanup_progress(task_id)
+        else:
+            # Generic progress info for unknown operation types
+            progress_info = {
+                "task_id": task_id,
+                "operation": operation,
+                "status": task.status.value,
+                "progress_percent": round(task.progress, 1),
+                "created_at": task.created_at,
+                "started_at": task.started_at,
+                "completed_at": task.completed_at,
+                "progress_stage": _get_progress_stage_description(operation, task.progress)
+            }
+            
+            if task.metadata:
+                progress_info["metadata"] = task.metadata
+            
+            if task.status == TaskStatus.FAILED and task.error:
+                progress_info["error"] = task.error
+            elif task.status == TaskStatus.COMPLETED and task.result:
+                progress_info["result"] = task.result
+            
+            return progress_info
+        
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def list_all_active_tasks() -> List[Dict[str, Any]]:
+    """
+    List all currently active tasks (running or pending) across all operation types.
+    
+    Returns:
+        List of all active tasks with progress information
+    """
+    try:
+        all_tasks = task_manager.list_tasks()
+        
+        active_tasks = []
+        for task in all_tasks:
+            if task.status in [TaskStatus.RUNNING, TaskStatus.PENDING]:
+                operation = task.metadata.get("operation", "") if task.metadata else ""
+                
+                task_info = {
+                    "task_id": task.id,
+                    "operation": operation,
+                    "operation_type": _categorize_operation(operation),
+                    "status": task.status.value,
+                    "progress_percent": round(task.progress, 1),
+                    "created_at": task.created_at,
+                    "started_at": task.started_at,
+                    "progress_stage": _get_progress_stage_description(operation, task.progress)
+                }
+                
+                # Add relevant metadata based on operation type
+                if task.metadata:
+                    if operation.startswith("compare"):
+                        for key in ["source_registry", "target_registry", "source_context", "target_context"]:
+                            if key in task.metadata:
+                                task_info[key] = task.metadata[key]
+                    elif operation.startswith("migrate"):
+                        for key in ["source_registry", "target_registry", "subject", "source_context", "target_context"]:
+                            if key in task.metadata:
+                                task_info[key] = task.metadata[key]
+                    elif operation.startswith("clear"):
+                        for key in ["registry", "context", "contexts"]:
+                            if key in task.metadata:
+                                task_info[key] = task.metadata[key]
+                
+                active_tasks.append(task_info)
+        
+        return sorted(active_tasks, key=lambda x: x["created_at"], reverse=True)
+        
+    except Exception as e:
+        return [{"error": str(e)}]
+
+def _categorize_operation(operation: str) -> str:
+    """Categorize operation type for unified task listing."""
+    if operation.startswith("compare"):
+        return "comparison"
+    elif operation.startswith("migrate"):
+        return "migration"
+    elif operation.startswith("clear"):
+        return "cleanup"
+    else:
+        return "other"
 
 # ===== SERVER ENTRY POINT =====
 
