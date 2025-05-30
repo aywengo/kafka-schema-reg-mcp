@@ -859,6 +859,77 @@ async def compare_contexts_across_registries(
     except Exception as e:
         return {"error": str(e)}
 
+async def _execute_compare_contexts(
+    source_registry: str,
+    target_registry: str,
+    context: str
+) -> Dict[str, Any]:
+    """Execute the actual context comparison logic."""
+    try:
+        # Get registry clients
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+        
+        if not source_client or not target_client:
+            return {"error": "Invalid registry configuration"}
+        
+        # Get subjects from both registries for the specific context
+        source_subjects = source_client.get_subjects(context)
+        target_subjects = target_client.get_subjects(context)
+        
+        # Compare contexts
+        source_only = list(set(source_subjects) - set(target_subjects))
+        target_only = list(set(target_subjects) - set(source_subjects))
+        common = list(set(source_subjects) & set(target_subjects))
+        
+        # Get detailed comparison for common subjects
+        subject_details = []
+        for subject in common:
+            try:
+                source_versions = get_schema_versions(subject, context=context, registry=source_registry)
+                target_versions = get_schema_versions(subject, context=context, registry=target_registry)
+                
+                # Handle cases where get_schema_versions returns error dict
+                if isinstance(source_versions, dict) and "error" in source_versions:
+                    source_versions = []
+                if isinstance(target_versions, dict) and "error" in target_versions:
+                    target_versions = []
+                
+                subject_details.append({
+                    "subject": subject,
+                    "source_versions": len(source_versions) if source_versions else 0,
+                    "target_versions": len(target_versions) if target_versions else 0,
+                    "version_match": source_versions == target_versions
+                })
+            except Exception as e:
+                subject_details.append({
+                    "subject": subject,
+                    "error": str(e)
+                })
+        
+        return {
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "context": context,
+            "compared_at": datetime.now().isoformat(),
+            "summary": {
+                "source_only_subjects": len(source_only),
+                "target_only_subjects": len(target_only),
+                "common_subjects": len(common),
+                "total_source_subjects": len(source_subjects),
+                "total_target_subjects": len(target_subjects)
+            },
+            "subjects": {
+                "source_only": source_only,
+                "target_only": target_only,
+                "common": common
+            },
+            "subject_details": subject_details
+        }
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 # ===== REGISTRY CONFIGURATION TOOLS =====
 
 @mcp.tool()
