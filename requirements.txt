@@ -4,6 +4,7 @@ mcp[cli]==1.9.1
 # Kafka Schema Registry integration
 requests==2.31.0
 python-dotenv==1.0.0
+aiohttp==3.9.3
 
 # Data processing for export functionality
 avro-python3==1.10.2
