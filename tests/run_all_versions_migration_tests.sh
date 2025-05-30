@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Add parent directory to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(dirname $(dirname $(realpath $0)))"
+
 # Test Runner for All-Versions Migration Tests
 # 
 # This script tests the enhanced migrate_context function that can preserve
@@ -128,7 +131,7 @@ def test_get_schema_versions():
     """Test that we can retrieve multiple versions of a schema"""
     try:
         # Use default context for this test
-        subjects = mcp_server.list_subjects(context=None, registry="dev")
+        subjects = mcp_server.get_subjects(context=None, registry="dev")
         
         if not subjects or len(subjects) == 0:
             print("No subjects found - this is expected if no schemas exist yet")

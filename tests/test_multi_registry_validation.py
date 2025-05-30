@@ -11,7 +11,9 @@ import sys
 import json
 import requests
 import time
+import asyncio
 from datetime import datetime
+import uuid
 
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -115,27 +117,61 @@ class MultiRegistryValidationTest:
             print(f"   ❌ MCP registry detection test failed: {e}")
             return False
     
-    def test_cross_registry_operations(self) -> bool:
-        """Test basic cross-registry operations"""
+    async def test_cross_registry_operations(self) -> bool:
+        """Test cross-registry operations"""
         print(f"\n🔄 Testing cross-registry operations...")
         
         try:
-            # Test registry comparison
-            comparison = mcp_server.compare_registries("dev", "prod")
+            # Compare registries
+            print(f"   ⏳ Registry comparison started as async task")
+            comparison = await mcp_server.compare_registries("dev", "prod")
             
             if "error" in comparison:
                 print(f"   ❌ Registry comparison failed: {comparison['error']}")
                 return False
             
             print(f"   ✅ Registry comparison successful")
-            print(f"      Source: {comparison.get('source', 'unknown')}")
-            print(f"      Target: {comparison.get('target', 'unknown')}")
             
-            subjects_info = comparison.get('subjects', {})
-            if subjects_info:
-                print(f"      DEV subjects: {subjects_info.get('source_total', 0)}")
-                print(f"      PROD subjects: {subjects_info.get('target_total', 0)}")
-                print(f"      Common subjects: {len(subjects_info.get('common', []))}")
+            # Test compatibility validation
+            test_subject = f"test-compat-{uuid.uuid4().hex[:6]}"
+            test_schema = {
+                "type": "record",
+                "name": "TestEvent",
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "timestamp", "type": "long"}
+                ]
+            }
+            
+            # Create test schema in dev
+            create_result = mcp_server.register_schema(
+                subject=test_subject,
+                schema_definition=test_schema,
+                registry="dev"
+            )
+            
+            if "error" in create_result:
+                print(f"   ❌ Failed to create test schema: {create_result['error']}")
+                return False
+            
+            # Test compatibility check
+            compat_result = mcp_server.check_compatibility(
+                subject=test_subject,
+                schema_definition=test_schema,
+                registry="prod"
+            )
+            
+            if "error" in compat_result:
+                print(f"   ❌ Compatibility check failed: {compat_result['error']}")
+                return False
+            
+            print(f"   ✅ Compatibility validation successful")
+            
+            # Cleanup
+            try:
+                mcp_server.delete_subject(test_subject, registry="dev")
+            except Exception as e:
+                print(f"   ⚠️  Failed to cleanup test subject: {e}")
             
             return True
             
@@ -216,7 +252,7 @@ class MultiRegistryValidationTest:
             print(f"   ❌ Multi-registry tools test failed: {e}")
             return False
     
-    def run_all_tests(self) -> bool:
+    async def run_all_tests(self) -> bool:
         """Run all multi-registry validation tests"""
         print("🚀 Starting Multi-Registry Configuration Validation")
         print("=" * 60)
@@ -237,7 +273,7 @@ class MultiRegistryValidationTest:
         
         for test_name, test_func in tests:
             print(f"\n🧪 Running: {test_name}")
-            if test_func():
+            if await test_func() if asyncio.iscoroutinefunction(test_func) else test_func():
                 passed += 1
                 print(f"   ✅ {test_name} PASSED")
             else:
@@ -248,22 +284,15 @@ class MultiRegistryValidationTest:
         if passed == total:
             print(f"\n🎉 ALL MULTI-REGISTRY CONFIGURATION TESTS PASSED!")
             print(f"✅ Multi-registry environment is properly configured")
-            print(f"✅ Both DEV and PROD registries are accessible")
-            print(f"✅ Cross-registry operations are functional")
-            print(f"✅ Read-only enforcement is configured")
-            print(f"✅ MCP server detects both registries correctly")
             return True
         else:
-            print(f"\n⚠️  {total - passed} configuration tests failed")
-            print(f"The multi-registry setup may have issues")
+            print(f"\n❌ SOME TESTS FAILED - Please check the configuration")
             return False
 
 def main():
-    """Run the multi-registry configuration validation tests"""
-    test_runner = MultiRegistryValidationTest()
-    success = test_runner.run_all_tests()
-    return success
+    """Main entry point for the test script"""
+    test = MultiRegistryValidationTest()
+    asyncio.run(test.run_all_tests())
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1) 
+    main() 

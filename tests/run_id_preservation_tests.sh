@@ -261,3 +261,9 @@ trap cleanup SIGINT SIGTERM
 
 # Run main function
 main "$@" 
+
+# Add parent directory to PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(dirname $(dirname $(realpath $0)))"
+
+# Run the ID preservation tests
+python tests/test_id_preservation_migration.py 

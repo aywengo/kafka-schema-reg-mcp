@@ -175,37 +175,38 @@ class TestBatchCleanupIntegration:
             remaining_subjects = subjects_response.json()
             assert len(remaining_subjects) == 0, "All subjects should be deleted"
     
-    def test_multi_registry_dry_run_default(self):
+    @pytest.mark.asyncio
+    async def test_multi_registry_dry_run_default(self):
         """Test multi-registry tools also default to dry_run=True"""
         context_name = f"test-multi-dry-run-{uuid.uuid4().hex[:8]}"
         subjects = self._create_test_context_with_subjects(context_name, self.dev_url, 2)
-        
+    
         assert len(subjects) >= 1, "Failed to create test subjects"
-        
+    
         # Test multi-registry single context cleanup
         result = multi_mcp.clear_context_batch(
             context=context_name,
             registry="dev"
         )
-        
+    
         assert result["dry_run"] == True, "Multi-registry dry_run should be True by default"
         assert result["subjects_found"] >= 1, "Should find created subjects"
-        
+    
         # Test multi-context cleanup
         contexts = [context_name]
         multi_result = multi_mcp.clear_multiple_contexts_batch(
             contexts=contexts,
             registry="dev"
         )
-        
+    
         assert multi_result["dry_run"] == True, "Multi-context dry_run should be True by default"
-        
+    
         # Test cross-registry cleanup
-        cross_result = multi_mcp.clear_context_across_registries_batch(
+        cross_result = await multi_mcp.clear_context_across_registries_batch(
             context=context_name,
             registries=["dev"]
         )
-        
+    
         assert cross_result["dry_run"] == True, "Cross-registry dry_run should be True by default"
     
     def test_empty_context_handling(self):
@@ -367,35 +368,40 @@ class TestBatchCleanupIntegration:
         assert cleanup_result["total_subjects_deleted"] >= 0, "Should delete subjects"
         assert "performance" in cleanup_result, "Should provide performance metrics"
     
-    def test_cross_registry_operations(self):
-        """Test cross-registry batch operations"""
-        context_name = f"test-cross-registry-{uuid.uuid4().hex[:8]}"
+    @pytest.mark.asyncio
+    async def test_cross_registry_operations(self):
+        """Test cross-registry batch cleanup operations"""
+        context_name = f"test-cross-{uuid.uuid4().hex[:8]}"
         
-        # Create subjects in both registries
+        # Create test subjects in both registries
         dev_subjects = self._create_test_context_with_subjects(context_name, self.dev_url, 2)
         prod_subjects = self._create_test_context_with_subjects(context_name, self.prod_url, 2)
         
-        # Test cross-registry dry run
-        cross_result = multi_mcp.clear_context_across_registries_batch(
+        assert len(dev_subjects) >= 1, "Failed to create test subjects in DEV registry"
+        assert len(prod_subjects) >= 1, "Failed to create test subjects in PROD registry"
+        
+        # Test cross-registry cleanup with dry run
+        result = await multi_mcp.clear_context_across_registries_batch(
             context=context_name,
             registries=["dev", "prod"],
             dry_run=True
         )
         
-        assert cross_result["dry_run"] == True, "Should default to dry run"
-        assert cross_result["registries_targeted"] == 2, "Should target both registries"
-        assert cross_result["total_subjects_found"] >= (len(dev_subjects) + len(prod_subjects)), "Should find subjects in both registries"
+        assert result["dry_run"] == True, "Cross-registry dry_run should be True by default"
+        assert result["total_subjects_found"] >= 2, "Should find subjects in both registries"
+        assert result["total_subjects_deleted"] == 0, "No subjects should be deleted in dry run"
         
-        # Test actual cross-registry cleanup
-        actual_result = multi_mcp.clear_context_across_registries_batch(
+        # Test actual cleanup
+        result = await multi_mcp.clear_context_across_registries_batch(
             context=context_name,
             registries=["dev", "prod"],
             dry_run=False
         )
         
-        assert actual_result["registries_completed"] >= 0, "Should complete some registries"
-        assert actual_result["total_subjects_deleted"] >= 0, "Should delete some subjects"
-        assert "performance" in actual_result, "Should provide performance metrics"
+        assert result["dry_run"] == False, "Cross-registry dry_run should be False"
+        assert result["total_subjects_found"] >= 2, "Should find subjects in both registries"
+        assert result["total_subjects_deleted"] >= 2, "Should delete subjects from both registries"
+        assert result["success_rate"] == 100.0, "All deletions should succeed"
     
     def test_context_deletion_after_cleanup(self):
         """Test context deletion after subject cleanup"""

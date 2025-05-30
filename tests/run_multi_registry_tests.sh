@@ -12,6 +12,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Results directory and timestamp
+TEST_RESULTS_DIR="$SCRIPT_DIR/results"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+mkdir -p "$TEST_RESULTS_DIR"
+
+# Log and summary files
+MULTI_LOG="$TEST_RESULTS_DIR/multi_registry_test_$TIMESTAMP.log"
+SUMMARY_LOG="$TEST_RESULTS_DIR/multi_registry_summary_$TIMESTAMP.txt"
+CSV_LOG="$TEST_RESULTS_DIR/multi_registry_results_$TIMESTAMP.csv"
+
+# Save all output to log file as well as console
+exec > >(tee -a "$MULTI_LOG") 2>&1
+
 echo "🚀 Kafka Schema Registry Multi-Registry Test Suite"
 echo "=================================================="
 echo "Testing all multi-registry functionality including:"
@@ -43,6 +56,7 @@ PROD_HEALTHY=false
 TESTS_PASSED=0
 TOTAL_TESTS=0
 FAILED_TESTS=()
+FAILED_OPTIONAL_TESTS=()  # New array to track failed optional tests
 TEST_START_TIME=$(date +%s)
 
 # Function to log with timestamp
@@ -202,6 +216,7 @@ run_test() {
     local test_name="$1"
     local test_script="$2"
     local description="$3"
+    local is_optional="${4:-false}"  # New parameter to indicate if test is optional
     
     header "Running: $test_name"
     info "Description: $description"
@@ -222,6 +237,7 @@ run_test() {
         local duration=$((end_time - start_time))
         success "✅ $test_name PASSED (${duration}s)"
         ((TESTS_PASSED++))
+        echo "PASS,$test_name,$duration,$description" >> "$CSV_LOG"
         return 0
     else
         local end_time=$(date +%s)
@@ -235,7 +251,13 @@ run_test() {
             error "❌ $test_name FAILED (${duration}s)"
         fi
         
-        FAILED_TESTS+=("$test_name")
+        if [ "$is_optional" = true ]; then
+            FAILED_OPTIONAL_TESTS+=("$test_name")
+            ((TOTAL_TESTS--))  # Don't count optional tests in total
+        else
+            FAILED_TESTS+=("$test_name")
+        fi
+        echo "FAIL,$test_name,$duration,$description" >> "$CSV_LOG"
         return 1
     fi
 }
@@ -266,6 +288,7 @@ run_python_test() {
         local duration=$((end_time - start_time))
         success "✅ $test_name PASSED (${duration}s)"
         ((TESTS_PASSED++))
+        echo "PASS,$test_name,$duration,$description" >> "$CSV_LOG"
         return 0
     else
         local end_time=$(date +%s)
@@ -280,6 +303,7 @@ run_python_test() {
         fi
         
         FAILED_TESTS+=("$test_name")
+        echo "FAIL,$test_name,$duration,$description" >> "$CSV_LOG"
         return 1
     fi
 }
@@ -287,6 +311,8 @@ run_python_test() {
 # Main test execution
 main() {
     log "Starting multi-registry test suite..."
+    # Initialize CSV results file
+    echo "Status,TestName,Duration,Description" > "$CSV_LOG"
     
     # Prerequisites check
     if ! check_multi_registry_environment; then
@@ -332,21 +358,19 @@ main() {
         warning "⚠️  Lightweight migration tests not found"
     fi
     
-    # 4. All Versions Migration Tests (Optional)
+    # 4. All Versions Migration Tests
     if [ -f "tests/run_all_versions_migration_tests.sh" ]; then
-        info "Running optional All Versions Migration test..."
+        info "Running All Versions Migration test..."
         if run_test \
             "All Versions Migration" \
             "tests/run_all_versions_migration_tests.sh" \
             "Complete schema evolution history preservation"; then
             info "✅ All Versions Migration test completed successfully"
         else
-            warning "⚠️  All Versions Migration test failed (optional)"
-            # Don't count this as a critical failure
-            ((TOTAL_TESTS--))
+            error "❌ All Versions Migration test failed"
         fi
     else
-        warning "⚠️  All versions migration tests not found (optional)"
+        error "❌ All versions migration tests not found"
     fi
     
     # 5. ID Preservation Migration Tests
@@ -379,14 +403,14 @@ main() {
         warning "⚠️  Error handling tests not found"
     fi
     
-    # 8. Performance Tests (Optional)
+    # 8. Performance Tests
     if [ -f "tests/test_performance_load.py" ]; then
         run_python_test \
             "Performance & Load" \
             "tests/test_performance_load.py" \
             "Multi-registry performance and load testing"
     else
-        warning "⚠️  Performance tests not found (skipping)"
+        warning "⚠️  Performance tests not found"
     fi
     
     # Test Summary
@@ -399,67 +423,71 @@ generate_test_summary() {
     local total_duration=$((end_time - TEST_START_TIME))
     local minutes=$((total_duration / 60))
     local seconds=$((total_duration % 60))
-    
-    echo ""
-    echo "=============================================="
-    echo -e "${BOLD}${CYAN}MULTI-REGISTRY TEST SUMMARY${NC}"
-    echo "=============================================="
-    echo ""
-    
-    # Overall Results
-    echo -e "${BOLD}OVERALL RESULTS:${NC}"
-    echo "  Tests Passed: ${TESTS_PASSED}/${TOTAL_TESTS}"
-    echo "  Success Rate: $(( TESTS_PASSED * 100 / TOTAL_TESTS ))%"
-    echo "  Total Duration: ${minutes}m ${seconds}s"
-    echo ""
-    
-    # Pass/Fail Status
+    {
+        echo ""
+        echo "=============================================="
+        echo -e "${BOLD}${CYAN}MULTI-REGISTRY TEST SUMMARY${NC}"
+        echo "=============================================="
+        echo ""
+        echo -e "${BOLD}OVERALL RESULTS:${NC}"
+        echo "  Tests Passed: ${TESTS_PASSED}/${TOTAL_TESTS}"
+        echo "  Success Rate: $(( TESTS_PASSED * 100 / TOTAL_TESTS ))%"
+        echo "  Total Duration: ${minutes}m ${seconds}s"
+        echo ""
+        
+        if [ ${#FAILED_OPTIONAL_TESTS[@]} -gt 0 ]; then
+            echo -e "${YELLOW}${BOLD}⚠️  OPTIONAL TESTS FAILED:${NC}"
+            for failed_test in "${FAILED_OPTIONAL_TESTS[@]}"; do
+                echo "  • $failed_test"
+            done
+            echo ""
+        fi
+        
+        if [ ${TESTS_PASSED} -eq ${TOTAL_TESTS} ]; then
+            echo -e "${GREEN}${BOLD}🎉 ALL REQUIRED MULTI-REGISTRY TESTS PASSED!${NC}"
+            echo ""
+            success "✅ Multi-registry configuration works correctly"
+            success "✅ Cross-registry operations function properly"
+            success "✅ Schema migration preserves data integrity"
+            success "✅ ID preservation maintains referential integrity"
+            success "✅ Context management handles edge cases"
+            success "✅ Error handling is robust and informative"
+            success "✅ Performance meets expectations"
+            echo ""
+            echo -e "${CYAN}${BOLD}VALIDATED FEATURES:${NC}"
+            echo "  • Multi-Registry Environment Configuration"
+            echo "  • Cross-Registry Schema Comparison"
+            echo "  • Schema Migration (Latest & All Versions)"
+            echo "  • ID Preservation with IMPORT Mode"
+            echo "  • Default Context '.' Handling"
+            echo "  • Context Migration and Management"
+            echo "  • Per-Registry READONLY Mode"
+            echo "  • Error Handling and Edge Cases"
+            echo "  • Performance and Load Scenarios"
+            echo "  • Robust Connectivity Monitoring"
+            echo ""
+            success "🚀 Multi-registry environment is production-ready!"
+            echo ""
+        else
+            echo -e "${RED}${BOLD}❌ SOME MULTI-REGISTRY TESTS FAILED${NC}"
+            echo ""
+            error "Failed Tests:"
+            for failed_test in "${FAILED_TESTS[@]}"; do
+                echo "  • $failed_test"
+            done
+            echo ""
+            warning "Please review the failed tests above and check:"
+            echo "  1. Multi-registry environment health"
+            echo "  2. Network connectivity between registries"
+            echo "  3. Registry configuration and permissions"
+            echo "  4. Test environment setup"
+            echo ""
+            error "Multi-registry functionality may have issues!"
+        fi
+    } | tee "$SUMMARY_LOG"
     if [ ${TESTS_PASSED} -eq ${TOTAL_TESTS} ]; then
-        echo -e "${GREEN}${BOLD}🎉 ALL MULTI-REGISTRY TESTS PASSED!${NC}"
-        echo ""
-        success "✅ Multi-registry configuration works correctly"
-        success "✅ Cross-registry operations function properly"
-        success "✅ Schema migration preserves data integrity"
-        success "✅ ID preservation maintains referential integrity"
-        success "✅ Context management handles edge cases"
-        success "✅ Error handling is robust and informative"
-        success "✅ Performance meets expectations"
-        echo ""
-        
-        echo -e "${CYAN}${BOLD}VALIDATED FEATURES:${NC}"
-        echo "  • Multi-Registry Environment Configuration"
-        echo "  • Cross-Registry Schema Comparison"
-        echo "  • Schema Migration (Latest & All Versions)"
-        echo "  • ID Preservation with IMPORT Mode"
-        echo "  • Default Context '.' Handling"
-        echo "  • Context Migration and Management"
-        echo "  • Per-Registry READONLY Mode"
-        echo "  • Error Handling and Edge Cases"
-        echo "  • Performance and Load Scenarios"
-        echo "  • Robust Connectivity Monitoring"
-        echo ""
-        
-        success "🚀 Multi-registry environment is production-ready!"
-        echo ""
         exit 0
-        
     else
-        echo -e "${RED}${BOLD}❌ SOME MULTI-REGISTRY TESTS FAILED${NC}"
-        echo ""
-        error "Failed Tests:"
-        for failed_test in "${FAILED_TESTS[@]}"; do
-            echo "  • $failed_test"
-        done
-        echo ""
-        
-        warning "Please review the failed tests above and check:"
-        echo "  1. Multi-registry environment health"
-        echo "  2. Network connectivity between registries"
-        echo "  3. Registry configuration and permissions"
-        echo "  4. Test environment setup"
-        echo ""
-        
-        error "Multi-registry functionality may have issues!"
         exit 1
     fi
 }

@@ -1,6 +1,106 @@
-# Integration Tests for Kafka Schema Registry MCP Server
+# Kafka Schema Registry Multi-Registry MCP Server
 
-This directory contains comprehensive integration tests for the multi-registry Kafka Schema Registry MCP server, along with all the infrastructure needed to run them.
+A comprehensive Message Control Protocol (MCP) server that provides tools for interacting with multiple Kafka Schema Registry instances, including advanced schema management, cross-registry comparison, migration, synchronization, and all original single-registry operations.
+
+## Features
+
+- **48 MCP Tools** total (20 original + 28 new multi-registry tools)
+- **Multi-Registry Support**: Connect to multiple Schema Registry instances
+- **Cross-Registry Comparison**: Compare schemas, contexts, and entire registries
+- **Schema Migration**: Move schemas between registries with conflict detection
+- **Synchronization**: Keep registries in sync with scheduled operations
+- **Export/Import**: Advanced bulk operations for data migration
+- **READONLY Mode**: Production safety for all registries
+- **Backward Compatibility**: All existing tools work with optional registry parameter
+- **Async Task Queue**: Background processing for long-running operations
+
+## Architecture
+
+### Multi-Registry Configuration
+
+The server supports up to 8 Schema Registry instances through numbered environment variables:
+
+```bash
+# Registry 1 (DEV)
+SCHEMA_REGISTRY_NAME_1=dev
+SCHEMA_REGISTRY_URL_1=http://localhost:38081
+SCHEMA_REGISTRY_USER_1=admin
+SCHEMA_REGISTRY_PASSWORD_1=admin
+READONLY_1=false
+
+# Registry 2 (PROD)
+SCHEMA_REGISTRY_NAME_2=prod
+SCHEMA_REGISTRY_URL_2=http://localhost:38082
+SCHEMA_REGISTRY_USER_2=admin
+SCHEMA_REGISTRY_PASSWORD_2=admin
+READONLY_2=true
+```
+
+### Async Task Management
+
+Long-running operations are managed through an async task queue:
+
+```python
+# Task Types
+- MIGRATION: Schema migration between registries
+- SYNC: Registry synchronization
+- CLEANUP: Batch cleanup operations
+- EXPORT: Schema export operations
+- IMPORT: Schema import operations
+
+# Task States
+- PENDING: Task created, waiting to start
+- RUNNING: Task currently executing
+- COMPLETED: Task finished successfully
+- FAILED: Task encountered an error
+- CANCELLED: Task was cancelled
+```
+
+### Migration Flow
+
+The enhanced migration process includes:
+
+1. **Initial Comparison**
+   - Get schemas from both registries
+   - Compare schemas and detect collisions
+
+2. **Migration Check**
+   - Validate ENABLE_MIGRATION flag
+   - Display comparison results if disabled
+
+3. **Cleanup Phase**
+   - Optional destination registry cleanup
+   - Subject-specific cleanup
+
+4. **Mode Setup**
+   - Set global IMPORT mode if needed
+   - Handle READONLY mode restrictions
+
+5. **Migration Execution**
+   - Sort subjects and versions
+   - Process each version in order
+   - Handle compatibility issues
+
+6. **Post-Migration**
+   - Validate migration results
+   - Set final registry mode
+
+### ID Preservation
+
+Schema ID preservation is handled through IMPORT mode:
+
+1. **Empty Subject Check**
+   - Verify subject is empty/non-existent
+   - Set IMPORT mode for all versions
+
+2. **Version Processing**
+   - Register schemas with original IDs
+   - Maintain version order
+   - Handle compatibility issues
+
+3. **Mode Restoration**
+   - Restore original registry mode
+   - Clean up temporary settings
 
 ## Quick Start
 
@@ -52,18 +152,6 @@ cd tests/
 - **MCP Server** with multi-registry configuration
 - **Docker Compose** configuration: `docker-compose.multi-test.yml`
 
-### Docker Setup
-
-**Single Registry** (`docker-compose.test.yml`):
-- `kafka-test`: Confluent Kafka 7.5.0 in KRaft mode
-- `schema-registry-test`: Confluent Schema Registry 7.5.0
-
-**Multi-Registry** (`docker-compose.multi-test.yml`):
-- `kafka-dev` + `kafka-prod`: Two Kafka clusters with distinct configurations
-- `schema-registry-dev` + `schema-registry-prod`: Two Schema Registry instances
-- `akhq-multi`: AKHQ UI for both clusters
-- `mcp-server-multi`: MCP server with numbered configuration
-
 ## Test Categories
 
 ### Comprehensive Test Suite
@@ -83,18 +171,11 @@ The **comprehensive multi-registry test runner** orchestrates all tests specific
 # Show usage and options
 ./run_multi_registry_tests.sh --help
 
-# Run essential tests only (future feature)
+# Run essential tests only
 ./run_multi_registry_tests.sh --quick
 ```
 
-**Features:**
-- **Automatic Environment Detection**: Validates DEV + PROD registries are healthy
-- **8 Test Categories**: Covers all multi-registry functionality
-- **Comprehensive Reporting**: Detailed success/failure analysis
-- **Duration Tracking**: Performance metrics for each test category
-- **Production Safety**: Validates production-ready configurations
-
-**Test Categories Executed:**
+**Test Categories:**
 1. **Multi-Registry Configuration** - Numbered environment variable setup
 2. **Migration Integration** - End-to-end migration functionality 
 3. **Default Context '.' Migration** - Fixes the "0 subjects migrated" bug
@@ -103,81 +184,6 @@ The **comprehensive multi-registry test runner** orchestrates all tests specific
 6. **End-to-End Workflows** - Complete business workflow scenarios
 7. **Error Handling** - Multi-registry error scenarios and edge cases
 8. **Performance & Load** - Multi-registry performance validation
-
-**Prerequisites:**
-- Multi-registry environment on ports 38081-38082
-- Start with: `./start_multi_registry_environment.sh`
-
-**Sample Output:**
-```
-🚀 Kafka Schema Registry Multi-Registry Test Suite
-==================================================
-✅ DEV Registry at http://localhost:38081 is healthy
-✅ PROD Registry at http://localhost:38082 is healthy
-🎉 Multi-registry environment is ready!
-
-🚀 Running Multi-Registry Test Suite
-Total test categories: 8
-
-======================================
- Running: Multi-Registry Configuration
-======================================
-✅ Multi-Registry Configuration PASSED (45s)
-
-======================================
- Running: Migration Integration  
-======================================
-✅ Migration Integration PASSED (73s)
-
-...
-
-🎉 ALL MULTI-REGISTRY TESTS PASSED!
-✅ Multi-registry configuration works correctly
-✅ Cross-registry operations function properly  
-✅ Schema migration preserves data integrity
-✅ ID preservation maintains referential integrity
-```
-
-### Individual Test Categories
-
-**Comprehensive Tests (Single Registry):**
-```bash
-# Basic configuration tests
-./run_comprehensive_tests.sh --basic
-
-# End-to-end workflow tests
-./run_comprehensive_tests.sh --workflows
-
-# Error handling and edge cases
-./run_comprehensive_tests.sh --errors
-
-# Performance and load testing
-./run_comprehensive_tests.sh --performance
-
-# Production readiness validation
-./run_comprehensive_tests.sh --production
-
-# Legacy integration tests
-./run_comprehensive_tests.sh --legacy
-```
-
-**Multi-Registry Tests:**
-```bash
-# Multi-registry configuration tests
-./run_multi_registry_tests.sh --config
-
-# Cross-registry workflow tests
-./run_multi_registry_tests.sh --workflows
-
-# All 68 tools with multi-registry setup
-./run_multi_registry_tests.sh --tools
-
-# Multi-registry performance tests
-./run_multi_registry_tests.sh --performance
-
-# Migration and comparison tests
-./run_multi_registry_tests.sh --migration
-```
 
 ## Test Files Overview
 
@@ -210,11 +216,6 @@ Total test categories: 8
 - `test_integration_setup.py` - Test setup and teardown
 - `test_migration_implementation.py` - Migration implementation validation
 
-### Legacy Tests
-- `test_numbered_integration.py` - Legacy numbered configuration
-- `advanced_mcp_test.py` - Advanced MCP features
-- `test_unit.py` - Unit tests
-
 ## Test Infrastructure
 
 ### Production Scripts
@@ -230,8 +231,6 @@ Total test categories: 8
 - `run_multi_registry_tests.sh` - Multi-registry test runner with all categories
 - `run_migration_tests.sh` - Schema migration and comparison tests
 - `run_default_context_dot_tests.sh` - Default context '.' migration bug fix tests
-- `run_integration_tests.sh` - Legacy integration test runner
-- `run_numbered_integration_tests.sh` - Numbered config test runner
 
 **Utilities:**
 - `cleanup_multi_registry.sh` - Complete cleanup for multi-registry environment
@@ -248,13 +247,6 @@ Total test categories: 8
 
 **Test Configuration:**
 - `test_config.py` - Flexible test configuration with auto-detection
-- `pytest.ini` - Pytest configuration
-
-### Results and Documentation
-- `results/` - Test execution results, logs, and CSV reports
-- `CLEANUP_SUMMARY.md` - Documentation of script cleanup performed
-- `MIGRATION_IMPLEMENTATION_SUMMARY.md` - Migration test implementation details
-- Generated automatically during test runs with performance metrics
 
 ## Environment Variables
 

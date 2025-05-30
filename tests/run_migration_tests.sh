@@ -219,7 +219,11 @@ run_migration_tests() {
     done
     
     print_color $WHITE "Migration Tests: $passed/$total passed"
-    return $((total - passed))
+    if [ $passed -eq $total ]; then
+        return 0
+    else
+        return $((total - passed))
+    fi
 }
 
 # Function to run schema comparison tests
@@ -253,7 +257,11 @@ run_comparison_tests() {
     done
     
     print_color $WHITE "Comparison Tests: $passed/$total passed"
-    return $((total - passed))
+    if [ $passed -eq $total ]; then
+        return 0
+    else
+        return $((total - passed))
+    fi
 }
 
 # Function to create test skeleton
@@ -341,7 +349,11 @@ run_validation_tests() {
     done
     
     print_color $WHITE "Validation Tests: $passed/$total passed"
-    return $((total - passed))
+    if [ $passed -eq $total ]; then
+        return 0
+    else
+        return $((total - passed))
+    fi
 }
 
 # Function to generate migration test summary
@@ -366,14 +378,20 @@ generate_summary() {
             local passed_tests=0
             local failed_tests=0
             
+            # Read CSV file and count results
             while IFS=',' read -r status test_name duration description; do
+                # Skip header line
+                if [[ "$status" == "Status" ]]; then
+                    continue
+                fi
+                
                 echo "[$status] $test_name ($duration seconds)"
                 echo "  Description: $description"
                 total_tests=$((total_tests + 1))
                 
                 if [[ "$status" == "PASS" ]]; then
                     passed_tests=$((passed_tests + 1))
-                else
+                elif [[ "$status" == "FAIL" ]]; then
                     failed_tests=$((failed_tests + 1))
                 fi
                 echo ""
@@ -384,7 +402,11 @@ generate_summary() {
             echo "Total Tests: $total_tests"
             echo "Passed: $passed_tests"
             echo "Failed: $failed_tests"
-            echo "Success Rate: $(( passed_tests * 100 / total_tests ))%"
+            if [[ $total_tests -gt 0 ]]; then
+                echo "Success Rate: $(( passed_tests * 100 / total_tests ))%"
+            else
+                echo "Success Rate: N/A"
+            fi
         fi
         
         echo ""

@@ -212,22 +212,22 @@ os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
 
 import kafka_schema_registry_multi_mcp as multi_mcp
 
-def test_cross_registry_dry_run():
+async def test_cross_registry_dry_run():
     """Test that cross-registry operations default to dry_run=True"""
     context_name = f"test-cross-{uuid.uuid4().hex[:8]}"
     
     # Test cross-registry cleanup
-    result = multi_mcp.clear_context_across_registries_batch(
+    result = await multi_mcp.clear_context_across_registries_batch(
         context=context_name,
         registries=["dev", "prod"]
     )
     
     assert result["dry_run"] == True, "Cross-registry should default to dry_run=True"
-    assert result["registries_targeted"] == 2, "Should target both registries"
+    assert result["contexts_processed"] == 2, "Should process both registries"
     print("✅ Cross-registry operations default to dry_run=True")
     
     # Test with explicit dry_run=False (but with non-existent context for safety)
-    result = multi_mcp.clear_context_across_registries_batch(
+    result = await multi_mcp.clear_context_across_registries_batch(
         context=f"nonexistent-{uuid.uuid4().hex[:8]}",
         registries=["dev", "prod"],
         dry_run=False
@@ -266,7 +266,8 @@ def test_registry_validation():
 
 if __name__ == "__main__":
     try:
-        test_cross_registry_dry_run()
+        import asyncio
+        asyncio.run(test_cross_registry_dry_run())
         test_registry_validation()
         print("🎉 All cross-registry batch tests passed!")
         sys.exit(0)

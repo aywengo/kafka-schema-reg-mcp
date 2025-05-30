@@ -98,7 +98,7 @@ def test_default_context_subject_listing():
         print(f"   ❌ Subject listing test failed: {e}")
         return False
 
-def test_default_context_migration_detection():
+async def test_default_context_migration_detection():
     """Test that migration detection works for default context '.' (read-only compatible)"""
     print("\n🧪 Testing migration detection for default context '.' (read-only mode)...")
     
@@ -107,7 +107,7 @@ def test_default_context_migration_detection():
         
         # Test dry run migration to see if it can detect subjects
         # Use same registry for source and target in read-only mode
-        migration_result = mcp_server.migrate_context(
+        migration_result = await mcp_server.migrate_context(
             context=".",  # This is the critical test case
             source_registry="dev",
             target_registry="dev",  # Same registry for dry run in read-only mode
@@ -127,7 +127,7 @@ def test_default_context_migration_detection():
                 print(f"   ❌ Migration detection failed: {error_msg}")
                 return False
         
-        subject_count = migration_result.get('subject_count', 0)
+        subject_count = migration_result.get('total_subjects', 0)
         print(f"   📊 Detected {subject_count} subjects for migration")
         
         # The key test: we should be able to detect subjects (or at least not crash)
@@ -180,7 +180,7 @@ def test_schema_registry_connectivity():
         print(f"   ❌ Schema Registry connectivity test failed: {e}")
         return False
 
-def main():
+async def main():
     """Run simplified default context tests (read-only compatible)"""
     print("🚀 Starting Read-Only Compatible Default Context '.' Tests")
     print("=" * 60)
@@ -200,11 +200,18 @@ def main():
     
     for test_name, test_func in tests:
         print(f"\n🧪 Running: {test_name}")
-        if test_func():
-            passed += 1
-            print(f"   ✅ {test_name} PASSED")
+        if test_name == "Migration Detection":
+            if await test_func():
+                passed += 1
+                print(f"   ✅ {test_name} PASSED")
+            else:
+                print(f"   ❌ {test_name} FAILED")
         else:
-            print(f"   ❌ {test_name} FAILED")
+            if test_func():
+                passed += 1
+                print(f"   ✅ {test_name} PASSED")
+            else:
+                print(f"   ❌ {test_name} FAILED")
     
     print(f"\n📊 Test Results: {passed}/{total} tests passed")
     
@@ -220,5 +227,6 @@ def main():
         return False
 
 if __name__ == "__main__":
-    success = main()
+    import asyncio
+    success = asyncio.run(main())
     sys.exit(0 if success else 1) 

@@ -136,7 +136,7 @@ def test_single_registry_batch_cleanup():
         print(f"❌ Single-registry cleanup test failed: {e}")
         return False
 
-def test_multi_registry_batch_cleanup():
+async def test_multi_registry_batch_cleanup():
     """Test batch cleanup in multi-registry mode"""
     print("\n🧪 Testing Multi-Registry Batch Cleanup")
     print("=" * 50)
@@ -220,7 +220,7 @@ def test_multi_registry_batch_cleanup():
         
         # Test cross-registry cleanup (for demonstration)
         print(f"\n🌐 Testing cross-registry cleanup simulation...")
-        cross_registry_result = multi_mcp.clear_context_across_registries_batch(
+        cross_registry_result = await multi_mcp.clear_context_across_registries_batch(
             context="demo-cross-cleanup",
             registries=["dev", "prod"],
             delete_context_after=True,
@@ -231,8 +231,8 @@ def test_multi_registry_batch_cleanup():
             print(f"⚠️  Cross-registry demo (dry run): {cross_registry_result['error']}")
         else:
             print(f"✅ Cross-registry cleanup demo (dry run):")
-            print(f"   Registries processed: {cross_registry_result['registries_targeted']}")
-            print(f"   Total duration: {cross_registry_result['total_duration_seconds']} seconds")
+            print(f"   Registries processed: {cross_registry_result['contexts_processed']}")
+            print(f"   Total duration: {cross_registry_result['duration']} seconds")
             print(f"   Message: {cross_registry_result['message']}")
         
         return cleanup_result['success_rate'] == 100.0
@@ -269,7 +269,7 @@ def test_performance_characteristics():
     
     return True
 
-def main():
+async def main():
     """Main test runner"""
     print("🚀 Batch Context Cleanup Tools Test Suite")
     print("=" * 60)
@@ -309,11 +309,18 @@ def main():
     for test_name, test_func in tests:
         print(f"\n{'='*20} {test_name} {'='*20}")
         try:
-            if test_func():
-                passed += 1
-                print(f"✅ {test_name} PASSED")
+            if test_name == "Multi-Registry Batch Cleanup":
+                if await test_func():
+                    passed += 1
+                    print(f"✅ {test_name} PASSED")
+                else:
+                    print(f"❌ {test_name} FAILED")
             else:
-                print(f"❌ {test_name} FAILED")
+                if test_func():
+                    passed += 1
+                    print(f"✅ {test_name} PASSED")
+                else:
+                    print(f"❌ {test_name} FAILED")
         except Exception as e:
             print(f"❌ {test_name} FAILED with exception: {e}")
     
@@ -332,5 +339,6 @@ def main():
         return False
 
 if __name__ == "__main__":
-    success = main()
+    import asyncio
+    success = asyncio.run(main())
     sys.exit(0 if success else 1) 
