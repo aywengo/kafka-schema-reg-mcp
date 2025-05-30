@@ -321,7 +321,7 @@ The project includes comprehensive test suites for both single-registry and mult
 
 ```bash
 # Start single-registry test environment
-./tests/start_single_registry_environment.sh
+./start_test_environment.sh 
 
 # Run comprehensive single-registry tests
 ./tests/run_comprehensive_tests.sh
@@ -331,7 +331,7 @@ The project includes comprehensive test suites for both single-registry and mult
 ./tests/run_comprehensive_tests.sh --workflows
 
 # Stop single-registry test environment
-./tests/stop_single_registry_environment.sh
+./stop_test_environment.sh 
 ```
 
 #### Multi-Registry Tests
