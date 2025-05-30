@@ -5,9 +5,8 @@ export PYTHONPATH="${PYTHONPATH}:$(dirname $(dirname $(realpath $0)))"
 
 # Test Runner for All-Versions Migration Tests
 # 
-# This script tests the enhanced migrate_context function that can preserve
-# complete schema evolution history by migrating all versions of schemas,
-# not just the latest version.
+# This script tests the migrate_schema function with version list
+# to preserve complete schema evolution history.
 
 set -euo pipefail
 
@@ -17,8 +16,8 @@ cd "$PROJECT_ROOT"
 
 echo "🚀 All-Versions Migration Test Runner"
 echo "====================================="
-echo "Testing the enhanced migrate_context function"
-echo "that preserves complete schema evolution history"
+echo "Testing the migrate_schema function with version list"
+echo "to preserve complete schema evolution history"
 echo "====================================="
 
 # Color codes for output
@@ -205,21 +204,20 @@ main() {
     echo "==========================================="
     
     if [ $tests_passed -eq $total_tests ]; then
+        echo ""
         success "🎉 ALL ALL-VERSIONS MIGRATION TESTS PASSED!"
         echo ""
-        success "✅ migrate_context with migrate_all_versions=True works correctly"
+        success "✅ migrate_schema with versions parameter works correctly"
         success "✅ Complete schema evolution history can be preserved"
         success "✅ Version-level migration tracking is accurate"
         echo ""
         log "Key features validated:"
-        echo "  • migrate_all_versions parameter controls migration scope"
+        echo "  • versions parameter allows migrating specific versions"
         echo "  • All schema versions are migrated in chronological order"
         echo "  • Version-level success/failure tracking works"
-        echo "  • Dry run shows accurate version counts"
-        echo "  • Both latest-only and all-versions modes work"
+        echo "  • Both single-version and all-versions modes work"
         echo ""
-        log "Test completed in $([ "$PROD_HEALTHY" = true ] && echo "multi-registry" || echo "single-registry") mode"
-        echo ""
+        log "Test completed in multi-registry mode"
         exit 0
     else
         error "⚠️  $((total_tests - tests_passed)) test(s) failed"

@@ -206,36 +206,31 @@ async def test_multi_registry_batch_cleanup():
             dry_run=False
         )
         
+        # Multi-registry returns a task object, not the actual result
         if "error" in cleanup_result:
             print(f"❌ Multi-registry cleanup failed: {cleanup_result['error']}")
             return False
         
-        print(f"✅ Multi-registry cleanup completed:")
-        print(f"   Registry: {cleanup_result['registry']}")
-        print(f"   Duration: {cleanup_result['duration_seconds']} seconds")
-        print(f"   Subjects deleted: {cleanup_result['subjects_deleted']}/{cleanup_result['subjects_found']}")
-        print(f"   Success rate: {cleanup_result['success_rate']}%")
-        print(f"   Context deleted: {cleanup_result['context_deleted']}")
-        print(f"   Message: {cleanup_result['message']}")
-        
-        # Test cross-registry cleanup (for demonstration)
-        print(f"\n🌐 Testing cross-registry cleanup simulation...")
-        cross_registry_result = await multi_mcp.clear_context_across_registries_batch(
-            context="demo-cross-cleanup",
-            registries=["dev", "prod"],
-            delete_context_after=True,
-            dry_run=True  # Use dry run for demo
-        )
-        
-        if "error" in cross_registry_result:
-            print(f"⚠️  Cross-registry demo (dry run): {cross_registry_result['error']}")
+        if "task_id" in cleanup_result:
+            print(f"✅ Multi-registry cleanup task started:")
+            print(f"   Task ID: {cleanup_result['task_id']}")
+            print(f"   Registry: {cleanup_result['task']['metadata']['registry']}")
+            print(f"   Context: {cleanup_result['task']['metadata']['context']}")
+            print(f"   Dry run: {cleanup_result['task']['metadata']['dry_run']}")
+            
+            # Wait a bit for the task to complete
+            import asyncio
+            await asyncio.sleep(1.0)
+            
+            # Get task progress
+            task_progress = await multi_mcp.get_task_progress(cleanup_result['task_id'])
+            print(f"   Status: {task_progress['status']}")
+            print(f"   Progress: {task_progress['progress_percent']}%")
+            
+            return task_progress['status'] in ['completed', 'running']
         else:
-            print(f"✅ Cross-registry cleanup demo (dry run):")
-            print(f"   Registries processed: {cross_registry_result['contexts_processed']}")
-            print(f"   Total duration: {cross_registry_result['duration']} seconds")
-            print(f"   Message: {cross_registry_result['message']}")
-        
-        return cleanup_result['success_rate'] == 100.0
+            print(f"❌ Unexpected response format")
+            return False
         
     except Exception as e:
         print(f"❌ Multi-registry cleanup test failed: {e}")

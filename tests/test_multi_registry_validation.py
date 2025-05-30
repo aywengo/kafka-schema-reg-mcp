@@ -14,11 +14,33 @@ import time
 import asyncio
 from datetime import datetime
 import uuid
+import pytest
 
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import kafka_schema_registry_multi_mcp as mcp_server
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_task_manager_at_end():
+    yield
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.run_until_complete(mcp_server.task_manager.cancel_all_tasks())
+        # Give the event loop a moment to process cancellations
+        loop.run_until_complete(asyncio.sleep(0.1))
+    else:
+        loop.run_until_complete(mcp_server.task_manager.cancel_all_tasks())
+        loop.run_until_complete(asyncio.sleep(0.1))
+
+    mcp_server.task_manager.reset_queue()
+
+    # Cancel any remaining asyncio tasks
+    pending = [t for t in asyncio.all_tasks(loop) if not t.done()]
+    for task in pending:
+        task.cancel()
+    if pending:
+        loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
 
 class MultiRegistryValidationTest:
     """Test class for multi-registry configuration validation"""
@@ -122,56 +144,40 @@ class MultiRegistryValidationTest:
         print(f"\n🔄 Testing cross-registry operations...")
         
         try:
-            # Compare registries
-            print(f"   ⏳ Registry comparison started as async task")
+            # Test registry comparison
+            print("   ⏳ Registry comparison started as async task")
             comparison = await mcp_server.compare_registries("dev", "prod")
-            
             if "error" in comparison:
                 print(f"   ❌ Registry comparison failed: {comparison['error']}")
                 return False
-            
-            print(f"   ✅ Registry comparison successful")
+            print("   ✅ Registry comparison successful")
             
             # Test compatibility validation
-            test_subject = f"test-compat-{uuid.uuid4().hex[:6]}"
+            test_subject = "test-subject"
             test_schema = {
                 "type": "record",
-                "name": "TestEvent",
+                "name": "TestSchema",
                 "fields": [
-                    {"name": "id", "type": "string"},
-                    {"name": "timestamp", "type": "long"}
+                    {"name": "field1", "type": "string"}
                 ]
             }
             
-            # Create test schema in dev
-            create_result = mcp_server.register_schema(
-                subject=test_subject,
-                schema_definition=test_schema,
-                registry="dev"
-            )
-            
-            if "error" in create_result:
-                print(f"   ❌ Failed to create test schema: {create_result['error']}")
+            # Register test schema in dev
+            result = mcp_server.register_schema(test_subject, test_schema, registry="dev")
+            if "error" in result:
+                print(f"   ❌ Failed to register test schema: {result['error']}")
                 return False
             
-            # Test compatibility check
-            compat_result = mcp_server.check_compatibility(
-                subject=test_subject,
-                schema_definition=test_schema,
-                registry="prod"
-            )
-            
-            if "error" in compat_result:
-                print(f"   ❌ Compatibility check failed: {compat_result['error']}")
+            # Check compatibility in prod
+            compatibility = mcp_server.check_compatibility(test_subject, test_schema, registry="prod")
+            if "error" in compatibility:
+                print(f"   ❌ Compatibility check failed: {compatibility['error']}")
                 return False
             
-            print(f"   ✅ Compatibility validation successful")
+            print("   ✅ Compatibility validation successful")
             
-            # Cleanup
-            try:
-                mcp_server.delete_subject(test_subject, registry="dev")
-            except Exception as e:
-                print(f"   ⚠️  Failed to cleanup test subject: {e}")
+            # Clean up test subject
+            await mcp_server.delete_subject(test_subject, registry="dev")
             
             return True
             
@@ -215,13 +221,13 @@ class MultiRegistryValidationTest:
             print(f"   ❌ Read-only enforcement test failed: {e}")
             return False
     
-    def test_multi_registry_tools(self) -> bool:
+    async def test_multi_registry_tools(self) -> bool:
         """Test that multi-registry specific tools work"""
         print(f"\n🛠️  Testing multi-registry tools...")
         
         try:
             # Test registry connectivity check
-            connectivity_test = mcp_server.test_all_registries()
+            connectivity_test = await mcp_server.test_all_registries()
             
             if "error" in connectivity_test:
                 print(f"   ❌ test_all_registries() failed: {connectivity_test['error']}")
@@ -253,41 +259,31 @@ class MultiRegistryValidationTest:
             return False
     
     async def run_all_tests(self) -> bool:
-        """Run all multi-registry validation tests"""
-        print("🚀 Starting Multi-Registry Configuration Validation")
-        print("=" * 60)
-        print("This test validates the multi-registry configuration")
-        print("using the existing running environment (DEV + PROD)")
-        print("=" * 60)
+        """Run all validation tests"""
+        print("\n🔍 Running Multi-Registry Validation Tests...")
         
-        tests = [
-            ("Registry Connectivity", self.test_registry_connectivity),
-            ("MCP Registry Detection", self.test_mcp_registry_detection),
-            ("Cross-Registry Operations", self.test_cross_registry_operations),
-            ("Read-Only Enforcement", self.test_readonly_enforcement),
-            ("Multi-Registry Tools", self.test_multi_registry_tools)
-        ]
-        
-        passed = 0
-        total = len(tests)
-        
-        for test_name, test_func in tests:
-            print(f"\n🧪 Running: {test_name}")
-            if await test_func() if asyncio.iscoroutinefunction(test_func) else test_func():
-                passed += 1
-                print(f"   ✅ {test_name} PASSED")
-            else:
-                print(f"   ❌ {test_name} FAILED")
-        
-        print(f"\n📊 Test Results: {passed}/{total} tests passed")
-        
-        if passed == total:
-            print(f"\n🎉 ALL MULTI-REGISTRY CONFIGURATION TESTS PASSED!")
-            print(f"✅ Multi-registry environment is properly configured")
-            return True
-        else:
-            print(f"\n❌ SOME TESTS FAILED - Please check the configuration")
+        # Test registry connectivity
+        if not self.test_registry_connectivity():
             return False
+        
+        # Test MCP registry detection
+        if not self.test_mcp_registry_detection():
+            return False
+        
+        # Test cross-registry operations
+        if not await self.test_cross_registry_operations():
+            return False
+        
+        # Test readonly enforcement
+        if not self.test_readonly_enforcement():
+            return False
+        
+        # Test multi-registry tools
+        if not await self.test_multi_registry_tools():
+            return False
+        
+        print("\n✅ All tests passed successfully!")
+        return True
 
 def main():
     """Main entry point for the test script"""

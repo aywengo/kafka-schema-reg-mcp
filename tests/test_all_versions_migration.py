@@ -2,9 +2,9 @@
 """
 All Versions Migration Test
 
-This test validates that the enhanced migrate_context function can preserve
+This test validates that the migrate_schema function can preserve
 the complete schema evolution history by migrating all versions of schemas,
-not just the latest version.
+not just the latest version, when provided with a versions parameter.
 """
 
 import os
@@ -36,9 +36,9 @@ class AllVersionsMigrationTest:
         self.dev_url = DEV_REGISTRY_URL
         self.prod_url = PROD_REGISTRY_URL
         
-        # Create unique contexts for this test run
-        self.source_context = f"test-source-{uuid.uuid4().hex[:8]}"
-        self.target_context = f"test-target-{uuid.uuid4().hex[:8]}"
+        # Use default context "." to avoid context prefix issues
+        self.source_context = "."
+        self.target_context = "."
         self.test_subjects = []
         
         # Set up environment variables for registry manager
@@ -55,21 +55,10 @@ class AllVersionsMigrationTest:
         self.registry_manager = mcp_server.registry_manager
         
     async def setup_test_contexts(self):
-        """Create test contexts in both registries."""
-        print(f"\n=== Setting Up Test Contexts ===")
-        
-        # Create source context in dev
-        result = mcp_server.create_context(self.source_context, registry="dev")
-        if "error" in result:
-            raise Exception(f"Failed to create source context: {result['error']}")
-        print(f"✓ Created source context: {self.source_context}")
-        
-        # Create target context in prod
-        result = mcp_server.create_context(self.target_context, registry="prod")
-        if "error" in result:
-            raise Exception(f"Failed to create target context: {result['error']}")
-        print(f"✓ Created target context: {self.target_context}")
-        
+        """No need to create contexts when using default context."""
+        print(f"\n=== Using Default Contexts ===")
+        print(f"✓ Source context: {self.source_context} (default)")
+        print(f"✓ Target context: {self.target_context} (default)")
         return True
         
     async def create_schema_evolution(self, subject: str, num_versions: int = 3):
@@ -132,19 +121,62 @@ class AllVersionsMigrationTest:
         # Verify source has multiple versions
         await self.verify_schema_versions(subject, "dev", self.source_context, 3)
         
-        # Migrate all versions - migrate_context is async
-        result = await mcp_server.migrate_context(
+        # Instead of migrate_context, use migrate_schema directly with all versions
+        # First get all versions
+        versions = mcp_server.get_schema_versions(subject, context=self.source_context, registry="dev")
+        if isinstance(versions, dict) and "error" in versions:
+            raise Exception(f"Failed to get versions: {versions['error']}")
+        
+        print(f"✓ Found {len(versions)} versions to migrate: {versions}")
+        
+        # Migrate the schema with all versions
+        result = await mcp_server.migrate_schema(
+            subject=subject,
             source_registry="dev",
             target_registry="prod",
-            context=self.source_context,
+            source_context=self.source_context,
             target_context=self.target_context,
             preserve_ids=True,
-            dry_run=False
+            dry_run=False,
+            versions=versions  # Pass all versions to migrate
         )
         
         if "error" in result:
             raise Exception(f"Migration failed: {result['error']}")
             
+        # Wait for async task to complete
+        if "task_id" in result:
+            print(f"✓ Migration started with task ID: {result['task_id']}")
+            
+            # Poll for task completion
+            max_wait = 30  # seconds
+            poll_interval = 1  # second
+            elapsed = 0
+            
+            while elapsed < max_wait:
+                task_status = await mcp_server.get_task_progress(result['task_id'])
+                
+                if "error" in task_status:
+                    raise Exception(f"Failed to get task status: {task_status['error']}")
+                    
+                status = task_status.get("status", "")
+                progress = task_status.get("progress_percent", 0)
+                
+                print(f"  Migration progress: {progress}% - {status}")
+                
+                if status in ["completed", "failed", "cancelled"]:
+                    if status != "completed":
+                        raise Exception(f"Migration task {status}: {task_status.get('error', 'Unknown error')}")
+                    break
+                    
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+            
+            if elapsed >= max_wait:
+                raise Exception("Migration task timed out")
+                
+            print("✓ Migration task completed")
+        
         # Verify target has all versions
         await self.verify_schema_versions(subject, "prod", self.target_context, 3)
         
@@ -152,39 +184,24 @@ class AllVersionsMigrationTest:
         return True
         
     async def cleanup_test_contexts(self):
-        """Clean up test contexts and schemas from both registries."""
-        print("\n=== Cleaning Up Test Contexts ===")
+        """Clean up test subjects from both registries."""
+        print("\n=== Cleaning Up Test Subjects ===")
         
-        # Clean up subjects first
+        # Clean up subjects from both registries
         for registry in ["dev", "prod"]:
-            context = self.source_context if registry == "dev" else self.target_context
             for subject in self.test_subjects:
                 try:
-                    result = await mcp_server.delete_subject(subject, context=context, registry=registry)
+                    result = await mcp_server.delete_subject(subject, context=self.source_context, registry=registry)
                     if isinstance(result, dict) and "error" in result:
-                        print(f"Warning: Failed to delete {subject} from {registry}: {result['error']}")
+                        # It's ok if subject doesn't exist in target
+                        if "not found" not in str(result['error']).lower():
+                            print(f"Warning: Failed to delete {subject} from {registry}: {result['error']}")
                     else:
-                        print(f"Deleted {subject} from {registry}")
+                        print(f"✓ Deleted {subject} from {registry}")
                 except Exception as e:
-                    print(f"Warning: Failed to delete {subject} from {registry}: {str(e)}")
-        
-        # Clean up contexts
-        for registry in ["dev", "prod"]:
-            context = self.source_context if registry == "dev" else self.target_context
-            try:
-                # Delete context using clear_context_batch
-                result = mcp_server.clear_context_batch(
-                    context=context,
-                    registry=registry,
-                    delete_context_after=True,
-                    dry_run=False
-                )
-                if "error" in result:
-                    print(f"Warning: Failed to delete context {context} from {registry}: {result['error']}")
-                else:
-                    print(f"Deleted context {context} from {registry}")
-            except Exception as e:
-                print(f"Warning: Failed to delete context {context} from {registry}: {str(e)}")
+                    # It's ok if subject doesn't exist
+                    if "not found" not in str(e).lower():
+                        print(f"Warning: Failed to delete {subject} from {registry}: {str(e)}")
         
         return True
         

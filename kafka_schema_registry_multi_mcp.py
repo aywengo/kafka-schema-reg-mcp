@@ -122,7 +122,6 @@ OPERATION_METADATA = {
     "migrate_schema": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
     "clear_context_batch": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
     "clear_multiple_contexts_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "clear_context_across_registries_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
     "compare_contexts_across_registries": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
     "compare_different_contexts": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
     "get_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
@@ -352,6 +351,36 @@ class AsyncTaskManager:
             self._executor.shutdown(wait=False)
             self._executor = None
 
+    def shutdown_sync(self) -> None:
+        """Synchronous shutdown for use in exit handlers."""
+        self._shutdown = True
+        
+        # Cancel all running tasks
+        for task in self.list_tasks(status=TaskStatus.RUNNING):
+            if task._future:
+                try:
+                    task._future.cancel()
+                except RuntimeError:
+                    # Event loop might be closed already
+                    pass
+                task.status = TaskStatus.CANCELLED
+                task.completed_at = datetime.now().isoformat()
+        
+        # Reset the queue
+        self.reset_queue()
+        
+        # Shutdown the executor
+        if self._executor:
+            try:
+                self._executor.shutdown(wait=True, cancel_futures=True)
+            except Exception:
+                # Fallback for older Python versions or if shutdown fails
+                try:
+                    self._executor.shutdown(wait=True)
+                except Exception:
+                    pass
+            self._executor = None
+
 # Initialize task manager
 task_manager = AsyncTaskManager()
 
@@ -359,10 +388,7 @@ task_manager = AsyncTaskManager()
 def cleanup_task_manager():
     """Cleanup function to be called at exit"""
     if task_manager:
-        task_manager._shutdown = True
-        if task_manager._executor:
-            task_manager._executor.shutdown(wait=False)
-            task_manager._executor = None
+        task_manager.shutdown_sync()
 
 atexit.register(cleanup_task_manager)
 
@@ -1844,16 +1870,35 @@ def clear_context_batch(
         )
         
         # Start async execution
-        asyncio.create_task(
-            task_manager.execute_task(
-                task,
-                _execute_clear_context_batch,
-                context=context,
-                registry=registry,
-                delete_context_after=delete_context_after,
-                dry_run=dry_run
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(
+                task_manager.execute_task(
+                    task,
+                    _execute_clear_context_batch,
+                    context=context,
+                    registry=registry,
+                    delete_context_after=delete_context_after,
+                    dry_run=dry_run
+                )
             )
-        )
+        except RuntimeError:
+            # No running event loop, use thread pool to run the task
+            import threading
+            def run_task():
+                asyncio.run(
+                    task_manager.execute_task(
+                        task,
+                        _execute_clear_context_batch,
+                        context=context,
+                        registry=registry,
+                        delete_context_after=delete_context_after,
+                        dry_run=dry_run
+                    )
+                )
+            thread = threading.Thread(target=run_task)
+            thread.start()
         
         return {
             "message": "Context cleanup started as async task",
@@ -2069,16 +2114,35 @@ def clear_multiple_contexts_batch(
         )
         
         # Start async execution
-        asyncio.create_task(
-            task_manager.execute_task(
-                task,
-                _execute_clear_multiple_contexts_batch,
-                contexts=contexts,
-                registry=registry,
-                delete_contexts_after=delete_contexts_after,
-                dry_run=dry_run
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(
+                task_manager.execute_task(
+                    task,
+                    _execute_clear_multiple_contexts_batch,
+                    contexts=contexts,
+                    registry=registry,
+                    delete_contexts_after=delete_contexts_after,
+                    dry_run=dry_run
+                )
             )
-        )
+        except RuntimeError:
+            # No running event loop, use thread pool to run the task
+            import threading
+            def run_task():
+                asyncio.run(
+                    task_manager.execute_task(
+                        task,
+                        _execute_clear_multiple_contexts_batch,
+                        contexts=contexts,
+                        registry=registry,
+                        delete_contexts_after=delete_contexts_after,
+                        dry_run=dry_run
+                    )
+                )
+            thread = threading.Thread(target=run_task)
+            thread.start()
         
         return {
             "message": "Context cleanup started as async task",
@@ -2483,24 +2547,35 @@ async def _execute_migrate_schema(
         
         update_progress(10.0, "Registry clients connected")
         
-        # Extract the actual subject name without context prefix
-        actual_subject = subject
-        if subject.startswith(":."):
-            # Remove the context prefix if it exists
+        # Handle subject names with context prefixes
+        # The subject parameter may already include a context prefix (e.g., :.context:subject)
+        # We need to handle this correctly for both source and target operations
+        
+        # For source operations, use the subject as-is
+        source_subject = subject
+        
+        # For target operations, we may need to extract the bare subject name
+        # if we're migrating to a different context
+        target_subject_name = subject
+        
+        # If the subject has a context prefix, extract the bare subject name for target
+        if subject.startswith(":.") and ":" in subject[2:]:
+            # Format is :.context:subject
             parts = subject.split(":", 2)
             if len(parts) >= 3:
-                actual_subject = parts[2]
-                logger.info(f"Extracted actual subject name: {actual_subject} from {subject}")
+                # Extract just the subject name for target registration
+                target_subject_name = parts[2]
+                logger.info(f"Subject has context prefix. Full name: {subject}, bare name: {target_subject_name}")
         
-        # Get all versions of the schema from source
-        logger.info(f"Fetching versions from source registry for subject '{actual_subject}'")
-        versions_result = get_schema_versions(actual_subject, context=source_context, registry=source_registry)
+        # Get all versions of the schema from source using the full subject name
+        logger.info(f"Fetching versions from source registry for subject '{source_subject}'")
+        versions_result = get_schema_versions(source_subject, context=source_context, registry=source_registry)
         if isinstance(versions_result, dict) and "error" in versions_result:
             logger.error(f"Failed to get versions: {versions_result['error']}")
             return versions_result
         if not versions_result:
-            logger.error(f"Subject {actual_subject} not found in source registry")
-            return {"error": f"Subject {actual_subject} not found in source registry"}
+            logger.error(f"Subject {source_subject} not found in source registry")
+            return {"error": f"Subject {source_subject} not found in source registry"}
         
         update_progress(20.0, f"Found {len(versions_result)} versions in source")
         
@@ -2532,7 +2607,7 @@ async def _execute_migrate_schema(
         target_subject_exists = False
         if target_context_exists:
             try:
-                target_versions = get_schema_versions(actual_subject, context=target_context, registry=target_registry)
+                target_versions = get_schema_versions(target_subject_name, context=target_context, registry=target_registry)
                 if isinstance(target_versions, dict) and "error" in target_versions:
                     if "404" in str(target_versions.get("error", "")):
                         # 404 is expected if subject doesn't exist
@@ -2542,7 +2617,7 @@ async def _execute_migrate_schema(
                 else:
                     target_subject_exists = len(target_versions) > 0
                     if target_subject_exists:
-                        logger.warning(f"Subject {actual_subject} already exists in target registry. Will delete before migration.")
+                        logger.warning(f"Subject {target_subject_name} already exists in target registry. Will delete before migration.")
             except Exception as e:
                 logger.debug(f"Error checking target subject existence: {e}")
         else:
@@ -2572,16 +2647,16 @@ async def _execute_migrate_schema(
                 
                 # If subject exists in target, we need to delete it first
                 if target_subject_exists:
-                    logger.info(f"Deleting existing subject {actual_subject} from target registry before migration")
-                    await delete_subject(actual_subject, context=target_context, registry=target_registry)
+                    logger.info(f"Deleting existing subject {target_subject_name} from target registry before migration")
+                    await delete_subject(target_subject_name, context=target_context, registry=target_registry)
                     # After deletion, subject no longer exists
                     target_subject_exists = False
                 
                 update_progress(45.0, "Setting IMPORT mode for ID preservation")
                 
                 # Set IMPORT mode at the subject level (not context level)
-                mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{actual_subject}"
-                logger.info(f"Setting IMPORT mode for subject '{actual_subject}' in context '{target_context}'")
+                mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
+                logger.info(f"Setting IMPORT mode for subject '{target_subject_name}' in context '{target_context}'")
                 async with aiohttp.ClientSession() as session:
                     async with session.put(mode_url, json={"mode": "IMPORT"}) as response:
                         if response.status == 405:
@@ -2604,16 +2679,16 @@ async def _execute_migrate_schema(
         
         for i, version in enumerate(versions_to_migrate):
             try:
-                logger.info(f"Processing version {version} of subject '{actual_subject}'")
+                logger.info(f"Processing version {version} of subject '{source_subject}'")
                 # Get schema from source
-                schema_data = get_schema(actual_subject, version=version, context=source_context, registry=source_registry)
+                schema_data = get_schema(source_subject, version=version, context=source_context, registry=source_registry)
                 if not schema_data:
                     logger.error(f"Failed to get schema for version {version}")
                     continue
                 
                 # Register in target
                 if dry_run:
-                    logger.info(f"[DRY RUN] Would migrate {actual_subject} version {version}")
+                    logger.info(f"[DRY RUN] Would migrate {source_subject} version {version}")
                     migrated_versions.append({
                         "version": version,
                         "id": schema_data.get("id"),
@@ -2632,7 +2707,7 @@ async def _execute_migrate_schema(
                         logger.info(f"Preserving schema ID {schema_data.get('id')} for version {version}")
                     
                     # Register schema
-                    url = target_client.build_context_url(f"/subjects/{actual_subject}/versions", target_context)
+                    url = target_client.build_context_url(f"/subjects/{target_subject_name}/versions", target_context)
                     logger.info(f"Registering schema version {version} in target registry")
                     async with aiohttp.ClientSession() as session:
                         async with session.post(
@@ -2680,11 +2755,11 @@ async def _execute_migrate_schema(
         
         update_progress(95.0, "Building migration results")
         
-        logger.info(f"Migration completed for subject '{actual_subject}'. Migrated {len(migrated_versions)} versions")
+        logger.info(f"Migration completed for subject '{subject}'. Migrated {len(migrated_versions)} versions")
         
         result = {
             "task_id": str(uuid.uuid4()),
-            "subject": actual_subject,
+            "subject": subject,
             "source_registry": source_registry,
             "target_registry": target_registry,
             "source_context": source_context,

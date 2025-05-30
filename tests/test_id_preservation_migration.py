@@ -71,40 +71,64 @@ class IDPreservationTest:
         """Set up test environment with test schemas."""
         print(f"📝 Creating test schemas in context '{self.test_context}'...")
         
-        # Create test schema
-        schema = {
-            "type": "record",
-            "name": "TestUser",
-            "fields": [
-                {"name": "id", "type": "int"},
-                {"name": "name", "type": "string"}
-            ]
-        }
+        # First, ensure the registry is in READWRITE mode
+        try:
+            # Set global mode to READWRITE
+            response = requests.put(
+                f"{self.dev_url}/mode",
+                json={"mode": "READWRITE"},
+                headers={"Content-Type": "application/vnd.schemaregistry.v1+json"}
+            )
+            if response.status_code == 200:
+                print("   ✅ Set registry to READWRITE mode")
+            else:
+                print(f"   ⚠️  Could not set READWRITE mode: {response.text}")
+        except Exception as e:
+            print(f"   ⚠️  Error setting mode: {e}")
         
-        # Register schema in DEV
-        response = requests.post(
-            f"{self.dev_url}/subjects/{self.test_context}:test-user/versions",
-            json={"schema": json.dumps(schema)},
-            headers={"Content-Type": "application/vnd.schemaregistry.v1+json"}
-        )
-        
-        if response.status_code == 200:
-            schema_id = response.json().get("id")
-            print(f"   ✅ Created schema with ID {schema_id}")
-            self.test_subjects.append(f"{self.test_context}:test-user")
-        else:
-            print(f"   ❌ Failed to create test schema: {response.text}")
-            return False
+        # Create test schema with context
+        try:
+            # Use context API to create schema
+            schema = {
+                "type": "record",
+                "name": "TestUser",
+                "fields": [
+                    {"name": "id", "type": "int"},
+                    {"name": "name", "type": "string"}
+                ]
+            }
             
-        return True
+            # Create schema in context
+            response = requests.post(
+                f"{self.dev_url}/contexts/{self.test_context}/subjects/test-user/versions",
+                json={"schema": json.dumps(schema)},
+                headers={"Content-Type": "application/vnd.schemaregistry.v1+json"}
+            )
+            
+            if response.status_code == 200:
+                schema_id = response.json().get("id")
+                print(f"   ✅ Created schema in context with ID {schema_id}")
+                # Store the full subject name with context prefix
+                self.test_subjects.append(f":.{self.test_context}:test-user")
+                return True
+            else:
+                print(f"   ❌ Failed to create test schema: {response.text}")
+                return False
+                
+        except Exception as e:
+            print(f"   ❌ Error creating test schema: {e}")
+            return False
 
     async def test_migration_without_id_preservation(self):
         """Test migration without ID preservation."""
         print("\n🧪 Testing migration without ID preservation...")
         
+        # Use the full context-prefixed subject name
+        subject_name = self.test_subjects[0] if self.test_subjects else f":.{self.test_context}:test-user"
+        
         # Get source schema ID
         response = requests.get(
-            f"{self.dev_url}/subjects/{self.test_context}:test-user/versions/latest"
+            f"{self.dev_url}/subjects/{subject_name}/versions/latest"
         )
         if response.status_code == 200:
             source_id = response.json().get("id")
@@ -115,19 +139,26 @@ class IDPreservationTest:
             
         # Migrate schema
         result = await mcp_server.migrate_schema(
-            subject=f"{self.test_context}:test-user",
+            subject=subject_name,
             source_registry="dev",
             target_registry="prod",
             preserve_ids=False
         )
         
+        if "task_id" in result:
+            # Migration started as async task, wait for it
+            print(f"   ⏳ Migration started with task ID: {result['task_id']}")
+            await asyncio.sleep(2)  # Give it time to complete
+            
         if result.get("error"):
             print(f"   ❌ Migration failed: {result['error']}")
             return False
             
         # Verify new ID was assigned
+        # In target registry, the subject is registered with bare name in default context
+        target_subject_name = "test-user"
         response = requests.get(
-            f"{self.prod_url}/subjects/{self.test_context}:test-user/versions/latest"
+            f"{self.prod_url}/subjects/{target_subject_name}/versions/latest"
         )
         if response.status_code == 200:
             target_id = response.json().get("id")
@@ -151,9 +182,12 @@ class IDPreservationTest:
             print("   ℹ️  This is expected in some Schema Registry configurations")
             return True
         
+        # Use the full context-prefixed subject name
+        subject_name = self.test_subjects[0] if self.test_subjects else f":.{self.test_context}:test-user"
+        
         # Get source schema ID
         response = requests.get(
-            f"{self.dev_url}/subjects/{self.test_context}:test-user/versions/latest"
+            f"{self.dev_url}/subjects/{subject_name}/versions/latest"
         )
         if response.status_code == 200:
             source_id = response.json().get("id")
@@ -164,19 +198,26 @@ class IDPreservationTest:
             
         # Migrate schema with ID preservation
         result = await mcp_server.migrate_schema(
-            subject=f"{self.test_context}:test-user",
+            subject=subject_name,
             source_registry="dev",
             target_registry="prod",
             preserve_ids=True
         )
         
+        if "task_id" in result:
+            # Migration started as async task, wait for it
+            print(f"   ⏳ Migration started with task ID: {result['task_id']}")
+            await asyncio.sleep(2)  # Give it time to complete
+            
         if result.get("error"):
             print(f"   ❌ Migration failed: {result['error']}")
             return False
             
         # Verify ID was preserved
+        # In target registry, the subject is registered with bare name in default context
+        target_subject_name = "test-user"
         response = requests.get(
-            f"{self.prod_url}/subjects/{self.test_context}:test-user/versions/latest"
+            f"{self.prod_url}/subjects/{target_subject_name}/versions/latest"
         )
         if response.status_code == 200:
             target_id = response.json().get("id")
@@ -195,8 +236,8 @@ class IDPreservationTest:
         """Clean up test subjects."""
         print("\n🧹 Cleaning up test schemas...")
         
+        # Clean up context-prefixed subjects from DEV
         for subject in self.test_subjects:
-            # Delete from DEV
             try:
                 response = requests.delete(f"{self.dev_url}/subjects/{subject}")
                 if response.status_code == 200:
@@ -205,16 +246,19 @@ class IDPreservationTest:
                     print(f"   ⚠️ Failed to delete {subject} from dev: {response.text}")
             except Exception as e:
                 print(f"   ⚠️ Failed to delete {subject} from dev: {e}")
-                
-            # Delete from PROD
-            try:
-                response = requests.delete(f"{self.prod_url}/subjects/{subject}")
-                if response.status_code == 200:
-                    print(f"   ✅ Deleted {subject} from prod")
-                else:
-                    print(f"   ⚠️ Failed to delete {subject} from prod: {response.text}")
-            except Exception as e:
-                print(f"   ⚠️ Failed to delete {subject} from prod: {e}")
+        
+        # Clean up bare subject from PROD (migration strips context prefix)
+        bare_subject = "test-user"
+        try:
+            response = requests.delete(f"{self.prod_url}/subjects/{bare_subject}")
+            if response.status_code == 200:
+                print(f"   ✅ Deleted {bare_subject} from prod")
+            else:
+                # It's ok if it doesn't exist in prod
+                if "not found" not in response.text.lower():
+                    print(f"   ⚠️ Failed to delete {bare_subject} from prod: {response.text}")
+        except Exception as e:
+            print(f"   ⚠️ Failed to delete {bare_subject} from prod: {e}")
 
 async def run_tests():
     test = IDPreservationTest()
