@@ -1474,7 +1474,7 @@ def get_schema_with_metadata(subject: str, version: str, context: Optional[str] 
             "exported_at": datetime.now().isoformat(),
             "registry_url": SCHEMA_REGISTRY_URL,
             "context": context,
-            "export_version": "1.3.0"
+            "export_version": "1.7.0"
         }
         
         return schema_data
@@ -1566,7 +1566,7 @@ def export_subject(
                 "exported_at": datetime.now().isoformat(),
                 "registry_url": SCHEMA_REGISTRY_URL,
                 "context": context,
-                "export_version": "1.3.0"
+                "export_version": "1.7.0"
             }
         
         return result
@@ -1625,7 +1625,7 @@ def export_context(
             result["metadata"] = {
                 "exported_at": datetime.now().isoformat(),
                 "registry_url": SCHEMA_REGISTRY_URL,
-                "export_version": "1.3.0"
+                "export_version": "1.7.0"
             }
         
         return result
@@ -1687,7 +1687,7 @@ def export_global(
             result["metadata"] = {
                 "exported_at": datetime.now().isoformat(),
                 "registry_url": SCHEMA_REGISTRY_URL,
-                "export_version": "1.3.0"
+                "export_version": "1.7.0"
             }
         
         return result
@@ -1733,7 +1733,7 @@ def get_registry_info_resource():
             "total_registries": len(registries_info),
             "default_registry": registry_manager.default_registry,
             "readonly_mode": READONLY,
-            "server_version": "1.5.0",
+            "server_version": "1.7.0",
             "multi_registry_support": True,
             "features": [
                 "Multi-Registry Support",

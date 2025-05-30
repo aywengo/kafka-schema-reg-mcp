@@ -18,7 +18,7 @@ load_dotenv()
 app = FastAPI(
     title="Kafka Schema Registry MCP",
     description="Message Control Protocol server for Kafka Schema Registry with Context Support, Configuration Management, Mode Control, and Schema Export",
-    version="1.3.0"
+    version="1.7.0"
 )
 
 # Configuration
