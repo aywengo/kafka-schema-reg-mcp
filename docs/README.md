@@ -1,17 +1,19 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v1.4.0 documentation! This folder contains comprehensive guides and references for the **True MCP Implementation** with **Claude Desktop Integration**.
+Welcome to the Kafka Schema Registry MCP Server v1.7.0 documentation! This folder contains comprehensive guides and references for the **True MCP Implementation** with **Claude Desktop Integration** and **Advanced Async Operations**.
 
 ## 🤖 **MCP Implementation Overview**
 
 This project has been **completely transformed** from a REST API to a **true Message Control Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** instead of API calls.
 
 ### **Key MCP Features:**
-- ✅ **20 MCP Tools**: Complete schema operations via natural language
+- ✅ **48 MCP Tools**: Complete schema operations via natural language with async task management
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Export Capabilities**: JSON and Avro IDL formats with comprehensive metadata
+- ✅ **Async Task Management**: Non-blocking operations with real-time progress tracking
+- ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 
 ---
 
@@ -25,15 +27,20 @@ Real-world scenarios using Claude Desktop integration:
 - **Compliance & Governance**: AI-assisted regulatory compliance checking
 - **Configuration Management**: Natural language configuration commands
 - **Complete Development Lifecycle**: End-to-end workflows with Claude Desktop
+- **Async Operations**: Long-running migrations with progress monitoring
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
-Comprehensive reference for all 20 MCP tools:
+Comprehensive reference for all 48 MCP tools:
 - **Schema Management Tools** (4): register, retrieve, versions, compatibility
 - **Context Management Tools** (3): list, create, delete contexts
 - **Subject Management Tools** (2): list, delete subjects  
-- **Configuration Management Tools** (4): global and subject-specific settings
-- **Mode Management Tools** (4): operational mode control
+- **Configuration Management Tools** (5): global and subject-specific settings
+- **Mode Management Tools** (5): operational mode control
 - **Export Tools** (4): comprehensive schema export capabilities
+- **Multi-Registry Tools** (8): cross-registry operations
+- **Batch Cleanup Tools** (2): efficient context cleanup
+- **Migration Tools** (5): schema and context migration
+- **Task Management Tools** (10): progress tracking and monitoring
 - **Natural Language Examples**: Claude Desktop usage patterns for each tool
 
 ### 📖 **[API Reference](api-reference.md)** - Legacy REST API Documentation
@@ -56,32 +63,49 @@ Production deployment instructions covering:
 
 ---
 
-## 🎉 What's New in v1.4.0 - True MCP Implementation
+## 🎉 What's New in v1.7.0 - Advanced Async Operations
 
-### **Complete MCP Transformation**
-- **✅ 20 MCP Tools**: All schema operations via natural language
-- **✅ Claude Desktop Ready**: Seamless AI integration
-- **✅ No Pydantic Warnings**: Clean MCP protocol implementation
-- **✅ Field Name Conflicts Resolved**: `schema` → `schema_definition` parameter updates
-- **✅ Production Safety**: READONLY mode for safe production access
+### **Complete Async Task Management System**
+- **✅ Non-Blocking Operations**: Long-running tasks execute in background
+- **✅ Real-Time Progress Tracking**: Monitor operations with percentage completion
+- **✅ Task Lifecycle Management**: Create, monitor, cancel tasks
+- **✅ Operation Classification**: QUICK (<5s), MEDIUM (5-30s), LONG (>30s)
+- **✅ Graceful Shutdown**: Proper cleanup of running tasks
 
-### **Enhanced Claude Desktop Integration**
-- **Natural Language Commands**: "Register a user schema with fields for id, name, and email"
-- **AI-Assisted Workflows**: Claude helps with compatibility checking and schema evolution
-- **Context-Aware Operations**: "Export all production schemas in Avro IDL format"
-- **Real-time Validation**: Immediate feedback on schema operations
+### **New Progress Monitoring Tools**
+- **Task Progress Tools**: `get_task_progress`, operation-specific progress tools
+- **Task Listing Tools**: View all active tasks or filter by operation type
+- **Human-Readable Progress**: Clear stage descriptions for each operation
+- **Time Estimation**: Progress-based completion estimates
 
-### **Comprehensive Export Capabilities**
-- **4 Export MCP Tools**: schema, subject, context, and global exports
-- **Multiple Formats**: JSON for tooling, Avro IDL for documentation
-- **AI-Enhanced Documentation**: Claude generates beautiful schema documentation
-- **Complete Metadata**: Export timestamps, evolution history, configuration
+### **Enhanced Long-Running Operations**
+- **Migration Operations**: Return task IDs immediately, poll for progress
+- **Cleanup Operations**: Batch operations with parallel execution
+- **Comparison Operations**: Non-blocking cross-registry comparisons
+- **Error Recovery**: Comprehensive error handling and reporting
 
-### **Production Ready**
-- **✅ 20/21 Integration Tests Passing** (1 skipped as expected)
-- **✅ Docker Build & Test Suite**: Comprehensive validation
-- **✅ GitHub Actions**: Automated CI/CD with multi-platform builds
-- **✅ Security Scanning**: Trivy vulnerability scanning
+### **Improved Testing Framework**
+- **✅ All Tests Passing**: No more hanging tests
+- **✅ Async Test Support**: Proper mocking of ThreadPoolExecutor
+- **✅ Event Loop Handling**: Automatic fallback to threading
+- **✅ Race Condition Fixes**: Proper shutdown synchronization
+
+## What's New in Previous Versions
+
+### v1.6.0 - Batch Cleanup & Migration Enhancements
+- **Batch Cleanup Tools**: Efficient context cleanup with parallel execution
+- **Migration Improvements**: Better error handling and progress reporting
+- **Performance Metrics**: Operation timing and throughput statistics
+
+### v1.5.0 - Multi-Registry Support
+- **Multi-Registry Mode**: Support for up to 8 Schema Registry instances
+- **Cross-Registry Tools**: Compare and migrate between registries
+- **Registry Management**: List, test, and manage multiple registries
+
+### v1.4.0 - Initial Async Foundation
+- **20 MCP Tools**: Core schema operations
+- **Claude Desktop Integration**: Natural language interface
+- **Export Capabilities**: JSON and Avro IDL formats
 
 ---
 
@@ -187,8 +211,12 @@ python advanced_mcp_test.py
 
 # Test Docker image
 ./test_docker_image.sh
+
+# Monitor async operations
+python -c "from kafka_schema_registry_mcp import mcp; mcp.run()"
+# Then use: list_all_active_tasks() to see running operations
 ```
 
 ---
 
-**Happy Schema Managing with AI! 🤖🎉** 
+**Happy Schema Managing with AI and Async Operations! 🤖🚀🎉** 

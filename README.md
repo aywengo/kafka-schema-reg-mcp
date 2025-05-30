@@ -151,7 +151,7 @@ export READONLY=true
 python kafka_schema_registry_mcp.py
 
 # Docker with read-only mode
-docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:latest
+docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 
 # Claude Desktop configuration with read-only mode
 {

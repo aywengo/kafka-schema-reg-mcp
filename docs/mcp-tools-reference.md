@@ -1,26 +1,32 @@
 # MCP Tools Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v1.4.0 **MCP Tools**, including all 20 tools and their usage with Claude Desktop.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v1.7.0 **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server provides **20 comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients.
+The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients, now with advanced async operations and multi-registry support.
 
 ### **Key Features:**
 - ✅ **Natural Language Interface**: Interact using plain English commands
 - ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **20 MCP Tools**: Complete schema operations without API knowledge
+- ✅ **48 MCP Tools**: Complete schema operations without API knowledge
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
 - ✅ **Production Safety**: READONLY mode blocks modifications in production
+- ✅ **Async Task Management**: Non-blocking operations with progress tracking
+- ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 
 ### **Tool Categories:**
 - **Schema Management** (4 tools): register, retrieve, versions, compatibility
 - **Context Management** (3 tools): list, create, delete contexts
 - **Subject Management** (2 tools): list, delete subjects
-- **Configuration Management** (4 tools): global and subject-specific settings
-- **Mode Management** (4 tools): operational mode control
+- **Configuration Management** (5 tools): global and subject-specific settings
+- **Mode Management** (5 tools): operational mode control
 - **Export Tools** (4 tools): comprehensive schema export capabilities
+- **Multi-Registry Tools** (8 tools): cross-registry operations
+- **Batch Cleanup Tools** (2 tools): efficient context cleanup
+- **Migration Tools** (5 tools): schema and context migration
+- **Task Management Tools** (10 tools): progress tracking and monitoring
 
 ---
 
@@ -756,4 +762,699 @@ Would you like me to show you the current schemas instead?
 
 ---
 
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 20 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 
+## 🌐 Multi-Registry Management Tools
+
+### 22. list_registries
+
+List all configured Schema Registry instances.
+
+**Purpose**: View available registries, check connection status, manage multiple environments.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "Show me all configured schema registries"
+
+Claude: I'll list all configured registries with their status.
+
+[Uses list_registries MCP tool]
+📋 Configured registries:
+   • default: http://localhost:8081 ✅ Connected (45ms)
+   • production: https://prod.schema-registry.com ✅ Connected (120ms)  
+   • staging: https://staging.schema-registry.com ✅ Connected (85ms)
+   • development: http://dev-registry:8081 ⚠️ Connection failed
+   Total: 4 registries (3 connected, 1 failed)
+```
+
+---
+
+### 23. get_registry_info
+
+Get detailed information about a specific registry.
+
+**Purpose**: View registry configuration, health status, and capabilities.
+
+**Parameters:**
+- `registry_name` (string): Name of the registry
+
+**Claude Desktop Usage:**
+```
+Human: "Give me details about the production registry"
+
+Claude: I'll get detailed information about the production registry.
+
+[Uses get_registry_info MCP tool]
+📊 Production Registry Details:
+   Name: production
+   URL: https://prod.schema-registry.com
+   Status: Connected ✅
+   Response Time: 120ms
+   Is Default: No
+   Authentication: Configured (user: schema-admin)
+   Description: Production Schema Registry for critical services
+```
+
+---
+
+### 24. test_registry_connection
+
+Test connection to a specific registry.
+
+**Purpose**: Verify registry availability, check network connectivity, validate credentials.
+
+**Parameters:**
+- `registry_name` (string): Name of the registry to test
+
+**Claude Desktop Usage:**
+```
+Human: "Test if we can connect to the staging registry"
+
+Claude: I'll test the connection to the staging registry.
+
+[Uses test_registry_connection MCP tool]
+✅ Staging Registry Connection Test:
+   Status: Connected
+   URL: https://staging.schema-registry.com
+   Response Time: 85ms
+   Authentication: Valid
+   Available Subjects: 42
+```
+
+---
+
+### 25. test_all_registries
+
+Test connections to all configured registries.
+
+**Purpose**: Health check all registries, identify connectivity issues.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "Run a health check on all our schema registries"
+
+Claude: I'll test connections to all configured registries.
+
+[Uses test_all_registries MCP tool]
+🏥 Registry Health Check:
+   ✅ default: Connected (45ms)
+   ✅ production: Connected (120ms)
+   ✅ staging: Connected (85ms)
+   ❌ development: Connection failed - timeout after 10s
+   
+   Summary: 3/4 registries healthy (75% availability)
+   Action needed: Check development registry configuration
+```
+
+---
+
+### 26. compare_registries
+
+Compare two Schema Registry instances and show differences.
+
+**Purpose**: Environment comparison, migration planning, sync verification.
+
+**Parameters:**
+- `source_registry` (string): Source registry name
+- `target_registry` (string): Target registry name
+- `include_contexts` (boolean, optional): Include context comparison
+- `include_configs` (boolean, optional): Include configuration comparison
+
+**Claude Desktop Usage:**
+```
+Human: "Compare staging and production registries to see what's different"
+
+Claude: I'll compare the staging and production registries.
+
+[Uses compare_registries MCP tool]
+📊 Registry Comparison: staging vs production
+   
+   Schemas:
+   • In staging only: user-preferences-v2, order-tracking-beta
+   • In production only: legacy-user-events
+   • Different versions: payment-events (v5 in staging, v4 in prod)
+   
+   Configuration:
+   • Global compatibility: Both BACKWARD
+   • Subject overrides: 3 in staging, 5 in production
+   
+   Summary: 4 differences found, review before promotion
+```
+
+---
+
+### 27. compare_contexts_across_registries
+
+Compare a specific context across two registries. Returns task ID for async operation.
+
+**Purpose**: Context-specific comparison, targeted migration planning.
+
+**Parameters:**
+- `source_registry` (string): Source registry name
+- `target_registry` (string): Target registry name
+- `context` (string): Context name to compare
+
+**Claude Desktop Usage:**
+```
+Human: "Compare the 'customer' context between staging and production"
+
+Claude: I'll start comparing the customer context across registries.
+
+[Uses compare_contexts_across_registries MCP tool]
+🔄 Context comparison started:
+   Task ID: comp-456-customer
+   Source: staging/customer
+   Target: production/customer
+   Status: Running (15% complete)
+   
+Use get_comparison_progress('comp-456-customer') to monitor progress.
+```
+
+---
+
+## 🚀 Migration Tools
+
+### 28. migrate_schema
+
+Migrate a schema from one registry to another. Returns task ID for async operation.
+
+**Purpose**: Schema promotion, environment synchronization, registry migration.
+
+**Parameters:**
+- `subject` (string): Schema subject name
+- `source_registry` (string): Source registry name
+- `target_registry` (string): Target registry name
+- `source_context` (string, optional): Source context
+- `target_context` (string, optional): Target context
+- `migrate_all_versions` (boolean, optional): Migrate all versions or just latest
+- `dry_run` (boolean, optional): Preview without executing
+
+**Claude Desktop Usage:**
+```
+Human: "Migrate the user-events schema from staging to production"
+
+Claude: I'll migrate the user-events schema to production.
+
+[Uses migrate_schema MCP tool]
+🔄 Schema migration started:
+   Task ID: mig-789-user-events
+   Schema: user-events
+   From: staging → production
+   Versions: Latest only
+   Status: Running (25% complete)
+   
+Migration in progress. Use get_migration_progress('mig-789-user-events') to track.
+```
+
+---
+
+### 29. migrate_context
+
+Migrate an entire context from one registry to another. Returns task ID for async operation.
+
+**Purpose**: Bulk schema migration, environment promotion, disaster recovery.
+
+**Parameters:**
+- `context` (string): Context name to migrate
+- `source_registry` (string): Source registry name
+- `target_registry` (string): Target registry name
+- `target_context` (string, optional): Target context name
+- `dry_run` (boolean, optional): Preview without executing
+
+**Claude Desktop Usage:**
+```
+Human: "Promote all schemas from the staging 'v2-features' context to production"
+
+Claude: I'll migrate the entire v2-features context to production.
+
+[Uses migrate_context MCP tool]
+🔄 Context migration started:
+   Task ID: mig-101-v2-features
+   Context: v2-features (12 schemas)
+   From: staging → production
+   Status: Running (8% complete)
+   
+Large migration in progress. Monitor with get_migration_progress('mig-101-v2-features').
+```
+
+---
+
+### 30. list_migrations
+
+Show migration history.
+
+**Purpose**: Track migration operations, audit changes, view history.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "Show me recent schema migrations"
+
+Claude: I'll display the migration history.
+
+[Uses list_migrations MCP tool]
+📋 Recent migrations:
+   1. mig-101-v2-features: staging→production (completed, 12 schemas)
+   2. mig-789-user-events: staging→production (completed, 1 schema)
+   3. mig-456-customer: dev→staging (failed, connection error)
+   4. mig-234-orders: staging→production (completed, 3 schemas)
+   
+   Total: 4 migrations (3 successful, 1 failed)
+```
+
+---
+
+### 31. get_migration_status
+
+Check migration progress.
+
+**Purpose**: Monitor ongoing migrations, get detailed status, troubleshoot issues.
+
+**Parameters:**
+- `migration_id` (string): Migration task ID
+
+**Claude Desktop Usage:**
+```
+Human: "Check the status of migration mig-101-v2-features"
+
+Claude: I'll check the status of that migration.
+
+[Uses get_migration_status MCP tool]
+📊 Migration Status: mig-101-v2-features
+   Status: Completed ✅
+   Duration: 2m 35s
+   Schemas migrated: 12/12
+   Versions migrated: 47 total
+   Source: staging/v2-features
+   Target: production/v2-features
+   Completed at: 2024-05-31 14:35:20
+```
+
+---
+
+## 🧹 Batch Cleanup Tools
+
+### 32. clear_context_batch
+
+Efficiently remove all subjects from a context. Returns task ID for async operation.
+
+**Purpose**: Clean up test environments, remove feature branches, reset contexts.
+
+**Parameters:**
+- `context` (string): Context name to clear
+- `delete_context_after` (boolean, optional): Delete context after clearing
+- `dry_run` (boolean, optional): Preview without executing (default: True)
+- `registry` (string, optional): Registry name
+
+**Claude Desktop Usage:**
+```
+Human: "Clean up the old feature-user-prefs context that we're done with"
+
+Claude: I'll clean up that feature context for you.
+
+[Uses clear_context_batch MCP tool]
+🧹 Batch cleanup started:
+   Task ID: clean-222-feature-user-prefs
+   Context: feature-user-prefs
+   Found: 8 subjects to delete
+   Mode: Dry run (preview only)
+   
+   Subjects to delete:
+   • user-preferences-v1
+   • user-settings-events
+   • preference-changes
+   ... and 5 more
+   
+To execute: Run again with dry_run=false
+```
+
+---
+
+### 33. clear_multiple_contexts_batch
+
+Clean multiple contexts in batch mode. Returns task ID for async operation.
+
+**Purpose**: Bulk environment cleanup, multi-context reset, test cleanup.
+
+**Parameters:**
+- `contexts` (list): List of context names to clear
+- `delete_contexts_after` (boolean, optional): Delete contexts after clearing
+- `dry_run` (boolean, optional): Preview without executing (default: True)
+- `registry` (string, optional): Registry name
+
+**Claude Desktop Usage:**
+```
+Human: "Clean up all our old feature branch contexts: feature-v1, feature-v2, feature-old"
+
+Claude: I'll clean up those feature contexts in batch.
+
+[Uses clear_multiple_contexts_batch MCP tool]
+🧹 Batch cleanup started:
+   Task ID: clean-333-multi
+   Contexts: 3 contexts targeted
+   Total subjects: 24 schemas found
+   Mode: Batch parallel deletion
+   Status: Running (33% complete)
+   
+Progress:
+   ✅ feature-v1: Cleared (7 subjects)
+   🔄 feature-v2: In progress (5/9 subjects)
+   ⏳ feature-old: Pending
+```
+
+---
+
+## 📊 Task Management & Progress Tracking Tools
+
+### 34. get_task_progress
+
+Get detailed progress for any async task.
+
+**Purpose**: Monitor long-running operations, track completion, get results.
+
+**Parameters:**
+- `task_id` (string): Task ID to check
+
+**Claude Desktop Usage:**
+```
+Human: "How's task mig-101-v2-features doing?"
+
+Claude: I'll check the progress of that task.
+
+[Uses get_task_progress MCP tool]
+📊 Task Progress: mig-101-v2-features
+   Type: Context Migration
+   Status: Running
+   Progress: 67% complete
+   Current: Migrating schema 8/12 (order-events)
+   Duration: 1m 45s elapsed
+   Estimate: ~45s remaining
+   
+   Details: Successfully migrated 7 schemas, currently processing order-events v3
+```
+
+---
+
+### 35. get_migration_progress
+
+Get migration-specific progress details.
+
+**Purpose**: Detailed migration monitoring, schema-by-schema progress.
+
+**Parameters:**
+- `task_id` (string): Migration task ID
+
+**Claude Desktop Usage:**
+```
+Human: "Show detailed progress for the ongoing migration"
+
+Claude: I'll get detailed migration progress.
+
+[Uses get_migration_progress MCP tool]
+📊 Migration Progress: mig-789-orders
+   Overall: 75% complete
+   
+   Completed:
+   ✅ order-created (v1-5)
+   ✅ order-updated (v1-3)
+   ✅ order-shipped (v1-2)
+   
+   In Progress:
+   🔄 order-completed (migrating v4/7)
+   
+   Pending:
+   ⏳ order-cancelled
+   ⏳ order-refunded
+```
+
+---
+
+### 36. get_cleanup_progress
+
+Get cleanup operation progress details.
+
+**Purpose**: Monitor batch deletions, track cleanup operations.
+
+**Parameters:**
+- `task_id` (string): Cleanup task ID
+
+**Claude Desktop Usage:**
+```
+Human: "Check how the context cleanup is going"
+
+Claude: I'll check the cleanup operation progress.
+
+[Uses get_cleanup_progress MCP tool]
+📊 Cleanup Progress: clean-333-multi
+   Overall: 83% complete
+   
+   Contexts cleared: 2/3
+   Subjects deleted: 20/24
+   Current: Deleting subjects from feature-old
+   Rate: 12 subjects/second
+   
+   No errors encountered
+```
+
+---
+
+### 37. get_comparison_progress
+
+Get comparison operation progress details.
+
+**Purpose**: Monitor registry comparisons, track analysis progress.
+
+**Parameters:**
+- `task_id` (string): Comparison task ID
+
+**Claude Desktop Usage:**
+```
+Human: "How's the registry comparison going?"
+
+Claude: I'll check the comparison progress.
+
+[Uses get_comparison_progress MCP tool]
+📊 Comparison Progress: comp-456-customer
+   Overall: 100% complete ✅
+   
+   Analysis complete:
+   • Schemas analyzed: 45
+   • Contexts compared: 3
+   • Configurations checked: 12
+   
+   Differences found: 7
+   Report ready for review
+```
+
+---
+
+### 38. list_all_active_tasks
+
+View all running or pending tasks.
+
+**Purpose**: Dashboard view, system monitoring, workload management.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "What operations are currently running?"
+
+Claude: I'll show you all active tasks.
+
+[Uses list_all_active_tasks MCP tool]
+📋 Active Tasks:
+   1. mig-101: Migration (67% - migrating v2-features)
+   2. clean-222: Cleanup (45% - deleting old schemas)
+   3. comp-789: Comparison (15% - analyzing production)
+   
+   Queue: 2 pending tasks
+   Workers: 3/5 busy
+   System load: Moderate
+```
+
+---
+
+### 39. list_migration_tasks
+
+List all migration-specific tasks.
+
+**Purpose**: Track migrations, view migration queue.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "Show me all migration tasks"
+
+Claude: I'll list all migration tasks.
+
+[Uses list_migration_tasks MCP tool]
+📋 Migration Tasks:
+   Active:
+   • mig-101: staging→prod (67% complete)
+   
+   Completed today:
+   • mig-099: dev→staging (completed 2h ago)
+   • mig-098: hotfix→prod (completed 4h ago)
+   
+   Failed:
+   • mig-097: Connection timeout (6h ago)
+```
+
+---
+
+### 40. list_cleanup_tasks
+
+List all cleanup-specific tasks.
+
+**Purpose**: Track cleanup operations, monitor deletions.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "What cleanup operations are running?"
+
+Claude: I'll show cleanup task status.
+
+[Uses list_cleanup_tasks MCP tool]
+📋 Cleanup Tasks:
+   Active:
+   • clean-333: Multi-context cleanup (83% complete)
+   
+   Scheduled:
+   • clean-334: Nightly test cleanup (starts in 2h)
+   
+   Completed:
+   • clean-332: Feature branch cleanup (1h ago, 45 schemas removed)
+```
+
+---
+
+### 41. list_comparison_tasks
+
+List all comparison tasks.
+
+**Purpose**: Track analysis operations, view comparison history.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "Show comparison task history"
+
+Claude: I'll display comparison tasks.
+
+[Uses list_comparison_tasks MCP tool]
+📋 Comparison Tasks:
+   Completed:
+   • comp-456: staging vs prod (7 differences found)
+   • comp-455: dev vs staging (23 differences)
+   
+   Running:
+   • comp-457: prod backup verification (22% complete)
+```
+
+---
+
+### 42. cancel_task
+
+Cancel a running task.
+
+**Purpose**: Stop long-running operations, abort failed tasks.
+
+**Parameters:**
+- `task_id` (string): Task ID to cancel
+
+**Claude Desktop Usage:**
+```
+Human: "Cancel the migration task mig-101, we need to fix something first"
+
+Claude: I'll cancel that migration task.
+
+[Uses cancel_task MCP tool]
+🛑 Task cancelled: mig-101
+   Type: Context migration
+   Progress when cancelled: 67%
+   Rollback: No changes committed yet
+   Status: Safely cancelled
+```
+
+---
+
+### 43. get_operation_info_tool
+
+Get information about operation patterns and expected durations.
+
+**Purpose**: Understand operation complexity, plan maintenance windows.
+
+**Parameters:** None
+
+**Claude Desktop Usage:**
+```
+Human: "How long do different operations typically take?"
+
+Claude: I'll show you typical operation durations.
+
+[Uses get_operation_info_tool MCP tool]
+📊 Operation Patterns:
+   
+   Quick Operations (<5 seconds):
+   • Single schema operations
+   • Configuration changes
+   • Compatibility checks
+   
+   Medium Operations (5-30 seconds):
+   • Small context migrations (<10 schemas)
+   • Registry comparisons
+   
+   Long Operations (>30 seconds):
+   • Large context migrations
+   • Multi-context cleanup
+   • Full registry analysis
+   
+   Recommendation: Use async tasks for medium/long operations
+```
+
+---
+
+### 44. watch_task_progress
+
+Get real-time progress updates for a task (guidance tool).
+
+**Purpose**: Continuous monitoring guidance, progress tracking patterns.
+
+**Parameters:**
+- `task_id` (string): Task ID to watch
+
+**Claude Desktop Usage:**
+```
+Human: "How do I monitor the migration progress in real-time?"
+
+Claude: I'll show you how to watch task progress.
+
+[Uses watch_task_progress MCP tool]
+📺 Watching task: mig-101
+
+To monitor progress in real-time:
+1. Poll get_task_progress('mig-101') every 2-5 seconds
+2. Check 'progress_percent' for completion
+3. Read 'progress_description' for current operation
+4. Watch for status changes: pending→running→completed
+
+Example monitoring pattern:
+```python
+while task['status'] == 'running':
+    progress = get_task_progress('mig-101')
+    print(f"{progress['progress_percent']}% - {progress['progress_description']}")
+    time.sleep(3)
+```
+```
+
+---
+
+This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 

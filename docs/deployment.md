@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v1.3.0, from local development to production environments, including export infrastructure and backup strategies.
+This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v1.7.0, from local development to production environments, including async task management, multi-registry support, and backup strategies.
 
 ## 🐳 Docker Deployment
 
@@ -15,18 +15,25 @@ cd kafka-schema-reg-mcp
 docker-compose up -d
 
 # Option 2: Direct Docker run
-docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:latest
+docker run -p 38000:8000 aywengo/kafka-schema-reg-mcp:1.7.0
 
 # Option 3: With external Schema Registry
 docker run -p 38000:8000 \
   -e SCHEMA_REGISTRY_URL=http://your-schema-registry:8081 \
-  aywengo/kafka-schema-reg-mcp:latest
+  aywengo/kafka-schema-reg-mcp:1.7.0
+
+# Option 4: Multi-Registry Configuration
+docker run -p 38000:8000 \
+  -e REGISTRIES_CONFIG='{"production":{"url":"http://prod-registry:8081"},"staging":{"url":"http://stage-registry:8081"}}' \
+  aywengo/kafka-schema-reg-mcp:1.7.0
 ```
 
 **Available DockerHub Tags:**
-- `aywengo/kafka-schema-reg-mcp:latest` - Latest stable release
-- `aywengo/kafka-schema-reg-mcp:v1.3.0` - Specific version with export functionality  
-- `aywengo/kafka-schema-reg-mcp:v1.2.0` - Previous version
+- `aywengo/kafka-schema-reg-mcp:latest` - Latest build
+- `aywengo/kafka-schema-reg-mcp:stable` - Stable release pointer
+- `aywengo/kafka-schema-reg-mcp:1.7.0` - Async operations & progress tracking
+- `aywengo/kafka-schema-reg-mcp:1.6.0` - Batch cleanup & migrations
+- `aywengo/kafka-schema-reg-mcp:1.5.0` - Multi-registry support
 - **Multi-Platform Support**: Automatically detects `linux/amd64` or `linux/arm64`
 
 ### Docker Compose Override
@@ -38,7 +45,7 @@ The repository includes a `docker-compose.override.yml` file that automatically 
 version: '3.8'
 services:
   mcp-server:
-    image: aywengo/kafka-schema-reg-mcp:latest
+    image: aywengo/kafka-schema-reg-mcp:1.7.0
     # Override: use DockerHub image instead of building locally
 ```
 
@@ -82,7 +89,7 @@ curl http://localhost:38000/
 
 ### Production Docker Deployment
 
-For production deployments, create a production-specific Docker Compose configuration:
+For production deployments, create a production-specific Docker Compose configuration with v1.7.0 features:
 
 ```yaml
 # docker-compose.prod.yml
@@ -143,13 +150,31 @@ services:
           cpus: '0.5'
 
   mcp-server:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: aywengo/kafka-schema-reg-mcp:1.7.0
     environment:
+      # Single Registry Configuration
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SCHEMA_REGISTRY_USER: ${SCHEMA_REGISTRY_USER:-}
       SCHEMA_REGISTRY_PASSWORD: ${SCHEMA_REGISTRY_PASSWORD:-}
+      # Multi-Registry Configuration (v1.5.0+)
+      REGISTRIES_CONFIG: |
+        {
+          "production": {
+            "url": "http://schema-registry:8081",
+            "user": "${PROD_REGISTRY_USER}",
+            "password": "${PROD_REGISTRY_PASSWORD}",
+            "description": "Production Schema Registry"
+          },
+          "staging": {
+            "url": "http://staging-registry:8081",
+            "user": "${STAGE_REGISTRY_USER}",
+            "password": "${STAGE_REGISTRY_PASSWORD}",
+            "description": "Staging Schema Registry"
+          }
+        }
+      # Async Task Configuration (v1.7.0+)
+      TASK_POOL_SIZE: 10
+      TASK_QUEUE_SIZE: 100
       PYTHONUNBUFFERED: 1
     ports:
       - "38000:8000"
@@ -159,12 +184,17 @@ services:
       replicas: 2
       resources:
         limits:
+          memory: 1G  # Increased for async operations
+          cpus: '1.0' # Increased for parallel tasks
+        reservations:
           memory: 512M
           cpus: '0.5'
       restart_policy:
         condition: on-failure
         delay: 5s
         max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
 
 volumes:
   kafka_data:
@@ -201,6 +231,21 @@ metadata:
 data:
   SCHEMA_REGISTRY_URL: "http://schema-registry-service:8081"
   PYTHONUNBUFFERED: "1"
+  # Async Task Configuration
+  TASK_POOL_SIZE: "10"
+  TASK_QUEUE_SIZE: "100"
+  # Multi-Registry Configuration
+  REGISTRIES_CONFIG: |
+    {
+      "default": {
+        "url": "http://schema-registry-service:8081",
+        "description": "Default cluster registry"
+      },
+      "backup": {
+        "url": "http://backup-registry-service:8081",
+        "description": "Backup registry for DR"
+      }
+    }
 ```
 
 ### Kafka Deployment
@@ -354,7 +399,7 @@ spec:
   type: ClusterIP
 ```
 
-### MCP Server Deployment
+### MCP Server Deployment (Updated for v1.7.0)
 
 ```yaml
 # k8s/mcp-server-deployment.yaml
@@ -368,14 +413,16 @@ spec:
   selector:
     matchLabels:
       app: mcp-server
+      version: "1.7.0"
   template:
     metadata:
       labels:
         app: mcp-server
+        version: "1.7.0"
     spec:
       containers:
       - name: mcp-server
-        image: your-registry/kafka-schema-mcp:latest
+        image: aywengo/kafka-schema-reg-mcp:1.7.0
         ports:
         - containerPort: 8000
         envFrom:
@@ -396,23 +443,33 @@ spec:
               optional: true
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "100m"
+            memory: "512Mi"  # Increased for async operations
+            cpu: "250m"      # Increased for parallel tasks
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "1Gi"
+            cpu: "1000m"
         livenessProbe:
           httpGet:
             path: /
             port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /
             port: 8000
           initialDelaySeconds: 10
           periodSeconds: 5
+          timeoutSeconds: 3
+        # Volume for task persistence (optional)
+        volumeMounts:
+        - name: task-cache
+          mountPath: /app/task-cache
+      volumes:
+      - name: task-cache
+        emptyDir:
+          sizeLimit: 1Gi
 
 ---
 apiVersion: v1
@@ -477,229 +534,97 @@ kubectl logs -f deployment/mcp-server -n kafka-schema-registry
 
 ---
 
-## ☁️ Cloud Platform Deployments
+## 🔧 Configuration Options
 
-### AWS EKS with Helm
+### Environment Variables (v1.7.0)
 
-Create a Helm chart for easy deployment:
+| Variable | Description | Default | Since |
+|----------|-------------|---------|-------|
+| `SCHEMA_REGISTRY_URL` | Primary Schema Registry URL | `http://localhost:8081` | v1.0.0 |
+| `SCHEMA_REGISTRY_USER` | Basic auth username | - | v1.0.0 |
+| `SCHEMA_REGISTRY_PASSWORD` | Basic auth password | - | v1.0.0 |
+| `READONLY` | Enable read-only mode | `false` | v1.3.0 |
+| `REGISTRIES_CONFIG` | JSON config for multiple registries | - | v1.5.0 |
+| `TASK_POOL_SIZE` | ThreadPoolExecutor size | `10` | v1.7.0 |
+| `TASK_QUEUE_SIZE` | Max queued tasks | `100` | v1.7.0 |
+| `TASK_TIMEOUT` | Default task timeout (seconds) | `3600` | v1.7.0 |
 
-```yaml
-# helm/kafka-schema-mcp/values.yaml
-global:
-  imageRegistry: ""
-  imagePullSecrets: []
+### Multi-Registry Configuration Example
 
-kafka:
-  enabled: true
-  replicaCount: 3
-  resources:
-    requests:
-      memory: 1Gi
-      cpu: 500m
-    limits:
-      memory: 2Gi
-      cpu: 1000m
-  persistence:
-    enabled: true
-    size: 20Gi
-    storageClass: gp3
-
-schemaRegistry:
-  enabled: true
-  replicaCount: 2
-  resources:
-    requests:
-      memory: 512Mi
-      cpu: 250m
-    limits:
-      memory: 1Gi
-      cpu: 500m
-
-mcpServer:
-  image:
-    repository: your-account.dkr.ecr.region.amazonaws.com/kafka-schema-mcp
-    tag: latest
-    pullPolicy: Always
-  replicaCount: 3
-  resources:
-    requests:
-      memory: 256Mi
-      cpu: 100m
-    limits:
-      memory: 512Mi
-      cpu: 500m
-  
-  service:
-    type: LoadBalancer
-    port: 80
-    targetPort: 8000
-    annotations:
-      service.beta.kubernetes.io/aws-load-balancer-type: nlb
-      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-
-  ingress:
-    enabled: true
-    className: alb
-    annotations:
-      kubernetes.io/ingress.class: alb
-      alb.ingress.kubernetes.io/scheme: internet-facing
-      alb.ingress.kubernetes.io/target-type: ip
-      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account:certificate/cert-id
-    hosts:
-    - host: schema-mcp.your-domain.com
-      paths:
-      - path: /
-        pathType: Prefix
-
-  autoscaling:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-
-monitoring:
-  enabled: true
-  serviceMonitor:
-    enabled: true
-    interval: 30s
-    path: /metrics
-
-auth:
-  enabled: false
-  existingSecret: ""
-  username: ""
-  password: ""
-```
-
-Deploy with Helm:
 ```bash
-# Add required repositories
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-
-# Install
-helm install kafka-schema-mcp ./helm/kafka-schema-mcp \
-  --namespace kafka-schema-registry \
-  --create-namespace \
-  --values values-production.yaml
-```
-
-### Google Cloud Run
-
-For serverless deployment on Google Cloud:
-
-```yaml
-# cloudbuild.yaml
-steps:
-  - name: 'gcr.io/cloud-builders/docker'
-    args: 
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/kafka-schema-mcp:$COMMIT_SHA'
-      - '.'
-    
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push' 
-      - 'gcr.io/$PROJECT_ID/kafka-schema-mcp:$COMMIT_SHA'
-
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - 'kafka-schema-mcp'
-      - '--image=gcr.io/$PROJECT_ID/kafka-schema-mcp:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-      - '--memory=512Mi'
-      - '--cpu=1'
-      - '--concurrency=80'
-      - '--max-instances=10'
-      - '--set-env-vars=SCHEMA_REGISTRY_URL=https://your-schema-registry.com'
-
-images:
-  - 'gcr.io/$PROJECT_ID/kafka-schema-mcp:$COMMIT_SHA'
-```
-
-Deploy:
-```bash
-gcloud builds submit --config cloudbuild.yaml
-```
-
-### Azure Container Instances
-
-```yaml
-# azure-container-instance.yaml
-apiVersion: 2019-12-01
-location: eastus
-name: kafka-schema-mcp
-properties:
-  containers:
-  - name: mcp-server
-    properties:
-      image: your-registry.azurecr.io/kafka-schema-mcp:latest
-      resources:
-        requests:
-          cpu: 0.5
-          memoryInGb: 1.0
-      ports:
-      - port: 8000
-        protocol: TCP
-      environmentVariables:
-      - name: SCHEMA_REGISTRY_URL
-        value: https://your-schema-registry.com
-      - name: SCHEMA_REGISTRY_USER
-        secureValue: your-username
-      - name: SCHEMA_REGISTRY_PASSWORD
-        secureValue: your-password
-  osType: Linux
-  restartPolicy: Always
-  ipAddress:
-    type: Public
-    ports:
-    - protocol: TCP
-      port: 80
-    - protocol: TCP  
-      port: 8000
-    dnsNameLabel: kafka-schema-mcp
-type: Microsoft.ContainerInstance/containerGroups
-```
-
-Deploy:
-```bash
-az container create --resource-group myResourceGroup --file azure-container-instance.yaml
+export REGISTRIES_CONFIG='{
+  "production": {
+    "url": "https://prod.schema-registry.com:8081",
+    "user": "prod-user",
+    "password": "prod-pass",
+    "description": "Production Schema Registry"
+  },
+  "staging": {
+    "url": "https://stage.schema-registry.com:8081",
+    "user": "stage-user", 
+    "password": "stage-pass",
+    "description": "Staging Schema Registry"
+  },
+  "development": {
+    "url": "http://localhost:8081",
+    "description": "Local Development"
+  }
+}'
 ```
 
 ---
 
-## 🔐 Security Considerations
+## 📊 Resource Requirements
 
-### Authentication and Authorization
+### Recommended Resources (v1.7.0)
 
-#### Schema Registry Authentication
+Based on the async task management capabilities:
 
-```bash
-# Set authentication environment variables
-export SCHEMA_REGISTRY_USER="schema-admin"
-export SCHEMA_REGISTRY_PASSWORD="secure-password"
+| Component | CPU | Memory | Storage | Notes |
+|-----------|-----|--------|---------|-------|
+| MCP Server (Small) | 0.5 | 512MB | - | <100 schemas, light usage |
+| MCP Server (Medium) | 1.0 | 1GB | - | 100-1000 schemas, moderate async tasks |
+| MCP Server (Large) | 2.0 | 2GB | 10GB | >1000 schemas, heavy migrations |
+| Schema Registry | 0.5 | 1GB | 20GB | Per instance |
+| Kafka Broker | 1.0 | 2GB | 100GB | Per broker, 3 minimum |
 
-# For Kubernetes, create secret
-kubectl create secret generic schema-registry-auth \
-  --from-literal=username=schema-admin \
-  --from-literal=password=secure-password \
-  --namespace kafka-schema-registry
-```
+### Performance Tuning
 
-#### Network Security
+For high-volume async operations:
 
 ```yaml
-# k8s/network-policy.yaml
+# High-performance configuration
+environment:
+  TASK_POOL_SIZE: "20"        # More parallel workers
+  TASK_QUEUE_SIZE: "500"      # Larger task queue
+  TASK_TIMEOUT: "7200"        # 2-hour timeout for large migrations
+  # Python optimizations
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+```
+
+---
+
+## 🔒 Security Considerations
+
+### Production Security Checklist
+
+- [ ] Enable authentication on Schema Registry
+- [ ] Use HTTPS/TLS for all connections
+- [ ] Set `READONLY=true` for production MCP instances
+- [ ] Implement network policies in Kubernetes
+- [ ] Use secrets management for credentials
+- [ ] Enable audit logging
+- [ ] Regular security scanning of images
+- [ ] Implement rate limiting on ingress
+
+### Example Network Policy
+
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: mcp-server-network-policy
+  name: mcp-server-netpol
   namespace: kafka-schema-registry
 spec:
   podSelector:
@@ -724,274 +649,50 @@ spec:
     ports:
     - protocol: TCP
       port: 8081
-  - to: []
-    ports:
-    - protocol: TCP
-      port: 53
-    - protocol: UDP
-      port: 53
-```
-
-#### TLS/SSL Configuration
-
-```yaml
-# k8s/tls-secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mcp-server-tls
-  namespace: kafka-schema-registry
-type: kubernetes.io/tls
-data:
-  tls.crt: LS0tLS1CRUdJTi... # base64 encoded certificate
-  tls.key: LS0tLS1CRUdJTi... # base64 encoded private key
 ```
 
 ---
 
-## 📊 Monitoring and Observability
-
-### Prometheus Metrics
-
-Add metrics endpoint to the MCP server:
-
-```python
-# Add to mcp_server.py
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-import time
-
-# Metrics
-REQUEST_COUNT = Counter('mcp_requests_total', 'Total requests', ['method', 'endpoint', 'status'])
-REQUEST_DURATION = Histogram('mcp_request_duration_seconds', 'Request duration', ['method', 'endpoint'])
-
-@app.middleware("http")
-async def metrics_middleware(request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    
-    REQUEST_COUNT.labels(
-        method=request.method, 
-        endpoint=request.url.path, 
-        status=response.status_code
-    ).inc()
-    
-    REQUEST_DURATION.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
-    
-    return response
-
-@app.get("/metrics")
-async def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
-```
-
-### ServiceMonitor for Prometheus
-
-```yaml
-# k8s/servicemonitor.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: mcp-server-metrics
-  namespace: kafka-schema-registry
-spec:
-  selector:
-    matchLabels:
-      app: mcp-server
-  endpoints:
-  - port: http
-    path: /metrics
-    interval: 30s
-```
-
-### Grafana Dashboard
-
-```json
-{
-  "dashboard": {
-    "title": "Kafka Schema Registry MCP Server",
-    "panels": [
-      {
-        "title": "Request Rate",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(mcp_requests_total[5m])",
-            "legendFormat": "{{method}} {{endpoint}}"
-          }
-        ]
-      },
-      {
-        "title": "Request Duration",
-        "type": "graph", 
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, rate(mcp_request_duration_seconds_bucket[5m]))",
-            "legendFormat": "95th percentile"
-          }
-        ]
-      },
-      {
-        "title": "Error Rate",
-        "type": "singlestat",
-        "targets": [
-          {
-            "expr": "rate(mcp_requests_total{status=~\"4..|5..\"}[5m]) / rate(mcp_requests_total[5m])",
-            "legendFormat": "Error Rate"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
----
-
-## 🚀 Performance Optimization
-
-### Production Configuration
-
-```dockerfile
-# Dockerfile.prod
-FROM python:3.11-slim
-
-# Install production dependencies
-RUN apt-get update && apt-get install -y \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY mcp_server.py .
-
-# Create non-root user
-RUN groupadd -r mcp && useradd -r -g mcp mcp
-USER mcp
-
-# Production server with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "mcp_server:app"]
-```
-
-### Resource Limits and Requests
-
-```yaml
-resources:
-  requests:
-    memory: "256Mi"
-    cpu: "100m"
-  limits:
-    memory: "512Mi"
-    cpu: "500m"
-```
-
-### Horizontal Pod Autoscaler
-
-```yaml
-# k8s/hpa.yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: mcp-server-hpa
-  namespace: kafka-schema-registry
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: mcp-server
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### 1. Schema Registry Connection Issues
-
-```bash
-# Check connectivity
-kubectl exec -it deployment/mcp-server -n kafka-schema-registry -- \
-  curl -I http://schema-registry-service:8081/
-
-# Check DNS resolution
-kubectl exec -it deployment/mcp-server -n kafka-schema-registry -- \
-  nslookup schema-registry-service
-```
-
-#### 2. Memory Issues
-
-```bash
-# Monitor memory usage
-kubectl top pods -n kafka-schema-registry
-
-# Check memory limits
-kubectl describe pod <pod-name> -n kafka-schema-registry
-```
-
-#### 3. Network Policies
-
-```bash
-# Test network connectivity
-kubectl exec -it deployment/mcp-server -n kafka-schema-registry -- \
-  nc -zv schema-registry-service 8081
-```
+## 📈 Monitoring & Observability
 
 ### Health Checks
 
+The MCP server provides health endpoints:
+
 ```bash
-# Application health
-curl http://mcp-server-service:8000/
+# Basic health check
+curl http://localhost:38000/
 
-# Detailed health check script
-#!/bin/bash
-echo "=== MCP Server Health Check ==="
+# Async task queue status (v1.7.0+)
+curl http://localhost:38000/tasks/status
+```
 
-# Check if service is responding
-if curl -f -s http://mcp-server-service:8000/ > /dev/null; then
-    echo "✅ MCP Server is responding"
-else
-    echo "❌ MCP Server is not responding"
-    exit 1
-fi
+### Prometheus Metrics (Coming in v1.8.0)
 
-# Check Schema Registry connectivity
-if curl -f -s http://schema-registry-service:8081/ > /dev/null; then
-    echo "✅ Schema Registry is accessible"
-else
-    echo "❌ Schema Registry is not accessible"
-    exit 1
-fi
+Future versions will expose metrics:
+- Task queue depth
+- Task completion rate
+- Migration success/failure rate
+- Registry connection health
+- Operation latency histograms
 
-# Check contexts endpoint
-if curl -f -s http://mcp-server-service:8000/contexts | jq . > /dev/null; then
-    echo "✅ Context endpoint is working"
-else
-    echo "❌ Context endpoint has issues"
-    exit 1
-fi
+---
 
-echo "✅ All health checks passed"
+## 🔄 Upgrade Guide
+
+### Upgrading to v1.7.0
+
+1. **Review Breaking Changes**: None in v1.7.0
+2. **Update Image Tags**: Change to `aywengo/kafka-schema-reg-mcp:1.7.0`
+3. **Adjust Resources**: Increase CPU/memory for async operations
+4. **Test Async Features**: Verify task management works correctly
+
+```bash
+# Rolling update in Kubernetes
+kubectl set image deployment/mcp-server mcp-server=aywengo/kafka-schema-reg-mcp:1.7.0 -n kafka-schema-registry
+
+# Monitor rollout
+kubectl rollout status deployment/mcp-server -n kafka-schema-registry
 ```
 
 ---
@@ -1062,7 +763,7 @@ Images are built for multiple architectures:
 Docker automatically selects the correct architecture:
 ```bash
 # Works on both Intel and ARM systems
-docker run aywengo/kafka-schema-reg-mcp:latest
+docker run aywengo/kafka-schema-reg-mcp:stable
 ```
 
 ### Security & Vulnerability Scanning
@@ -1371,7 +1072,7 @@ For deployments using Docker, use this Claude Desktop configuration pattern:
         "-e", "SCHEMA_REGISTRY_URL",
         "-e", "SCHEMA_REGISTRY_USER",
         "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "aywengo/kafka-schema-reg-mcp:latest"
+        "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_URL": "http://localhost:8081",
@@ -1525,7 +1226,7 @@ Verify your configuration with these commands:
 # Test Docker configuration manually
 docker run --rm -i --network host \
   -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
-  aywengo/kafka-schema-reg-mcp:latest \
+  aywengo/kafka-schema-reg-mcp:stable \
   python -c "import os; print(f'URL: {os.getenv(\"SCHEMA_REGISTRY_URL\")}')"
 
 # Test Schema Registry connectivity
@@ -1534,10 +1235,10 @@ curl -I http://localhost:8081/subjects
 # Test MCP server Docker container
 docker run --rm --network host \
   -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
-  aywengo/kafka-schema-reg-mcp:latest \
+  aywengo/kafka-schema-reg-mcp:stable \
   python -c "import requests; print(requests.get('http://localhost:8081/subjects').json())"
 ```
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v1.3.0 across various environments, from local development to production-ready cloud deployments with proper security, monitoring, scaling configurations, comprehensive export infrastructure, and seamless Claude Desktop integration. 
+This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v1.7.0 with its new async task management features and multi-registry support across various environments. 

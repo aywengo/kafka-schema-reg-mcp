@@ -10,7 +10,7 @@
         "-e", "SCHEMA_REGISTRY_URL",
         "-e", "SCHEMA_REGISTRY_USER",
         "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "aywengo/kafka-schema-reg-mcp:latest"
+        "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_URL": "http://localhost:38081",

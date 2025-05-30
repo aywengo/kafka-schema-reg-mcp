@@ -1,6 +1,6 @@
 # IDE & AI Assistant Integration Guide
 
-This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server v1.3.0 with popular development environments and AI-powered coding assistants, including export functionality testing and automation.
+This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server v1.7.0 with popular development environments and AI-powered coding assistants, including async operations testing and multi-registry support.
 
 ## 🔵 VS Code Integration
 
@@ -150,7 +150,7 @@ Accept: application/json
 DELETE {{mcpServer}}/subjects/user-value?context={{context}}
 Accept: application/json
 
-### === EXPORT FUNCTIONALITY TESTING (v1.3.0) ===
+### === EXPORT FUNCTIONALITY TESTING ===
 
 ### Export Single Schema as JSON
 GET {{mcpServer}}/export/schemas/user-value?context={{context}}&format=json
@@ -219,7 +219,25 @@ Content-Type: application/json
     "include_versions": "latest"
 }
 
-### === MIGRATION FUNCTIONALITY TESTING (v1.3.0+) ===
+### === ASYNC OPERATIONS TESTING (v1.7.0) ===
+
+### Check Task Queue Status
+GET {{mcpServer}}/tasks/status
+Accept: application/json
+
+### Get Task Progress
+GET {{mcpServer}}/tasks/{{taskId}}/progress
+Accept: application/json
+
+### List Active Tasks
+GET {{mcpServer}}/tasks/active
+Accept: application/json
+
+### Cancel Task
+POST {{mcpServer}}/tasks/{{taskId}}/cancel
+Content-Type: application/json
+
+### === MIGRATION FUNCTIONALITY TESTING ===
 
 ### Migrate Schema Between Contexts
 POST {{mcpServer}}/migrate/schema

@@ -1,18 +1,20 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v1.4.0 with **True MCP Implementation**, **Claude Desktop Integration**, **Context Support**, and **Comprehensive Export Capabilities**.
+This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v1.7.0 with **True MCP Implementation**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server is a **true Message Control Protocol (MCP) implementation** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** instead of REST API calls.
+The Kafka Schema Registry MCP Server is a **true Message Control Protocol (MCP) implementation** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** instead of REST API calls, now with advanced async operations for long-running tasks.
 
 ### **Key MCP Features:**
-- ✅ **20 MCP Tools**: Complete schema operations via natural language  
+- ✅ **48 MCP Tools**: Complete schema operations via natural language  
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Real-time Interaction**: Immediate feedback through Claude Desktop
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Export Capabilities**: JSON and Avro IDL formats with comprehensive metadata
+- ✅ **Async Task Management**: Non-blocking operations with progress tracking
+- ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 
 ---
 
@@ -444,12 +446,358 @@ Claude: I'll clean up the temporary development contexts.
 
 ---
 
-This comprehensive use cases document demonstrates how the Kafka Schema Registry MCP Server transforms schema management from technical API operations into natural, AI-assisted conversations. The MCP implementation enables teams to focus on business logic while Claude handles the technical complexities of schema evolution, compatibility, and deployment workflows.
-Human: "Create schema contexts for our development, staging, and production environments"
+## 🚀 Async Operations Use Cases
 
-Claude: I'll help you set up schema contexts for your multi-environment setup.
+### 9. Large-Scale Schema Migration with Progress Tracking
 
-[Creates contexts using create_context MCP tool]
-✅ Created context: development
-✅ Created context: staging  
-✅ Created context: production 
+#### **Scenario**: Migrating Hundreds of Schemas Between Environments
+A company needs to migrate their entire schema registry from staging to production, containing over 200 schemas across multiple contexts.
+
+**Initiating Large Migration:**
+```
+Human: "Migrate all schemas from the staging registry to production"
+
+Claude: I'll start the large-scale migration from staging to production.
+
+[Uses migrate_context MCP tool]
+🔄 Migration started:
+   Task ID: mig-20240531-staging-prod
+   Scope: 215 schemas across 8 contexts
+   Status: Running
+   Progress: 2% (Analyzing schemas...)
+   
+This is a long operation. I'll monitor the progress for you.
+```
+
+**Real-Time Progress Monitoring:**
+```
+Human: "How's the migration going?"
+
+Claude: Let me check the current progress of your migration.
+
+[Uses get_migration_progress MCP tool]
+📊 Migration Progress: mig-20240531-staging-prod
+   Overall: 45% complete
+   Duration: 3m 25s elapsed
+   Current: Migrating order-events context (schema 12/35)
+   
+   Completed contexts: ✅ user-events, ✅ payment-events
+   In progress: 🔄 order-events
+   Pending: ⏳ notification-events, ⏳ analytics-events, ⏳ audit-events
+   
+   Estimated time remaining: ~4 minutes
+```
+
+**Handling Errors During Migration:**
+```
+Human: "I see the migration slowed down, is there an issue?"
+
+Claude: I'll check for any issues with the migration.
+
+[Uses get_task_progress MCP tool]
+⚠️ Migration Status: mig-20240531-staging-prod
+   Progress: 67% (paused)
+   Issue: Connection timeout to production registry
+   Failed schemas: payment-refund-v5, payment-dispute-v3
+   
+   Recommendation: The migration will automatically retry failed schemas.
+   Current retry: 2/3
+```
+
+**MCP Benefits:**
+- ✅ **Non-Blocking Operations**: Start migrations and continue working
+- ✅ **Real-Time Progress**: Monitor large operations without timeout
+- ✅ **Automatic Retry Logic**: Handles transient failures
+- ✅ **Detailed Progress Tracking**: Know exactly what's happening
+
+---
+
+### 10. Multi-Registry Schema Synchronization
+
+#### **Scenario**: Global Company with Regional Schema Registries
+A multinational company operates Schema Registries in different regions (US, EU, APAC) and needs to synchronize schemas while respecting data residency requirements.
+
+**Registry Health Check:**
+```
+Human: "Check the status of all our regional schema registries"
+
+Claude: I'll check the health of all your regional registries.
+
+[Uses test_all_registries MCP tool]
+🏥 Registry Health Check:
+   ✅ us-east: Connected (45ms) - Primary US registry
+   ✅ eu-central: Connected (120ms) - EU GDPR-compliant registry
+   ✅ apac-tokyo: Connected (180ms) - APAC regional registry
+   ⚠️ us-west: Degraded (850ms) - High latency detected
+   
+   Overall: 3/4 healthy, 1 degraded
+```
+
+**Cross-Registry Comparison:**
+```
+Human: "Compare the customer schemas between US and EU registries to ensure GDPR compliance"
+
+Claude: I'll start comparing customer schemas across regions for compliance.
+
+[Uses compare_contexts_across_registries MCP tool]
+🔄 Comparison started:
+   Task ID: comp-20240531-us-eu-customer
+   Comparing: US/customer ↔ EU/customer
+   Focus: GDPR compliance fields
+   Status: Running (15% - Analyzing field differences...)
+```
+
+**Selective Schema Promotion:**
+```
+Human: "Promote only the GDPR-compliant schemas from US to EU registry"
+
+Claude: I'll identify and migrate only GDPR-compliant schemas.
+
+[Uses migrate_schema MCP tool with filtering]
+🔄 Selective migration started:
+   Task ID: mig-20240531-gdpr-selective
+   Source: us-east/customer
+   Target: eu-central/customer
+   Filter: GDPR-compliant schemas only
+   
+   Identified schemas:
+   ✅ customer-profile-v3 (has consent fields)
+   ✅ customer-preferences-v2 (has retention policy)
+   ❌ customer-analytics-v1 (missing GDPR fields)
+   
+   Migrating: 2/3 schemas
+```
+
+**MCP Benefits:**
+- ✅ **Multi-Region Support**: Manage global infrastructure
+- ✅ **Compliance-Aware Migration**: Filter based on requirements
+- ✅ **Cross-Registry Comparison**: Identify differences
+- ✅ **Selective Synchronization**: Migrate only what's needed
+
+---
+
+### 11. Batch Environment Cleanup
+
+#### **Scenario**: Cleaning Up After Feature Development Sprint
+After a two-week sprint, the team has created multiple feature branch contexts that need to be cleaned up efficiently.
+
+**Identify Cleanup Candidates:**
+```
+Human: "Show me all contexts that start with 'feature-' so we can clean them up"
+
+Claude: I'll identify all feature branch contexts for cleanup.
+
+[Uses list_contexts MCP tool]
+📋 Feature contexts found:
+   • feature-user-dashboard (12 schemas)
+   • feature-payment-v2 (8 schemas)
+   • feature-mobile-api (15 schemas)
+   • feature-analytics-beta (6 schemas)
+   • feature-notifications (4 schemas)
+   
+   Total: 5 contexts with 45 schemas
+```
+
+**Batch Cleanup Preview:**
+```
+Human: "Clean up all those feature contexts, but show me what will be deleted first"
+
+Claude: I'll preview the batch cleanup operation for you.
+
+[Uses clear_multiple_contexts_batch MCP tool with dry_run=true]
+🔍 Batch Cleanup Preview:
+   Task ID: clean-20240531-features (DRY RUN)
+   
+   Will delete:
+   📁 feature-user-dashboard:
+      • user-dashboard-events
+      • dashboard-preferences
+      • dashboard-widgets
+      ... and 9 more schemas
+   
+   📁 feature-payment-v2:
+      • payment-flow-v2
+      • payment-confirmation-v2
+      ... and 6 more schemas
+   
+   Total: 5 contexts, 45 schemas
+   Estimated time: ~15 seconds
+   
+   No changes made (dry run mode)
+```
+
+**Execute Parallel Cleanup:**
+```
+Human: "Looks good, go ahead and clean them all up"
+
+Claude: I'll execute the batch cleanup of all feature contexts.
+
+[Uses clear_multiple_contexts_batch MCP tool with dry_run=false]
+🧹 Batch cleanup started:
+   Task ID: clean-20240531-features
+   Mode: Parallel deletion (10 concurrent operations)
+   Status: Running
+   
+   Progress:
+   ✅ feature-notifications: Completed (4/4 schemas deleted)
+   ✅ feature-payment-v2: Completed (8/8 schemas deleted) 
+   🔄 feature-user-dashboard: In progress (7/12 schemas deleted)
+   ⏳ feature-mobile-api: Pending
+   ⏳ feature-analytics-beta: Pending
+```
+
+**Monitor Cleanup Progress:**
+```
+Human: "How's the cleanup going?"
+
+Claude: Let me check the cleanup progress.
+
+[Uses get_cleanup_progress MCP tool]
+📊 Cleanup Progress: clean-20240531-features
+   Overall: 78% complete
+   Duration: 8 seconds elapsed
+   
+   Completed: 3/5 contexts
+   Schemas deleted: 35/45
+   Current: Deleting feature-mobile-api schemas
+   Rate: 4.4 schemas/second
+   
+   Estimated completion: ~3 seconds
+```
+
+**MCP Benefits:**
+- ✅ **Parallel Execution**: Fast cleanup with concurrent operations
+- ✅ **Safe Preview Mode**: Review before deleting
+- ✅ **Progress Tracking**: Monitor large cleanup operations
+- ✅ **Efficient Resource Management**: Clean up test data quickly
+
+---
+
+### 12. Disaster Recovery with Progress Monitoring
+
+#### **Scenario**: Emergency Schema Registry Recovery
+A production incident requires restoring schemas from a backup registry to a new instance.
+
+**Initiate Emergency Recovery:**
+```
+Human: "We need to restore all production schemas from our backup registry to the new disaster recovery instance ASAP"
+
+Claude: I'll initiate an emergency recovery from your backup registry.
+
+[Uses migrate_context MCP tool for disaster recovery]
+🚨 Emergency Recovery Started:
+   Task ID: dr-20240531-prod-restore
+   Source: backup-registry/production
+   Target: dr-registry/production
+   Schemas found: 127
+   Priority: High
+   Mode: Parallel migration (maximum speed)
+   
+   Status: Running (5% - Establishing connections...)
+```
+
+**Real-Time Recovery Monitoring:**
+```
+Human: "Give me continuous updates on the recovery progress"
+
+Claude: I'll monitor the recovery progress closely for you.
+
+[Uses watch_task_progress pattern]
+📊 Recovery Progress: dr-20240531-prod-restore
+
+[Update 1 - 00:30] 25% complete
+   ✅ Critical schemas migrated: payment-events, order-events
+   🔄 Currently migrating: user-events cluster (15 schemas)
+
+[Update 2 - 01:00] 50% complete  
+   ✅ Core business schemas restored
+   🔄 Migrating: analytics and reporting schemas
+   
+[Update 3 - 01:30] 75% complete
+   ✅ 95/127 schemas restored
+   🔄 Final batch: audit and compliance schemas
+   
+[Update 4 - 02:00] 100% complete ✅
+   Duration: 2 minutes
+   All 127 schemas successfully restored
+   No errors encountered
+```
+
+**Post-Recovery Validation:**
+```
+Human: "Verify that the disaster recovery registry matches our backup"
+
+Claude: I'll verify the recovery was successful.
+
+[Uses compare_registries MCP tool]
+✅ Recovery Validation Complete:
+   Schemas matched: 127/127
+   Versions matched: 100%
+   Configurations matched: 100%
+   
+   Disaster recovery successful!
+```
+
+**MCP Benefits:**
+- ✅ **Emergency Response**: Fast disaster recovery
+- ✅ **Parallel Migration**: Maximum speed when needed
+- ✅ **Continuous Monitoring**: Real-time progress updates
+- ✅ **Validation Tools**: Ensure complete recovery
+
+## 🎯 Advanced Async Patterns
+
+### 13. Scheduled Maintenance with Task Management
+
+#### **Scenario**: Planned Maintenance Window Operations
+Operations team needs to perform multiple maintenance tasks during a scheduled window.
+
+**Queue Multiple Operations:**
+```
+Human: "During tonight's maintenance window, I need to: 1) Clean up all test contexts, 2) Migrate staging to production, 3) Update all compatibility settings to FULL"
+
+Claude: I'll queue up all your maintenance operations.
+
+[Uses multiple async tools]
+📋 Maintenance Tasks Queued:
+   1. Task ID: clean-maint-001 - Cleanup test contexts
+   2. Task ID: mig-maint-002 - Staging→Production migration  
+   3. Task ID: config-maint-003 - Update compatibility settings
+   
+   Total estimated time: 15-20 minutes
+   Status: Queued (will start in sequence)
+```
+
+**Monitor All Operations:**
+```
+Human: "Show me the status of all maintenance tasks"
+
+Claude: I'll display all your maintenance operations.
+
+[Uses list_all_active_tasks MCP tool]
+📊 Maintenance Window Status:
+   
+   ✅ clean-maint-001: Completed (2m 15s)
+      - Deleted 8 test contexts
+      - Removed 67 test schemas
+   
+   🔄 mig-maint-002: Running (67% - 5m elapsed)
+      - Migrating production schemas
+      - 89/132 schemas complete
+   
+   ⏳ config-maint-003: Queued
+      - Will start after migration
+      - Estimated duration: 30s
+   
+   System load: Moderate
+   Expected completion: 11:45 PM
+```
+
+**MCP Benefits:**
+- ✅ **Task Orchestration**: Queue and monitor multiple operations
+- ✅ **Maintenance Mode**: Coordinate complex workflows
+- ✅ **Progress Dashboard**: Single view of all operations
+- ✅ **Time Estimation**: Plan maintenance windows accurately
+
+---
+
+This comprehensive use cases document demonstrates how the Kafka Schema Registry MCP Server v1.7.0 transforms schema management with async operations, multi-registry support, and intelligent progress tracking. The MCP implementation enables teams to handle large-scale operations efficiently while Claude provides real-time monitoring and guidance throughout the process.

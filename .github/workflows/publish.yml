@@ -89,7 +89,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "True MCP Server for Kafka Schema Registry - 68 tools, multi-registry support, Claude Desktop ready"
+          short-description: "True MCP Server for Kafka Schema Registry - 48 tools, async operations, multi-registry support, Claude Desktop ready"
           readme-filepath: ./README.md
 
   create-release:
@@ -109,9 +109,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
           body: |
-            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - True MCP Implementation
+            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - True MCP Implementation with Async Operations
             
-            **🚀 MAJOR UPDATE**: Transformed from REST API to true MCP (Message Control Protocol) server compatible with Claude Desktop and other MCP clients.
+            **🚀 MAJOR UPDATE**: Enhanced with async task management, real-time progress tracking, and non-blocking operations for large-scale schema management.
             
             ### Docker Image
             ```bash
@@ -172,36 +172,62 @@ jobs:
             }
             ```
             
-            ### 🗣️ Natural Language Usage
+            ### 🗣️ Natural Language Usage with Async Operations
             ```
-            "List all schema contexts"
-            "Register a new user schema with fields for id, name, and email"
-            "Export all schemas from the production context in Avro IDL format"
-            "Check if my updated schema is compatible with the latest version"
+            "Migrate all schemas from staging to production"
+            → Returns task ID immediately, monitor progress in real-time
+            
+            "Clean up all feature branch contexts"
+            → Executes in parallel with progress tracking
+            
+            "Compare production and DR registries"
+            → Non-blocking comparison with detailed progress updates
             ```
             
-            ### 📋 MCP Features
-            - ✅ **68 MCP Tools**: Complete schema operations via natural language (20 original enhanced + 48 multi-registry)
-            - ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances simultaneously
-            - ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern (X=1-8)
-            - ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control for each registry
-            - ✅ **Cross-Registry Operations**: Compare, migrate, and sync schemas between registries
+            ### 📋 MCP Features (v1.7.0)
+            - ✅ **48 MCP Tools**: Complete schema operations via natural language
+            - ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
+            - ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)
+            - ✅ **Task Lifecycle Control**: Create, monitor, cancel operations
+            - ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances
+            - ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
+            - ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control
+            - ✅ **Cross-Registry Operations**: Compare, migrate, and sync schemas
             - ✅ **Context Management**: Production/staging environment isolation  
             - ✅ **Schema Evolution**: Compatibility testing and version control
             - ✅ **Export System**: JSON, Avro IDL formats for backup/migration
             - ✅ **Configuration Control**: Global and per-context compatibility settings
             - ✅ **Claude Desktop Ready**: Direct integration with AI workflows
             - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
-            - ✅ **Stable Tag**: Use `:stable` for production deployments (always latest release)
+            - ✅ **Stable Tag**: Use `:stable` for production deployments
+            
+            ### 🚀 Async Operation Features
+            - **Task States**: PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
+            - **Progress Tracking**: Human-readable stages with percentage completion
+            - **Operation Types**: 
+              - QUICK (<5s): Single schema operations
+              - MEDIUM (5-30s): Small migrations and comparisons
+              - LONG (>30s): Large context migrations, bulk cleanups
+            - **Parallel Execution**: Multiple operations run concurrently
+            - **Graceful Shutdown**: Proper cleanup and task cancellation
+            
+            ### 📊 New Task Management Tools
+            - `get_task_progress`: Real-time progress monitoring
+            - `list_all_active_tasks`: View running operations
+            - `cancel_task`: Stop long-running operations
+            - `get_migration_progress`: Detailed migration status
+            - `get_cleanup_progress`: Batch cleanup monitoring
+            - `get_comparison_progress`: Registry comparison status
             
             ### 📚 Documentation
             - [MCP Transformation Guide](MCP_TRANSFORMATION.md)
+            - [MCP Tools Reference](docs/mcp-tools-reference.md)
             - [Use Cases](docs/use-cases.md)
             - [API Reference](docs/api-reference.md) 
             - [IDE Integration](docs/ide-integration.md)
             - [Deployment Guide](docs/deployment.md)
             
             ### 🧪 Test Results
-            All advanced MCP features tested and working with live Schema Registry including context isolation, schema registration, compatibility checking, configuration management, and export functionality.
+            All async operations tested including task management, progress tracking, parallel execution, graceful shutdown, and event loop handling across different environments.
           draft: false
           prerelease: false 
