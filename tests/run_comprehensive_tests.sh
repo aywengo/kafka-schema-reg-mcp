@@ -211,9 +211,6 @@ run_error_tests() {
     return $((total - passed))
 }
 
-
-
-
 # Function to generate test summary
 generate_summary() {
     print_header "TEST SUMMARY"
@@ -288,26 +285,13 @@ generate_summary() {
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [OPTIONS]"
-    echo ""
-    echo "Single-Registry Test Runner for Kafka Schema Registry MCP Server"
-    echo ""
-    echo "OPTIONS:"
-    echo "  --basic         Run only basic single-registry tests"
-    echo "  --workflows     Run only single-registry integration tests"
-    echo "  --errors        Run only validation tests"
-    echo "  --all           Run all compatible single-registry test categories (default)"
-    echo "  --help          Show this help message"
-    echo ""
-    echo "EXAMPLES:"
-    echo "  $0                     # Run all single-registry tests"
-    echo "  $0 --basic            # Run only basic tests"
-    echo "  $0 --workflows        # Run only integration tests"
-    echo ""
-    echo "NOTE: This runner excludes multi-registry tests that use kafka_schema_registry_multi_mcp.py"
-    echo "      For multi-registry testing, use ./run_multi_registry_tests.sh instead"
-    echo "      Legacy unit tests are incompatible (expect FastAPI, but project uses MCP)"
-    echo ""
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  --basic       Run only basic tests"
+    echo "  --workflows   Run only workflow tests"
+    echo "  --errors      Run only error handling tests"
+    echo "  --all         Run all tests (default)"
+    echo "  --help        Show this help message"
 }
 
 # Main execution
@@ -315,9 +299,6 @@ main() {
     local run_basic=false
     local run_workflows=false
     local run_errors=false
-    local run_performance=false
-    local run_production=false
-    local run_legacy=false
     local run_all=true
     
     # Parse command line arguments
@@ -335,21 +316,6 @@ main() {
                 ;;
             --errors)
                 run_errors=true
-                run_all=false
-                shift
-                ;;
-            --performance)
-                run_performance=true
-                run_all=false
-                shift
-                ;;
-            --production)
-                run_production=true
-                run_all=false
-                shift
-                ;;
-            --legacy)
-                run_legacy=true
                 run_all=false
                 shift
                 ;;
@@ -388,16 +354,10 @@ main() {
         run_basic_tests || total_failures=$((total_failures + $?))
         run_workflow_tests || total_failures=$((total_failures + $?))
         run_error_tests || total_failures=$((total_failures + $?))
-        run_performance_tests || total_failures=$((total_failures + $?))
-        run_production_tests || total_failures=$((total_failures + $?))
-        run_legacy_tests || total_failures=$((total_failures + $?))
     else
         [[ "$run_basic" == true ]] && { run_basic_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_workflows" == true ]] && { run_workflow_tests || total_failures=$((total_failures + $?)); }
         [[ "$run_errors" == true ]] && { run_error_tests || total_failures=$((total_failures + $?)); }
-        [[ "$run_performance" == true ]] && { run_performance_tests || total_failures=$((total_failures + $?)); }
-        [[ "$run_production" == true ]] && { run_production_tests || total_failures=$((total_failures + $?)); }
-        [[ "$run_legacy" == true ]] && { run_legacy_tests || total_failures=$((total_failures + $?)); }
     fi
     
     # Generate final summary
