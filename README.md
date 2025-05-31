@@ -285,6 +285,39 @@ Comprehensive export functionality with 17 endpoints supporting backup, migratio
 
 **📖 Detailed Guide**: [API Reference - Export Endpoints](docs/api-reference.md#export-endpoints)
 
+### **🔄 Schema Migration Capabilities**
+Advanced migration tools for moving schemas between registries and contexts:
+
+#### Context Migration (Docker-Based)
+The `migrate_context` tool now generates Docker configuration files for the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator):
+- **Better Error Handling**: Robust error recovery and retry mechanisms
+- **Scalable**: Handles large-scale migrations efficiently
+- **Progress Monitoring**: Real-time progress tracking and logging
+- **Configuration Review**: Preview before execution
+
+**Example:**
+```
+Human: "Migrate all schemas from development context to production"
+
+Claude: I'll generate the migration configuration for you.
+
+[Uses migrate_context MCP tool]
+📋 Migration configuration generated:
+   - .env file with registry credentials
+   - docker-compose.yml for the migrator
+   - migrate-context.sh execution script
+   
+To run: Save files and execute ./migrate-context.sh
+```
+
+#### Direct Schema Migration
+Individual schemas can be migrated directly using `migrate_schema`:
+- **Version Control**: Migrate specific versions or all versions
+- **ID Preservation**: Maintain schema IDs using IMPORT mode
+- **Compatibility Checking**: Ensure schema compatibility
+
+**📖 Migration Guide**: [MCP Tools Reference - Migration](docs/mcp-tools-reference.md#29-migrate_context)
+
 ### **🏗️ Schema Contexts** 
 Powerful logical grouping for enterprise schema management:
 - **Environment Isolation**: Separate development, staging, production

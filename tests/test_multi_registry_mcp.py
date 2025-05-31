@@ -65,7 +65,7 @@ async def test_multi_registry_mcp():
                 multi_registry_tools = [
                     "list_registries", "get_registry_info", "test_registry_connection", 
                     "test_all_registries", "compare_registries", "compare_contexts_across_registries",
-                    "find_missing_schemas", "migrate_schema", "migrate_context", 
+                    "find_missing_schemas", "migrate_schema", "migrate_context",  # Now generates Docker configuration 
                     "list_migrations", "get_migration_status", "sync_schema"
                 ]
                 

@@ -173,39 +173,6 @@ async def test_default_context_url_building(test_env):
         return False
 
 @pytest.mark.asyncio
-async def test_dry_run_migration(test_env):
-    """Test dry run migration functionality"""
-    print(f"\n🧪 Testing dry run migration...")
-    
-    try:
-        # Test dry run migration for default context
-        migration_result = await mcp_server.migrate_context(
-            context=".",
-            source_registry="dev",
-            target_registry="prod",
-            dry_run=True
-        )
-        
-        if "error" in migration_result:
-            print(f"   ❌ Dry run migration failed: {migration_result['error']}")
-            return False
-        
-        if not migration_result.get("dry_run", False):
-            print(f"   ❌ Migration result not marked as dry run")
-            return False
-        
-        print(f"   ✅ Dry run migration successful")
-        print(f"      Status: {migration_result.get('status', 'unknown')}")
-        print(f"      Subjects found: {migration_result.get('total_subjects', 0)}")
-        print(f"      Versions to migrate: {migration_result.get('total_versions', 0)}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"   ❌ Dry run migration test failed: {e}")
-        return False
-
-@pytest.mark.asyncio
 async def test_registry_comparison(test_env):
     """Test registry comparison functionality"""
     print(f"\n📊 Testing registry comparison...")
@@ -320,47 +287,6 @@ async def test_migration_tools_availability(test_env):
         
     except Exception as e:
         print(f"   ❌ Migration tools availability test failed: {e}")
-        return False
-
-@pytest.mark.asyncio
-async def test_id_preservation_dry_run(test_env):
-    """Test ID preservation functionality in dry run mode"""
-    print(f"\n🆔 Testing ID preservation dry run...")
-    
-    try:
-        # Test ID preservation dry run
-        migration_result = await mcp_server.migrate_context(
-            context=".",
-            source_registry="dev",
-            target_registry="prod",
-            preserve_ids=True,
-            dry_run=True
-        )
-        
-        if "error" in migration_result:
-            print(f"   ❌ ID preservation dry run failed: {migration_result['error']}")
-            return False
-        
-        preserve_ids = migration_result.get("preserve_ids", False)
-        is_dry_run = migration_result.get("dry_run", False)
-        
-        if not is_dry_run:
-            print(f"   ❌ Migration not marked as dry run")
-            return False
-        
-        if not preserve_ids:
-            print(f"   ❌ Migration not marked for ID preservation")
-            return False
-        
-        print(f"   ✅ ID preservation dry run successful")
-        print(f"      Status: {migration_result.get('status', 'unknown')}")
-        print(f"      Preserve IDs: {preserve_ids}")
-        print(f"      Dry Run: {is_dry_run}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"   ❌ ID preservation dry run test failed: {e}")
         return False
 
 if __name__ == "__main__":

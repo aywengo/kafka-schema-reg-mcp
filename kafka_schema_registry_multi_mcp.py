@@ -116,14 +116,44 @@ class AsyncPattern(Enum):
 
 # Operation metadata for MCP client guidance
 OPERATION_METADATA = {
+    # Registry management operations
+    "list_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_registry_info": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "test_registry_connection": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "test_all_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "compare_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "migrate_context": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "migrate_schema": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
-    "clear_context_batch": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
-    "clear_multiple_contexts_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "compare_contexts_across_registries": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "compare_different_contexts": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "set_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "check_readonly_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Subject and schema operations (all are quick)
+    "get_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_schema_versions": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "register_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "check_compatibility": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "delete_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Configuration operations (all are quick)
+    "get_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "update_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "update_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Mode operations (all are quick)
+    "get_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "update_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "update_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Context operations (quick)
+    "create_context": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Operation info (quick)
+    "get_operation_info_tool": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Task progress monitoring operations (all are quick)
     "get_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_comparison_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "watch_comparison_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
@@ -133,6 +163,14 @@ OPERATION_METADATA = {
     "list_cleanup_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_task_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_all_active_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    
+    # Long-running operations using task queue
+    "migrate_context": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},  # Now generates config files only
+    "migrate_schema": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
+    "clear_context_batch": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
+    "clear_multiple_contexts_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "compare_contexts_across_registries": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "compare_different_contexts": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
 }
 
 def get_operation_info(operation_name: str) -> Dict[str, Any]:
@@ -2559,6 +2597,19 @@ async def _execute_migrate_schema(
         
         update_progress(10.0, "Registry clients connected")
         
+        # Check if target registry is in readonly mode
+        if not dry_run:
+            readonly_check = check_readonly_mode(target_registry)
+            if readonly_check:
+                logger.error(f"Target registry '{target_registry}' is in readonly mode")
+                return {
+                    "error": readonly_check["error"],
+                    "readonly_mode": True,
+                    "target_registry": target_registry
+                }
+        
+        update_progress(15.0, "Target registry verified as writable")
+        
         # Handle subject names with context prefixes
         # The subject parameter may already include a context prefix (e.g., :.context:subject)
         # We need to handle this correctly for both source and target operations
@@ -2888,185 +2939,6 @@ def get_operation_info_tool(operation_name: Optional[str] = None) -> Dict[str, A
                 }
             }
     except Exception as e:
-        return {"error": str(e)}
-
-async def _execute_migrate_context(
-    source_registry: str,
-    target_registry: str,
-    context: Optional[str] = None,
-    target_context: Optional[str] = None,
-    preserve_ids: bool = True,
-    dry_run: bool = True,
-    migrate_all_versions: bool = True
-) -> Dict[str, Any]:
-    """Execute the actual context migration logic."""
-    try:
-        # Get the current task ID from task manager for progress updates
-        current_task = None
-        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
-            if (task.metadata and 
-                task.metadata.get("operation") == "migrate_context" and
-                task.metadata.get("source_registry") == source_registry and
-                task.metadata.get("target_registry") == target_registry):
-                current_task = task
-                break
-        
-        def update_progress(progress: float, message: str = ""):
-            if current_task:
-                task_manager.update_progress(current_task.id, progress)
-                if message:
-                    logger.info(f"Migration Progress {progress:.1f}%: {message}")
-        
-        update_progress(2.0, "Starting context migration")
-        
-        logger.info(f"Starting context migration from {source_registry} to {target_registry}")
-        logger.info(f"Source context: {context}, Target context: {target_context or context}")
-        logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}, Migrate all versions: {migrate_all_versions}")
-        
-        # Get source client
-        source_client = registry_manager.get_registry(source_registry)
-        if source_client is None:
-            logger.error(f"Source registry '{source_registry}' not found")
-            return {"error": f"Source registry '{source_registry}' not found"}
-        
-        update_progress(8.0, "Source registry connected")
-        
-        # Get target client
-        target_client = registry_manager.get_registry(target_registry)
-        if target_client is None:
-            logger.error(f"Target registry '{target_registry}' not found")
-            return {"error": f"Target registry '{target_registry}' not found"}
-        
-        update_progress(15.0, "Target registry connected")
-        
-        # Get all subjects from source context
-        logger.info(f"Fetching subjects from source context '{context}' in registry '{source_registry}'")
-        subjects = source_client.get_subjects(context)
-        if not subjects:
-            logger.info(f"No subjects found in context '{context}' of registry '{source_registry}'")
-            return {
-                "message": f"No subjects found in context '{context}' of registry '{source_registry}'",
-                "source_registry": source_registry,
-                "target_registry": target_registry,
-                "source_context": context,
-                "target_context": target_context or context,
-                "subjects_migrated": 0,
-                "dry_run": dry_run,
-                "migrate_all_versions": migrate_all_versions
-            }
-        
-        update_progress(25.0, f"Found {len(subjects)} subjects to migrate")
-        logger.info(f"Found {len(subjects)} subjects to migrate")
-        
-        # Initialize results
-        migration_results = {
-            "successful_subjects": [],
-            "failed_subjects": [],
-            "skipped_subjects": []
-        }
-        
-        # Use target_context if provided, else default to context
-        dest_context = target_context if target_context is not None else context
-        logger.info(f"Using target context: {dest_context}")
-        
-        update_progress(30.0, f"Starting migration of {len(subjects)} subjects")
-        
-        # Migrate each subject
-        total_subjects = len(subjects)
-        for i, subject in enumerate(subjects):
-            logger.info(f"Processing subject: {subject}")
-            try:
-                # Get versions for this subject
-                logger.info(f"Fetching versions for subject '{subject}' from source registry")
-                versions_result = get_schema_versions(subject, context=context, registry=source_registry)
-                if isinstance(versions_result, dict) and "error" in versions_result:
-                    logger.error(f"Failed to get versions for subject '{subject}': {versions_result['error']}")
-                    migration_results["failed_subjects"].append({
-                        "subject": subject,
-                        "error": versions_result["error"]
-                    })
-                    continue
-                
-                if not versions_result:
-                    logger.warning(f"No versions found for subject '{subject}', skipping")
-                    migration_results["skipped_subjects"].append({
-                        "subject": subject,
-                        "reason": "No versions found"
-                    })
-                    continue
-                
-                logger.info(f"Found {len(versions_result)} versions for subject '{subject}'")
-                
-                # If not migrating all versions, only use the latest version
-                versions_to_migrate = sorted(versions_result) if migrate_all_versions else [max(versions_result)]
-                logger.info(f"Will migrate versions: {versions_to_migrate}")
-                
-                # Run migrate_schema asynchronously
-                logger.info(f"Starting schema migration for subject '{subject}'")
-                result = await migrate_schema(
-                    subject=subject,
-                    source_registry=source_registry,
-                    target_registry=target_registry,
-                    source_context=context,  # Source context
-                    target_context=dest_context,  # Target context
-                    preserve_ids=preserve_ids,
-                    dry_run=dry_run,
-                    versions=versions_to_migrate  # Pass specific versions to migrate
-                )
-                
-                if "error" in result:
-                    logger.error(f"Migration failed for subject '{subject}': {result['error']}")
-                    migration_results["failed_subjects"].append({
-                        "subject": subject,
-                        "error": result["error"]
-                    })
-                else:
-                    logger.info(f"Successfully migrated subject '{subject}'")
-                    migration_results["successful_subjects"].append({
-                        "subject": subject,
-                        "result": result
-                    })
-                
-                # Update progress based on subjects processed (30% to 85%)
-                subject_progress = 30.0 + ((i + 1) / total_subjects) * 55.0
-                update_progress(subject_progress, f"Migrated {i + 1}/{total_subjects} subjects")
-                    
-            except Exception as e:
-                logger.error(f"Unexpected error processing subject '{subject}': {str(e)}")
-                migration_results["failed_subjects"].append({
-                    "subject": subject,
-                    "error": str(e)
-                })
-        
-        update_progress(90.0, "Building migration summary")
-        
-        # Build final result
-        logger.info("Migration completed. Building final results...")
-        final_result = {
-            "source_registry": source_registry,
-            "target_registry": target_registry,
-            "source_context": context,
-            "target_context": dest_context,
-            "preserve_ids": preserve_ids,
-            "dry_run": dry_run,
-            "migrate_all_versions": migrate_all_versions,
-            "total_subjects": len(subjects),
-            "successful_subjects": len(migration_results["successful_subjects"]),
-            "failed_subjects": len(migration_results["failed_subjects"]),
-            "skipped_subjects": len(migration_results["skipped_subjects"]),
-            "results": migration_results,
-            "status": "completed" if migration_results["failed_subjects"] == [] else "failed",
-            "migrated_at": datetime.now().isoformat()
-        }
-        
-        logger.info(f"Migration summary: {final_result['successful_subjects']} successful, "
-                   f"{final_result['failed_subjects']} failed, {final_result['skipped_subjects']} skipped")
-        
-        update_progress(100.0, "Context migration completed")
-        return final_result
-        
-    except Exception as e:
-        logger.error(f"Error in migrate_context: {str(e)}")
         return {"error": str(e)}
 
 @mcp.tool()
@@ -3708,6 +3580,203 @@ def _categorize_operation(operation: str) -> str:
         return "cleanup"
     else:
         return "other"
+
+@mcp.tool()
+async def migrate_context(
+    source_registry: str,
+    target_registry: str,
+    context: Optional[str] = None,
+    target_context: Optional[str] = None,
+    preserve_ids: bool = True,
+    dry_run: bool = True,
+    migrate_all_versions: bool = True
+) -> Dict[str, Any]:
+    """
+    Guide for migrating an entire context using Docker-based Kafka Schema Registry Migrator.
+    
+    This function generates configuration files and instructions for using the
+    kafka-schema-reg-migrator Docker container, which provides a more robust
+    migration solution with better error handling and recovery capabilities.
+    
+    Args:
+        source_registry: Source registry name
+        target_registry: Target registry name
+        context: Source context to migrate (default: ".")
+        target_context: Target context name (defaults to source context)
+        preserve_ids: Preserve original schema IDs (requires IMPORT mode)
+        dry_run: Preview migration without executing
+        migrate_all_versions: Migrate all versions or just latest
+    
+    Returns:
+        Migration guide with configuration files and Docker commands
+    """
+    try:
+        # Get registry configurations
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+        
+        if not source_client:
+            return {"error": f"Source registry '{source_registry}' not found"}
+        if not target_client:
+            return {"error": f"Target registry '{target_registry}' not found"}
+        
+        # Use default context if not specified
+        context = context or "."
+        target_context = target_context or context
+        
+        # Generate .env file content
+        env_content = f"""# Kafka Schema Registry Migrator Configuration
+# Generated by kafka_schema_registry_multi_mcp
+# Documentation: https://github.com/aywengo/kafka-schema-reg-migrator/blob/main/docs/run-in-docker.md
+
+# Source Registry Configuration
+SCHEMA_REGISTRY_URL={source_client.config.url}
+{f'SCHEMA_REGISTRY_USERNAME={source_client.config.user}' if source_client.config.user else '# SCHEMA_REGISTRY_USERNAME='}
+{f'SCHEMA_REGISTRY_PASSWORD={source_client.config.password}' if source_client.config.password else '# SCHEMA_REGISTRY_PASSWORD='}
+
+# Target Registry Configuration
+TARGET_SCHEMA_REGISTRY_URL={target_client.config.url}
+{f'TARGET_SCHEMA_REGISTRY_USERNAME={target_client.config.user}' if target_client.config.user else '# TARGET_SCHEMA_REGISTRY_USERNAME='}
+{f'TARGET_SCHEMA_REGISTRY_PASSWORD={target_client.config.password}' if target_client.config.password else '# TARGET_SCHEMA_REGISTRY_PASSWORD='}
+
+# Migration Options
+SOURCE_CONTEXT={context}
+TARGET_CONTEXT={target_context}
+PRESERVE_SCHEMA_IDS={str(preserve_ids).lower()}
+MIGRATE_ALL_VERSIONS={str(migrate_all_versions).lower()}
+DRY_RUN={str(dry_run).lower()}
+
+# Additional Options (customize as needed)
+# BATCH_SIZE=50
+# CONCURRENT_REQUESTS=5
+# RETRY_ATTEMPTS=3
+# LOG_LEVEL=INFO
+"""
+
+        # Generate docker-compose.yml content
+        docker_compose_content = f"""version: '3.8'
+
+services:
+  schema-registry-migrator:
+    image: aywengo/kafka-schema-reg-migrator:latest
+    env_file:
+      - .env
+    environment:
+      - MODE=migrate-context
+    volumes:
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    command: ["--source-context", "{context}", "--target-context", "{target_context}"]
+"""
+
+        # Generate shell script for easy execution
+        shell_script_content = f"""#!/bin/bash
+# Kafka Schema Registry Context Migration Script
+# Generated by kafka_schema_registry_multi_mcp
+
+echo "🚀 Starting Kafka Schema Registry Context Migration"
+echo "Source: {source_registry} (context: {context})"
+echo "Target: {target_registry} (context: {target_context})"
+echo ""
+
+# Run the migration using Docker
+docker run -it --rm \\
+  --env-file .env \\
+  -v "$(pwd)/logs:/app/logs" \\
+  -v "$(pwd)/backups:/app/backups" \\
+  aywengo/kafka-schema-reg-migrator:latest \\
+  migrate-context \\
+  --source-context "{context}" \\
+  --target-context "{target_context}" \\
+  {'--dry-run' if dry_run else ''} \\
+  {'--preserve-ids' if preserve_ids else ''} \\
+  {'--all-versions' if migrate_all_versions else '--latest-only'}
+
+echo ""
+echo "✅ Migration process completed. Check logs directory for details."
+"""
+
+        # Generate migration guide
+        guide = {
+            "migration_type": "Docker-based Context Migration",
+            "tool": "kafka-schema-reg-migrator",
+            "documentation": "https://github.com/aywengo/kafka-schema-reg-migrator/blob/main/docs/run-in-docker.md",
+            "source": {
+                "registry": source_registry,
+                "url": source_client.config.url,
+                "context": context
+            },
+            "target": {
+                "registry": target_registry,
+                "url": target_client.config.url,
+                "context": target_context,
+                "readonly": target_client.config.readonly
+            },
+            "options": {
+                "preserve_ids": preserve_ids,
+                "dry_run": dry_run,
+                "migrate_all_versions": migrate_all_versions
+            },
+            "files_to_create": {
+                ".env": {
+                    "description": "Environment configuration file",
+                    "content": env_content
+                },
+                "docker-compose.yml": {
+                    "description": "Docker Compose configuration",
+                    "content": docker_compose_content
+                },
+                "migrate-context.sh": {
+                    "description": "Migration execution script",
+                    "content": shell_script_content,
+                    "make_executable": True
+                }
+            },
+            "instructions": [
+                "1. Create a new directory for the migration:",
+                f"   mkdir schema-migration-{context.replace('.', 'default')}-to-{target_context.replace('.', 'default')}",
+                f"   cd schema-migration-{context.replace('.', 'default')}-to-{target_context.replace('.', 'default')}",
+                "",
+                "2. Create the configuration files:",
+                "   - Save the .env content to a file named '.env'",
+                "   - Save the docker-compose.yml content to 'docker-compose.yml'",
+                "   - Save the shell script to 'migrate-context.sh' and make it executable:",
+                "     chmod +x migrate-context.sh",
+                "",
+                "3. Review and adjust the .env file as needed",
+                "",
+                "4. Run the migration:",
+                "   Option A: Using Docker Compose:",
+                "     docker-compose up",
+                "   Option B: Using the shell script:",
+                "     ./migrate-context.sh",
+                "   Option C: Direct Docker command:",
+                "     docker run -it --rm --env-file .env aywengo/kafka-schema-reg-migrator:latest",
+                "",
+                "5. Monitor the migration:",
+                "   - Logs will be saved in the ./logs directory",
+                "   - Backups (if enabled) will be in ./backups",
+                "",
+                "6. Verify the migration:",
+                "   - Use compare_contexts_across_registries to verify the migration"
+            ],
+            "warnings": []
+        }
+        
+        # Add warnings if needed
+        if target_client.config.readonly:
+            guide["warnings"].append(f"⚠️  Target registry '{target_registry}' is marked as READONLY. Ensure it's writable before migration.")
+        
+        if not dry_run:
+            guide["warnings"].append("⚠️  This will perform actual data migration. Consider running with dry_run=True first.")
+        
+        if preserve_ids:
+            guide["warnings"].append("⚠️  ID preservation requires IMPORT mode on target registry. The migrator will handle this automatically.")
+        
+        return guide
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 # ===== SERVER ENTRY POINT =====
 

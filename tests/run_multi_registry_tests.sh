@@ -325,7 +325,7 @@ main() {
     
     echo ""
     info "🚀 Running Multi-Registry Test Suite"
-    info "Total test categories: 9 (core functionality)"
+    info "Total test categories: 10 (core functionality)"
     echo ""
     
     # 1. Multi-Registry Configuration Tests
@@ -348,7 +348,17 @@ main() {
         warning "⚠️  Cross-registry comparison tests not found"
     fi
     
-    # 3. Migration Integration Tests
+    # 3. Docker Configuration Generation Tests
+    if [ -f "tests/test_migrate_context_docker_config.py" ]; then
+        run_python_test \
+            "Docker Config Generation" \
+            "tests/test_migrate_context_docker_config.py" \
+            "Test migrate_context Docker configuration generation for kafka-schema-reg-migrator"
+    else
+        warning "⚠️  Docker configuration generation tests not found"
+    fi
+    
+    # 4. Migration Integration Tests
     if [ -f "tests/test_lightweight_migration_integration.py" ]; then
         run_python_test \
             "Migration Integration" \
@@ -358,7 +368,7 @@ main() {
         warning "⚠️  Lightweight migration integration tests not found"
     fi
     
-    # 4. Default Context Migration Tests  
+    # 5. Default Context Migration Tests  
     if [ -f "tests/test_lightweight_migration.py" ]; then
         run_python_test \
             "Default Context & Migration" \
@@ -368,7 +378,7 @@ main() {
         warning "⚠️  Lightweight migration tests not found"
     fi
     
-    # 5. All Versions Migration Tests
+    # 6. All Versions Migration Tests
     if [ -f "tests/run_all_versions_migration_tests.sh" ]; then
         info "Running All Versions Migration test..."
         if run_test \
@@ -383,7 +393,7 @@ main() {
         error "❌ All versions migration tests not found"
     fi
     
-    # 6. ID Preservation Migration Tests
+    # 7. ID Preservation Migration Tests
     if [ -f "tests/run_id_preservation_tests.sh" ]; then
         run_test \
             "ID Preservation Migration" \
@@ -393,7 +403,7 @@ main() {
         warning "⚠️  ID preservation tests not found"
     fi
     
-    # 7. End-to-End Workflow Tests
+    # 8. End-to-End Workflow Tests
     if [ -f "tests/test_end_to_end_workflows.py" ]; then
         run_python_test \
             "End-to-End Workflows" \
@@ -403,7 +413,7 @@ main() {
         warning "⚠️  End-to-end workflow tests not found"
     fi
     
-    # 8. Error Handling Tests
+    # 9. Error Handling Tests
     if [ -f "tests/test_error_handling.py" ]; then
         run_python_test \
             "Error Handling" \
@@ -413,7 +423,7 @@ main() {
         warning "⚠️  Error handling tests not found"
     fi
     
-    # 9. Performance Tests
+    # 10. Performance Tests
     if [ -f "tests/test_performance_load.py" ]; then
         run_python_test \
             "Performance & Load" \

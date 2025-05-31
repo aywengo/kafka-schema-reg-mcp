@@ -5,6 +5,22 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **`migrate_context` Enhancement**: Now generates Docker configuration files for [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) instead of performing direct migration
+  - Generates `.env` file with registry credentials
+  - Creates `docker-compose.yml` for easy execution
+  - Provides `migrate-context.sh` shell script
+  - Better error handling and recovery capabilities
+  - Scalable bulk migrations with progress logging
+  - Users can review configuration before execution
+
+### Documentation
+- Updated all references to `migrate_context` in documentation
+- Added migration guide showing Docker-based workflow
+- Updated test README with new migration flow
+
 ## [1.7.0] - 2025-05-31
 
 ### 🚀 Enhanced Async Operations & Task Management

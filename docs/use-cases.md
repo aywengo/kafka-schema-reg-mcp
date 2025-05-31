@@ -457,51 +457,56 @@ A company needs to migrate their entire schema registry from staging to producti
 ```
 Human: "Migrate all schemas from the staging registry to production"
 
-Claude: I'll start the large-scale migration from staging to production.
+Claude: I'll generate the migration configuration for staging to production.
 
 [Uses migrate_context MCP tool]
-🔄 Migration started:
-   Task ID: mig-20240531-staging-prod
-   Scope: 215 schemas across 8 contexts
-   Status: Running
-   Progress: 2% (Analyzing schemas...)
+📋 Migration configuration generated:
    
-This is a long operation. I'll monitor the progress for you.
+   Files created:
+   • .env - Registry credentials and settings
+   • docker-compose.yml - Docker container setup  
+   • migrate-context.sh - Execution script
+   
+   Migration scope:
+   Source: staging registry (215 schemas across 8 contexts)
+   Target: production registry
+   Options: Preserve IDs, migrate all versions
+   
+   To execute:
+   1. Save the generated files to a directory
+   2. Review and adjust .env if needed
+   3. Run: ./migrate-context.sh
+   4. Monitor logs: tail -f logs/migration.log
+   
+⚠️ This is a large migration. The Docker-based migrator provides:
+- Automatic retry on failures
+- Progress tracking per context
+- Detailed success/failure logs
 ```
 
-**Real-Time Progress Monitoring:**
+**Monitoring Migration Progress:**
 ```
-Human: "How's the migration going?"
+Human: "How can I monitor the migration once it's running?"
 
-Claude: Let me check the current progress of your migration.
+Claude: The Docker-based migrator provides comprehensive logging:
 
-[Uses get_migration_progress MCP tool]
-📊 Migration Progress: mig-20240531-staging-prod
-   Overall: 45% complete
-   Duration: 3m 25s elapsed
-   Current: Migrating order-events context (schema 12/35)
-   
-   Completed contexts: ✅ user-events, ✅ payment-events
-   In progress: 🔄 order-events
-   Pending: ⏳ notification-events, ⏳ analytics-events, ⏳ audit-events
-   
-   Estimated time remaining: ~4 minutes
+```bash
+# Real-time log monitoring
+tail -f logs/migration.log
+
+# The migrator shows:
+- Current context being migrated
+- Schemas processed: 87/215
+- Failed schemas with retry count
+- Estimated time remaining
+
+# Check specific logs:
+tail -f logs/success.log    # Successfully migrated schemas
+tail -f logs/failed.log     # Failed migrations
+cat logs/summary.txt        # Final migration report
 ```
 
-**Handling Errors During Migration:**
-```
-Human: "I see the migration slowed down, is there an issue?"
-
-Claude: I'll check for any issues with the migration.
-
-[Uses get_task_progress MCP tool]
-⚠️ Migration Status: mig-20240531-staging-prod
-   Progress: 67% (paused)
-   Issue: Connection timeout to production registry
-   Failed schemas: payment-refund-v5, payment-dispute-v3
-   
-   Recommendation: The migration will automatically retry failed schemas.
-   Current retry: 2/3
+For individual schema migrations, use migrate_schema which returns a task ID for monitoring with get_migration_progress.
 ```
 
 **MCP Benefits:**
@@ -682,46 +687,58 @@ A production incident requires restoring schemas from a backup registry to a new
 ```
 Human: "We need to restore all production schemas from our backup registry to the new disaster recovery instance ASAP"
 
-Claude: I'll initiate an emergency recovery from your backup registry.
+Claude: I'll generate an emergency recovery configuration from your backup registry.
 
 [Uses migrate_context MCP tool for disaster recovery]
-🚨 Emergency Recovery Started:
-   Task ID: dr-20240531-prod-restore
-   Source: backup-registry/production
-   Target: dr-registry/production
-   Schemas found: 127
-   Priority: High
-   Mode: Parallel migration (maximum speed)
+🚨 Emergency Recovery Configuration Generated:
    
-   Status: Running (5% - Establishing connections...)
+   Files created:
+   • .env - Backup → DR registry credentials
+   • docker-compose.yml - High-priority migration setup
+   • dr-restore.sh - Emergency restore script
+   
+   Recovery scope:
+   Source: backup-registry/production (127 schemas)
+   Target: dr-registry/production
+   Options: Preserve IDs, parallel migration
+   
+   To execute emergency recovery:
+   1. Save configuration files
+   2. Run: chmod +x dr-restore.sh && ./dr-restore.sh
+   3. Monitor: tail -f logs/dr-recovery.log
+   
+The Docker migrator will:
+- Use maximum parallelism for speed
+- Automatically retry failed schemas
+- Generate detailed recovery report
 ```
 
 **Real-Time Recovery Monitoring:**
 ```
-Human: "Give me continuous updates on the recovery progress"
+Human: "How do I track the recovery progress?"
 
-Claude: I'll monitor the recovery progress closely for you.
+Claude: Monitor the Docker-based recovery in real-time:
 
-[Uses watch_task_progress pattern]
-📊 Recovery Progress: dr-20240531-prod-restore
+```bash
+# Real-time progress
+tail -f logs/dr-recovery.log
 
-[Update 1 - 00:30] 25% complete
-   ✅ Critical schemas migrated: payment-events, order-events
-   🔄 Currently migrating: user-events cluster (15 schemas)
+# Example output:
+[INFO] Starting disaster recovery...
+[INFO] Source: backup-registry/production
+[INFO] Target: dr-registry/production
+[INFO] Processing context: payment-events (15 schemas)
+[INFO] ✓ payment-created (v1-5) migrated
+[INFO] ✓ payment-processed (v1-3) migrated
+[INFO] Progress: 45/127 schemas (35%)
+[INFO] Estimated time remaining: 1m 30s
 
-[Update 2 - 01:00] 50% complete  
-   ✅ Core business schemas restored
-   🔄 Migrating: analytics and reporting schemas
-   
-[Update 3 - 01:30] 75% complete
-   ✅ 95/127 schemas restored
-   🔄 Final batch: audit and compliance schemas
-   
-[Update 4 - 02:00] 100% complete ✅
-   Duration: 2 minutes
-   All 127 schemas successfully restored
-   No errors encountered
+# Check recovery status
+cat logs/recovery-status.txt    # Current progress
+cat logs/recovery-summary.txt   # Final report
 ```
+
+The migrator provides automatic retry and detailed error reporting for mission-critical recovery operations.
 
 **Post-Recovery Validation:**
 ```

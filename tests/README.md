@@ -64,26 +64,59 @@ The enhanced migration process includes:
    - Get schemas from both registries
    - Compare schemas and detect collisions
 
-2. **Migration Check**
+2. **Migration Configuration**
+   - For context migrations: Use `migrate_context` to generate Docker configuration
+   - For individual schemas: Use `migrate_schema` for direct migration
    - Validate ENABLE_MIGRATION flag
-   - Display comparison results if disabled
 
-3. **Cleanup Phase**
-   - Optional destination registry cleanup
-   - Subject-specific cleanup
+3. **Docker-Based Context Migration** (NEW)
+   - Generate `.env` file with registry credentials
+   - Create `docker-compose.yml` for the migration container
+   - Generate `migrate-context.sh` execution script
+   - Review configuration before execution
 
-4. **Mode Setup**
+4. **Mode Setup** (for direct schema migration)
    - Set global IMPORT mode if needed
    - Handle READONLY mode restrictions
 
 5. **Migration Execution**
-   - Sort subjects and versions
-   - Process each version in order
+   - For contexts: Run the Docker-based migrator
+   - For schemas: Process each version in order
    - Handle compatibility issues
 
 6. **Post-Migration**
    - Validate migration results
-   - Set final registry mode
+   - Monitor logs in `./logs` directory
+   - Restore original registry mode
+
+### Context Migration with Docker
+
+The `migrate_context` function now generates configuration files for the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) Docker tool:
+
+```python
+# Generate migration configuration
+result = migrate_context(
+    context="development",
+    source_registry="dev",
+    target_registry="prod",
+    target_context="production",
+    preserve_ids=True,
+    dry_run=True
+)
+
+# Save generated files
+with open('.env', 'w') as f:
+    f.write(result['files_to_create']['.env']['content'])
+    
+# Run migration
+# ./migrate-context.sh
+```
+
+This approach provides:
+- Better error handling and recovery
+- Scalable bulk migrations
+- Progress monitoring and logging
+- Configuration review before execution
 
 ### ID Preservation
 

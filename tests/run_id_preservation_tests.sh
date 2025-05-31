@@ -2,7 +2,7 @@
 
 # Test Runner for ID Preservation Migration Tests
 # 
-# This script tests the enhanced migrate_context and migrate_schema functions
+# This script tests migrate_schema functions (migrate_context now generates Docker config)
 # that can preserve original schema IDs during migration by using IMPORT mode
 # on the destination registry.
 
@@ -219,7 +219,7 @@ main() {
         success "🎉 ALL ID PRESERVATION TESTS PASSED!"
         echo ""
         success "✅ migrate_schema with preserve_ids=True works correctly"
-        success "✅ migrate_context with preserve_ids=True works correctly"
+        success "✅ migrate_schema with preserve_ids=True works correctly"
         success "✅ IMPORT mode is properly set and restored"
         success "✅ Original schema IDs are preserved during migration"
         echo ""

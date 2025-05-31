@@ -182,13 +182,34 @@ class VersionMigrationVerificationTest:
             # Perform migration
             target_registry = "prod" if self.is_multi_registry else "dev"
             
-            migration_result = await mcp_server.migrate_context(
-                context=self.test_context,
+            # Use migrate_schema to perform actual migration
+            print(f"   🚀 Migrating schema '{subject}' from dev to {target_registry}...")
+            migration_result = await mcp_server.migrate_schema(
+                subject=subject,
                 source_registry="dev",
                 target_registry=target_registry,
+                source_context=self.test_context,
+                target_context=self.test_context,
                 preserve_ids=True,
+                migrate_all_versions=True,  # Important: migrate all versions
                 dry_run=False
             )
+            
+            # Wait for task completion if it's an async task
+            if "task_id" in migration_result:
+                print(f"   ⏳ Waiting for migration task {migration_result['task_id']} to complete...")
+                task_completed = await self._wait_for_task_completion(migration_result["task_id"])
+                if not task_completed:
+                    print(f"   ❌ Migration task did not complete")
+                    return False
+                
+                # Get the final result
+                task = mcp_server.task_manager.get_task(migration_result["task_id"])
+                if not task or not task.result:
+                    print(f"   ❌ No result from migration task")
+                    return False
+                
+                migration_result = task.result
             
             if "error" in migration_result:
                 print(f"   ❌ Migration failed: {migration_result['error']}")
@@ -227,6 +248,22 @@ class VersionMigrationVerificationTest:
         except Exception as e:
             print(f"   ❌ Version migration verification failed: {e}")
             return False
+    
+    async def _wait_for_task_completion(self, task_id: str, timeout: int = 30) -> bool:
+        """Wait for a task to complete with timeout"""
+        start_time = datetime.now()
+        while True:
+            task = mcp_server.task_manager.get_task(task_id)
+            if not task:
+                return False
+            
+            if task.status in [mcp_server.TaskStatus.COMPLETED, mcp_server.TaskStatus.FAILED, mcp_server.TaskStatus.CANCELLED]:
+                return task.status == mcp_server.TaskStatus.COMPLETED
+            
+            if (datetime.now() - start_time).total_seconds() > timeout:
+                return False
+            
+            await asyncio.sleep(0.1)
     
     def cleanup_test_schemas(self):
         """Clean up test schemas from both registries"""

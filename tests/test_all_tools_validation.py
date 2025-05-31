@@ -286,6 +286,8 @@ async def test_all_tools_comprehensive():
                             "dry_run": True
                         })
                     elif tool_name == "migrate_context":
+                # NOTE: migrate_context now generates Docker configuration
+                print(f"      ℹ️  {tool_name} now generates Docker configuration files")
                         result = await validator.validate_tool(tool_name, {
                             "context": "default",
                             "source_registry": "validation_primary",

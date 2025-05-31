@@ -148,74 +148,6 @@ class MigrationIntegrationTests:
             except Exception:
                 pass
     
-    def test_migrate_context_functionality(self) -> bool:
-        """Test that migrate_context actually migrates schemas"""
-        print(f"\n🧪 Testing migrate_context functionality...")
-        
-        try:
-            # First, verify schemas exist in source
-            subjects_in_dev = mcp_server.list_subjects(context=self.test_context, registry="dev")
-            print(f"   📋 Found {len(subjects_in_dev)} subjects in dev context '{self.test_context}'")
-            
-            if len(subjects_in_dev) == 0:
-                print(f"   ❌ No subjects found in dev context - setup failed")
-                return False
-            
-            # Verify subjects don't exist in target before migration
-            subjects_in_prod = mcp_server.list_subjects(context=self.test_context, registry="prod")
-            print(f"   📋 Found {len(subjects_in_prod)} subjects in prod context '{self.test_context}' (before migration)")
-            
-            # Perform actual migration
-            print(f"   🚀 Starting context migration...")
-            migration_result = mcp_server.migrate_context(
-                context=self.test_context,
-                source_registry="dev",
-                target_registry="prod",
-                migrate_all_versions=False,
-                preserve_ids=False,
-                dry_run=False
-            )
-            
-            # Validate migration results
-            if "error" in migration_result:
-                print(f"   ❌ Migration failed: {migration_result['error']}")
-                return False
-            
-            print(f"   📊 Migration Results:")
-            print(f"      Total subjects: {migration_result.get('total_subjects', 0)}")
-            print(f"      Successful: {migration_result.get('successful_migrations', 0)}")
-            print(f"      Failed: {migration_result.get('failed_migrations', 0)}")
-            print(f"      Skipped: {migration_result.get('skipped_migrations', 0)}")
-            print(f"      Success rate: {migration_result.get('success_rate', '0%')}")
-            
-            # Critical test: Check that successful_migrations > 0
-            successful_count = migration_result.get('successful_migrations', 0)
-            if successful_count == 0:
-                print(f"   ❌ CRITICAL: 0 subjects migrated - this was the original bug!")
-                
-                # Print detailed results for debugging
-                if 'results' in migration_result:
-                    results = migration_result['results']
-                    print(f"      Failed subjects: {results.get('failed_subjects', [])}")
-                    print(f"      Skipped subjects: {results.get('skipped_subjects', [])}")
-                
-                return False
-            
-            # Verify subjects now exist in target
-            subjects_in_prod_after = mcp_server.list_subjects(context=self.test_context, registry="prod")
-            print(f"   📋 Found {len(subjects_in_prod_after)} subjects in prod context '{self.test_context}' (after migration)")
-            
-            if len(subjects_in_prod_after) == 0:
-                print(f"   ❌ No subjects found in prod after migration!")
-                return False
-            
-            print(f"   ✅ Context migration test PASSED")
-            return True
-            
-        except Exception as e:
-            print(f"   ❌ Context migration test failed: {e}")
-            return False
-    
     def test_migrate_schema_functionality(self) -> bool:
         """Test that migrate_schema works for individual schemas"""
         print(f"\n🧪 Testing migrate_schema functionality...")
@@ -294,115 +226,6 @@ class MigrationIntegrationTests:
             
         except Exception as e:
             print(f"   ❌ Schema migration test failed: {e}")
-            return False
-    
-    def test_dry_run_functionality(self) -> bool:
-        """Test that dry run mode works correctly"""
-        print(f"\n🧪 Testing dry run functionality...")
-        
-        try:
-            # Test context dry run
-            dry_run_result = mcp_server.migrate_context(
-                context=self.test_context,
-                source_registry="dev", 
-                target_registry="prod",
-                dry_run=True
-            )
-            
-            if "error" in dry_run_result:
-                print(f"   ❌ Dry run failed: {dry_run_result['error']}")
-                return False
-            
-            print(f"   📊 Dry Run Results:")
-            print(f"      Subjects to migrate: {dry_run_result.get('subject_count', 0)}")
-            print(f"      Dry run: {dry_run_result.get('dry_run', False)}")
-            print(f"      Status: {dry_run_result.get('status', 'unknown')}")
-            
-            # Verify it's marked as dry run
-            if not dry_run_result.get('dry_run', False):
-                print(f"   ❌ Result not marked as dry run!")
-                return False
-            
-            # Verify status is preview
-            if dry_run_result.get('status') != 'preview':
-                print(f"   ❌ Dry run status should be 'preview', got: {dry_run_result.get('status')}")
-                return False
-            
-            print(f"   ✅ Dry run test PASSED")
-            return True
-            
-        except Exception as e:
-            print(f"   ❌ Dry run test failed: {e}")
-            return False
-    
-    def test_empty_context_handling(self) -> bool:
-        """Test handling of empty contexts"""
-        print(f"\n🧪 Testing empty context handling...")
-        
-        try:
-            empty_context = f"empty-context-{uuid.uuid4().hex[:8]}"
-            
-            # Try to migrate empty context
-            migration_result = mcp_server.migrate_context(
-                context=empty_context,
-                source_registry="dev",
-                target_registry="prod",
-                migrate_all_versions=False,  # Match original test expectations
-                preserve_ids=False,          # Match original test expectations
-                dry_run=False
-            )
-            
-            # Should return appropriate error/warning for empty context
-            if "error" in migration_result:
-                error_msg = migration_result["error"]
-                if "No subjects found" in error_msg:
-                    print(f"   ✅ Correctly handled empty context: {error_msg}")
-                    return True
-                else:
-                    print(f"   ❌ Unexpected error for empty context: {error_msg}")
-                    return False
-            
-            # Or should show 0 subjects found
-            if migration_result.get('subjects_found', -1) == 0:
-                print(f"   ✅ Correctly reported 0 subjects found")
-                return True
-            
-            print(f"   ❌ Empty context not handled correctly")
-            return False
-            
-        except Exception as e:
-            print(f"   ❌ Empty context test failed: {e}")
-            return False
-    
-    def test_registry_connection_errors(self) -> bool:
-        """Test handling of registry connection errors"""
-        print(f"\n🧪 Testing registry connection error handling...")
-        
-        try:
-            # Test with non-existent registry
-            migration_result = mcp_server.migrate_context(
-                context=self.test_context,
-                source_registry="nonexistent",
-                target_registry="prod",
-                migrate_all_versions=False,  # Match original test expectations
-                preserve_ids=False,          # Match original test expectations
-                dry_run=False
-            )
-            
-            if "error" in migration_result:
-                error_msg = migration_result["error"]
-                if "not found" in error_msg:
-                    print(f"   ✅ Correctly handled missing registry: {error_msg}")
-                    return True
-                else:
-                    print(f"   ❌ Unexpected error message: {error_msg}")
-                    return False
-            
-            print(f"   ❌ Should have returned error for missing registry")
-            return False
-            
-        except Exception as e:
-            print(f"   ❌ Registry error test failed: {e}")
             return False
     
     def test_migration_task_tracking(self) -> bool:
@@ -497,11 +320,7 @@ class MigrationIntegrationTests:
             return False
         
         tests = [
-            ("Context Migration", self.test_migrate_context_functionality),
             ("Schema Migration", self.test_migrate_schema_functionality), 
-            ("Dry Run", self.test_dry_run_functionality),
-            ("Empty Context", self.test_empty_context_handling),
-            ("Connection Errors", self.test_registry_connection_errors),
             ("Task Tracking", self.test_migration_task_tracking)
         ]
         

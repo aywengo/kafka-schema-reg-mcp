@@ -972,31 +972,71 @@ Migration in progress. Use get_migration_progress('mig-789-user-events') to trac
 
 ### 29. migrate_context
 
-Migrate an entire context from one registry to another. Returns task ID for async operation.
+Generate Docker configuration files for migrating an entire context using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool.
 
-**Purpose**: Bulk schema migration, environment promotion, disaster recovery.
+**Purpose**: Generate configuration for bulk schema migration, environment promotion, disaster recovery.
+
+**Note**: This tool now generates Docker configuration files instead of performing direct migration. This provides better error handling, scalability, and monitoring capabilities.
 
 **Parameters:**
 - `context` (string): Context name to migrate
 - `source_registry` (string): Source registry name
 - `target_registry` (string): Target registry name
 - `target_context` (string, optional): Target context name
-- `dry_run` (boolean, optional): Preview without executing
+- `dry_run` (boolean, optional): Generate config for preview mode
+- `preserve_ids` (boolean, optional): Preserve schema IDs (default: true)
+- `migrate_all_versions` (boolean, optional): Migrate all versions (default: true)
+
+**Returns**: Migration guide with:
+- `.env` file content with registry configurations
+- `docker-compose.yml` for easy Docker execution
+- `migrate-context.sh` shell script
+- Instructions for running the migration
+- Warnings and safety notes
 
 **Claude Desktop Usage:**
 ```
 Human: "Promote all schemas from the staging 'v2-features' context to production"
 
-Claude: I'll migrate the entire v2-features context to production.
+Claude: I'll generate the migration configuration for the v2-features context.
 
 [Uses migrate_context MCP tool]
-🔄 Context migration started:
-   Task ID: mig-101-v2-features
-   Context: v2-features (12 schemas)
-   From: staging → production
-   Status: Running (8% complete)
+📋 Migration configuration generated:
    
-Large migration in progress. Monitor with get_migration_progress('mig-101-v2-features').
+   Files to create:
+   • .env - Registry credentials and settings
+   • docker-compose.yml - Docker container setup
+   • migrate-context.sh - Execution script
+   
+   Migration details:
+   Context: v2-features → production
+   Source: staging registry
+   Target: production registry
+   Options: Preserve IDs, migrate all versions
+   
+   Instructions:
+   1. Save the generated files to a directory
+   2. Review and adjust .env if needed
+   3. Run: ./migrate-context.sh (or docker-compose up)
+   4. Monitor logs in ./logs directory
+   
+   ⚠️ Warning: This will perform actual data migration. Consider dry_run=true first.
+```
+
+**Example of generated files:**
+```bash
+# .env file
+SCHEMA_REGISTRY_URL=http://staging-registry:8081
+SCHEMA_REGISTRY_USERNAME=staging_user
+SCHEMA_REGISTRY_PASSWORD=staging_pass
+TARGET_SCHEMA_REGISTRY_URL=http://prod-registry:8081
+TARGET_SCHEMA_REGISTRY_USERNAME=prod_user
+TARGET_SCHEMA_REGISTRY_PASSWORD=prod_pass
+SOURCE_CONTEXT=v2-features
+TARGET_CONTEXT=v2-features
+PRESERVE_SCHEMA_IDS=true
+MIGRATE_ALL_VERSIONS=true
+DRY_RUN=false
 ```
 
 ---

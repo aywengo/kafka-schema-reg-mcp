@@ -121,7 +121,7 @@ class AllVersionsMigrationTest:
         # Verify source has multiple versions
         await self.verify_schema_versions(subject, "dev", self.source_context, 3)
         
-        # Instead of migrate_context, use migrate_schema directly with all versions
+        # migrate_context now generates Docker config, so we use migrate_schema directly
         # First get all versions
         versions = mcp_server.get_schema_versions(subject, context=self.source_context, registry="dev")
         if isinstance(versions, dict) and "error" in versions:

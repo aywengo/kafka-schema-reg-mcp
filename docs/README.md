@@ -90,6 +90,15 @@ Production deployment instructions covering:
 - **✅ Event Loop Handling**: Automatic fallback to threading
 - **✅ Race Condition Fixes**: Proper shutdown synchronization
 
+## What's New in Recent Updates
+
+### Context Migration Enhancement
+- **`migrate_context` Now Generates Docker Config**: Instead of performing direct migration, the tool now generates configuration files for the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) Docker tool
+- **Better Error Handling**: The Docker-based migrator provides robust error recovery
+- **Scalable Migrations**: Handles large-scale context migrations efficiently
+- **Configuration Review**: Users can review and adjust settings before execution
+- **Progress Monitoring**: Real-time progress tracking with detailed logging
+
 ## What's New in Previous Versions
 
 ### v1.6.0 - Batch Cleanup & Migration Enhancements

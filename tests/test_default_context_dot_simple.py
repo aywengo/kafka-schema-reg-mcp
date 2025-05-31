@@ -98,48 +98,6 @@ def test_default_context_subject_listing():
         print(f"   ❌ Subject listing test failed: {e}")
         return False
 
-async def test_default_context_migration_detection():
-    """Test that migration detection works for default context '.' (read-only compatible)"""
-    print("\n🧪 Testing migration detection for default context '.' (read-only mode)...")
-    
-    try:
-        import kafka_schema_registry_multi_mcp as mcp_server
-        
-        # Test dry run migration to see if it can detect subjects
-        # Use same registry for source and target in read-only mode
-        migration_result = await mcp_server.migrate_context(
-            context=".",  # This is the critical test case
-            source_registry="dev",
-            target_registry="dev",  # Same registry for dry run in read-only mode
-            migrate_all_versions=False,
-            preserve_ids=False,
-            dry_run=True
-        )
-        
-        if "error" in migration_result:
-            error_msg = migration_result["error"]
-            # Read-only errors are expected and OK for this test
-            if "read" in error_msg.lower() and "only" in error_msg.lower():
-                print(f"   ✅ Expected read-only error: {error_msg}")
-                print(f"   ✅ Migration detection test PASSED (read-only mode)")
-                return True
-            else:
-                print(f"   ❌ Migration detection failed: {error_msg}")
-                return False
-        
-        subject_count = migration_result.get('total_subjects', 0)
-        print(f"   📊 Detected {subject_count} subjects for migration")
-        
-        # The key test: we should be able to detect subjects (or at least not crash)
-        # Even if there are 0 subjects, the detection should work without errors
-        print(f"   ✅ Migration detection test PASSED")
-        print(f"   ℹ️  Detection works even in read-only mode")
-        return True
-        
-    except Exception as e:
-        print(f"   ❌ Migration detection test failed: {e}")
-        return False
-
 def test_schema_registry_connectivity():
     """Test basic Schema Registry connectivity and read-only status"""
     print("\n🧪 Testing Schema Registry connectivity and status...")
@@ -191,8 +149,7 @@ async def main():
     tests = [
         ("Schema Registry Connectivity", test_schema_registry_connectivity),
         ("URL Building", test_default_context_url_building),
-        ("Subject Listing", test_default_context_subject_listing),
-        ("Migration Detection", test_default_context_migration_detection)
+        ("Subject Listing", test_default_context_subject_listing)
     ]
     
     passed = 0
@@ -200,18 +157,11 @@ async def main():
     
     for test_name, test_func in tests:
         print(f"\n🧪 Running: {test_name}")
-        if test_name == "Migration Detection":
-            if await test_func():
-                passed += 1
-                print(f"   ✅ {test_name} PASSED")
-            else:
-                print(f"   ❌ {test_name} FAILED")
+        if test_func():
+            passed += 1
+            print(f"   ✅ {test_name} PASSED")
         else:
-            if test_func():
-                passed += 1
-                print(f"   ✅ {test_name} PASSED")
-            else:
-                print(f"   ❌ {test_name} FAILED")
+            print(f"   ❌ {test_name} FAILED")
     
     print(f"\n📊 Test Results: {passed}/{total} tests passed")
     
@@ -220,7 +170,6 @@ async def main():
         print(f"✅ Default context '.' functionality works correctly")
         print(f"✅ URL building handles context='.' properly") 
         print(f"✅ Subject listing works for default context")
-        print(f"✅ Migration detection works (even in read-only mode)")
         return True
     else:
         print(f"\n⚠️  {total - passed} tests failed")
