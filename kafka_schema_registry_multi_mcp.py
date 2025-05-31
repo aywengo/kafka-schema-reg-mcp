@@ -162,6 +162,7 @@ OPERATION_METADATA = {
     "list_migration_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_cleanup_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_task_progress": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_task_result": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_all_active_tasks": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     
     # Long-running operations using task queue
@@ -670,12 +671,8 @@ class RegistryManager:
             for name, client in self.registries.items():
                 try:
                     start_time = time.time()
-                    auth = None
-                    if client.config.user and client.config.password:
-                        auth = aiohttp.BasicAuth(client.config.user, client.config.password)
-                    
+                    # Don't pass auth parameter - Authorization header is already set in client.headers
                     async with session.get(f"{client.config.url}/subjects", 
-                                         auth=auth,
                                          headers=client.headers,
                                          timeout=10) as response:
                         response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
@@ -734,12 +731,8 @@ class RegistryManager:
     async def _get_subjects_async(self, session: aiohttp.ClientSession, client: RegistryClient) -> List[str]:
         """Get subjects from a registry asynchronously."""
         try:
-            auth = None
-            if client.config.user and client.config.password:
-                auth = aiohttp.BasicAuth(client.config.user, client.config.password)
-            
+            # Don't pass auth parameter - Authorization header is already set in client.headers
             async with session.get(f"{client.config.url}/subjects",
-                                 auth=auth,
                                  headers=client.headers) as response:
                 if response.status == 200:
                     return await response.json()
@@ -2397,13 +2390,9 @@ async def delete_subject(
         
         # Use aiohttp for async HTTP requests
         async with aiohttp.ClientSession() as session:
-            auth = None
-            if client.config.user and client.config.password:
-                auth = aiohttp.BasicAuth(client.config.user, client.config.password)
-            
+            # Don't pass auth parameter - Authorization header is already set in client.headers
             async with session.delete(
                 url,
-                auth=auth,
                 headers=client.headers
             ) as response:
                 response.raise_for_status()
@@ -2703,11 +2692,8 @@ async def _execute_migrate_schema(
                 mode_url = f"{target_client.config.url}/mode"
                 logger.info(f"Getting current mode from target registry")
                 async with aiohttp.ClientSession() as session:
-                    auth = None
-                    if target_client.config.user and target_client.config.password:
-                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
-                    
-                    async with session.get(mode_url, auth=auth, headers=target_client.standard_headers) as response:
+                    # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
+                    async with session.get(mode_url, headers=target_client.standard_headers) as response:
                         if response.status == 200:
                             mode_data = await response.json()
                             original_mode = mode_data.get("mode")
@@ -2727,14 +2713,10 @@ async def _execute_migrate_schema(
                 # Set IMPORT mode globally on the target registry
                 logger.info(f"Setting global IMPORT mode on target registry")
                 async with aiohttp.ClientSession() as session:
-                    auth = None
-                    if target_client.config.user and target_client.config.password:
-                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
-                    
+                    # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
                     async with session.put(
                         mode_url, 
                         json={"mode": "IMPORT"},
-                        auth=auth,
                         headers=target_client.standard_headers
                     ) as response:
                         if response.status == 405:
@@ -2788,14 +2770,10 @@ async def _execute_migrate_schema(
                     url = target_client.build_context_url(f"/subjects/{target_subject_name}/versions", target_context)
                     logger.info(f"Registering schema version {version} in target registry")
                     async with aiohttp.ClientSession() as session:
-                        auth = None
-                        if target_client.config.user and target_client.config.password:
-                            auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
-                        
+                        # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
                         async with session.post(
                             url,
                             json=payload,
-                            auth=auth,
                             headers=target_client.headers
                         ) as response:
                             if response.status == 200:
@@ -2827,14 +2805,10 @@ async def _execute_migrate_schema(
                 mode_url = f"{target_client.config.url}/mode"
                 logger.info(f"Restoring original mode: {original_mode}")
                 async with aiohttp.ClientSession() as session:
-                    auth = None
-                    if target_client.config.user and target_client.config.password:
-                        auth = aiohttp.BasicAuth(target_client.config.user, target_client.config.password)
-                    
+                    # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
                     async with session.put(
                         mode_url, 
                         json={"mode": original_mode},
-                        auth=auth,
                         headers=target_client.standard_headers
                     ) as response:
                         if response.status == 200:
@@ -3775,6 +3749,67 @@ echo "✅ Migration process completed. Check logs directory for details."
         
         return guide
         
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def get_task_result(task_id: str) -> Dict[str, Any]:
+    """
+    Get the complete result of a finished task.
+    
+    This function returns the full result data for completed tasks, including
+    all details that may not be included in the progress preview.
+    
+    Args:
+        task_id: Task ID to get results for
+    
+    Returns:
+        Complete task result data or error if task not found/not completed
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        if task.status == TaskStatus.COMPLETED:
+            if task.result:
+                return {
+                    "task_id": task_id,
+                    "operation": task.metadata.get("operation", "") if task.metadata else "",
+                    "status": "completed",
+                    "completed_at": task.completed_at,
+                    "result": task.result
+                }
+            else:
+                return {
+                    "task_id": task_id,
+                    "status": "completed",
+                    "completed_at": task.completed_at,
+                    "result": None,
+                    "message": "Task completed but no result data available"
+                }
+        elif task.status == TaskStatus.FAILED:
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "completed_at": task.completed_at,
+                "error": task.error or "Task failed without error message"
+            }
+        elif task.status == TaskStatus.CANCELLED:
+            return {
+                "task_id": task_id,
+                "status": "cancelled",
+                "completed_at": task.completed_at,
+                "message": "Task was cancelled"
+            }
+        else:
+            return {
+                "task_id": task_id,
+                "status": task.status.value,
+                "message": f"Task is still {task.status.value}. Use get_task_progress() to monitor.",
+                "progress_percent": round(task.progress, 1)
+            }
+            
     except Exception as e:
         return {"error": str(e)}
 
