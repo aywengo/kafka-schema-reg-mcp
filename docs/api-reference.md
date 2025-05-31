@@ -2,7 +2,7 @@
 
 This document provides a complete reference for the Kafka Schema Registry MCP Server v1.7.0 REST API, including comprehensive export capabilities.
 
-> **Note**: This document describes the REST API endpoints provided by `mcp_server.py`. For the MCP (Message Control Protocol) tools used with Claude Desktop, please refer to the [MCP Tools Reference](mcp-tools-reference.md).
+> **Note**: This document describes the REST API endpoints provided by the Kafka Schema Registry MCP Server. For the MCP (Message Control Protocol) tools used with Claude Desktop, please refer to the [MCP Tools Reference](mcp-tools-reference.md).
 
 ## Base URL
 

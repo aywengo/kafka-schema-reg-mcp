@@ -165,7 +165,7 @@ docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo
 #### Step 3: Test MCP Server
 ```bash
 # Test the server directly
-python tests/test_mcp_server.py
+python tests/advanced_mcp_test.py
 ```
 
 ### Configure Claude Desktop

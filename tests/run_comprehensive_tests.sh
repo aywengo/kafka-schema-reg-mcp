@@ -161,7 +161,7 @@ run_workflow_tests() {
     
     tests=(
         "integration:test_integration.py:Comprehensive single-registry integration tests"
-        "advanced_mcp:advanced_mcp_test.py:Advanced MCP server features testing"
+        "advanced_mcp:advanced_mcp_test.py:Advanced MCP functionality test"
         "docker_mcp:test_docker_mcp.py:Docker container integration testing"
     )
     
@@ -211,36 +211,8 @@ run_error_tests() {
     return $((total - passed))
 }
 
-# Function to run performance tests
-run_performance_tests() {
-    print_header "PERFORMANCE TESTS (SKIPPED - MULTI-REGISTRY ONLY)"
-    
-    print_color $YELLOW "⚠️  Performance tests are designed for multi-registry environments"
-    print_color $YELLOW "   Skipping performance tests in single-registry mode"
-    print_color $WHITE "Performance Tests: 0/0 passed (skipped)"
-    return 0
-}
 
-# Function to run production readiness tests
-run_production_tests() {
-    print_header "PRODUCTION TESTS (SKIPPED - MULTI-REGISTRY ONLY)"
-    
-    print_color $YELLOW "⚠️  Production readiness tests are designed for multi-registry environments"
-    print_color $YELLOW "   Skipping production tests in single-registry mode"
-    print_color $WHITE "Production Tests: 0/0 passed (skipped)"
-    return 0
-}
 
-# Function to run legacy integration tests
-run_legacy_tests() {
-    print_header "LEGACY TESTS (SKIPPED - INCOMPATIBLE)"
-    
-    print_color $YELLOW "⚠️  Legacy unit tests are incompatible with current MCP implementation"
-    print_color $YELLOW "   Original tests expected FastAPI REST API, but project uses MCP protocol"
-    print_color $YELLOW "   Skipping legacy tests in single-registry mode"
-    print_color $WHITE "Legacy Tests: 0/0 passed (skipped)"
-    return 0
-}
 
 # Function to generate test summary
 generate_summary() {
@@ -293,10 +265,6 @@ generate_summary() {
         echo "✅ Basic Single-Registry Configuration"
         echo "✅ Single-Registry Integration Tests"
         echo "✅ Single-Registry Validation"
-        echo "⚠️  Legacy Tests (Skipped - Incompatible with MCP)"
-        echo "⚠️  Multi-Registry Tests (Skipped)"
-        echo "⚠️  Performance Tests (Skipped)"
-        echo "⚠️  Production Tests (Skipped)"
         
         echo ""
         echo "FEATURES VALIDATED:"
@@ -328,9 +296,6 @@ show_usage() {
     echo "  --basic         Run only basic single-registry tests"
     echo "  --workflows     Run only single-registry integration tests"
     echo "  --errors        Run only validation tests"
-    echo "  --performance   Skip (multi-registry only)"
-    echo "  --production    Skip (multi-registry only)" 
-    echo "  --legacy        Skip (incompatible with MCP)"
     echo "  --all           Run all compatible single-registry test categories (default)"
     echo "  --help          Show this help message"
     echo ""

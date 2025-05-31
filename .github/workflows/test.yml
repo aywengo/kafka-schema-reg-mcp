@@ -121,6 +121,10 @@ jobs:
         run: |
           python tests/test_numbered_config.py
 
+      - name: Run advanced MCP test
+        run: |
+          python tests/advanced_mcp_test.py
+
   docker-test:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'docker-only' }}

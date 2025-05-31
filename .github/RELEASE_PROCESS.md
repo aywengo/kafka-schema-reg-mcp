@@ -204,3 +204,5 @@ Key documentation files for multi-registry features:
 - `MULTI_REGISTRY_IMPLEMENTATION.md` - Multi-registry architecture
 
 The workflows automatically update DockerHub descriptions from README.md. 
+
+python tests/advanced_mcp_test.py 
