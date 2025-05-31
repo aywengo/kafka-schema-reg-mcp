@@ -28,8 +28,7 @@ def validate_single_registry_tests():
         "test_integration.py",
         "advanced_mcp_test.py",
         "test_docker_mcp.py",
-        "test_simple_python.py",
-        "validate_single_mode_fix.py"
+        "test_simple_python.py"
     ]
     
     # Tests that are incompatible/skipped

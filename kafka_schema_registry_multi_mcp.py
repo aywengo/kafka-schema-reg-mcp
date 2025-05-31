@@ -147,9 +147,6 @@ OPERATION_METADATA = {
     "get_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "update_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     
-    # Context operations (quick)
-    "create_context": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    
     # Operation info (quick)
     "get_operation_info_tool": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     
@@ -466,20 +463,6 @@ class MigrationTask:
     error: Optional[str] = None
     results: Optional[Dict[str, Any]] = None
     dry_run: bool = False
-
-@dataclass
-class SyncTask:
-    """Represents a synchronization task."""
-    id: str
-    source_registry: str
-    target_registry: str
-    scope: str
-    direction: str
-    interval_seconds: int
-    status: str
-    created_at: str
-    last_sync: Optional[str] = None
-    next_sync: Optional[str] = None
 
 class RegistryClient:
     """Client for interacting with a single Schema Registry instance."""
@@ -888,7 +871,7 @@ async def compare_registries(
         return {"error": str(e)}
 
 @mcp.tool()
-async def compare_contexts_across_registries(
+def compare_contexts_across_registries(
     source_registry: str,
     target_registry: str,
     source_context: str,
@@ -924,16 +907,35 @@ async def compare_contexts_across_registries(
         )
         
         # Start async execution
-        asyncio.create_task(
-            task_manager.execute_task(
-                task,
-                _execute_compare_contexts,
-                source_registry=source_registry,
-                target_registry=target_registry,
-                source_context=source_context,
-                target_context=target_context
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(
+                task_manager.execute_task(
+                    task,
+                    _execute_compare_contexts,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                    source_context=source_context,
+                    target_context=target_context
+                )
             )
-        )
+        except RuntimeError:
+            # No running event loop, use thread pool to run the task
+            import threading
+            def run_task():
+                asyncio.run(
+                    task_manager.execute_task(
+                        task,
+                        _execute_compare_contexts,
+                        source_registry=source_registry,
+                        target_registry=target_registry,
+                        source_context=source_context,
+                        target_context=target_context
+                    )
+                )
+            thread = threading.Thread(target=run_task)
+            thread.start()
         
         return {
             "message": "Context comparison started as async task",
@@ -1056,7 +1058,7 @@ async def _execute_compare_contexts(
         return {"error": str(e)}
 
 @mcp.tool()
-async def compare_different_contexts(
+def compare_different_contexts(
     source_registry: str,
     source_context: str,
     target_registry: str,
@@ -1096,17 +1098,37 @@ async def compare_different_contexts(
         )
         
         # Start async execution
-        asyncio.create_task(
-            task_manager.execute_task(
-                task,
-                _execute_compare_different_contexts,
-                source_registry=source_registry,
-                source_context=source_context,
-                target_registry=target_registry,
-                target_context=target_context,
-                include_schema_analysis=include_schema_analysis
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(
+                task_manager.execute_task(
+                    task,
+                    _execute_compare_different_contexts,
+                    source_registry=source_registry,
+                    source_context=source_context,
+                    target_registry=target_registry,
+                    target_context=target_context,
+                    include_schema_analysis=include_schema_analysis
+                )
             )
-        )
+        except RuntimeError:
+            # No running event loop, use thread pool to run the task
+            import threading
+            def run_task():
+                asyncio.run(
+                    task_manager.execute_task(
+                        task,
+                        _execute_compare_different_contexts,
+                        source_registry=source_registry,
+                        source_context=source_context,
+                        target_registry=target_registry,
+                        target_context=target_context,
+                        include_schema_analysis=include_schema_analysis
+                    )
+                )
+            thread = threading.Thread(target=run_task)
+            thread.start()
         
         return {
             "message": f"Comparing '{source_context}' in {source_registry} vs '{target_context}' in {target_registry}",
@@ -2401,74 +2423,7 @@ async def delete_subject(
         return {"error": str(e)}
 
 @mcp.tool()
-def create_context(
-    context: str,
-    registry: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Create a new schema context.
-    
-    Args:
-        context: The context name to create
-        registry: Optional registry name (uses default if not specified)
-    
-    Returns:
-        Dictionary containing creation result
-    """
-    # Check readonly mode
-    readonly_check = check_readonly_mode(registry)
-    if readonly_check:
-        return readonly_check
-    
-    try:
-        client = registry_manager.get_registry(registry)
-        if client is None:
-            return {"error": f"Registry '{registry}' not found"}
-        
-        # Create context by registering a dummy schema in that context
-        # This is a common pattern to create contexts in Schema Registry
-        dummy_schema = {
-            "type": "record",
-            "name": "DummySchema",
-            "fields": [
-                {"name": "dummy", "type": "string"}
-            ]
-        }
-        
-        # Register schema in the new context
-        url = client.build_context_url("/subjects/dummy-schema/versions", context)
-        
-        response = requests.post(
-            url,
-            json={
-                "schema": json.dumps(dummy_schema),
-                "schemaType": "AVRO"
-            },
-            auth=client.auth,
-            headers=client.headers
-        )
-        
-        if response.status_code == 200:
-            # Now delete the dummy schema
-            delete_url = client.build_context_url("/subjects/dummy-schema", context)
-            requests.delete(
-                delete_url,
-                auth=client.auth,
-                headers=client.headers
-            )
-            
-            return {
-                "message": f"Context '{context}' created successfully",
-                "registry": client.config.name
-            }
-        else:
-            return {"error": f"Failed to create context: {response.text}"}
-            
-    except Exception as e:
-        return {"error": str(e)}
-
-@mcp.tool()
-async def migrate_schema(
+def migrate_schema(
     subject: str,
     source_registry: str,
     target_registry: str,
@@ -2516,20 +2471,43 @@ async def migrate_schema(
         )
         
         # Start async execution
-        asyncio.create_task(
-            task_manager.execute_task(
-                task,
-                _execute_migrate_schema,
-                subject=subject,
-                source_registry=source_registry,
-                target_registry=target_registry,
-                dry_run=dry_run,
-                preserve_ids=preserve_ids,
-                source_context=source_context,
-                target_context=target_context,
-                versions=versions
+        try:
+            # Check if there's a running event loop
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(
+                task_manager.execute_task(
+                    task,
+                    _execute_migrate_schema,
+                    subject=subject,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                    dry_run=dry_run,
+                    preserve_ids=preserve_ids,
+                    source_context=source_context,
+                    target_context=target_context,
+                    versions=versions
+                )
             )
-        )
+        except RuntimeError:
+            # No running event loop, use thread pool to run the task
+            import threading
+            def run_task():
+                asyncio.run(
+                    task_manager.execute_task(
+                        task,
+                        _execute_migrate_schema,
+                        subject=subject,
+                        source_registry=source_registry,
+                        target_registry=target_registry,
+                        dry_run=dry_run,
+                        preserve_ids=preserve_ids,
+                        source_context=source_context,
+                        target_context=target_context,
+                        versions=versions
+                    )
+                )
+            thread = threading.Thread(target=run_task)
+            thread.start()
         
         return {
             "message": "Schema migration started as async task",
@@ -2597,11 +2575,7 @@ async def _execute_migrate_schema(
                     "target_registry": target_registry
                 }
         
-        update_progress(15.0, "Target registry verified as writable")
-        
-        # Handle subject names with context prefixes
-        # The subject parameter may already include a context prefix (e.g., :.context:subject)
-        # We need to handle this correctly for both source and target operations
+        update_progress(11.0, "Target registry verified as writable")
         
         # For source operations, use the subject as-is
         source_subject = subject
@@ -2629,13 +2603,13 @@ async def _execute_migrate_schema(
             logger.error(f"Subject {source_subject} not found in source registry")
             return {"error": f"Subject {source_subject} not found in source registry"}
         
-        update_progress(20.0, f"Found {len(versions_result)} versions in source")
+        update_progress(12.0, f"Found {len(versions_result)} versions in source")
         
         # If specific versions are provided, use those; otherwise use all versions
         versions_to_migrate = versions if versions is not None else sorted(versions_result)
         logger.info(f"Versions to migrate: {versions_to_migrate}")
         
-        update_progress(25.0, f"Will migrate {len(versions_to_migrate)} versions")
+        update_progress(15.0, f"Will migrate {len(versions_to_migrate)} versions")
         
         # Check if target context exists
         target_context_exists = False
@@ -2653,7 +2627,7 @@ async def _execute_migrate_schema(
             # If we can't check contexts, assume it doesn't exist
             target_context_exists = False
         
-        update_progress(30.0, "Checking target context and subject status")
+        update_progress(17.0, "Checking target context and subject status")
         
         # Only check subject existence if context exists
         target_subject_exists = False
@@ -2672,50 +2646,33 @@ async def _execute_migrate_schema(
                         logger.warning(f"Subject {target_subject_name} already exists in target registry. Will delete before migration.")
             except Exception as e:
                 logger.debug(f"Error checking target subject existence: {e}")
-        else:
-            # Target context does not exist, create it before setting IMPORT mode
-            logger.info(f"Target context {target_context} does not exist in target registry, creating it before migration")
-            create_context_result = create_context(target_context, registry=target_registry)
-            if isinstance(create_context_result, dict) and create_context_result.get("error"):
-                logger.error(f"Failed to create target context {target_context}: {create_context_result['error']}")
-                return {"error": f"Failed to create target context {target_context}: {create_context_result['error']}"}
-            target_context_exists = True
-            target_subject_exists = False
         
-        update_progress(40.0, "Preparing target registry for migration")
+        update_progress(18.0, "Preparing target registry for migration")
         
         # Store original mode for restoration
         original_mode = None
         if preserve_ids:
             try:
-                # Get current global mode of target registry
-                mode_url = f"{target_client.config.url}/mode"
-                logger.info(f"Getting current mode from target registry")
-                async with aiohttp.ClientSession() as session:
-                    # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
-                    async with session.get(mode_url, headers=target_client.standard_headers) as response:
-                        if response.status == 200:
-                            mode_data = await response.json()
-                            original_mode = mode_data.get("mode")
-                            logger.info(f"Current registry mode: {original_mode}")
-                        else:
-                            logger.warning(f"Could not get current mode: {response.status}")
-                
                 # If subject exists in target, we need to delete it first
                 if target_subject_exists:
                     logger.info(f"Deleting existing subject {target_subject_name} from target registry before migration")
                     await delete_subject(target_subject_name, context=target_context, registry=target_registry)
                     # After deletion, subject no longer exists
                     target_subject_exists = False
-                
-                update_progress(45.0, "Setting IMPORT mode for ID preservation")
-                
-                # Set IMPORT mode globally on the target registry
-                logger.info(f"Setting global IMPORT mode on target registry")
+
+                # Now set IMPORT mode on the target subject in target context
+                if target_context == ".":
+                    subject_mode_url = f"{target_client.config.url}/mode/{target_subject_name}"
+                    logger.info(f"Setting IMPORT mode on target subject {target_subject_name} in default context")
+                else:
+                    subject_mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
+                    logger.info(f"Setting IMPORT mode on target subject {target_subject_name} in context {target_context}")
+                    
+                logger.info(f"Setting IMPORT mode on target subject {target_context}/{target_subject_name} in target registry.")
                 async with aiohttp.ClientSession() as session:
                     # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
                     async with session.put(
-                        mode_url, 
+                        subject_mode_url, 
                         json={"mode": "IMPORT"},
                         headers=target_client.standard_headers
                     ) as response:
@@ -2723,15 +2680,16 @@ async def _execute_migrate_schema(
                             logger.warning("IMPORT mode not supported by target registry, will proceed without ID preservation")
                             preserve_ids = False
                         elif response.status != 200:
-                            logger.warning(f"Failed to set IMPORT mode: {response.status} - {await response.text()}")
+                            logger.warning(f"Failed to set IMPORT mode on subject: {response.status} - {await response.text()}")
                             preserve_ids = False
                         else:
-                            logger.info("Successfully set global IMPORT mode")
+                            logger.info("Successfully set IMPORT mode on target subject")
+                
             except Exception as e:
                 logger.warning(f"Error setting IMPORT mode: {e}")
                 preserve_ids = False
         
-        update_progress(50.0, f"Starting migration of {len(versions_to_migrate)} versions")
+        update_progress(20.0, f"Starting migration of {len(versions_to_migrate)} versions")
         
         # Migrate each version
         migrated_versions = []
@@ -2797,24 +2755,45 @@ async def _execute_migrate_schema(
                 logger.error(f"Error migrating version {version}: {e}")
                 continue
         
-        update_progress(90.0, "Restoring registry mode")
-        
         # Restore original mode if we changed it
         if preserve_ids and original_mode:
+            update_progress(95.0, "Restoring subject mode")
             try:
-                mode_url = f"{target_client.config.url}/mode"
-                logger.info(f"Restoring original mode: {original_mode}")
+                # First restore mode on the target subject
+                # Construct the correct mode URL based on whether we're using default context or not
+                if target_context == ".":
+                    subject_mode_url = f"{target_client.config.url}/mode/{target_subject_name}"
+                    logger.info(f"Restoring original mode for subject {target_subject_name} in default context")
+                else:
+                    subject_mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
+                    logger.info(f"Restoring original mode for subject {target_subject_name} in context {target_context}")
+                
                 async with aiohttp.ClientSession() as session:
                     # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
                     async with session.put(
-                        mode_url, 
+                        subject_mode_url,
                         json={"mode": original_mode},
                         headers=target_client.standard_headers
                     ) as response:
                         if response.status == 200:
-                            logger.info(f"Restored original mode: {original_mode}")
+                            logger.info(f"Restored original subject mode: {original_mode}")
                         else:
-                            logger.warning(f"Failed to restore original mode: {response.status}")
+                            logger.warning(f"Failed to restore original subject mode: {response.status}")
+                
+                # Then restore mode on the target context
+                context_mode_url = f"{target_client.config.url}/mode"
+                logger.info(f"Restoring original context mode: {original_mode}")
+                async with aiohttp.ClientSession() as session:
+                    # Don't pass auth parameter - Authorization header is already set in target_client.standard_headers
+                    async with session.put(
+                        context_mode_url,
+                        json={"mode": original_mode},
+                        headers=target_client.standard_headers
+                    ) as response:
+                        if response.status == 200:
+                            logger.info(f"Restored original context mode: {original_mode}")
+                        else:
+                            logger.warning(f"Failed to restore original context mode: {response.status}")
             except Exception as e:
                 logger.warning(f"Error restoring original mode: {e}")
         
@@ -2839,6 +2818,7 @@ async def _execute_migrate_schema(
         }
         
         update_progress(100.0, f"Schema migration completed - {len(migrated_versions)} versions migrated")
+        
         return result
         
     except Exception as e:

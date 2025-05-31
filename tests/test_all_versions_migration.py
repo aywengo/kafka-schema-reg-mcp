@@ -130,7 +130,7 @@ class AllVersionsMigrationTest:
         print(f"✓ Found {len(versions)} versions to migrate: {versions}")
         
         # Migrate the schema with all versions
-        result = await mcp_server.migrate_schema(
+        result = mcp_server.migrate_schema(
             subject=subject,
             source_registry="dev",
             target_registry="prod",
