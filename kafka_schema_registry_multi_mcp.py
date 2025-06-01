@@ -2719,10 +2719,13 @@ async def _execute_migrate_schema(
                         "schemaType": schema_data.get("schemaType", "AVRO")
                     }
                     
-                    # Add ID if preserving IDs
+                    # Add ID and version if preserving IDs (to maintain sparse version numbers)
                     if preserve_ids and schema_data.get("id"):
                         payload["id"] = schema_data.get("id")
-                        logger.info(f"Preserving schema ID {schema_data.get('id')} for version {version}")
+                        payload["version"] = version  # CRITICAL: Include version to preserve sparse numbering
+                        logger.info(f"Preserving schema ID {schema_data.get('id')} and version {version}")
+                    else:
+                        logger.info(f"Not preserving IDs - version {version} will be auto-assigned sequential number in target")
                     
                     # Register schema
                     url = target_client.build_context_url(f"/subjects/{target_subject_name}/versions", target_context)
@@ -2736,9 +2739,11 @@ async def _execute_migrate_schema(
                         ) as response:
                             if response.status == 200:
                                 result = await response.json()
-                                logger.info(f"Successfully registered version {version} with ID {result.get('id')}")
+                                # When preserving IDs, the result should maintain the original version
+                                actual_version = result.get("version", version)
+                                logger.info(f"Successfully registered version {actual_version} with ID {result.get('id')}")
                                 migrated_versions.append({
-                                    "version": version,
+                                    "version": actual_version,
                                     "id": result.get("id"),
                                     "schema": schema_data.get("schema")
                                 })

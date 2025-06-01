@@ -200,6 +200,8 @@ run_migration_tests() {
         "compatibility_check:test_compatibility_migration.py:Compatibility validation during migration"
         "bulk_migration:test_bulk_migration.py:Bulk schema migration across registries"
         "version_migration:test_version_migration.py:Specific version migration"
+        "sparse_version_migration:test_sparse_version_migration.py:Sparse version migration preserving original version numbers"
+        "all_versions_migration:test_all_versions_migration.py:Complete schema evolution history preservation"
         "subject_migration:test_subject_migration.py:Subject-level migration with evolution"
     )
     
