@@ -199,7 +199,7 @@ async def test_multi_registry_batch_cleanup():
         import kafka_schema_registry_multi_mcp as multi_mcp
         
         # Reinitialize registry manager with test config
-        multi_mcp.registry_manager._load_registries()
+        multi_mcp.registry_manager._load_multi_registries()
         
         # Test single context cleanup in specific registry
         print(f"🔍 Testing context cleanup in DEV registry...")

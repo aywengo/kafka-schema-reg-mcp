@@ -25,25 +25,38 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, Any, Tuple
 import asyncio
 import logging
-from dataclasses import dataclass, asdict
 from urllib.parse import urlparse
 import uuid
 
 import requests
-from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
-import base64
 
 from mcp.server.fastmcp import FastMCP
 
 # Load environment variables
 load_dotenv()
 
-# Configuration
-SCHEMA_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081")
-SCHEMA_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
-SCHEMA_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
-READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+# Import common library functionality
+from schema_registry_common import (
+    RegistryConfig,
+    RegistryClient,
+    MigrationTask,
+    LegacyRegistryManager,
+    check_readonly_mode,
+    build_context_url,
+    get_default_client,
+    format_schema_as_avro_idl,
+    get_schema_with_metadata,
+    export_schema as common_export_schema,
+    export_subject as common_export_subject,
+    export_context as common_export_context,
+    export_global as common_export_global,
+    clear_context_batch as common_clear_context_batch,
+    SINGLE_REGISTRY_URL as SCHEMA_REGISTRY_URL,
+    SINGLE_REGISTRY_USER as SCHEMA_REGISTRY_USER,
+    SINGLE_REGISTRY_PASSWORD as SCHEMA_REGISTRY_PASSWORD,
+    SINGLE_READONLY as READONLY
+)
 
 # Multi-registry configuration
 REGISTRIES_CONFIG = os.getenv("REGISTRIES_CONFIG", "")
@@ -57,153 +70,8 @@ from oauth_provider import (
 mcp_config = get_fastmcp_config("Kafka Schema Registry MCP Server")
 mcp = FastMCP(**mcp_config)
 
-@dataclass
-class RegistryConfig:
-    """Configuration for a Schema Registry instance."""
-    name: str
-    url: str
-    user: str = ""
-    password: str = ""
-    description: str = ""
-    
-    def to_dict(self) -> Dict[str, str]:
-        return asdict(self)
-
-@dataclass
-class MigrationTask:
-    """Represents a migration task."""
-    id: str
-    source_registry: str
-    target_registry: str
-    scope: str
-    status: str
-    created_at: str
-    completed_at: Optional[str] = None
-    error: Optional[str] = None
-    results: Optional[Dict[str, Any]] = None
-
-class RegistryClient:
-    """Client for interacting with a single Schema Registry instance."""
-    
-    def __init__(self, config: RegistryConfig):
-        self.config = config
-        self.auth = None
-        self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-        self.standard_headers = {"Content-Type": "application/json"}
-        
-        if config.user and config.password:
-            self.auth = HTTPBasicAuth(config.user, config.password)
-            credentials = base64.b64encode(f"{config.user}:{config.password}".encode()).decode()
-            self.headers["Authorization"] = f"Basic {credentials}"
-            self.standard_headers["Authorization"] = f"Basic {credentials}"
-    
-    def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
-        """Build URL with optional context support."""
-        # Handle default context "." as no context
-        if context and context != ".":
-            return f"{self.config.url}/contexts/{context}{base_url}"
-        return f"{self.config.url}{base_url}"
-    
-    def test_connection(self) -> Dict[str, Any]:
-        """Test connection to this registry."""
-        try:
-            response = requests.get(f"{self.config.url}/subjects", 
-                                  auth=self.auth, headers=self.headers, timeout=10)
-            if response.status_code == 200:
-                return {
-                    "status": "connected",
-                    "registry": self.config.name,
-                    "url": self.config.url,
-                    "response_time_ms": response.elapsed.total_seconds() * 1000
-                }
-            else:
-                return {
-                    "status": "error",
-                    "registry": self.config.name,
-                    "error": f"HTTP {response.status_code}: {response.text}"
-                }
-        except Exception as e:
-            return {
-                "status": "error",
-                "registry": self.config.name,
-                "error": str(e)
-            }
-
-class RegistryManager:
-    """Manages multiple Schema Registry instances."""
-    
-    def __init__(self):
-        self.registries: Dict[str, RegistryClient] = {}
-        self.default_registry: Optional[str] = None
-        self.migration_tasks: Dict[str, MigrationTask] = {}
-        self._load_registries()
-    
-    def _load_registries(self):
-        """Load registry configurations from environment variables."""
-        # Single registry support (backward compatibility)
-        if SCHEMA_REGISTRY_URL:
-            default_config = RegistryConfig(
-                name="default",
-                url=SCHEMA_REGISTRY_URL,
-                user=SCHEMA_REGISTRY_USER,
-                password=SCHEMA_REGISTRY_PASSWORD,
-                description="Default Schema Registry"
-            )
-            self.registries["default"] = RegistryClient(default_config)
-            self.default_registry = "default"
-        
-        # Multi-registry support
-        if REGISTRIES_CONFIG:
-            try:
-                registries_data = json.loads(REGISTRIES_CONFIG)
-                for name, config_data in registries_data.items():
-                    config = RegistryConfig(
-                        name=name,
-                        url=config_data["url"],
-                        user=config_data.get("user", ""),
-                        password=config_data.get("password", ""),
-                        description=config_data.get("description", f"{name} registry")
-                    )
-                    self.registries[name] = RegistryClient(config)
-                    
-                    # Set first registry as default if no default exists
-                    if self.default_registry is None:
-                        self.default_registry = name
-                        
-            except json.JSONDecodeError as e:
-                logging.error(f"Failed to parse REGISTRIES_CONFIG: {e}")
-    
-    def get_registry(self, name: Optional[str] = None) -> Optional[RegistryClient]:
-        """Get a registry client by name, or default if name is None."""
-        if name is None:
-            name = self.default_registry
-        return self.registries.get(name)
-    
-    def list_registries(self) -> List[str]:
-        """List all configured registry names."""
-        return list(self.registries.keys())
-    
-    def get_registry_info(self, name: str) -> Optional[Dict[str, Any]]:
-        """Get detailed information about a registry."""
-        if name not in self.registries:
-            return None
-        
-        client = self.registries[name]
-        info = client.config.to_dict()
-        info["is_default"] = name == self.default_registry
-        
-        # Test connection
-        connection_test = client.test_connection()
-        info["connection_status"] = connection_test["status"]
-        if "response_time_ms" in connection_test:
-            info["response_time_ms"] = connection_test["response_time_ms"]
-        if "error" in connection_test:
-            info["connection_error"] = connection_test["error"]
-            
-        return info
-
-# Initialize registry manager
-registry_manager = RegistryManager()
+# Initialize registry manager using the common library
+registry_manager = LegacyRegistryManager(REGISTRIES_CONFIG)
 
 # Set up global variables for backward compatibility
 auth = None
@@ -425,7 +293,7 @@ def migrate_schema(
     """
     # Check readonly mode for actual migrations
     if not dry_run:
-        readonly_check = check_readonly_mode()
+        readonly_check = check_readonly_mode(registry_manager)
         if readonly_check:
             return readonly_check
     
@@ -735,7 +603,7 @@ def register_schema(
         Dictionary containing the schema ID
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -902,7 +770,7 @@ def create_context(context: str) -> Dict[str, str]:
         Success message
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -929,7 +797,7 @@ def delete_context(context: str) -> Dict[str, str]:
         Success message
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -988,7 +856,7 @@ def delete_subject(
         List of deleted version numbers
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -1048,7 +916,7 @@ def update_global_config(
         Updated configuration
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -1113,7 +981,7 @@ def update_subject_config(
         Updated configuration
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -1174,7 +1042,7 @@ def update_mode(
         Updated mode information
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -1239,7 +1107,7 @@ def update_subject_mode(
         Updated mode information
     """
     # Check readonly mode
-    readonly_check = check_readonly_mode()
+    readonly_check = check_readonly_mode(registry_manager)
     if readonly_check:
         return readonly_check
     
@@ -1281,7 +1149,7 @@ def clear_context_batch(
     """
     # Check readonly mode for actual deletions
     if not dry_run:
-        readonly_check = check_readonly_mode()
+        readonly_check = check_readonly_mode(registry_manager)
         if readonly_check:
             return readonly_check
     
@@ -1461,7 +1329,7 @@ def clear_multiple_contexts_batch(
     """
     # Check readonly mode for actual deletions
     if not dry_run:
-        readonly_check = check_readonly_mode()
+        readonly_check = check_readonly_mode(registry_manager)
         if readonly_check:
             return readonly_check
     
@@ -1547,91 +1415,9 @@ def clear_multiple_contexts_batch(
 
 # ===== EXPORT FUNCTIONALITY =====
 
-def format_schema_as_avro_idl(schema_str: str, subject: str) -> str:
-    """Convert Avro JSON schema to Avro IDL format."""
-    try:
-        schema_obj = json.loads(schema_str)
-        
-        def format_field(field):
-            field_type = field["type"]
-            field_name = field["name"]
-            default = field.get("default", None)
-            doc = field.get("doc", "")
-            
-            if isinstance(field_type, list) and "null" in field_type:
-                # Union type with null (optional field)
-                non_null_types = [t for t in field_type if t != "null"]
-                if len(non_null_types) == 1:
-                    field_type_str = f"{non_null_types[0]}?"
-                else:
-                    field_type_str = f"union {{ {', '.join(field_type)} }}"
-            elif isinstance(field_type, dict):
-                # Complex type
-                if field_type.get("type") == "array":
-                    field_type_str = f"array<{field_type['items']}>"
-                elif field_type.get("type") == "map":
-                    field_type_str = f"map<{field_type['values']}>"
-                else:
-                    field_type_str = str(field_type)
-            else:
-                field_type_str = str(field_type)
-            
-            field_line = f"  {field_type_str} {field_name}"
-            if default is not None:
-                field_line += f" = {json.dumps(default)}"
-            field_line += ";"
-            
-            if doc:
-                field_line = f"  /** {doc} */\n{field_line}"
-            
-            return field_line
-        
-        if schema_obj.get("type") == "record":
-            record_name = schema_obj.get("name", subject)
-            namespace = schema_obj.get("namespace", "")
-            doc = schema_obj.get("doc", "")
-            
-            idl_lines = []
-            
-            if namespace:
-                idl_lines.append(f"@namespace(\"{namespace}\")")
-            
-            if doc:
-                idl_lines.append(f"/** {doc} */")
-            
-            idl_lines.append(f"record {record_name} {{")
-            
-            fields = schema_obj.get("fields", [])
-            for field in fields:
-                idl_lines.append(format_field(field))
-            
-            idl_lines.append("}")
-            
-            return "\n".join(idl_lines)
-        else:
-            return f"// Non-record schema for {subject}\n{json.dumps(schema_obj, indent=2)}"
-    
-    except Exception as e:
-        return f"// Error converting schema to IDL: {str(e)}\n{schema_str}"
+# format_schema_as_avro_idl moved to schema_registry_common
 
-def get_schema_with_metadata(subject: str, version: str, context: Optional[str] = None) -> Dict[str, Any]:
-    """Get schema with additional metadata."""
-    try:
-        schema_data = get_schema(subject, version, context)
-        if "error" in schema_data:
-            return schema_data
-            
-        # Add export metadata
-        schema_data["metadata"] = {
-            "exported_at": datetime.now().isoformat(),
-            "registry_url": SCHEMA_REGISTRY_URL,
-            "context": context,
-            "export_version": "1.7.0"
-        }
-        
-        return schema_data
-    except Exception as e:
-        return {"error": str(e)}
+# get_schema_with_metadata moved to schema_registry_common
 
 @mcp.tool()
 def export_schema(
@@ -1653,15 +1439,10 @@ def export_schema(
         Exported schema data
     """
     try:
-        schema_data = get_schema_with_metadata(subject, version, context)
-        if "error" in schema_data:
-            return schema_data
-        
-        if format == "avro_idl":
-            schema_str = schema_data.get("schema", "")
-            return format_schema_as_avro_idl(schema_str, subject)
-        else:
-            return schema_data
+        client = get_default_client(registry_manager)
+        if client is None:
+            return {"error": "No default registry configured"}
+        return common_export_schema(client, subject, version, context, format)
     except Exception as e:
         return {"error": str(e)}
 

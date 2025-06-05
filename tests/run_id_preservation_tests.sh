@@ -125,7 +125,7 @@ os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
 os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
 
 # Reinitialize registry manager
-mcp_server.registry_manager._load_registries()
+mcp_server.registry_manager._load_multi_registries()
 
 def test_mode_management():
     """Test that we can get and set registry modes"""

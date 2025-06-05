@@ -325,7 +325,7 @@ main() {
     
     echo ""
     info "🚀 Running Multi-Registry Test Suite"
-    info "Total test categories: 11 (core functionality)"
+    info "Total test categories: 12 (core functionality + OAuth)"
     echo ""
     
     # 1. Multi-Registry Configuration Tests
@@ -443,6 +443,16 @@ main() {
         warning "⚠️  Counting tools tests not found"
     fi
     
+    # 12. OAuth Configuration Tests
+    if [ -f "tests/test_oauth.py" ]; then
+        run_python_test \
+            "OAuth Configuration" \
+            "tests/test_oauth.py" \
+            "OAuth scope definitions, token handling, and permission validation"
+    else
+        warning "⚠️  OAuth configuration tests not found"
+    fi
+    
     # Test Summary
     generate_test_summary
 }
@@ -484,6 +494,7 @@ generate_test_summary() {
             success "✅ Error handling is robust and informative"
             success "✅ Performance meets expectations"
             success "✅ Schema counting and statistics tools work correctly"
+            success "✅ OAuth configuration and permissions work correctly"
             echo ""
             echo -e "${CYAN}${BOLD}VALIDATED FEATURES:${NC}"
             echo "  • Multi-Registry Environment Configuration"
@@ -497,6 +508,7 @@ generate_test_summary() {
             echo "  • Performance and Load Scenarios"
             echo "  • Robust Connectivity Monitoring"
             echo "  • Schema Counting and Statistics Tools"
+            echo "  • OAuth Configuration and Permissions"
             echo ""
             success "🚀 Multi-registry environment is production-ready!"
             echo ""

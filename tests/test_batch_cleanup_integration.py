@@ -50,7 +50,7 @@ class TestBatchCleanupIntegration:
         os.environ["SCHEMA_REGISTRY_URL_2"] = cls.prod_url
         
         # Reinitialize registry manager
-        multi_mcp.registry_manager._load_registries()
+        multi_mcp.registry_manager._load_multi_registries()
     
     @classmethod
     def teardown_class(cls):

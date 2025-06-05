@@ -65,7 +65,7 @@ class MultiRegistryValidationTest:
                     del os.environ[var]
         
         # Reinitialize registry manager with multi-registry config
-        mcp_server.registry_manager._load_registries()
+        mcp_server.registry_manager._load_multi_registries()
     
     def test_registry_connectivity(self) -> bool:
         """Test that both registries are reachable"""

@@ -97,6 +97,28 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Import common library functionality
+from schema_registry_common import (
+    RegistryConfig,
+    RegistryClient,
+    MigrationTask,
+    MultiRegistryManager,
+    check_readonly_mode,
+    build_context_url,
+    get_default_client,
+    format_schema_as_avro_idl,
+    get_schema_with_metadata,
+    export_schema as common_export_schema,
+    export_subject as common_export_subject,
+    export_context as common_export_context,
+    export_global as common_export_global,
+    clear_context_batch as common_clear_context_batch,
+    SINGLE_REGISTRY_URL,
+    SINGLE_REGISTRY_USER,
+    SINGLE_REGISTRY_PASSWORD,
+    SINGLE_READONLY
+)
+
 # Task status enum
 class TaskStatus(Enum):
     PENDING = "pending"
@@ -446,337 +468,16 @@ READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
 # Multi-registry configuration - supports up to 8 instances
 MAX_REGISTRIES = 8
 
-@dataclass
-class RegistryConfig:
-    """Configuration for a Schema Registry instance."""
-    name: str
-    url: str
-    user: str = ""
-    password: str = ""
-    description: str = ""
-    readonly: bool = False
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+# RegistryConfig moved to schema_registry_common
 
-@dataclass
-class MigrationTask:
-    """Represents a migration task."""
-    id: str
-    source_registry: str
-    target_registry: str
-    scope: str
-    status: str
-    created_at: str
-    completed_at: Optional[str] = None
-    error: Optional[str] = None
-    results: Optional[Dict[str, Any]] = None
-    dry_run: bool = False
+# MigrationTask moved to schema_registry_common
 
-class RegistryClient:
-    """Client for interacting with a single Schema Registry instance."""
-    
-    def __init__(self, config: RegistryConfig):
-        self.config = config
-        self.auth = None
-        self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-        self.standard_headers = {"Content-Type": "application/json"}
-        
-        if config.user and config.password:
-            self.auth = HTTPBasicAuth(config.user, config.password)
-            credentials = base64.b64encode(f"{config.user}:{config.password}".encode()).decode()
-            self.headers["Authorization"] = f"Basic {credentials}"
-            self.standard_headers["Authorization"] = f"Basic {credentials}"
-    
-    def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
-        """Build URL with optional context support."""
-        # Handle default context "." as no context
-        if context and context != ".":
-            return f"{self.config.url}/contexts/{context}{base_url}"
-        return f"{self.config.url}{base_url}"
-    
-    def test_connection(self) -> Dict[str, Any]:
-        """Test connection to this registry."""
-        try:
-            response = requests.get(f"{self.config.url}/subjects", 
-                                  auth=self.auth, headers=self.headers, timeout=10)
-            if response.status_code == 200:
-                return {
-                    "status": "connected",
-                    "registry": self.config.name,
-                    "url": self.config.url,
-                    "response_time_ms": response.elapsed.total_seconds() * 1000
-                }
-            else:
-                return {
-                    "status": "error",
-                    "registry": self.config.name,
-                    "error": f"HTTP {response.status_code}: {response.text}"
-                }
-        except Exception as e:
-            return {
-                "status": "error",
-                "registry": self.config.name,
-                "error": str(e)
-            }
-    
-    def get_subjects(self, context: Optional[str] = None) -> List[str]:
-        """Get subjects from this registry."""
-        try:
-            url = self.build_context_url("/subjects", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception:
-            return []
-    
-    def get_contexts(self) -> List[str]:
-        """Get contexts from this registry."""
-        try:
-            response = requests.get(f"{self.config.url}/contexts", 
-                                  auth=self.auth, headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception:
-            return []
+# RegistryClient moved to schema_registry_common
 
-    def delete_subject(self, subject: str, context: Optional[str] = None) -> bool:
-        """Delete a subject and all its versions.
-        
-        Args:
-            subject: The subject name to delete
-            context: Optional schema context
-            
-        Returns:
-            True if deletion was successful, False otherwise
-        """
-        try:
-            url = self.build_context_url(f"/subjects/{subject}", context)
-            response = requests.delete(
-                url,
-                auth=self.auth,
-                headers=self.headers
-            )
-            response.raise_for_status()
-            return True
-        except Exception as e:
-            logger.error(f"Failed to delete subject '{subject}': {str(e)}")
-            return False
+# Initialize registry manager using the common library
+registry_manager = MultiRegistryManager()
 
-class RegistryManager:
-    """Manages multiple Schema Registry instances."""
-    
-    def __init__(self):
-        self.registries: Dict[str, RegistryClient] = {}
-        self.default_registry: Optional[str] = None
-        self._load_registries()
-    
-    def _load_registries(self):
-        """Load registry configurations from environment variables."""
-        # Check for multi-registry mode first (numbered environment variables)
-        multi_registry_found = False
-        
-        for i in range(1, MAX_REGISTRIES + 1):
-            name_var = f"SCHEMA_REGISTRY_NAME_{i}"
-            url_var = f"SCHEMA_REGISTRY_URL_{i}"
-            user_var = f"SCHEMA_REGISTRY_USER_{i}"
-            password_var = f"SCHEMA_REGISTRY_PASSWORD_{i}"
-            readonly_var = f"READONLY_{i}"
-            
-            name = os.getenv(name_var, "")
-            url = os.getenv(url_var, "")
-            
-            if name and url:
-                multi_registry_found = True
-                
-                user = os.getenv(user_var, "")
-                password = os.getenv(password_var, "")
-                readonly = os.getenv(readonly_var, "false").lower() in ("true", "1", "yes", "on")
-                
-                config = RegistryConfig(
-                    name=name,
-                    url=url,
-                    user=user,
-                    password=password,
-                    description=f"{name} Schema Registry (instance {i})",
-                    readonly=readonly
-                )
-                
-                self.registries[name] = RegistryClient(config)
-                
-                # Set first registry as default
-                if self.default_registry is None:
-                    self.default_registry = name
-                
-                logging.info(f"Loaded registry {i}: {name} at {url} (readonly: {readonly})")
-        
-        # Single registry mode (backward compatibility) - only if no multi-registry found
-        if not multi_registry_found and SCHEMA_REGISTRY_URL:
-            default_config = RegistryConfig(
-                name="default",
-                url=SCHEMA_REGISTRY_URL,
-                user=SCHEMA_REGISTRY_USER,
-                password=SCHEMA_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=READONLY
-            )
-            self.registries["default"] = RegistryClient(default_config)
-            self.default_registry = "default"
-            logging.info(f"Loaded single registry: default at {SCHEMA_REGISTRY_URL} (readonly: {READONLY})")
-        
-        if not self.registries:
-            logging.warning("No Schema Registry instances configured. Set SCHEMA_REGISTRY_URL for single mode or SCHEMA_REGISTRY_NAME_1/SCHEMA_REGISTRY_URL_1 for multi mode.")
-    
-    def get_registry(self, name: Optional[str] = None) -> Optional[RegistryClient]:
-        """Get a registry client by name, or default if name is None."""
-        if name is None:
-            name = self.default_registry
-        return self.registries.get(name)
-    
-    def list_registries(self) -> List[str]:
-        """List all configured registry names."""
-        return list(self.registries.keys())
-    
-    def get_registry_info(self, name: str) -> Optional[Dict[str, Any]]:
-        """Get detailed information about a registry."""
-        if name not in self.registries:
-            return None
-        
-        client = self.registries[name]
-        info = client.config.to_dict()
-        info["is_default"] = name == self.default_registry
-        
-        # Test connection
-        connection_test = client.test_connection()
-        info["connection_status"] = connection_test["status"]
-        if "response_time_ms" in connection_test:
-            info["response_time_ms"] = connection_test["response_time_ms"]
-        if "error" in connection_test:
-            info["connection_error"] = connection_test["error"]
-            
-        return info
-    
-    async def test_all_registries_async(self) -> Dict[str, Any]:
-        """Test connections to all registries asynchronously."""
-        results = {}
-        async with aiohttp.ClientSession() as session:
-            for name, client in self.registries.items():
-                try:
-                    start_time = time.time()
-                    # Don't pass auth parameter - Authorization header is already set in client.headers
-                    async with session.get(f"{client.config.url}/subjects", 
-                                         headers=client.headers,
-                                         timeout=10) as response:
-                        response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
-                        if response.status == 200:
-                            results[name] = {
-                                "status": "connected",
-                                "url": client.config.url,
-                                "response_time_ms": response_time
-                            }
-                        else:
-                            results[name] = {
-                                "status": "error",
-                                "url": client.config.url,
-                                "error": f"HTTP {response.status}: {await response.text()}"
-                            }
-                except Exception as e:
-                    results[name] = {
-                        "status": "error",
-                        "url": client.config.url,
-                        "error": str(e)
-                    }
-        
-        return {
-            "registry_tests": results,
-            "total_registries": len(results),
-            "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
-            "failed": sum(1 for r in results.values() if r.get("status") == "error")
-        }
-    
-    async def compare_registries_async(self, source: str, target: str) -> Dict[str, Any]:
-        """Compare two registries asynchronously."""
-        source_client = self.get_registry(source)
-        target_client = self.get_registry(target)
-        
-        if not source_client or not target_client:
-            return {"error": "Invalid registry configuration"}
-        
-        async with aiohttp.ClientSession() as session:
-            # Get subjects from both registries
-            source_subjects = await self._get_subjects_async(session, source_client)
-            target_subjects = await self._get_subjects_async(session, target_client)
-            
-            return {
-                "source": source,
-                "target": target,
-                "compared_at": datetime.now().isoformat(),
-                "subjects": {
-                    "source_only": list(set(source_subjects) - set(target_subjects)),
-                    "target_only": list(set(target_subjects) - set(source_subjects)),
-                    "common": list(set(source_subjects) & set(target_subjects)),
-                    "source_total": len(source_subjects),
-                    "target_total": len(target_subjects)
-                }
-            }
-    
-    async def _get_subjects_async(self, session: aiohttp.ClientSession, client: RegistryClient) -> List[str]:
-        """Get subjects from a registry asynchronously."""
-        try:
-            # Don't pass auth parameter - Authorization header is already set in client.headers
-            async with session.get(f"{client.config.url}/subjects",
-                                 headers=client.headers) as response:
-                if response.status == 200:
-                    return await response.json()
-                return []
-        except Exception:
-            return []
-    
-    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
-        """Check if a registry is in readonly mode."""
-        client = self.get_registry(registry_name)
-        if not client:
-            return False
-        return client.config.readonly
-    
-    def get_default_registry(self) -> Optional[str]:
-        """Get the default registry name."""
-        return self.default_registry
-    
-    def set_default_registry(self, name: str) -> bool:
-        """Set the default registry."""
-        if name in self.registries:
-            self.default_registry = name
-            return True
-        return False
-
-# Initialize registry manager
-registry_manager = RegistryManager()
-
-def check_readonly_mode(registry_name: Optional[str] = None) -> Optional[Dict[str, str]]:
-    """Check if the server or specific registry is in readonly mode and return error if so."""
-    
-    # If a specific registry is provided, check its readonly setting
-    if registry_name:
-        client = registry_manager.get_registry(registry_name)
-        if client and client.config.readonly:
-            return {
-                "error": f"Operation blocked: Registry '{registry_name}' is running in READONLY mode. "
-                        f"Set READONLY_{registry_name} environment variable to false to enable modifications.",
-                "readonly_mode": True,
-                "registry": registry_name
-            }
-    
-    # Also check global READONLY setting (backward compatibility)
-    if READONLY:
-        return {
-            "error": "Operation blocked: MCP server is running in global READONLY mode. "
-                    "Set READONLY=false to enable modification operations.",
-            "readonly_mode": True,
-            "global": True
-        }
-    
-    return None
+# check_readonly_mode function moved to schema_registry_common
 
 # ===== REGISTRY MANAGEMENT TOOLS =====
 

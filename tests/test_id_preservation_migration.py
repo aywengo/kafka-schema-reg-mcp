@@ -36,7 +36,7 @@ class IDPreservationTest:
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
         os.environ["READONLY_2"] = "false"  # Allow writes to prod for testing
         # Reinitialize registry manager with test config
-        mcp_server.registry_manager._load_registries()
+        mcp_server.registry_manager._load_multi_registries()
 
     def check_import_mode_support(self):
         """Check if IMPORT mode is supported by the Schema Registry."""

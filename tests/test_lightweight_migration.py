@@ -66,7 +66,7 @@ async def test_env():
                 del os.environ[var]
     
     # Reinitialize registry manager with multi-registry config
-    mcp_server.registry_manager._load_registries()
+    mcp_server.registry_manager._load_multi_registries()
     
     # Create a session for async HTTP requests
     session = aiohttp.ClientSession()

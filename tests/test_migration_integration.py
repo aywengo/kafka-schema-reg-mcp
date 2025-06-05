@@ -42,7 +42,7 @@ class MigrationIntegrationTests:
         os.environ["READONLY_2"] = "false"  # Allow writes to prod for testing
         
         # Reinitialize registry manager with test config
-        mcp_server.registry_manager._load_registries()
+        mcp_server.registry_manager._load_multi_registries()
         
     def setup_test_schemas(self) -> bool:
         """Create test schemas for migration testing"""

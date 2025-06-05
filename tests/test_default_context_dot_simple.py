@@ -24,7 +24,7 @@ def test_default_context_url_building():
         os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
         
         # Reinitialize registry manager
-        mcp_server.registry_manager._load_registries()
+        mcp_server.registry_manager._load_multi_registries()
         
         # Get client
         client = mcp_server.registry_manager.get_registry("dev")

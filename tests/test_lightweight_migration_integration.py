@@ -97,7 +97,7 @@ async def test_env():
         del os.environ["READONLY"]
     
     # Force reload the registry manager with new configuration
-    mcp_server.registry_manager._load_registries()
+    mcp_server.registry_manager._load_multi_registries()
     
     yield {
         "dev_url": dev_url,

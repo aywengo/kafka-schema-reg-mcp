@@ -33,7 +33,7 @@ async def test_docker_config_generation():
     os.environ["READONLY_2"] = "false"
     
     # Reload registry manager to pick up new environment
-    mcp_server.registry_manager._load_registries()
+    mcp_server.registry_manager._load_multi_registries()
     
     # Call migrate_context
     result = await mcp_server.migrate_context(
@@ -216,7 +216,7 @@ async def test_readonly_warning():
     
     # Set target as readonly
     os.environ["READONLY_2"] = "true"
-    mcp_server.registry_manager._load_registries()
+    mcp_server.registry_manager._load_multi_registries()
     
     result = await mcp_server.migrate_context(
         source_registry="source-test",
@@ -245,7 +245,7 @@ async def test_non_dry_run_warning():
     
     # Reset readonly
     os.environ["READONLY_2"] = "false"
-    mcp_server.registry_manager._load_registries()
+    mcp_server.registry_manager._load_multi_registries()
     
     result = await mcp_server.migrate_context(
         source_registry="source-test",
