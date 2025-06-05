@@ -184,7 +184,7 @@ jobs:
             → Non-blocking comparison with detailed progress updates
             ```
             
-            ### 📋 MCP Features (v1.7.0)
+            ### 📋 MCP Features (v1.8.0)
             - ✅ **48 MCP Tools**: Complete schema operations via natural language
             - ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
             - ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)

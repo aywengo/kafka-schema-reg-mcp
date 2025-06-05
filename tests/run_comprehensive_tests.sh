@@ -133,6 +133,7 @@ run_basic_tests() {
         "mcp_server:test_mcp_server.py:Basic MCP server connectivity test"
         "config:test_config.py:Configuration management testing"
         "readonly_mcp_client:test_readonly_mcp_client.py:READONLY mode testing with MCP client"
+        "counting_tools:test_counting_tools.py:Schema counting and statistics tools testing"
     )
     
     for test_spec in "${tests[@]}"; do
@@ -262,6 +263,7 @@ generate_summary() {
         echo "✅ Basic Single-Registry Configuration"
         echo "✅ Single-Registry Integration Tests"
         echo "✅ Single-Registry Validation"
+        echo "✅ Schema Counting and Statistics"
         
         echo ""
         echo "FEATURES VALIDATED:"
@@ -276,6 +278,7 @@ generate_summary() {
         echo "• Basic Error Handling"
         echo "• Environment Compatibility"
         echo "• Single-Registry Mode Fixes"
+        echo "• Schema Counting and Statistics Tools"
         
     } | tee "$summary_file"
     

@@ -29,6 +29,24 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 - **Context Isolation**: Schemas in different contexts are completely isolated
 - **Authentication Support**: Optional basic authentication for Schema Registry
 
+### 📋 MCP Features
+- ✅ **48 MCP Tools**: Complete schema operations via natural language
+- ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
+- ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)
+- ✅ **Task Lifecycle Control**: Create, monitor, cancel operations
+- ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances
+- ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
+- ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control
+- ✅ **Cross-Registry Operations**: Compare, migrate, and sync schemas
+- ✅ **Context Management**: Production/staging environment isolation  
+- ✅ **Schema Evolution**: Compatibility testing and version control
+- ✅ **Export System**: JSON, Avro IDL formats for backup/migration
+- ✅ **Configuration Control**: Global and per-context compatibility settings
+- ✅ **Claude Desktop Ready**: Direct integration with AI workflows
+- ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
+- ✅ **Stable Tag**: Use `:stable` for production deployments
+- ✅ **Schema Statistics**: Comprehensive counting and analysis tools for contexts, schemas, and versions
+
 ## 🏗️ Architecture
 
 - **MCP Protocol Server**: Uses official MCP Python SDK with JSON-RPC over stdio

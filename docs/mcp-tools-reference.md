@@ -1497,4 +1497,189 @@ while task['status'] == 'running':
 
 ---
 
+## Schema Statistics and Counting Tools
+
+The following tools provide comprehensive statistics and counting capabilities for Schema Registry instances.
+
+### Count Contexts
+```python
+@mcp.tool()
+def count_contexts(registry: Optional[str] = None) -> Dict[str, Any]:
+    """Count the number of contexts in a registry.
+    
+    Args:
+        registry: Optional registry name. If not provided, uses default registry.
+        
+    Returns:
+        Dict containing:
+        - registry: Registry name
+        - total_contexts: Total number of contexts
+        - contexts: List of context names
+        - timestamp: Current timestamp
+    """
+```
+
+Example usage:
+```python
+# Count contexts in default registry
+result = count_contexts()
+print(f"Found {result['total_contexts']} contexts: {result['contexts']}")
+
+# Count contexts in specific registry
+result = count_contexts(registry="production")
+print(f"Found {result['total_contexts']} contexts in production")
+```
+
+### Count Schemas
+```python
+@mcp.tool()
+def count_schemas(
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """Count the number of schemas in a context or registry.
+    
+    Args:
+        context: Optional context name. If not provided, counts all contexts.
+        registry: Optional registry name. If not provided, uses default registry.
+        
+    Returns:
+        Dict containing:
+        - registry: Registry name
+        - context: Context name (if specified)
+        - total_schemas: Total number of schemas
+        - schemas: List of schema names
+        - timestamp: Current timestamp
+    """
+```
+
+Example usage:
+```python
+# Count all schemas in default registry
+result = count_schemas()
+print(f"Found {result['total_schemas']} schemas")
+
+# Count schemas in specific context
+result = count_schemas(context="production")
+print(f"Found {result['total_schemas']} schemas in production context")
+
+# Count schemas in specific registry and context
+result = count_schemas(context="staging", registry="development")
+print(f"Found {result['total_schemas']} schemas in staging context of development registry")
+```
+
+### Count Schema Versions
+```python
+@mcp.tool()
+def count_schema_versions(
+    subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None
+) -> Dict[str, Any]:
+    """Count the number of versions for a specific schema.
+    
+    Args:
+        subject: Schema subject name
+        context: Optional context name. If not provided, uses default context.
+        registry: Optional registry name. If not provided, uses default registry.
+        
+    Returns:
+        Dict containing:
+        - registry: Registry name
+        - context: Context name
+        - subject: Schema subject name
+        - total_versions: Total number of versions
+        - versions: List of version numbers
+        - timestamp: Current timestamp
+    """
+```
+
+Example usage:
+```python
+# Count versions of a schema in default context
+result = count_schema_versions(subject="user-value")
+print(f"Found {result['total_versions']} versions of user-value schema")
+
+# Count versions in specific context
+result = count_schema_versions(subject="order-value", context="production")
+print(f"Found {result['total_versions']} versions in production context")
+
+# Count versions in specific registry and context
+result = count_schema_versions(
+    subject="payment-value",
+    context="staging",
+    registry="development"
+)
+print(f"Found {result['total_versions']} versions in staging context of development registry")
+```
+
+### Get Registry Statistics
+```python
+@mcp.tool()
+def get_registry_statistics(
+    registry: Optional[str] = None,
+    include_context_details: bool = True
+) -> Dict[str, Any]:
+    """Get comprehensive statistics about a registry.
+    
+    Args:
+        registry: Optional registry name. If not provided, uses default registry.
+        include_context_details: Whether to include detailed context information.
+        
+    Returns:
+        Dict containing:
+        - registry: Registry name
+        - total_contexts: Total number of contexts
+        - total_schemas: Total number of schemas
+        - total_versions: Total number of schema versions
+        - avg_versions_per_schema: Average versions per schema
+        - contexts: Optional detailed context information
+        - timestamp: Current timestamp
+    """
+```
+
+Example usage:
+```python
+# Get basic statistics
+result = get_registry_statistics(include_context_details=False)
+print(f"Registry has {result['total_contexts']} contexts")
+print(f"Total schemas: {result['total_schemas']}")
+print(f"Total versions: {result['total_versions']}")
+print(f"Average versions per schema: {result['avg_versions_per_schema']:.2f}")
+
+# Get detailed statistics with context information
+result = get_registry_statistics(include_context_details=True)
+for context in result['contexts']:
+    print(f"\nContext: {context['name']}")
+    print(f"Schemas: {context['total_schemas']}")
+    print(f"Versions: {context['total_versions']}")
+```
+
+### Error Handling
+All counting tools handle errors gracefully and return appropriate error messages:
+
+```python
+# Example error response
+{
+    "error": "Registry not found: production",
+    "timestamp": "2024-03-14T12:34:56Z"
+}
+```
+
+Common error scenarios:
+- Registry not found
+- Context not found
+- Schema subject not found
+- Connection errors
+- Authentication failures
+
+### Best Practices
+1. Use `get_registry_statistics` for comprehensive overview
+2. Use specific counting tools for targeted information
+3. Include context names for precise counting
+4. Handle potential errors in responses
+5. Use timestamps for tracking data freshness
+
+---
+
 This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 

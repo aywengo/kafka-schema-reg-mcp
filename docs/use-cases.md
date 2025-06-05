@@ -815,6 +815,142 @@ Claude: I'll display all your maintenance operations.
 - ✅ **Progress Dashboard**: Single view of all operations
 - ✅ **Time Estimation**: Plan maintenance windows accurately
 
+## Schema Statistics and Monitoring
+
+### Registry Health Monitoring
+Monitor the health and growth of your Schema Registry instances:
+
+```python
+# Get comprehensive registry statistics
+stats = get_registry_statistics(registry="production")
+print(f"Production Registry Status:")
+print(f"- Total Contexts: {stats['total_contexts']}")
+print(f"- Total Schemas: {stats['total_schemas']}")
+print(f"- Total Versions: {stats['total_versions']}")
+print(f"- Avg Versions/Schema: {stats['avg_versions_per_schema']:.2f}")
+
+# Monitor context growth
+for context in stats['contexts']:
+    print(f"\nContext: {context['name']}")
+    print(f"- Schemas: {context['total_schemas']}")
+    print(f"- Versions: {context['total_versions']}")
+```
+
+### Schema Evolution Tracking
+Track schema evolution across different contexts:
+
+```python
+# Compare schema versions across contexts
+dev_versions = count_schema_versions(
+    subject="user-value",
+    context="development"
+)
+prod_versions = count_schema_versions(
+    subject="user-value",
+    context="production"
+)
+
+print(f"Development: {dev_versions['total_versions']} versions")
+print(f"Production: {prod_versions['total_versions']} versions")
+print(f"Version difference: {abs(dev_versions['total_versions'] - prod_versions['total_versions'])}")
+```
+
+### Context Management
+Monitor and manage contexts effectively:
+
+```python
+# Get context overview
+contexts = count_contexts(registry="staging")
+print(f"Staging Registry Contexts:")
+for context in contexts['contexts']:
+    schemas = count_schemas(context=context, registry="staging")
+    print(f"\n{context}:")
+    print(f"- Total Schemas: {schemas['total_schemas']}")
+    print(f"- Schema List: {', '.join(schemas['schemas'])}")
+```
+
+### Migration Planning
+Use statistics to plan and validate migrations:
+
+```python
+# Pre-migration analysis
+source_stats = get_registry_statistics(registry="development")
+target_stats = get_registry_statistics(registry="production")
+
+print("Migration Planning:")
+print(f"Source (Development):")
+print(f"- Contexts: {source_stats['total_contexts']}")
+print(f"- Schemas: {source_stats['total_schemas']}")
+print(f"- Versions: {source_stats['total_versions']}")
+
+print(f"\nTarget (Production):")
+print(f"- Contexts: {target_stats['total_contexts']}")
+print(f"- Schemas: {target_stats['total_schemas']}")
+print(f"- Versions: {target_stats['total_versions']}")
+
+# Calculate migration scope
+contexts_to_migrate = set(source_stats['contexts']) - set(target_stats['contexts'])
+print(f"\nContexts to migrate: {len(contexts_to_migrate)}")
+```
+
+### Schema Cleanup
+Identify unused or outdated schemas:
+
+```python
+# Analyze schema versions
+for context in get_registry_statistics()['contexts']:
+    print(f"\nAnalyzing {context['name']}:")
+    for schema in context['schemas']:
+        versions = count_schema_versions(
+            subject=schema,
+            context=context['name']
+        )
+        if versions['total_versions'] > 5:
+            print(f"⚠️  {schema}: {versions['total_versions']} versions")
+            print(f"   Consider cleanup: {versions['versions']}")
+```
+
+### Multi-Registry Comparison
+Compare statistics across multiple registries:
+
+```python
+# Compare registry statistics
+registries = ["development", "staging", "production"]
+for registry in registries:
+    stats = get_registry_statistics(registry=registry)
+    print(f"\n{registry.upper()} Registry:")
+    print(f"- Contexts: {stats['total_contexts']}")
+    print(f"- Schemas: {stats['total_schemas']}")
+    print(f"- Versions: {stats['total_versions']}")
+    print(f"- Avg Versions/Schema: {stats['avg_versions_per_schema']:.2f}")
+```
+
+### Best Practices
+1. **Regular Monitoring**
+   - Schedule regular statistics collection
+   - Track growth trends
+   - Set up alerts for unusual patterns
+
+2. **Migration Planning**
+   - Use statistics for migration scope
+   - Validate target registry capacity
+   - Track migration progress
+
+3. **Cleanup Management**
+   - Identify unused schemas
+   - Track version history
+   - Plan cleanup operations
+
+4. **Performance Optimization**
+   - Monitor schema distribution
+   - Identify hot spots
+   - Optimize context usage
+
+5. **Security and Compliance**
+   - Track schema changes
+   - Monitor version history
+   - Maintain audit trails
+
 ---
 
 This comprehensive use cases document demonstrates how the Kafka Schema Registry MCP Server v1.7.0 transforms schema management with async operations, multi-registry support, and intelligent progress tracking. The MCP implementation enables teams to handle large-scale operations efficiently while Claude provides real-time monitoring and guidance throughout the process.
