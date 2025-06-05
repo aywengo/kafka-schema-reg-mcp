@@ -336,15 +336,46 @@ Enterprise-grade operational control:
 
 **📖 Complete Reference**: [API Reference - Configuration](docs/api-reference.md#configuration-management)
 
+## 🔑 Authentication Overview
+
+There are two types of authentication in this project:
+
+1. **Schema Registry Authentication** (Backend):
+   - Controls how the MCP server connects to your Kafka Schema Registry instances.
+   - Set via `SCHEMA_REGISTRY_USER`, `SCHEMA_REGISTRY_PASSWORD` (and their multi-registry variants).
+   - These credentials are NOT used to authenticate users of the MCP server itself.
+
+2. **MCP Server Authentication** (Frontend):
+   - Controls who can access the MCP server and its tools.
+   - Enable with `ENABLE_AUTH=true` and configure via `AUTH_ISSUER_URL`, `AUTH_VALID_SCOPES`, etc.
+   - This is optional and defaults to open access if not set.
+
+> **Note:** Setting `SCHEMA_REGISTRY_USER`/`PASSWORD` only protects the connection to the backend registry, not the MCP server API/tools. To secure the MCP server itself, use the `ENABLE_AUTH` and related variables.
+
 ## 🔐 Authentication
 
-Optional basic authentication support. Set environment variables:
-```bash
-export SCHEMA_REGISTRY_USER="your-username"
-export SCHEMA_REGISTRY_PASSWORD="your-password"
-```
+> **There are two layers of authentication:**
+>
+> - **Schema Registry Auth**: Controls how the MCP server connects to the backend registry. Set `SCHEMA_REGISTRY_USER`/`PASSWORD` (and `_X` variants for multi-registry) for this purpose.
+> - **MCP Server Auth**: Controls who can access the MCP server and its tools. Use `ENABLE_AUTH` and related `AUTH_*` variables to secure the MCP server itself.
 
-**📖 Security Setup**: [Deployment Guide - Security](docs/deployment.md#-security-considerations)
+**To secure the MCP server itself, you must set `ENABLE_AUTH=true` and configure the OAuth2 variables.**
+
+### Environment Variables (Authentication & Authorization)
+
+| Variable | Description | Default | Applies To |
+|----------|-------------|---------|------------|
+| `SCHEMA_REGISTRY_USER` | Username for backend Schema Registry | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_PASSWORD` | Password for backend Schema Registry | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_USER_X` | Username for multi-registry backend | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_PASSWORD_X` | Password for multi-registry backend | *(empty)* | Schema Registry (backend) |
+| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | `false` | MCP Server (frontend) |
+| `AUTH_ISSUER_URL` | OAuth2 issuer URL | `https://example.com` | MCP Server (frontend) |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` | MCP Server (frontend) |
+| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` | MCP Server (frontend) |
 
 ## 🧪 Testing
 
@@ -444,7 +475,39 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
 
 **📖 Integration Details**: [Use Cases - Schema Registry Integration](docs/use-cases.md#-schema-registry-integration)
 
----
+## 🆕 What's New in v1.9.x
+
+- **Optional OAuth2 Authentication & Authorization**: Enable with `ENABLE_AUTH=true` and configure via environment variables:
+  - `AUTH_ISSUER_URL`, `AUTH_VALID_SCOPES`, `AUTH_DEFAULT_SCOPES`, `AUTH_REQUIRED_SCOPES`, `AUTH_CLIENT_REG_ENABLED`, `AUTH_REVOCATION_ENABLED`
+- **Configurable AuthSettings**: All OAuth2 settings are now configurable via environment variables for both single and multi-registry modes.
+- **Unit Tests for Auth Config**: Added tests for both single and multi-registry auth configuration.
+- **Upgraded MCP SDK**: Now using `mcp[cli]==1.9.2` with full authorization support.
+
+### Environment Variables (Authentication & Authorization)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | `false` |
+| `AUTH_ISSUER_URL` | OAuth2 issuer URL | `https://example.com` |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `myscope` |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `myscope` |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `myscope` |
+| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` |
+| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` |
+
+**Example usage:**
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://auth.example.com"
+export AUTH_VALID_SCOPES="myscope,otherscope"
+export AUTH_DEFAULT_SCOPES="myscope"
+export AUTH_REQUIRED_SCOPES="myscope"
+export AUTH_CLIENT_REG_ENABLED=true
+export AUTH_REVOCATION_ENABLED=true
+```
+
+- If `ENABLE_AUTH` is not set or is false, the server runs with no authentication (backward compatible).
+- All settings apply to both single and multi-registry modes.
 
 ## 🎉 Production Ready - True MCP Implementation
 

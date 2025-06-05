@@ -132,6 +132,31 @@ def test_basic_functionality():
     
     return True
 
+def test_auth_config_single_mode(monkeypatch):
+    """Test that auth config is correctly applied in single mode."""
+    # Set environment variables for auth
+    monkeypatch.setenv("ENABLE_AUTH", "true")
+    monkeypatch.setenv("AUTH_ISSUER_URL", "https://test-issuer.com")
+    monkeypatch.setenv("AUTH_VALID_SCOPES", "scope1,scope2")
+    monkeypatch.setenv("AUTH_DEFAULT_SCOPES", "scope1")
+    monkeypatch.setenv("AUTH_REQUIRED_SCOPES", "scope1")
+    monkeypatch.setenv("AUTH_CLIENT_REG_ENABLED", "false")
+    monkeypatch.setenv("AUTH_REVOCATION_ENABLED", "false")
+
+    import importlib
+    import kafka_schema_registry_mcp
+    importlib.reload(kafka_schema_registry_mcp)
+
+    mcp = kafka_schema_registry_mcp.mcp
+    auth = getattr(mcp, "auth", None)
+    assert auth is not None, "Auth should be set when ENABLE_AUTH is true"
+    assert auth.issuer_url == "https://test-issuer.com"
+    assert set(auth.client_registration_options.valid_scopes) == {"scope1", "scope2"}
+    assert set(auth.client_registration_options.default_scopes) == {"scope1"}
+    assert set(auth.required_scopes) == {"scope1"}
+    assert not auth.client_registration_options.enabled
+    assert not auth.revocation_options.enabled
+
 def main():
     """Main test function."""
     print("🚀 Starting basic MCP server tests...")

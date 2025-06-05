@@ -541,13 +541,71 @@ kubectl logs -f deployment/mcp-server -n kafka-schema-registry
 | Variable | Description | Default | Since |
 |----------|-------------|---------|-------|
 | `SCHEMA_REGISTRY_URL` | Primary Schema Registry URL | `http://localhost:8081` | v1.0.0 |
-| `SCHEMA_REGISTRY_USER` | Basic auth username | - | v1.0.0 |
-| `SCHEMA_REGISTRY_PASSWORD` | Basic auth password | - | v1.0.0 |
+| `SCHEMA_REGISTRY_USER` | Username for backend Schema Registry | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_PASSWORD` | Password for backend Schema Registry | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_USER_X` | Username for multi-registry backend | *(empty)* | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_PASSWORD_X` | Password for multi-registry backend | *(empty)* | Schema Registry (backend) |
 | `READONLY` | Enable read-only mode | `false` | v1.3.0 |
 | `REGISTRIES_CONFIG` | JSON config for multiple registries | - | v1.5.0 |
 | `TASK_POOL_SIZE` | ThreadPoolExecutor size | `10` | v1.7.0 |
 | `TASK_QUEUE_SIZE` | Max queued tasks | `100` | v1.7.0 |
 | `TASK_TIMEOUT` | Default task timeout (seconds) | `3600` | v1.7.0 |
+
+### Authentication & Authorization Environment Variables (v1.9.x)
+
+New feature, which allows you to secure the MCP server and its tools.
+
+| Variable | Description | Default | Applies To |
+|----------|-------------|---------|------------|
+| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | `false` | MCP Server (frontend) |
+| `AUTH_ISSUER_URL` | OAuth2 issuer URL | `https://example.com` | MCP Server (frontend) |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `myscope` | MCP Server (frontend) |
+| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` | MCP Server (frontend) |
+| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` | MCP Server (frontend) |
+
+**Example (Docker):**
+```bash
+docker run -e ENABLE_AUTH=true \
+  -e AUTH_ISSUER_URL="https://auth.example.com" \
+  -e AUTH_VALID_SCOPES="myscope,otherscope" \
+  -e AUTH_DEFAULT_SCOPES="myscope" \
+  -e AUTH_REQUIRED_SCOPES="myscope" \
+  -e AUTH_CLIENT_REG_ENABLED=true \
+  -e AUTH_REVOCATION_ENABLED=true \
+  aywengo/kafka-schema-reg-mcp:stable
+```
+
+**Example (Kubernetes):**
+```yaml
+env:
+  - name: ENABLE_AUTH
+    value: "true"
+  - name: AUTH_ISSUER_URL
+    value: "https://auth.example.com"
+  - name: AUTH_VALID_SCOPES
+    value: "myscope,otherscope"
+  - name: AUTH_DEFAULT_SCOPES
+    value: "myscope"
+  - name: AUTH_REQUIRED_SCOPES
+    value: "myscope"
+  - name: AUTH_CLIENT_REG_ENABLED
+    value: "true"
+  - name: AUTH_REVOCATION_ENABLED
+    value: "true"
+```
+
+**Example (Local):**
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://auth.example.com"
+export AUTH_VALID_SCOPES="myscope,otherscope"
+export AUTH_DEFAULT_SCOPES="myscope"
+export AUTH_REQUIRED_SCOPES="myscope"
+export AUTH_CLIENT_REG_ENABLED=true
+export AUTH_REVOCATION_ENABLED=true
+```
 
 ### Multi-Registry Configuration Example
 
@@ -651,7 +709,29 @@ spec:
       port: 8081
 ```
 
----
+### Set `ENABLE_AUTH=true` in production to require OAuth2 authentication for all MCP operations.
+
+### Use strong, unique values for `AUTH_ISSUER_URL` and scopes.
+
+### Store sensitive values in Kubernetes secrets or Docker secrets where possible.
+
+### If `ENABLE_AUTH` is not set, the server runs in open mode (no authentication, legacy compatibility).
+
+### 🔑 Authentication Layers Explained
+
+There are two types of authentication in this deployment:
+
+1. **Schema Registry Authentication (Backend)**
+   - MCP server uses these credentials to connect to your Kafka Schema Registry instances.
+   - Set via `SCHEMA_REGISTRY_USER`, `SCHEMA_REGISTRY_PASSWORD`, and their multi-registry variants.
+   - These do NOT protect access to the MCP server itself.
+
+2. **MCP Server Authentication (Frontend)**
+   - Controls who can access the MCP server and its tools.
+   - Enable with `ENABLE_AUTH` and configure via `AUTH_ISSUER_URL`, `AUTH_VALID_SCOPES`, etc.
+   - Defaults to open access if not set.
+
+> **Warning:** Setting only `SCHEMA_REGISTRY_USER`/`PASSWORD` does NOT secure the MCP server API/tools. To secure the MCP server, use `ENABLE_AUTH` and related variables.
 
 ## 📈 Monitoring & Observability
 

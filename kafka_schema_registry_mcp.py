@@ -48,6 +48,41 @@ READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
 # Multi-registry configuration
 REGISTRIES_CONFIG = os.getenv("REGISTRIES_CONFIG", "")
 
+ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
+
+# Auth configuration from environment variables
+AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
+AUTH_VALID_SCOPES = [s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "myscope").split(",") if s.strip()]
+AUTH_DEFAULT_SCOPES = [s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "myscope").split(",") if s.strip()]
+AUTH_REQUIRED_SCOPES = [s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "myscope").split(",") if s.strip()]
+AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+
+if ENABLE_AUTH:
+    from mcp.server.auth.provider import OAuthAuthorizationServerProvider
+    from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
+
+    class MyOAuthServerProvider(OAuthAuthorizationServerProvider):
+        # Minimal stub for demonstration; implement real logic as needed
+        pass
+
+    mcp = FastMCP(
+        "Kafka Schema Registry MCP Server",
+        auth_server_provider=MyOAuthServerProvider(),
+        auth=AuthSettings(
+            issuer_url=AUTH_ISSUER_URL,
+            revocation_options=RevocationOptions(enabled=AUTH_REVOCATION_ENABLED),
+            client_registration_options=ClientRegistrationOptions(
+                enabled=AUTH_CLIENT_REG_ENABLED,
+                valid_scopes=AUTH_VALID_SCOPES,
+                default_scopes=AUTH_DEFAULT_SCOPES,
+            ),
+            required_scopes=AUTH_REQUIRED_SCOPES,
+        ),
+    )
+else:
+    mcp = FastMCP("Kafka Schema Registry MCP Server")
+
 @dataclass
 class RegistryConfig:
     """Configuration for a Schema Registry instance."""
@@ -214,26 +249,6 @@ def build_context_url(base_url: str, context: Optional[str] = None) -> str:
     if context and context != ".":
         return f"{SCHEMA_REGISTRY_URL}/contexts/{context}{base_url}"
     return f"{SCHEMA_REGISTRY_URL}{base_url}"
-
-# Create the MCP server
-mcp = FastMCP("Kafka Schema Registry MCP Server")
-
-def check_readonly_mode() -> Optional[Dict[str, str]]:
-    """Check if the server is in readonly mode and return error if so."""
-    if READONLY:
-        return {
-            "error": "Operation blocked: MCP server is running in READONLY mode. "
-                    "Set READONLY=false to enable modification operations.",
-            "readonly_mode": True
-        }
-    return None
-
-def get_default_client() -> RegistryClient:
-    """Get the default registry client for backward compatibility."""
-    client = registry_manager.get_registry()
-    if client is None:
-        raise Exception("No registry configured. Set SCHEMA_REGISTRY_URL or REGISTRIES_CONFIG.")
-    return client
 
 # ===== MULTI-REGISTRY MANAGEMENT TOOLS =====
 

@@ -259,5 +259,29 @@ async def test_multi_registry_mcp():
     except Exception as e:
         print(f"❌ Test failed with error: {e}")
 
+def test_auth_config_multi_mode(monkeypatch):
+    """Test that auth config is correctly applied in multi-registry mode."""
+    monkeypatch.setenv("ENABLE_AUTH", "true")
+    monkeypatch.setenv("AUTH_ISSUER_URL", "https://multi-issuer.com")
+    monkeypatch.setenv("AUTH_VALID_SCOPES", "multi1,multi2")
+    monkeypatch.setenv("AUTH_DEFAULT_SCOPES", "multi1")
+    monkeypatch.setenv("AUTH_REQUIRED_SCOPES", "multi1")
+    monkeypatch.setenv("AUTH_CLIENT_REG_ENABLED", "true")
+    monkeypatch.setenv("AUTH_REVOCATION_ENABLED", "true")
+
+    import importlib
+    import kafka_schema_registry_multi_mcp
+    importlib.reload(kafka_schema_registry_multi_mcp)
+
+    mcp = kafka_schema_registry_multi_mcp.mcp
+    auth = getattr(mcp, "auth", None)
+    assert auth is not None, "Auth should be set when ENABLE_AUTH is true"
+    assert auth.issuer_url == "https://multi-issuer.com"
+    assert set(auth.client_registration_options.valid_scopes) == {"multi1", "multi2"}
+    assert set(auth.client_registration_options.default_scopes) == {"multi1"}
+    assert set(auth.required_scopes) == {"multi1"}
+    assert auth.client_registration_options.enabled
+    assert auth.revocation_options.enabled
+
 if __name__ == "__main__":
     asyncio.run(test_multi_registry_mcp()) 

@@ -12,6 +12,10 @@ http://localhost:38000
 
 ## Authentication
 
+> **Important Distinction:**
+> - `SCHEMA_REGISTRY_USER` and `SCHEMA_REGISTRY_PASSWORD` (and their multi-registry variants) are used by the MCP server to authenticate against the backend Kafka Schema Registry. They do NOT protect access to the MCP server itself.
+> - To secure the MCP server API/tools, use `ENABLE_AUTH` and related `AUTH_*` variables to enable OAuth2 authentication for MCP clients.
+
 The MCP server supports optional basic authentication when configured with environment variables:
 
 ```bash
@@ -24,6 +28,20 @@ When authentication is enabled, include credentials in requests:
 ```bash
 curl -u username:password http://localhost:38000/...
 ```
+
+### Environment Variables for Authentication
+
+| Variable | Description | Applies To |
+|----------|-------------|------------|
+| `SCHEMA_REGISTRY_USER` | Username for backend Schema Registry | Schema Registry (backend) |
+| `SCHEMA_REGISTRY_PASSWORD` | Password for backend Schema Registry | Schema Registry (backend) |
+| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | MCP Server (frontend) |
+| `AUTH_ISSUER_URL` | OAuth2 issuer URL | MCP Server (frontend) |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | MCP Server (frontend) |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | MCP Server (frontend) |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | MCP Server (frontend) |
+| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | MCP Server (frontend) |
+| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | MCP Server (frontend) |
 
 ---
 
