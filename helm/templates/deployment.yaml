@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+  {{- include "kafka-schema-registry-mcp.annotations" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if and .Values.auth.enabled .Values.auth.createSecret.enabled (not .Values.auth.existingSecret.enabled) }}
+        checksum/oauth2-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.monitoring.enabled }}
+        {{- with .Values.monitoring.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- end }}
+        {{- include "kafka-schema-registry-mcp.annotations" . | nindent 8 }}
+      labels:
+        {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 8 }}
+        {{- with .Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kafka-schema-registry-mcp.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+              protocol: TCP
+          env:
+            # OAuth2 credentials from secret
+            {{- if .Values.auth.enabled }}
+            - name: AUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-schema-registry-mcp.oauth2SecretName" . }}
+                  key: {{ .Values.auth.existingSecret.clientIdKey | default "client-id" }}
+            - name: AUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-schema-registry-mcp.oauth2SecretName" . }}
+                  key: {{ .Values.auth.existingSecret.clientSecretKey | default "client-secret" }}
+            {{- end }}
+            
+            # Schema Registry credentials
+            {{- if or .Values.schemaRegistry.user .Values.schemaRegistry.password .Values.schemaRegistry.existingSecret.enabled }}
+            {{- if or .Values.schemaRegistry.user .Values.schemaRegistry.existingSecret.enabled }}
+            - name: SCHEMA_REGISTRY_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-schema-registry-mcp.schemaRegistrySecretName" . }}
+                  key: {{ .Values.schemaRegistry.existingSecret.userKey | default "username" }}
+            {{- end }}
+            {{- if or .Values.schemaRegistry.password .Values.schemaRegistry.existingSecret.enabled }}
+            - name: SCHEMA_REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-schema-registry-mcp.schemaRegistrySecretName" . }}
+                  key: {{ .Values.schemaRegistry.existingSecret.passwordKey | default "password" }}
+            {{- end }}
+            {{- end }}
+            
+            # Multi-registry credentials
+            {{- if .Values.schemaRegistry.multiRegistry.enabled }}
+            {{- range $index, $registry := .Values.schemaRegistry.multiRegistry.registries }}
+            {{- $registryIndex := add $index 1 }}
+            {{- if $registry.user }}
+            - name: SCHEMA_REGISTRY_USER_{{ $registryIndex }}
+              value: {{ $registry.user | quote }}
+            {{- end }}
+            {{- if $registry.password }}
+            - name: SCHEMA_REGISTRY_PASSWORD_{{ $registryIndex }}
+              value: {{ $registry.password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            
+            # Additional environment variables from secrets
+            {{- with .Values.extraEnvVarsSecret }}
+            {{- range . }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+            {{- end }}
+          
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: {{ include "kafka-schema-registry-mcp.configMapName" . }}
+            {{- with .Values.extraEnvVarsCM }}
+            {{- range . }}
+            - configMapRef:
+                name: {{ . }}
+            {{- end }}
+            {{- end }}
+          
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }} 

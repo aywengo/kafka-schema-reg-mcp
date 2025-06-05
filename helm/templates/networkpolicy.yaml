@@ -1,0 +1,49 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+  {{- include "kafka-schema-registry-mcp.annotations" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    {{- if .Values.networkPolicy.ingress.enabled }}
+    - Ingress
+    {{- end }}
+    {{- if .Values.networkPolicy.egress.enabled }}
+    - Egress
+    {{- end }}
+  {{- if .Values.networkPolicy.ingress.enabled }}
+  ingress:
+    - from:
+        {{- with .Values.networkPolicy.ingress.from }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.app.port }}
+  {{- end }}
+  {{- if .Values.networkPolicy.egress.enabled }}
+  egress:
+    {{- with .Values.networkPolicy.egress.to }}
+    - to:
+        {{- toYaml . | nindent 8 }}
+    {{- else }}
+    - to: []
+    {{- end }}
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS to OAuth provider
+        - protocol: TCP
+          port: 8081  # Schema Registry
+        - protocol: TCP
+          port: 53   # DNS
+        - protocol: UDP
+          port: 53   # DNS
+  {{- end }}
+{{- end }} 

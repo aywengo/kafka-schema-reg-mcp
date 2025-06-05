@@ -1,0 +1,210 @@
+# Default values for kafka-schema-registry-mcp
+# This is a YAML-formatted file.
+
+# Application configuration
+replicaCount: 2
+
+image:
+  repository: aywengo/kafka-schema-reg-mcp
+  pullPolicy: Always
+  tag: "1.8.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# OAuth2 Authentication Configuration
+auth:
+  enabled: true
+  
+  # OAuth2 Provider Settings
+  oauth2:
+    issuerUrl: "https://accounts.google.com"
+    validScopes: "openid,email,profile,https://www.googleapis.com/auth/userinfo.email"
+    defaultScopes: "openid,email"
+    requiredScopes: "openid,email"
+    clientRegistrationEnabled: false
+    revocationEnabled: true
+  
+  # Secret configuration - choose one approach
+  # Option 1: Use existing secret
+  existingSecret:
+    enabled: false
+    name: ""
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
+  
+  # Option 2: Create new secret from values (not recommended for production)
+  createSecret:
+    enabled: true
+    clientId: ""
+    clientSecret: ""
+
+# Schema Registry Configuration
+schemaRegistry:
+  # Primary/default registry
+  url: "http://schema-registry:8081"
+  user: ""
+  password: ""
+  
+  # Use existing secret for Schema Registry credentials
+  existingSecret:
+    enabled: false
+    name: ""
+    userKey: "username"
+    passwordKey: "password"
+  
+  # Multi-registry support
+  multiRegistry:
+    enabled: false
+    registries: []
+    # Example:
+    # - name: "production"
+    #   url: "http://prod-schema-registry:8081"
+    #   readonly: false
+    #   user: ""
+    #   password: ""
+    # - name: "staging"
+    #   url: "http://staging-schema-registry:8081"
+    #   readonly: true
+
+# Application settings
+app:
+  readonly: false
+  logLevel: "INFO"
+  port: 8080
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+  hosts:
+    - host: mcp-server.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: kafka-mcp-tls
+      hosts:
+        - mcp-server.example.com
+
+# Resource configuration
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+  egress:
+    enabled: true
+    to: []
+
+# Monitoring
+monitoring:
+  enabled: true
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+
+# Additional environment variables
+extraEnvVars: []
+# Example:
+# - name: CUSTOM_VAR
+#   value: "custom-value"
+
+# Additional environment variables from ConfigMaps
+extraEnvVarsCM: []
+
+# Additional environment variables from Secrets
+extraEnvVarsSecret: []
+
+# Additional labels for all resources
+commonLabels: {}
+
+# Additional annotations for all resources
+commonAnnotations: {} 

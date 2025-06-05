@@ -1,0 +1,99 @@
+name: Release Helm Chart
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.8.0)'
+        required: true
+        default: 'v1.8.0'
+
+jobs:
+  release-helm-chart:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.1
+
+      - name: Add helm repos
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      - name: Update chart version
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION=${{ github.event.inputs.tag }}
+            VERSION=${VERSION#v}
+          fi
+          
+          # Update Chart.yaml
+          sed -i "s/^version:.*/version: ${VERSION}/" helm/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" helm/Chart.yaml
+          
+          echo "Updated chart to version: ${VERSION}"
+          cat helm/Chart.yaml | grep -E "^(version|appVersion):"
+
+      - name: Lint Helm chart
+        run: |
+          helm lint helm/
+          helm template test helm/ --debug
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm package helm/ --destination .cr-release-packages/
+
+      - name: Upload chart to GitHub Releases
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        with:
+          charts_dir: .
+          config: .github/cr.yaml
+
+  update-index:
+    needs: release-helm-chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: gh-pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2 

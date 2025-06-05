@@ -1,0 +1,86 @@
+🚀 Kafka Schema Registry MCP Server v{{ .Chart.AppVersion }} deployed successfully!
+
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+🌐 Your MCP server is available at:
+  {{- if $.Values.ingress.tls }}
+  https://{{ $host.host }}
+  {{- else }}
+  http://{{ $host.host }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+🌐 Get the application URL by running:
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "kafka-schema-registry-mcp.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+🌐 Get the application URL by running:
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status of by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "kafka-schema-registry-mcp.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "kafka-schema-registry-mcp.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+🌐 Get the application URL by running:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "kafka-schema-registry-mcp.fullname" . }} 8080:{{ .Values.service.port }}
+  Visit http://127.0.0.1:8080 to use your application
+{{- end }}
+
+📋 Configuration Summary:
+✅ Authentication: {{ if .Values.auth.enabled }}Enabled (OAuth2){{ else }}Disabled{{ end }}
+{{- if .Values.auth.enabled }}
+   - Provider: {{ .Values.auth.oauth2.issuerUrl }}
+   - Required Scopes: {{ .Values.auth.oauth2.requiredScopes }}
+{{- end }}
+✅ Schema Registry: {{ .Values.schemaRegistry.url }}
+{{- if .Values.schemaRegistry.multiRegistry.enabled }}
+✅ Multi-Registry: Enabled ({{ len .Values.schemaRegistry.multiRegistry.registries }} registries)
+{{- range .Values.schemaRegistry.multiRegistry.registries }}
+   - {{ .name }}: {{ .url }} (readonly: {{ .readonly }})
+{{- end }}
+{{- end }}
+✅ Replicas: {{ .Values.replicaCount }}
+{{- if .Values.autoscaling.enabled }}
+✅ Auto-scaling: {{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} replicas
+{{- end }}
+✅ Resources: {{ .Values.resources.requests.cpu }}/{{ .Values.resources.requests.memory }} (requests)
+
+🔧 Web-Claude Integration:
+{{- if .Values.ingress.enabled }}
+{{- $host := (index .Values.ingress.hosts 0).host }}
+Add this to your Claude Desktop configuration:
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "mcp-client",
+      "args": ["https://{{ $host }}"],
+      {{- if .Values.auth.enabled }}
+      "auth": {
+        "type": "oauth2",
+        "provider": "google",
+        "client_id": "your-google-client-id",
+        "scopes": {{ .Values.auth.oauth2.requiredScopes | splitList "," | toJson }}
+      }
+      {{- end }}
+    }
+  }
+}
+{{- end }}
+
+📊 Monitor your deployment:
+kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+
+🛠️ Useful commands:
+# Scale deployment
+kubectl scale deployment {{ include "kafka-schema-registry-mcp.fullname" . }} --replicas=3 -n {{ .Release.Namespace }}
+
+# Update configuration
+helm upgrade {{ .Release.Name }} {{ .Chart.Name }} -n {{ .Release.Namespace }} -f values.yaml
+
+# Check OAuth2 secret
+{{- if .Values.auth.enabled }}
+kubectl get secret {{ include "kafka-schema-registry-mcp.oauth2SecretName" . }} -n {{ .Release.Namespace }} -o yaml
+{{- end }}
+
+For more information, visit: https://github.com/aywengo/kafka-schema-reg-mcp 

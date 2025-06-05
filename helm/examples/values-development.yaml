@@ -1,0 +1,79 @@
+# Development values for kafka-schema-registry-mcp
+# Simplified configuration for development environment
+
+# Application configuration
+replicaCount: 1
+
+image:
+  repository: aywengo/kafka-schema-reg-mcp
+  pullPolicy: Always
+  tag: "1.8.0"
+
+# OAuth2 Authentication (optional for dev)
+auth:
+  enabled: false
+
+# Schema Registry Configuration
+schemaRegistry:
+  url: "http://localhost:8081"
+  user: ""
+  password: ""
+  
+  multiRegistry:
+    enabled: false
+
+# Application settings
+app:
+  readonly: false
+  logLevel: "DEBUG"
+  port: 8080
+
+# Service configuration
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+
+# Ingress disabled for development
+ingress:
+  enabled: false
+
+# Minimal resources for development
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+# Autoscaling disabled
+autoscaling:
+  enabled: false
+
+# Pod Disruption Budget disabled
+podDisruptionBudget:
+  enabled: false
+
+# Network Policy disabled for development
+networkPolicy:
+  enabled: false
+
+# Monitoring enabled for testing
+monitoring:
+  enabled: true
+
+# Relaxed security for development
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000 

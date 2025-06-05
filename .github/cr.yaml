@@ -1,0 +1,7 @@
+# Chart Releaser configuration
+owner: aywengo
+git-repo: kafka-schema-reg-mcp
+charts-repo: https://aywengo.github.io/kafka-schema-reg-mcp
+index-path: index.yaml
+packages-with-index: true
+release-name-template: "kafka-schema-registry-mcp-{{ .Version }}" 

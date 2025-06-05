@@ -493,13 +493,19 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
 
 **📖 Integration Details**: [Use Cases - Schema Registry Integration](docs/use-cases.md#-schema-registry-integration)
 
-## 🆕 What's New in v1.9.x
+## 🆕 What's New in v1.8.x
 
 - **Optional OAuth2 Authentication & Authorization**: Enable with `ENABLE_AUTH=true` and configure via environment variables:
   - `AUTH_ISSUER_URL`, `AUTH_VALID_SCOPES`, `AUTH_DEFAULT_SCOPES`, `AUTH_REQUIRED_SCOPES`, `AUTH_CLIENT_REG_ENABLED`, `AUTH_REVOCATION_ENABLED`
 - **Configurable AuthSettings**: All OAuth2 settings are now configurable via environment variables for both single and multi-registry modes.
 - **Unit Tests for Auth Config**: Added tests for both single and multi-registry auth configuration.
 - **Upgraded MCP SDK**: Now using `mcp[cli]==1.9.2` with full authorization support.
+- **Schema Statistics & Counting**: New tools for monitoring registry usage:
+  - `count_contexts`: Track context distribution
+  - `count_schemas`: Monitor schema growth
+  - `count_schema_versions`: Track schema evolution
+  - `get_registry_statistics`: Comprehensive registry analytics
+  [📖 Details](docs/mcp-tools-reference.md#schema-statistics-and-counting-tools)
 
 ### Environment Variables (Authentication & Authorization)
 
