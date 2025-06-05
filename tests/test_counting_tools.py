@@ -1,6 +1,12 @@
+import sys
+import os
 import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+
+# Add the parent directory to sys.path so we can import oauth_provider
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from kafka_schema_registry_multi_mcp import (
     count_contexts,
     count_schemas,
@@ -107,7 +113,7 @@ def test_get_registry_statistics_success(mock_registry_client, mock_registry_man
         assert result["total_schemas"] == 3
         assert result["total_versions"] == 6
         assert result["average_versions_per_schema"] == 2.0
-        assert len(result["contexts"]) == 2
+        assert len(result["contexts"]) == 3  # 2 named contexts + 1 default context
         assert "counted_at" in result
 
 def test_get_registry_statistics_without_details(mock_registry_client, mock_registry_manager):

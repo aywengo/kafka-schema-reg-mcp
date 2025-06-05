@@ -48,40 +48,14 @@ READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
 # Multi-registry configuration
 REGISTRIES_CONFIG = os.getenv("REGISTRIES_CONFIG", "")
 
-ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
+# Import OAuth functionality
+from oauth_provider import (
+    ENABLE_AUTH, require_scopes, get_oauth_scopes_info, get_fastmcp_config
+)
 
-# Auth configuration from environment variables
-AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
-AUTH_VALID_SCOPES = [s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_DEFAULT_SCOPES = [s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_REQUIRED_SCOPES = [s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() in ("true", "1", "yes", "on")
-AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
-
-if ENABLE_AUTH:
-    from mcp.server.auth.provider import OAuthAuthorizationServerProvider
-    from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
-
-    class MyOAuthServerProvider(OAuthAuthorizationServerProvider):
-        # Minimal stub for demonstration; implement real logic as needed
-        pass
-
-    mcp = FastMCP(
-        "Kafka Schema Registry MCP Server",
-        auth_server_provider=MyOAuthServerProvider(),
-        auth=AuthSettings(
-            issuer_url=AUTH_ISSUER_URL,
-            revocation_options=RevocationOptions(enabled=AUTH_REVOCATION_ENABLED),
-            client_registration_options=ClientRegistrationOptions(
-                enabled=AUTH_CLIENT_REG_ENABLED,
-                valid_scopes=AUTH_VALID_SCOPES,
-                default_scopes=AUTH_DEFAULT_SCOPES,
-            ),
-            required_scopes=AUTH_REQUIRED_SCOPES,
-        ),
-    )
-else:
-    mcp = FastMCP("Kafka Schema Registry MCP Server")
+# Initialize FastMCP with OAuth configuration
+mcp_config = get_fastmcp_config("Kafka Schema Registry MCP Server")
+mcp = FastMCP(**mcp_config)
 
 @dataclass
 class RegistryConfig:
@@ -724,9 +698,22 @@ def get_migration_status(migration_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
+# ===== OAUTH INFORMATION TOOLS =====
+
+@mcp.tool()
+def get_oauth_scopes_info() -> Dict[str, Any]:
+    """
+    Get information about OAuth scopes and permissions in this MCP server.
+    
+    Returns:
+        Dictionary containing scope definitions, required permissions per tool, and test tokens
+    """
+    return get_oauth_scopes_info()
+
 # ===== SCHEMA MANAGEMENT TOOLS =====
 
 @mcp.tool()
+@require_scopes("write")
 def register_schema(
     subject: str,
     schema_definition: Dict[str, Any],
@@ -778,6 +765,7 @@ def register_schema(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_schema(
     subject: str,
     version: str = "latest",
@@ -959,6 +947,7 @@ def delete_context(context: str) -> Dict[str, str]:
 # ===== SUBJECT MANAGEMENT TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def list_subjects(context: Optional[str] = None) -> List[str]:
     """
     List all subjects, optionally filtered by context.
@@ -983,6 +972,7 @@ def list_subjects(context: Optional[str] = None) -> List[str]:
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("admin")
 def delete_subject(
     subject: str,
     context: Optional[str] = None
@@ -1042,6 +1032,7 @@ def get_global_config(context: Optional[str] = None) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("write")
 def update_global_config(
     compatibility: str,
     context: Optional[str] = None

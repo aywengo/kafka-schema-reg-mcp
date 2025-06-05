@@ -395,6 +395,104 @@ There are two types of authentication in this project:
 | `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` | MCP Server (frontend) |
 | `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` | MCP Server (frontend) |
 
+## 🔐 OAuth Scopes & Authorization
+
+The MCP server implements a three-tier permission system when OAuth authentication is enabled (`ENABLE_AUTH=true`):
+
+### **🎯 Permission Scopes**
+
+| Scope | Permissions | Description |
+|-------|-------------|-------------|
+| **`read`** | View schemas, subjects, configurations | Basic read-only access to all schema information |
+| **`write`** | Register schemas, update configs (includes `read`) | Schema modification and configuration management |
+| **`admin`** | Delete subjects, manage registries (includes `write` + `read`) | Full administrative access |
+
+### **🛠️ Tool-Level Authorization**
+
+All MCP tools are protected by scopes:
+
+#### Read Scope (`read`) - View Operations
+- `list_registries`, `get_registry_info`, `test_registry_connection` 
+- `get_subjects`, `list_subjects`, `get_schema`, `get_schema_versions`
+- `get_global_config`, `get_subject_config`
+- `get_mode`, `get_subject_mode`
+- `compare_registries`, `compare_contexts_across_registries`
+- All progress monitoring and task status tools
+
+#### Write Scope (`write`) - Modification Operations  
+- `register_schema`, `check_compatibility`
+- `update_global_config`, `update_subject_config`
+- `update_mode`, `update_subject_mode`
+- `migrate_schema` (schema migration operations)
+
+#### Admin Scope (`admin`) - Administrative Operations
+- `delete_subject`, `clear_context_batch`, `clear_multiple_contexts_batch`
+- `migrate_context` (full context migration)
+- All cleanup and deletion operations
+
+### **🧪 Development Testing**
+
+For development and testing, you can use special development tokens:
+
+```bash
+# Format: dev-token-{scopes}
+export OAUTH_TOKEN="dev-token-read,write,admin"  # Full access
+export OAUTH_TOKEN="dev-token-read"              # Read-only access  
+export OAUTH_TOKEN="dev-token-write"             # Read + Write access
+```
+
+### **🔧 OAuth Configuration Examples**
+
+#### Development Environment (Permissive)
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://dev-auth.example.com"
+export AUTH_VALID_SCOPES="read,write,admin"
+export AUTH_DEFAULT_SCOPES="read"
+export AUTH_REQUIRED_SCOPES="read"
+```
+
+#### Production Environment (Restrictive)
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://prod-auth.example.com"  
+export AUTH_VALID_SCOPES="read,write"
+export AUTH_DEFAULT_SCOPES="read"
+export AUTH_REQUIRED_SCOPES="read,write"
+```
+
+#### Read-Only Environment (Analytics/Monitoring)
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://auth.example.com"
+export AUTH_VALID_SCOPES="read"
+export AUTH_DEFAULT_SCOPES="read"
+export AUTH_REQUIRED_SCOPES="read"
+```
+
+### **📋 Scope Information Tool**
+
+Use the `get_oauth_scopes_info` MCP tool to discover:
+- Available scopes and their permissions
+- Required scopes for each tool
+- Development token formats
+- Current authentication configuration
+
+**Example usage with Claude:**
+```
+"Show me the OAuth scopes and which tools require which permissions"
+"What development tokens can I use for testing?"
+"Which tools require admin access?"
+```
+
+### **🛡️ Security Best Practices**
+
+1. **Principle of Least Privilege**: Grant only the minimum scopes needed
+2. **Environment Separation**: Use different scope configurations per environment  
+3. **Read-Only Production**: Consider read-only scopes for production monitoring
+4. **Development Tokens**: Only use `dev-token-*` formats in development environments
+5. **Token Rotation**: Implement regular token rotation in production
+
 ## 🧪 Testing
 
 The project includes comprehensive test suites for both single-registry and multi-registry configurations.

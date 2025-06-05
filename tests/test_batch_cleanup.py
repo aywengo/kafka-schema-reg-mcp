@@ -192,6 +192,10 @@ async def test_multi_registry_batch_cleanup():
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
         
+        import sys
+        import os
+        # Add the parent directory to sys.path so we can import oauth_provider
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         import kafka_schema_registry_multi_mcp as multi_mcp
         
         # Reinitialize registry manager with test config

@@ -78,40 +78,14 @@ import aiohttp
 
 from mcp.server.fastmcp import FastMCP
 
-ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
+# Import OAuth functionality
+from oauth_provider import (
+    ENABLE_AUTH, require_scopes, get_oauth_scopes_info, get_fastmcp_config
+)
 
-# Auth configuration from environment variables
-AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
-AUTH_VALID_SCOPES = [s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_DEFAULT_SCOPES = [s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_REQUIRED_SCOPES = [s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "myscope").split(",") if s.strip()]
-AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() in ("true", "1", "yes", "on")
-AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
-
-if ENABLE_AUTH:
-    from mcp.server.auth.provider import OAuthAuthorizationServerProvider
-    from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
-
-    class MyOAuthServerProvider(OAuthAuthorizationServerProvider):
-        # Minimal stub for demonstration; implement real logic as needed
-        pass
-
-    mcp = FastMCP(
-        "Kafka Schema Registry Multi-Registry MCP Server",
-        auth_server_provider=MyOAuthServerProvider(),
-        auth=AuthSettings(
-            issuer_url=AUTH_ISSUER_URL,
-            revocation_options=RevocationOptions(enabled=AUTH_REVOCATION_ENABLED),
-            client_registration_options=ClientRegistrationOptions(
-                enabled=AUTH_CLIENT_REG_ENABLED,
-                valid_scopes=AUTH_VALID_SCOPES,
-                default_scopes=AUTH_DEFAULT_SCOPES,
-            ),
-            required_scopes=AUTH_REQUIRED_SCOPES,
-        ),
-    )
-else:
-    mcp = FastMCP("Kafka Schema Registry Multi-Registry MCP Server")
+# Initialize FastMCP with OAuth configuration
+mcp_config = get_fastmcp_config("Kafka Schema Registry Multi-Registry MCP Server")
+mcp = FastMCP(**mcp_config)
 
 # Configure logging
 logging.basicConfig(
@@ -807,6 +781,7 @@ def check_readonly_mode(registry_name: Optional[str] = None) -> Optional[Dict[st
 # ===== REGISTRY MANAGEMENT TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def list_registries() -> List[Dict[str, Any]]:
     """
     List all configured Schema Registry instances.
@@ -825,6 +800,7 @@ def list_registries() -> List[Dict[str, Any]]:
         return [{"error": str(e)}]
 
 @mcp.tool()
+@require_scopes("read")
 def get_registry_info(registry_name: str) -> Dict[str, Any]:
     """
     Get detailed information about a specific registry.
@@ -844,6 +820,7 @@ def get_registry_info(registry_name: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def test_registry_connection(registry_name: str) -> Dict[str, Any]:
     """
     Test connection to a specific registry.
@@ -864,6 +841,7 @@ def test_registry_connection(registry_name: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 async def test_all_registries() -> Dict[str, Any]:
     """
     Test connections to all configured registries.
@@ -879,6 +857,7 @@ async def test_all_registries() -> Dict[str, Any]:
 # ===== CROSS-REGISTRY COMPARISON TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 async def compare_registries(
     source_registry: str,
     target_registry: str,
@@ -1406,6 +1385,7 @@ def check_readonly_mode(registry_name: Optional[str] = None) -> Optional[Dict[st
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_subjects(
     context: Optional[str] = None,
     registry: Optional[str] = None
@@ -1430,6 +1410,7 @@ def get_subjects(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_global_config(
     context: Optional[str] = None,
     registry: Optional[str] = None
@@ -1464,6 +1445,7 @@ def get_global_config(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("write")
 def update_global_config(
     compatibility: str,
     context: Optional[str] = None,
@@ -1507,6 +1489,7 @@ def update_global_config(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_subject_config(
     subject: str,
     context: Optional[str] = None,
@@ -1543,6 +1526,7 @@ def get_subject_config(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("write")
 def update_subject_config(
     subject: str,
     compatibility: str,
@@ -1624,6 +1608,7 @@ def get_mode(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("write")
 def update_mode(
     mode: str,
     context: Optional[str] = None,
@@ -1703,6 +1688,7 @@ def get_subject_mode(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("write")
 def update_subject_mode(
     subject: str,
     mode: str,
@@ -1837,6 +1823,7 @@ def check_compatibility(
 # ===== ORIGINAL SCHEMA MANAGEMENT TOOLS (Enhanced with Multi-Registry Support) =====
 
 @mcp.tool()
+@require_scopes("write")
 def register_schema(
     subject: str,
     schema_definition: Dict[str, Any],
@@ -1888,6 +1875,7 @@ def register_schema(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_schema(
     subject: str,
     version: str = "latest",
@@ -1928,6 +1916,7 @@ def get_schema(
 # ===== BATCH CLEANUP TOOLS =====
 
 @mcp.tool()
+@require_scopes("admin")
 def clear_context_batch(
     context: str,
     registry: str,
@@ -2172,6 +2161,7 @@ def _execute_clear_context_batch(
         }
 
 @mcp.tool()
+@require_scopes("admin")
 def clear_multiple_contexts_batch(
     contexts: List[str],
     registry: str,
@@ -2414,6 +2404,7 @@ def _execute_clear_multiple_contexts_batch(
         }
 
 @mcp.tool()
+@require_scopes("admin")
 async def delete_subject(
     subject: str,
     context: Optional[str] = None,
@@ -2455,6 +2446,7 @@ async def delete_subject(
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("admin")
 def migrate_schema(
     subject: str,
     source_registry: str,
@@ -2885,6 +2877,16 @@ def list_subjects(
         return client.get_subjects(context)
     except Exception as e:
         return {"error": str(e)}
+
+@mcp.tool()
+def get_oauth_scopes_info() -> Dict[str, Any]:
+    """
+    Get information about OAuth scopes and permissions in this MCP server.
+    
+    Returns:
+        Dictionary containing scope definitions, required permissions per tool, and test tokens
+    """
+    return get_oauth_scopes_info()
 
 @mcp.tool()
 def get_operation_info_tool(operation_name: Optional[str] = None) -> Dict[str, Any]:
@@ -3573,6 +3575,7 @@ def _categorize_operation(operation: str) -> str:
         return "other"
 
 @mcp.tool()
+@require_scopes("admin")
 async def migrate_context(
     source_registry: str,
     target_registry: str,
