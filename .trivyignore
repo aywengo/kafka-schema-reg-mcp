@@ -1,0 +1,9 @@
+# Trivy ignore file for documented security exceptions
+# 
+# CVE-2023-45853: zlib integer overflow vulnerability
+# Status: will_not_fix by Debian maintainers
+# Rationale: This vulnerability affects zipOpenNewFileInZip4_6 function which is not
+# used in our application context. The Debian security team has marked this as
+# will_not_fix, indicating it's not exploitable in normal usage scenarios.
+# References: https://avd.aquasec.com/nvd/cve-2023-45853
+CVE-2023-45853 

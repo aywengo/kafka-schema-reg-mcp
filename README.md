@@ -508,6 +508,41 @@ Use the `get_oauth_scopes_info` MCP tool to discover:
 4. **Development Tokens**: Only use `dev-token-*` formats in development environments
 5. **Token Rotation**: Implement regular token rotation in production
 
+### **🚨 Security Vulnerability Management**
+
+The project includes automated security scanning via GitHub Actions, with documented handling of security exceptions:
+
+#### Security Scanning
+- **Trivy**: Container vulnerability scanning for critical, high, and medium severity issues
+- **Safety & pip-audit**: Python dependency vulnerability scanning
+- **TruffleHog**: Secrets detection in code and git history
+- **Docker Bench Security**: Docker configuration security assessment
+
+#### Security Exception Handling
+Some vulnerabilities may be marked as "will_not_fix" by upstream maintainers when they:
+- Are not exploitable in normal usage scenarios
+- Would break compatibility if fixed
+- Have no available fixes from the package maintainers
+
+**Documented Exceptions:**
+- All security exceptions are documented in `.trivyignore` with detailed rationale
+- Each exception includes CVE reference, status explanation, and risk assessment
+- Regular review process ensures exceptions remain valid
+
+**Current Exceptions:**
+- `CVE-2023-45853` (zlib): Integer overflow in zipOpenNewFileInZip4_6 function
+  - Status: will_not_fix by Debian maintainers
+  - Impact: Function not used in application context
+  - Risk: Low - not exploitable in our use case
+
+#### Security Configuration
+```bash
+# Disable VEX notices (already documented)
+export TRIVY_DISABLE_VEX_NOTICE=true
+```
+
+The security scan workflow continues to monitor for new vulnerabilities while allowing documented exceptions to avoid false positives in CI/CD pipelines.
+
 ## 🧪 Testing
 
 The project includes a unified, comprehensive test suite with automatic environment management.

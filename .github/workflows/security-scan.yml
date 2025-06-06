@@ -14,6 +14,9 @@ jobs:
     name: Trivy Security Scan
     runs-on: ubuntu-latest
     
+    env:
+      TRIVY_DISABLE_VEX_NOTICE: true
+    
     permissions:
       contents: read
       security-events: write
@@ -68,6 +71,12 @@ jobs:
         echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Security reports uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+        echo "- 📋 Security exceptions documented in \`.trivyignore\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Security Exception Handling" >> $GITHUB_STEP_SUMMARY
+        echo "- Vulnerabilities marked as 'will_not_fix' by upstream maintainers are documented and ignored" >> $GITHUB_STEP_SUMMARY
+        echo "- All security exceptions include rationale and references" >> $GITHUB_STEP_SUMMARY
+        echo "- Review \`.trivyignore\` file for current security exceptions" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Please review the Security tab for detailed findings." >> $GITHUB_STEP_SUMMARY
 
