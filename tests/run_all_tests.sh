@@ -328,7 +328,9 @@ run_integration_tests() {
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_readonly_mcp_client.py:READONLY mode with MCP client"
+        "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
+        "test_oauth.py:OAuth authentication"
         "advanced_mcp_test.py:Advanced MCP functionality"
     )
     
@@ -369,13 +371,19 @@ run_advanced_feature_tests() {
     
     local tests=(
         "test_migration_integration.py:Schema migration functionality"
+        "test_migration_implementation.py:Migration implementation details"
         "test_lightweight_migration.py:Lightweight migration operations"
         "test_lightweight_migration_integration.py:Lightweight migration integration"
         "test_migrate_context_docker_config.py:Docker migration configuration"
         "test_all_versions_migration.py:All versions migration testing"
+        "test_version_migration.py:Version-specific migration testing"
         "test_sparse_version_migration.py:Sparse version migration"
         "test_id_preservation_migration.py:ID preservation migration"
+        "test_bulk_migration.py:Bulk migration operations"
+        "test_compatibility_migration.py:Compatibility migration testing"
         "test_batch_cleanup_integration.py:Advanced batch cleanup"
+        "test_registry_comparison.py:Registry comparison functionality"
+        "test_schema_drift.py:Schema drift detection and handling"
         "test_end_to_end_workflows.py:End-to-end workflow testing"
         "test_error_handling.py:Error handling and recovery"
         "test_all_tools_validation.py:All MCP tools validation"

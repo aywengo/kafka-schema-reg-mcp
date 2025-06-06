@@ -48,13 +48,16 @@ def test_implemented_migration_files():
     print("\n🔍 Validating implemented migration test files...")
     
     implemented_files = [
-        "test_schema_migration.py",
         "test_compatibility_migration.py", 
         "test_bulk_migration.py",
         "test_registry_comparison.py",
         "test_readonly_validation.py",
         "test_schema_drift.py",
-        "test_version_migration.py"
+        "test_version_migration.py",
+        "test_migration_integration.py",
+        "test_lightweight_migration.py",
+        "test_sparse_version_migration.py",
+        "test_id_preservation_migration.py"
     ]
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -130,10 +133,10 @@ def test_quick_migration_functionality():
 
 def run_sample_migration_test():
     """Run one of the implemented migration tests"""
-    print("\n🚀 Running sample migration test (schema migration)...")
+    print("\n🚀 Running sample migration test (migration integration)...")
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    test_file = os.path.join(script_dir, "test_schema_migration.py")
+    test_file = os.path.join(script_dir, "test_migration_integration.py")
     
     if os.path.exists(test_file):
         try:

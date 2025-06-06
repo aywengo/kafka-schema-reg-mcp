@@ -33,12 +33,10 @@ def test_test_readonly_validation():
     try:
         # Import and reload the unified server in multi-registry mode to pick up environment variables
         import importlib
-        import sys
-        import os
         # Add the parent directory to sys.path so we can import oauth_provider
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         import kafka_schema_registry_unified_mcp
-        importlib.reload(kafka_schema_registry_multi_mcp)
+        importlib.reload(kafka_schema_registry_unified_mcp)
         
         print("✅ unified server in multi-registry mode loaded")
         

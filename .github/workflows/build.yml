@@ -45,59 +45,35 @@ jobs:
           
           # Test that the image contains the correct files
           echo "Checking application files..."
-          docker run --rm kafka-schema-reg-mcp:test ls -la | grep kafka_schema_registry_mcp.py
-          docker run --rm kafka-schema-reg-mcp:test ls -la | grep kafka_schema_registry_multi_mcp.py
+          docker run --rm kafka-schema-reg-mcp:test ls -la | grep kafka_schema_registry_unified_mcp.py
           
           # Test that dependencies are installed
           echo "Testing MCP SDK installation..."
           docker run --rm kafka-schema-reg-mcp:test python -c "import mcp; print('✅ MCP SDK installed')"
           
-          # Test both MCP servers can be imported without errors
-          echo "Testing single registry MCP server import..."
+          # Test unified MCP server can be imported without errors
+          echo "Testing unified MCP server import..."
           docker run --rm kafka-schema-reg-mcp:test python -c "
-          import kafka_schema_registry_mcp
-          print('✅ Single registry MCP server imports successfully')
-          "
-          
-          echo "Testing multi-registry MCP server import..."
-          docker run --rm kafka-schema-reg-mcp:test python -c "
-          import kafka_schema_registry_multi_mcp
-          print('✅ Multi-registry MCP server imports successfully')
+          import kafka_schema_registry_unified_mcp
+          print('✅ Unified MCP server imports successfully')
           print('✅ No Pydantic warnings - field name conflicts resolved')
           "
           
-          # Test that both scripts are syntactically valid
+          # Test that the script is syntactically valid
           echo "Testing Python syntax..."
-          docker run --rm kafka-schema-reg-mcp:test python -m py_compile kafka_schema_registry_mcp.py
-          docker run --rm kafka-schema-reg-mcp:test python -m py_compile kafka_schema_registry_multi_mcp.py
+          docker run --rm kafka-schema-reg-mcp:test python -m py_compile kafka_schema_registry_unified_mcp.py
           
           # Test basic MCP server startup (should start and wait for stdio)
-          echo "Testing single registry MCP server startup..."
+          echo "Testing unified MCP server startup..."
           timeout 3s docker run --rm kafka-schema-reg-mcp:test || test $? -eq 124
           if [ $? -eq 124 ]; then
-            echo "✅ Single registry MCP server started and waited for stdio input (expected behavior)"
+            echo "✅ Unified MCP server started and waited for stdio input (expected behavior)"
           else
-            echo "✅ Single registry MCP server started successfully"
-          fi
-          
-          echo "Testing multi-registry MCP server startup..."
-          timeout 3s docker run --rm kafka-schema-reg-mcp:test python kafka_schema_registry_multi_mcp.py || test $? -eq 124
-          if [ $? -eq 124 ]; then
-            echo "✅ Multi-registry MCP server started and waited for stdio input (expected behavior)"
-          else
-            echo "✅ Multi-registry MCP server started successfully"
+            echo "✅ Unified MCP server started successfully"
           fi
           
           # Test environment variable handling
-          echo "Testing single registry environment configuration..."
-          docker run --rm -e SCHEMA_REGISTRY_URL=http://test:8081 kafka-schema-reg-mcp:test python -c "
-          import os
-          print(f'SCHEMA_REGISTRY_URL: {os.getenv(\"SCHEMA_REGISTRY_URL\", \"not set\")}')
-          import kafka_schema_registry_mcp
-          print('✅ Single registry environment variables handled correctly')
-          "
-          
-          echo "Testing multi-registry environment configuration..."
+          echo "Testing unified MCP server environment configuration..."
           docker run --rm \
             -e SCHEMA_REGISTRY_NAME_1=test \
             -e SCHEMA_REGISTRY_URL_1=http://test:8081 \
@@ -107,8 +83,8 @@ jobs:
           print(f'SCHEMA_REGISTRY_NAME_1: {os.getenv(\"SCHEMA_REGISTRY_NAME_1\", \"not set\")}')
           print(f'SCHEMA_REGISTRY_URL_1: {os.getenv(\"SCHEMA_REGISTRY_URL_1\", \"not set\")}')
           print(f'READONLY_1: {os.getenv(\"READONLY_1\", \"not set\")}')
-          import kafka_schema_registry_multi_mcp
-          print('✅ Multi-registry environment variables handled correctly')
+          import kafka_schema_registry_unified_mcp
+          print('✅ Unified MCP server environment variables handled correctly')
           "
           
           echo "✅ All Docker image tests passed!"

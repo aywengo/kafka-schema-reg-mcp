@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Build arguments for metadata
 ARG VERSION="dev"
