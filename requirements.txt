@@ -1,5 +1,5 @@
 # MCP (Message Control Protocol) dependencies
-mcp[cli]==1.9.2
+mcp[cli]==1.9.3
 
 # Kafka Schema Registry integration
 requests==2.31.0
