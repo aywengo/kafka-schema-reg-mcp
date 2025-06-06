@@ -65,7 +65,7 @@ jobs:
           helm package helm/ --destination .cr-release-packages/
 
       - name: Upload chart to GitHub Releases
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@v1.7.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
