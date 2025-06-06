@@ -53,8 +53,9 @@ RUN apt-get update && apt-get upgrade -y && \
 # Create non-root user for security (before copying files)
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /bin/bash mcp
 
-# Set working directory
+# Set working directory and ensure proper ownership
 WORKDIR /app
+RUN chown -R mcp:mcp /app
 
 # Copy Python packages from builder stage
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages

@@ -43,17 +43,21 @@ jobs:
         run: |
           echo "Testing MCP server Docker image..."
           
+          # Clean up any existing cache directories that might cause permission issues
+          echo "Cleaning up cache directories..."
+          docker run --rm kafka-schema-reg-mcp:test find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+          
           # Test that the image contains the correct files
           echo "Checking application files..."
           docker run --rm kafka-schema-reg-mcp:test ls -la | grep kafka_schema_registry_unified_mcp.py
           
           # Test that dependencies are installed
           echo "Testing MCP SDK installation..."
-          docker run --rm kafka-schema-reg-mcp:test python -c "import mcp; print('✅ MCP SDK installed')"
+          docker run --rm -e PYTHONDONTWRITEBYTECODE=1 kafka-schema-reg-mcp:test python -c "import mcp; print('✅ MCP SDK installed')"
           
           # Test unified MCP server can be imported without errors
           echo "Testing unified MCP server import..."
-          docker run --rm kafka-schema-reg-mcp:test python -c "
+          docker run --rm -e PYTHONDONTWRITEBYTECODE=1 kafka-schema-reg-mcp:test python -c "
           import kafka_schema_registry_unified_mcp
           print('✅ Unified MCP server imports successfully')
           print('✅ No Pydantic warnings - field name conflicts resolved')
@@ -61,7 +65,7 @@ jobs:
           
           # Test that the script is syntactically valid
           echo "Testing Python syntax..."
-          docker run --rm kafka-schema-reg-mcp:test python -B -m py_compile kafka_schema_registry_unified_mcp.py
+          docker run --rm -e PYTHONDONTWRITEBYTECODE=1 kafka-schema-reg-mcp:test python -B -m py_compile kafka_schema_registry_unified_mcp.py
           
           # Test basic MCP server startup (should start and wait for stdio)
           echo "Testing unified MCP server startup..."
@@ -75,6 +79,7 @@ jobs:
           # Test environment variable handling
           echo "Testing unified MCP server environment configuration..."
           docker run --rm \
+            -e PYTHONDONTWRITEBYTECODE=1 \
             -e SCHEMA_REGISTRY_NAME_1=test \
             -e SCHEMA_REGISTRY_URL_1=http://test:8081 \
             -e READONLY_1=false \
