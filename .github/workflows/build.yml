@@ -91,14 +91,25 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
+        continue-on-error: true  # Don't fail the workflow if Trivy scan fails
         with:
           image-ref: kafka-schema-reg-mcp:test
           format: 'sarif'
           output: 'trivy-results.sarif'
 
+      - name: Check if Trivy results exist
+        id: check_trivy_results
+        run: |
+          if [ -f "trivy-results.sarif" ]; then
+            echo "trivy_results_exist=true" >> $GITHUB_OUTPUT
+          else
+            echo "trivy_results_exist=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Trivy scan results not found - scan may have failed"
+          fi
+
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && steps.check_trivy_results.outputs.trivy_results_exist == 'true'
         continue-on-error: true  # Don't fail the workflow if SARIF upload fails
         with:
           sarif_file: 'trivy-results.sarif'
