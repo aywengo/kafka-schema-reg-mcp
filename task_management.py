@@ -35,6 +35,7 @@ class TaskType(Enum):
     CLEANUP = "cleanup"
     EXPORT = "export"
     IMPORT = "import"
+    STATISTICS = "statistics"
 
 class OperationDuration(Enum):
     QUICK = "quick"        # < 5 seconds
@@ -91,6 +92,12 @@ OPERATION_METADATA = {
     "export_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "export_context": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
     "export_global": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
+    
+    # Statistics operations (can be slow due to multiple API calls)
+    "count_contexts": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "count_schemas": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
+    "count_schema_versions": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_registry_statistics": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
 }
 
 def get_operation_info(operation_name: str, registry_mode: str) -> Dict[str, Any]:

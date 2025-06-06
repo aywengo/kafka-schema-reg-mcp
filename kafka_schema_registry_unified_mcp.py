@@ -65,7 +65,8 @@ from batch_operations import (
     clear_context_batch_tool, clear_multiple_contexts_batch_tool
 )
 from statistics_tools import (
-    count_contexts_tool, count_schemas_tool, count_schema_versions_tool, get_registry_statistics_tool
+    count_contexts_tool, count_schemas_tool, count_schema_versions_tool, get_registry_statistics_tool,
+    count_schemas_task_queue_tool, get_registry_statistics_task_queue_tool
 )
 from core_registry_tools import (
     register_schema_tool, get_schema_tool, get_schema_versions_tool, list_subjects_tool,
@@ -417,7 +418,13 @@ def count_contexts(registry: str = None):
 @mcp.tool()
 def count_schemas(context: str = None, registry: str = None):
     """Count the number of schemas in a context or registry."""
-    return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
+    # Use task queue version for better performance when counting across multiple contexts
+    if context is None:
+        # Multiple contexts - use optimized async version
+        return count_schemas_task_queue_tool(registry_manager, REGISTRY_MODE, context, registry)
+    else:
+        # Single context - use direct version
+        return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
 
 @mcp.tool()
 def count_schema_versions(subject: str, context: str = None, registry: str = None):
@@ -427,7 +434,8 @@ def count_schema_versions(subject: str, context: str = None, registry: str = Non
 @mcp.tool()
 def get_registry_statistics(registry: str = None, include_context_details: bool = True):
     """Get comprehensive statistics about a registry."""
-    return get_registry_statistics_tool(registry_manager, REGISTRY_MODE, registry, include_context_details)
+    # Always use task queue version for better performance due to complexity
+    return get_registry_statistics_task_queue_tool(registry_manager, REGISTRY_MODE, registry, include_context_details)
 
 # ===== TASK MANAGEMENT TOOLS =====
 
@@ -480,6 +488,67 @@ async def cancel_task(task_id: str):
             return {"message": f"Task '{task_id}' cancelled successfully"}
         else:
             return {"error": f"Could not cancel task '{task_id}' (may already be completed)"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def list_statistics_tasks():
+    """List all statistics-related tasks."""
+    try:
+        from task_management import TaskType
+        tasks = task_manager.list_tasks(task_type=TaskType.STATISTICS)
+        return {
+            "statistics_tasks": [task.to_dict() for task in tasks],
+            "total_tasks": len(tasks),
+            "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
+            "registry_mode": REGISTRY_MODE
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+def get_statistics_task_progress(task_id: str):
+    """Get detailed progress for a statistics task."""
+    try:
+        task = task_manager.get_task(task_id)
+        if task is None:
+            return {"error": f"Task '{task_id}' not found"}
+        
+        task_dict = task.to_dict()
+        
+        # Add statistics-specific progress information
+        if task.metadata and task.metadata.get("operation") in ["count_schemas", "get_registry_statistics"]:
+            operation = task.metadata.get("operation")
+            progress_stage = "Initializing"
+            
+            if task_dict["status"] == "running":
+                progress = task_dict["progress"]
+                if operation == "get_registry_statistics":
+                    if progress < 20:
+                        progress_stage = "Getting contexts list"
+                    elif progress < 50:
+                        progress_stage = "Analyzing contexts in parallel"
+                    elif progress < 90:
+                        progress_stage = "Counting schemas and versions"
+                    elif progress < 100:
+                        progress_stage = "Finalizing statistics"
+                    else:
+                        progress_stage = "Complete"
+                elif operation == "count_schemas":
+                    if progress < 50:
+                        progress_stage = "Getting schema lists"
+                    elif progress < 100:
+                        progress_stage = "Counting schemas across contexts"
+                    else:
+                        progress_stage = "Complete"
+            elif task_dict["status"] == "completed":
+                progress_stage = "Complete"
+            elif task_dict["status"] == "failed":
+                progress_stage = "Failed"
+            
+            task_dict["progress_stage"] = progress_stage
+        
+        return task_dict
     except Exception as e:
         return {"error": str(e)}
 

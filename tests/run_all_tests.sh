@@ -314,6 +314,7 @@ run_essential_integration_tests() {
         "test_integration.py:Core schema operations"
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
+        "test_statistics_tasks.py:Statistics tasks with async optimization"
     )
     
     run_test_list "${tests[@]}"
@@ -327,6 +328,7 @@ run_integration_tests() {
         "test_integration.py:Comprehensive schema operations"
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
+        "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_readonly_mcp_client.py:READONLY mode with MCP client"
         "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
