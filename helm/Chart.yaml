@@ -5,6 +5,7 @@ type: application
 version: 1.8.0
 appVersion: "1.8.0"
 home: https://github.com/aywengo/kafka-schema-reg-mcp
+icon: https://kafka.apache.org/images/apache-kafka.png
 sources:
   - https://github.com/aywengo/kafka-schema-reg-mcp
 maintainers:

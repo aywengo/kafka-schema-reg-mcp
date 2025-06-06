@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="MCPConfiguration">
+    <servers>
+      <server id="kafka-schema-registry" name="Kafka Schema Registry">
+        <description>Enterprise schema registry management via MCP</description>
+        <transport type="stdio">
+          <command>docker</command>
+          <args>
+            <arg>run</arg>
+            <arg>--rm</arg>
+            <arg>-i</arg>
+            <arg>--network</arg>
+            <arg>host</arg>
+            <arg>-e</arg>
+            <arg>SCHEMA_REGISTRY_URL=http://localhost:8081</arg>
+            <arg>-e</arg>
+            <arg>READONLY=false</arg>
+            <arg>aywengo/kafka-schema-reg-mcp:stable</arg>
+          </args>
+        </transport>
+        <capabilities>
+          <capability>tools</capability>
+          <capability>resources</capability>
+          <capability>prompts</capability>
+        </capabilities>
+        <autoStart>true</autoStart>
+        <timeout>30000</timeout>
+      </server>
+      
+      <server id="kafka-schema-registry-multi" name="Multi-Registry Management">
+        <description>Multi-environment schema registry management</description>
+        <transport type="stdio">
+          <command>docker</command>
+          <args>
+            <arg>run</arg>
+            <arg>--rm</arg>
+            <arg>-i</arg>
+            <arg>--network</arg>
+            <arg>host</arg>
+            <arg>-e</arg>
+            <arg>SCHEMA_REGISTRY_NAME_1=development</arg>
+            <arg>-e</arg>
+            <arg>SCHEMA_REGISTRY_URL_1=http://localhost:8081</arg>
+            <arg>-e</arg>
+            <arg>READONLY_1=false</arg>
+            <arg>-e</arg>
+            <arg>SCHEMA_REGISTRY_NAME_2=production</arg>
+            <arg>-e</arg>
+            <arg>SCHEMA_REGISTRY_URL_2=http://localhost:8083</arg>
+            <arg>-e</arg>
+            <arg>READONLY_2=true</arg>
+            <arg>aywengo/kafka-schema-reg-mcp:stable</arg>
+          </args>
+        </transport>
+        <capabilities>
+          <capability>tools</capability>
+          <capability>resources</capability>
+        </capabilities>
+        <autoStart>false</autoStart>
+        <timeout>30000</timeout>
+      </server>
+    </servers>
+    
+    <defaultServer>kafka-schema-registry</defaultServer>
+    
+    <ai>
+      <enableContextIntegration>true</enableContextIntegration>
+      <enableSchemaValidation>true</enableSchemaValidation>
+      <enableCompatibilityChecking>true</enableCompatibilityChecking>
+    </ai>
+    
+    <prompts>
+      <prompt id="schema.evolution">
+        <template>Help me evolve this Avro schema while maintaining backward compatibility. 
+        Current schema: {CURRENT_SCHEMA}
+        Requirements: {USER_REQUIREMENTS}
+        Use the check_compatibility tool before suggesting changes.</template>
+        <tools>get_schema,check_compatibility,register_schema</tools>
+      </prompt>
+      
+      <prompt id="schema.migration">
+        <template>Help me migrate schemas between contexts safely.
+        Source: {SOURCE_CONTEXT}
+        Target: {TARGET_CONTEXT}
+        Always use dry run first.</template>
+        <tools>migrate_schema,migrate_context</tools>
+      </prompt>
+      
+      <prompt id="schema.export">
+        <template>Help me export schemas for backup or documentation.
+        Context: {CONTEXT}
+        Format: {FORMAT}
+        Include metadata and configuration as needed.</template>
+        <tools>export_schema,export_context,export_global</tools>
+      </prompt>
+    </prompts>
+    
+    <keybindings>
+      <keybinding action="mcp.kafka.listSubjects" key="ctrl alt l"/>
+      <keybinding action="mcp.kafka.registerSchema" key="ctrl alt r"/>
+      <keybinding action="mcp.kafka.checkCompatibility" key="ctrl alt c"/>
+      <keybinding action="mcp.kafka.exportSchema" key="ctrl alt e"/>
+      <keybinding action="mcp.kafka.migrateSchema" key="ctrl alt m"/>
+    </keybindings>
+    
+  </component>
+</project> 

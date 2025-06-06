@@ -24,6 +24,15 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_env_file.json`** - Docker Compose based configuration
 - **`claude_desktop_async_monitoring_config.json`** - Optimized for async task monitoring
 
+### IDE MCP Integration Configurations
+- **`mcp-ide-integration.md`** - Comprehensive guide for VS Code, Cursor, and JetBrains integration
+- **`vscode-mcp-settings.json`** - VS Code MCP client configuration
+- **`vscode-mcp-tasks.json`** - VS Code tasks for MCP server management
+- **`cursor-mcp-config.json`** - Cursor MCP configuration with AI prompts
+- **`jetbrains-mcp-config.xml`** - JetBrains IDEs MCP plugin configuration
+- **`docker-compose.mcp.yml`** - Complete MCP development environment
+- **`setup-ide-mcp.sh`** - Automated setup script for all IDE integrations
+
 ## 🚀 Quick Start
 
 ### For Production (Recommended)
@@ -51,6 +60,37 @@ cp config-examples/claude_desktop_numbered_config.json ~/.config/claude-desktop/
 
 # Or for macOS
 cp config-examples/claude_desktop_numbered_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+### For IDE MCP Integration
+
+#### Automated Setup (Recommended)
+```bash
+# Setup everything with one command
+./config-examples/setup-ide-mcp.sh --all
+
+# Or setup specific IDEs
+./config-examples/setup-ide-mcp.sh --vscode --environment
+./config-examples/setup-ide-mcp.sh --cursor --jetbrains
+```
+
+#### Manual Setup
+```bash
+# VS Code setup
+mkdir -p .vscode
+cp config-examples/vscode-mcp-settings.json .vscode/settings.json
+cp config-examples/vscode-mcp-tasks.json .vscode/tasks.json
+
+# Cursor setup
+mkdir -p .cursor
+cp config-examples/cursor-mcp-config.json .cursor/mcp-config.json
+
+# JetBrains IDEs setup
+mkdir -p .idea
+cp config-examples/jetbrains-mcp-config.xml .idea/mcp-config.xml
+
+# Start MCP development environment
+docker-compose -f config-examples/docker-compose.mcp.yml up -d
 ```
 
 ## 🧪 Testing Your Configuration
@@ -120,6 +160,14 @@ cd tests
 - ✅ Great for migration operations
 - ✅ Progress tracking capabilities
 - ✅ Long-running operation management
+
+### Use Case: IDE-Native MCP Integration
+**Recommended:** `mcp-ide-integration.md` + specific IDE configs
+- ✅ Direct MCP protocol integration in IDEs
+- ✅ AI-powered schema development
+- ✅ Context-aware code completion
+- ✅ Integrated schema validation and compatibility checking
+- ✅ Multi-registry support in development environment
 
 ## 📝 Customization
 

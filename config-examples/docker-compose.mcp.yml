@@ -1,0 +1,207 @@
+version: '3.8'
+
+services:
+  # MCP Server for Single Registry
+  kafka-schema-registry-mcp:
+    image: aywengo/kafka-schema-reg-mcp:stable
+    container_name: kafka-schema-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - READONLY=false
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+    depends_on:
+      - schema-registry
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Multi-Registry MCP Server
+  kafka-schema-registry-mcp-multi:
+    image: aywengo/kafka-schema-reg-mcp:stable
+    container_name: kafka-schema-mcp-multi
+    ports:
+      - "8081:8080"
+    environment:
+      - SCHEMA_REGISTRY_NAME_1=development
+      - SCHEMA_REGISTRY_URL_1=http://schema-registry-dev:8081
+      - READONLY_1=false
+      - SCHEMA_REGISTRY_NAME_2=production
+      - SCHEMA_REGISTRY_URL_2=http://schema-registry-prod:8081
+      - READONLY_2=true
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+    depends_on:
+      - schema-registry-dev
+      - schema-registry-prod
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Development Schema Registry
+  schema-registry-dev:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema-registry-dev
+    ports:
+      - "38081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-dev:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-dev
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_DEBUG: "true"
+    depends_on:
+      - kafka-dev
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Production Schema Registry (Read-Only for Safety)
+  schema-registry-prod:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema-registry-prod
+    ports:
+      - "38082:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-prod:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry-prod
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_MODE_MUTABILITY: "false"  # Read-only mode
+    depends_on:
+      - kafka-prod
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Single Schema Registry (for basic setup)
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: schema-registry
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      - kafka
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Development Kafka
+  kafka-dev:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-dev
+    ports:
+      - "39092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-dev:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Production Kafka
+  kafka-prod:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-prod
+    ports:
+      - "39093:9092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-prod:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Single Kafka (for basic setup)
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # AKHQ UI for Schema Registry Management
+  akhq:
+    image: tchiotludo/akhq:0.24.0
+    container_name: akhq-ui
+    ports:
+      - "38080:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            dev-cluster:
+              properties:
+                bootstrap.servers: "kafka-dev:9092"
+              schema-registry:
+                url: "http://schema-registry-dev:8081"
+            prod-cluster:
+              properties:
+                bootstrap.servers: "kafka-prod:9092"
+              schema-registry:
+                url: "http://schema-registry-prod:8081"
+            basic-cluster:
+              properties:
+                bootstrap.servers: "kafka:9092"
+              schema-registry:
+                url: "http://schema-registry:8081"
+    depends_on:
+      - kafka-dev
+      - kafka-prod
+      - kafka
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+networks:
+  kafka-network:
+    driver: bridge
+    name: kafka-mcp-network
+
+volumes:
+  zookeeper-data:
+  kafka-dev-data:
+  kafka-prod-data:
+  kafka-data: 

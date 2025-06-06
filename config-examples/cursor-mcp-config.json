@@ -1,0 +1,114 @@
+{
+    "version": "1.0",
+    "servers": {
+        "kafka-schema-registry": {
+            "name": "Kafka Schema Registry MCP",
+            "description": "Enterprise schema management with MCP protocol",
+            "type": "stdio",
+            "transport": {
+                "type": "docker",
+                "image": "aywengo/kafka-schema-reg-mcp:stable",
+                "args": [],
+                "environment": {
+                    "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+                    "READONLY": "false"
+                },
+                "network": "host"
+            },
+            "capabilities": {
+                "tools": true,
+                "resources": true,
+                "prompts": true,
+                "sampling": false
+            },
+            "timeout": 30000,
+            "retries": 3,
+            "autoRestart": true
+        },
+        "kafka-schema-registry-multi": {
+            "name": "Multi-Registry Schema Management",
+            "description": "Multi-environment schema registry management",
+            "type": "stdio",
+            "transport": {
+                "type": "docker",
+                "image": "aywengo/kafka-schema-reg-mcp:stable",
+                "environment": {
+                    "SCHEMA_REGISTRY_NAME_1": "development",
+                    "SCHEMA_REGISTRY_URL_1": "http://localhost:8081",
+                    "READONLY_1": "false",
+                    "SCHEMA_REGISTRY_NAME_2": "staging",
+                    "SCHEMA_REGISTRY_URL_2": "http://localhost:8082", 
+                    "READONLY_2": "false",
+                    "SCHEMA_REGISTRY_NAME_3": "production",
+                    "SCHEMA_REGISTRY_URL_3": "http://localhost:8083",
+                    "READONLY_3": "true"
+                },
+                "network": "host"
+            },
+            "capabilities": {
+                "tools": true,
+                "resources": true,
+                "prompts": true
+            }
+        }
+    },
+    "defaultServer": "kafka-schema-registry",
+    "ai": {
+        "contextSize": 32000,
+        "enableSchemaCompletion": true,
+        "enableCompatibilityChecking": true,
+        "autoSuggestSchemaEvolution": true,
+        "enableMigrationAssistance": true,
+        "prompts": {
+            "schemaEvolution": {
+                "system": "You are a schema registry expert. Help evolve Avro schemas while maintaining backward compatibility. Always check compatibility before suggesting changes.",
+                "tools": [
+                    "get_schema",
+                    "check_compatibility", 
+                    "register_schema"
+                ]
+            },
+            "schemaMigration": {
+                "system": "You are a schema migration specialist. Help migrate schemas between contexts and registries safely. Always perform dry runs first.",
+                "tools": [
+                    "migrate_schema",
+                    "migrate_context",
+                    "compare_registries"
+                ]
+            },
+            "schemaExport": {
+                "system": "You are a schema export specialist. Help export schemas in various formats for backup, documentation, and migration purposes.",
+                "tools": [
+                    "export_schema",
+                    "export_context", 
+                    "export_global"
+                ]
+            }
+        }
+    },
+    "shortcuts": {
+        "listSubjects": {
+            "key": "Ctrl+Alt+L",
+            "description": "List all schema subjects",
+            "tool": "list_subjects"
+        },
+        "registerSchema": {
+            "key": "Ctrl+Alt+R",
+            "description": "Register current schema",
+            "tool": "register_schema",
+            "contextMenu": true
+        },
+        "checkCompatibility": {
+            "key": "Ctrl+Alt+C", 
+            "description": "Check schema compatibility",
+            "tool": "check_compatibility",
+            "contextMenu": true
+        },
+        "exportSchema": {
+            "key": "Ctrl+Alt+E",
+            "description": "Export schema",
+            "tool": "export_schema",
+            "contextMenu": true
+        }
+    }
+} 

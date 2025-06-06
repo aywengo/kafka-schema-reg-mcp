@@ -89,8 +89,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "True MCP Server for Kafka Schema Registry - Modular Architecture, 48 tools, async operations, multi-registry support, Claude Desktop ready"
-          readme-filepath: ./README.md
+          short-description: "MCP Server for Kafka Schema Registry - 48 tools, multi-registry support, Claude Desktop ready"
+          readme-filepath: ./dockerhub-readme.md
 
   create-release:
     runs-on: ubuntu-latest
@@ -102,12 +102,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: |
             ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Modular Architecture with Async Operations
             
