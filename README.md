@@ -49,6 +49,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 
 ## 🏗️ Architecture
 
+- **Unified Server Design**: Single `kafka_schema_registry_unified_mcp.py` that auto-detects single vs multi-registry mode
 - **MCP Protocol Server**: Uses official MCP Python SDK with JSON-RPC over stdio
 - **Kafka Schema Registry Integration**: Backend for schema storage and management  
 - **KRaft Mode Support**: Works with modern Kafka without Zookeeper dependency
@@ -56,6 +57,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 - **Claude Desktop Integration**: Direct integration with Claude Desktop via MCP configuration
 - **Enterprise-Ready**: Granular control over compatibility and operational modes
 - **Multi-Format Export**: JSON and Avro IDL export formats through MCP tools
+- **Backward Compatibility**: 100% compatible with existing single-registry configurations
 
 ## 🚀 Quick Start
 
@@ -180,10 +182,23 @@ docker run -e READONLY=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo
 }
 ```
 
-#### Step 3: Test MCP Server
+#### Step 3: Run the Unified Server
 ```bash
-# Test the server directly
-python tests/advanced_mcp_test.py
+# The unified server automatically detects single vs multi-registry mode
+python kafka_schema_registry_unified_mcp.py
+```
+
+#### Step 4: Test with Complete Test Suite
+```bash
+# Run the unified test runner (starts environment + runs all tests)
+cd tests
+./run_all_tests.sh
+
+# Or run essential tests only (faster)
+./run_all_tests.sh --quick
+
+# Or use the simple wrapper
+./test-unified.sh
 ```
 
 ### Configure Claude Desktop
@@ -495,43 +510,51 @@ Use the `get_oauth_scopes_info` MCP tool to discover:
 
 ## 🧪 Testing
 
-The project includes comprehensive test suites for both single-registry and multi-registry configurations.
+The project includes a unified, comprehensive test suite with automatic environment management.
 
-#### Single-Registry Tests
+#### Unified Test Runner (Recommended)
 
 ```bash
-# Start single-registry test environment
-./start_test_environment.sh 
+# Run complete test suite with automatic environment management
+cd tests/
+./run_all_tests.sh
 
-# Run comprehensive single-registry tests
-./tests/run_comprehensive_tests.sh
+# Or run essential tests only (faster)
+./run_all_tests.sh --quick
 
-# Run specific test categories
-./tests/run_comprehensive_tests.sh --basic
-./tests/run_comprehensive_tests.sh --workflows
+# Keep environment running for debugging
+./run_all_tests.sh --no-cleanup
 
-# Stop single-registry test environment
-./stop_test_environment.sh 
+# Show all available options
+./run_all_tests.sh --help
 ```
 
-#### Multi-Registry Tests
+#### Manual Environment Management
 
 ```bash
-# Start multi-registry test environment  
+# Start unified environment (supports both single and multi-registry tests)
 cd tests/
-./start_multi_registry_environment.sh
+./start_test_environment.sh multi
 
-# Run multi-registry integration tests
-./run_multi_registry_tests.sh
+# Run individual tests
+python3 test_basic_server.py
+python3 test_multi_registry_mcp.py
 
-# Run schema migration tests
-./run_migration_tests.sh
+# Stop environment
+./stop_test_environment.sh clean
+```
 
-# Run batch cleanup tests
-./run_multi_registry_batch_cleanup_tests.sh
+#### Environment Mode Options
 
-# Stop multi-registry environment
-./stop_multi_registry_environment.sh
+```bash
+# Start only DEV registry (single-registry tests)
+./start_test_environment.sh dev
+
+# Start full environment (multi-registry tests)  
+./start_test_environment.sh multi
+
+# Start with UI monitoring
+./start_test_environment.sh ui
 ```
 
 ## 🚀 Production Deployment

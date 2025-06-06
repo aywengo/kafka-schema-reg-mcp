@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry-async": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "SCHEMA_REGISTRY_URL",
+        "-e", "SCHEMA_REGISTRY_USER",
+        "-e", "SCHEMA_REGISTRY_PASSWORD", 
+        "-e", "READONLY",
+        "--network", "host",
+        "aywengo/kafka-schema-reg-mcp:stable"
+      ],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": "",
+        "READONLY": "false"
+      }
+    }
+  }
+} 

@@ -19,7 +19,7 @@ import pytest
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_task_manager_at_end():

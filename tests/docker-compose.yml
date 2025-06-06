@@ -1,48 +1,50 @@
 services:
-  # First Kafka Cluster (Development)
+  # Development Kafka Cluster (Primary)
   kafka-dev:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka-dev
     container_name: kafka-dev
     ports:
-      - "39092:9092"
-      - "39094:9094"
+      - "9092:9092"      # Standard Kafka port for single-registry compatibility
+      - "9094:9094"      # Controller port
+      - "39092:39092"    # Alternative port for multi-registry
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-dev:9094
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9094
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_ALT://0.0.0.0:39092,CONTROLLER://0.0.0.0:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_ALT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-dev:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-dev:9092,PLAINTEXT_ALT://localhost:39092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      CLUSTER_ID: "v-qDsAQhRMOEe3xNzCmBuQ"
+      CLUSTER_ID: "MkVlNjdqWVF0Q056MWFrUA"
       KAFKA_INITIAL_BROKER_REGISTRATION_TIMEOUT_MS: 60000
     command: >
       bash -c "
-        echo 'Waiting for Kafka DEV to be ready...' &&
+        echo 'Starting Kafka DEV cluster...' &&
         /etc/confluent/docker/run"
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 30s
     networks:
-      - kafka-multi-test
+      - kafka-test-network
 
-  # Second Kafka Cluster (Production)
+  # Production Kafka Cluster (Secondary for multi-registry tests)
   kafka-prod:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka-prod
     container_name: kafka-prod
     ports:
-      - "39093:9093"
-      - "39095:9095"
+      - "39093:9093"     # Production Kafka port
+      - "39095:9095"     # Production Controller port
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: broker,controller
@@ -57,21 +59,22 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
-      CLUSTER_ID: "RSpshNlPRv24_B5BA8G08w"
+      CLUSTER_ID: "bDN3SjhUaFNLYzhsOFJHOA"
       KAFKA_INITIAL_BROKER_REGISTRATION_TIMEOUT_MS: 60000
     command: >
       bash -c "
-        echo 'Waiting for Kafka PROD to be ready...' &&
+        echo 'Starting Kafka PROD cluster...' &&
         /etc/confluent/docker/run"
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9093", "--list"]
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 30s
     networks:
-      - kafka-multi-test
+      - kafka-test-network
 
-  # Development Schema Registry
+  # Development Schema Registry (Primary - compatible with single-registry tests)
   schema-registry-dev:
     image: confluentinc/cp-schema-registry:7.5.0
     hostname: schema-registry-dev
@@ -80,7 +83,7 @@ services:
       kafka-dev:
         condition: service_healthy
     ports:
-      - "38081:8081"
+      - "38081:8081"     # Standard port used by all existing tests
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry-dev
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-dev:9092
@@ -88,16 +91,17 @@ services:
       SCHEMA_REGISTRY_DELETE_SUBJECT_ENABLED: "true"
       SCHEMA_REGISTRY_DELETE_VERSION_ENABLED: "true"
       SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: "backward"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "INFO"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 45s
     networks:
-      - kafka-multi-test
+      - kafka-test-network
 
-  # Production Schema Registry  
+  # Production Schema Registry (Secondary for multi-registry tests)  
   schema-registry-prod:
     image: confluentinc/cp-schema-registry:7.5.0
     hostname: schema-registry-prod
@@ -106,7 +110,7 @@ services:
       kafka-prod:
         condition: service_healthy
     ports:
-      - "38082:8082"
+      - "38082:8082"     # Production registry port
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry-prod
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka-prod:9093
@@ -114,23 +118,25 @@ services:
       SCHEMA_REGISTRY_DELETE_SUBJECT_ENABLED: "true"
       SCHEMA_REGISTRY_DELETE_VERSION_ENABLED: "true"
       SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: "forward"
+      SCHEMA_REGISTRY_LOG4J_ROOT_LOGLEVEL: "INFO"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8082/subjects"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 45s
     networks:
-      - kafka-multi-test
+      - kafka-test-network
 
-  # AKHQ UI for Both Clusters
-  akhq-multi:
+  # AKHQ UI for monitoring and management
+  akhq:
     image: tchiotludo/akhq:0.25.1
+    container_name: akhq-ui
     depends_on:
-      - schema-registry-dev
-      - schema-registry-prod
-      - kafka-dev
-      - kafka-prod
+      schema-registry-dev:
+        condition: service_healthy
+      schema-registry-prod:
+        condition: service_healthy
     ports:
       - "38080:8080"
     environment:
@@ -142,51 +148,44 @@ services:
                 bootstrap.servers: "kafka-dev:9092"
               schema-registry:
                 url: "http://schema-registry-dev:8081"
+              connect:
+                - name: "dev-connect"
+                  url: "http://kafka-dev:8083"
             production:
               properties:
-                bootstrap.servers: "kafka-prod:9093"
+                bootstrap.servers: "kafka-prod:9093"  
               schema-registry:
                 url: "http://schema-registry-prod:8082"
+              connect:
+                - name: "prod-connect"
+                  url: "http://kafka-prod:8084"
+          ui-options:
+            topic:
+              default-view: ALL
+            topic-data:
+              sort: OLDEST
+          pagination:
+            page-size: 25
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 10
-      start_period: 30s 
+      start_period: 60s
     networks:
-      - kafka-multi-test
-
-  # Multi-Registry MCP Server for Testing
-  mcp-server-multi:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    container_name: mcp-server-multi
-    ports:
-      - "8000:8000"
-    environment:
-      # Registry 1: Development
-      SCHEMA_REGISTRY_NAME_1: development
-      SCHEMA_REGISTRY_URL_1: http://schema-registry-dev:8081
-      SCHEMA_REGISTRY_USER_1: ""
-      SCHEMA_REGISTRY_PASSWORD_1: ""
-      READONLY_1: "false"
-      
-      # Registry 2: Production (Read-only for safety)
-      SCHEMA_REGISTRY_NAME_2: production
-      SCHEMA_REGISTRY_URL_2: http://schema-registry-prod:8082
-      SCHEMA_REGISTRY_USER_2: ""
-      SCHEMA_REGISTRY_PASSWORD_2: ""
-      READONLY_2: "true"
-    command: python kafka_schema_registry_multi_mcp.py
-    depends_on:
-      - schema-registry-dev
-      - schema-registry-prod
-    stdin_open: true
-    tty: true
-    networks:
-      - kafka-multi-test
+      - kafka-test-network
 
 networks:
-  kafka-multi-test:
+  kafka-test-network:
+    name: kafka-test-network
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  kafka-dev-data:
+    name: kafka-dev-data
+  kafka-prod-data:
+    name: kafka-prod-data 

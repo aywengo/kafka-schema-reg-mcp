@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Error Handling and Edge Case Integration Tests for Multi-Registry MCP Server
+Error Handling and Edge Case Integration Tests for unified server in multi-registry mode
 
 Tests various error conditions and edge cases:
 - Network connectivity issues
@@ -64,6 +64,14 @@ async def test_invalid_registry_configuration():
     print("\n❌ Testing Invalid Registry Configuration")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     # Test with non-existent registry URL
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
@@ -74,7 +82,7 @@ async def test_invalid_registry_configuration():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -118,6 +126,14 @@ async def test_readonly_mode_enforcement():
     print("\n🔒 Testing READONLY Mode Enforcement")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     # Setup with readonly registry
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
@@ -128,7 +144,7 @@ async def test_readonly_mode_enforcement():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -205,6 +221,14 @@ async def test_invalid_parameters():
     print("\n🔧 Testing Invalid Parameters and Edge Cases")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -214,7 +238,7 @@ async def test_invalid_parameters():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -292,6 +316,14 @@ async def test_cross_registry_error_scenarios():
     print("\n🔄 Testing Cross-Registry Error Scenarios")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -310,7 +342,7 @@ async def test_cross_registry_error_scenarios():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -380,6 +412,14 @@ async def test_resource_limits_and_timeouts():
     print("\n⏱️ Testing Resource Limits and Timeouts")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -389,7 +429,7 @@ async def test_resource_limits_and_timeouts():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -446,6 +486,14 @@ async def test_authentication_errors():
     print("\n🔐 Testing Authentication Error Handling")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     # Test with invalid credentials
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
@@ -458,7 +506,7 @@ async def test_authentication_errors():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -505,6 +553,14 @@ async def main():
     """Run all error handling and edge case tests."""
     print("🧪 Starting Error Handling and Edge Case Integration Tests")
     print("=" * 70)
+    
+    # Clean up any existing task manager state before starting
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Initial task manager cleanup completed")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager initially: {e}")
     
     try:
         await test_invalid_registry_configuration()

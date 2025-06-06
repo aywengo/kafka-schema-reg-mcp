@@ -21,7 +21,7 @@ async def test_readonly_with_mcp_client():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     

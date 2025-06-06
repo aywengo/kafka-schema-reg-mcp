@@ -30,8 +30,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY oauth_provider.py .
 COPY schema_registry_common.py .
-COPY kafka_schema_registry_mcp.py .
-COPY kafka_schema_registry_multi_mcp.py .
+COPY core_registry_tools.py .
+COPY task_management.py .
+COPY batch_operations.py .
+COPY statistics_tools.py .
+COPY export_tools.py .
+COPY comparison_tools.py .
+COPY migration_tools.py .
+COPY kafka_schema_registry_unified_mcp.py .
 
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash mcp
@@ -39,4 +45,4 @@ RUN chown -R mcp:mcp /app
 USER mcp
 
 # Command to run the MCP server
-CMD ["python", "kafka_schema_registry_mcp.py"]
+CMD ["python", "kafka_schema_registry_unified_mcp.py"]

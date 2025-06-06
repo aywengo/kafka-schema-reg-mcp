@@ -19,7 +19,7 @@ async def test_mcp_server():
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_mcp.py"],  # Correct path for single-registry server
+        args=["kafka_schema_registry_unified_mcp.py"],  # Use unified server
         env={
             "SCHEMA_REGISTRY_URL": "http://localhost:38081",  # Actual Schema Registry port
             "SCHEMA_REGISTRY_USER": "",
@@ -109,12 +109,12 @@ async def test_dependencies():
         print(f"❌ Asyncio not available: {e}")
         return False
     
-    # Check if the MCP server file exists
-    mcp_server_path = "kafka_schema_registry_mcp.py"
+    # Check if the unified MCP server file exists
+    mcp_server_path = "kafka_schema_registry_unified_mcp.py"
     if os.path.exists(mcp_server_path):
-        print(f"✅ MCP server file found: {mcp_server_path}")
+        print(f"✅ Unified MCP server file found: {mcp_server_path}")
     else:
-        print(f"❌ MCP server file not found: {mcp_server_path}")
+        print(f"❌ Unified MCP server file not found: {mcp_server_path}")
         return False
     
     return True

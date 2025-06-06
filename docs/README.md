@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v1.7.0 documentation! This folder contains comprehensive guides and references for the **True MCP Implementation** with **Claude Desktop Integration** and **Advanced Async Operations**.
+Welcome to the Kafka Schema Registry MCP Server v1.8.1 documentation! This folder contains comprehensive guides and references for the **True MCP Implementation** with **Claude Desktop Integration**, **Advanced Async Operations**, and **Modular Architecture**.
 
 ## 🤖 **MCP Implementation Overview**
 
@@ -62,6 +62,31 @@ Production deployment instructions covering:
 - **Claude Desktop Configuration**: Best practices and troubleshooting
 
 ---
+
+## 🎉 What's New in v1.8.1 - Modular Architecture
+
+### **🏗️ Complete Modular Architecture Refactoring**
+- **✅ 8 Specialized Modules**: Split 3917-line monolithic file into focused modules
+- **✅ Better Maintainability**: Clear separation of concerns and responsibilities
+- **✅ Parallel Development**: Multiple developers can work on different modules
+- **✅ Improved Testing**: Module-specific testing and debugging
+- **✅ 100% Backward Compatibility**: Original version still available
+
+### **Module Structure**
+- **`task_management.py`**: Async task queue operations for long-running processes
+- **`migration_tools.py`**: Schema and context migration between registries
+- **`comparison_tools.py`**: Registry and context comparison operations
+- **`export_tools.py`**: Schema export in multiple formats (JSON, Avro IDL)
+- **`batch_operations.py`**: Batch cleanup operations with progress tracking
+- **`statistics_tools.py`**: Counting and statistics operations
+- **`core_registry_tools.py`**: Basic CRUD operations for schemas, subjects, configs
+- **`kafka_schema_registry_unified_modular.py`**: Main orchestration server file
+
+### **Enhanced Migration System (v1.7.2)**
+- **Docker-Based Migration**: `migrate_context` now generates Docker configuration files
+- **Improved Error Handling**: Uses [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) for robustness
+- **Configuration Review**: Users can review settings before execution
+- **Scalable Operations**: Better handling of large-scale migrations
 
 ## 🎉 What's New in v1.7.0 - Advanced Async Operations
 
@@ -177,8 +202,10 @@ Human: "Show me the configuration differences between our development and produc
 - **Integration Tests**: [run_integration_tests.sh](../tests/run_integration_tests.sh)
 
 ### **Configuration Examples**
-- **Claude Desktop Docker**: [claude_desktop_docker_config.json](../claude_desktop_docker_config.json)
-- **Claude Desktop Local**: [claude_desktop_config.json](../claude_desktop_config.json)
+- **Claude Desktop Stable**: [claude_desktop_stable_config.json](../config-examples/claude_desktop_stable_config.json)
+- **Claude Desktop Local**: [claude_desktop_config.json](../config-examples/claude_desktop_config.json)
+- **Modular Architecture**: [claude_desktop_modular_config.json](../config-examples/claude_desktop_modular_config.json)
+- **Multi-Registry**: [claude_desktop_multi_registry_docker.json](../config-examples/claude_desktop_multi_registry_docker.json)
 - **Docker Compose**: [docker-compose.yml](../docker-compose.yml)
 
 ### **Legacy Documentation**
@@ -208,21 +235,26 @@ If you need assistance with the MCP implementation:
 
 ### **Quick Debug Commands**
 ```bash
-# Test MCP server directly
-python test_mcp_server.py
+# Test unified MCP server directly
+python kafka_schema_registry_unified_mcp.py
+
+# Test modular MCP server (v1.8.1+)
+python kafka_schema_registry_unified_modular.py
 
 # Test with Schema Registry integration
-python advanced_mcp_test.py
+cd tests && python test_mcp_server.py
 
 # Run comprehensive integration tests
-./run_integration_tests.sh
+cd tests && ./run_integration_tests.sh
 
-# Test Docker image
-./test_docker_image.sh
+# Test Docker image with unified server
+docker run --rm -i -e SCHEMA_REGISTRY_URL=http://localhost:38081 --network host aywengo/kafka-schema-reg-mcp:stable
+
+# Test Docker image with modular server
+docker run --rm -i -e SCHEMA_REGISTRY_URL=http://localhost:38081 --network host aywengo/kafka-schema-reg-mcp:stable python kafka_schema_registry_unified_modular.py
 
 # Monitor async operations
-python -c "from kafka_schema_registry_mcp import mcp; mcp.run()"
-# Then use: list_all_active_tasks() to see running operations
+python -c "from kafka_schema_registry_unified_mcp import *; list_all_active_tasks()"
 ```
 
 ---

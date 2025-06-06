@@ -35,25 +35,23 @@ def test_imports():
     return True
 
 def test_server_import():
-    """Test if we can import the MCP server file."""
-    print("\n🔍 Testing MCP server import...")
+    """Test if we can import the unified MCP server file."""
+    print("\n🔍 Testing unified MCP server import...")
     
     try:
-        # Try importing the single registry server
-        import kafka_schema_registry_mcp
-        print(f"✅ Single registry MCP server imported successfully")
+        # Try importing the unified server
+        import kafka_schema_registry_unified_mcp
+        print(f"✅ Unified MCP server imported successfully")
+        
+        # Test that mode detection function exists
+        if hasattr(kafka_schema_registry_unified_mcp, 'detect_registry_mode'):
+            print(f"✅ Mode detection function found")
+        else:
+            print(f"❌ Mode detection function missing")
+            return False
+            
     except ImportError as e:
-        print(f"❌ Failed to import single registry MCP server: {e}")
-        return False
-    except Exception as e:
-        print(f"⚠️ Import succeeded but got error: {e}")
-    
-    try:
-        # Try importing the multi-registry server
-        import kafka_schema_registry_multi_mcp
-        print(f"✅ Multi-registry MCP server imported successfully")
-    except ImportError as e:
-        print(f"❌ Failed to import multi-registry MCP server: {e}")
+        print(f"❌ Failed to import unified MCP server: {e}")
         return False
     except Exception as e:
         print(f"⚠️ Import succeeded but got error: {e}")
@@ -61,79 +59,63 @@ def test_server_import():
     return True
 
 def test_basic_functionality():
-    """Test basic server functionality without Schema Registry connection."""
-    print("\n🔍 Testing basic server functionality...")
+    """Test basic unified server functionality without Schema Registry connection."""
+    print("\n🔍 Testing basic unified server functionality...")
     
     try:
-        # Set test environment variables
+        # Set test environment variables for single registry mode
         os.environ['SCHEMA_REGISTRY_URL'] = 'http://localhost:38081'
         os.environ['SCHEMA_REGISTRY_USER'] = ''
         os.environ['SCHEMA_REGISTRY_PASSWORD'] = ''
         
-        # Test single registry server components
-        import kafka_schema_registry_mcp
+        # Test unified server components
+        import kafka_schema_registry_unified_mcp
         
         # Check that the FastMCP instance exists
-        if hasattr(kafka_schema_registry_mcp, 'mcp'):
-            print(f"✅ Single registry MCP instance found")
+        if hasattr(kafka_schema_registry_unified_mcp, 'mcp'):
+            print(f"✅ Unified MCP instance found")
             
             # Check that it has tools (FastMCP exposes tools via _tools attribute)
-            if hasattr(kafka_schema_registry_mcp.mcp, '_tools'):
-                tools_count = len(kafka_schema_registry_mcp.mcp._tools)
-                print(f"✅ Single registry server has {tools_count} tools")
+            if hasattr(kafka_schema_registry_unified_mcp.mcp, '_tools'):
+                tools_count = len(kafka_schema_registry_unified_mcp.mcp._tools)
+                print(f"✅ Unified server has {tools_count} tools")
             else:
-                print(f"⚠️ Single registry server tools not accessible")
+                print(f"⚠️ Unified server tools not accessible")
         else:
-            print(f"❌ Single registry MCP instance not found")
+            print(f"❌ Unified MCP instance not found")
             return False
         
-        # Check helper classes exist
-        if hasattr(kafka_schema_registry_mcp, 'RegistryManager'):
-            print(f"✅ RegistryManager class found")
+        # Test mode detection
+        if hasattr(kafka_schema_registry_unified_mcp, 'detect_registry_mode'):
+            mode = kafka_schema_registry_unified_mcp.detect_registry_mode()
+            print(f"✅ Mode detection works, detected: {mode}")
         
-        if hasattr(kafka_schema_registry_mcp, 'RegistryClient'):
+        # Check helper classes exist
+        if hasattr(kafka_schema_registry_unified_mcp, 'LegacyRegistryManager'):
+            print(f"✅ LegacyRegistryManager class found")
+        
+        if hasattr(kafka_schema_registry_unified_mcp, 'MultiRegistryManager'):
+            print(f"✅ MultiRegistryManager class found")
+        
+        if hasattr(kafka_schema_registry_unified_mcp, 'RegistryClient'):
             print(f"✅ RegistryClient class found")
         
         # Test registry manager instance
-        if hasattr(kafka_schema_registry_mcp, 'registry_manager'):
+        if hasattr(kafka_schema_registry_unified_mcp, 'registry_manager'):
             print(f"✅ Registry manager instance found")
-            registries = kafka_schema_registry_mcp.registry_manager.list_registries()
-            print(f"✅ Registry manager has {len(registries)} configured registries")
+            manager = kafka_schema_registry_unified_mcp.registry_manager
+            print(f"✅ Registry manager type: {type(manager).__name__}")
         
     except Exception as e:
-        print(f"❌ Single registry server validation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-    
-    try:
-        # Test multi-registry server components
-        import kafka_schema_registry_multi_mcp
-        
-        # Check that the FastMCP instance exists
-        if hasattr(kafka_schema_registry_multi_mcp, 'mcp'):
-            print(f"✅ Multi-registry MCP instance found")
-            
-            # Check that it has tools
-            if hasattr(kafka_schema_registry_multi_mcp.mcp, '_tools'):
-                tools_count = len(kafka_schema_registry_multi_mcp.mcp._tools)
-                print(f"✅ Multi-registry server has {tools_count} tools")
-            else:
-                print(f"⚠️ Multi-registry server tools not accessible")
-        else:
-            print(f"❌ Multi-registry MCP instance not found")
-            return False
-        
-    except Exception as e:
-        print(f"❌ Multi-registry server validation failed: {e}")
+        print(f"❌ Unified server validation failed: {e}")
         import traceback
         traceback.print_exc()
         return False
     
     return True
 
-def test_auth_config_single_mode(monkeypatch):
-    """Test that auth config is correctly applied in single mode."""
+def test_auth_config_unified_mode(monkeypatch):
+    """Test that auth config is correctly applied in unified server."""
     # Set environment variables for auth
     monkeypatch.setenv("ENABLE_AUTH", "true")
     monkeypatch.setenv("AUTH_ISSUER_URL", "https://test-issuer.com")
@@ -144,10 +126,10 @@ def test_auth_config_single_mode(monkeypatch):
     monkeypatch.setenv("AUTH_REVOCATION_ENABLED", "false")
 
     import importlib
-    import kafka_schema_registry_mcp
-    importlib.reload(kafka_schema_registry_mcp)
+    import kafka_schema_registry_unified_mcp
+    importlib.reload(kafka_schema_registry_unified_mcp)
 
-    mcp = kafka_schema_registry_mcp.mcp
+    mcp = kafka_schema_registry_unified_mcp.mcp
     auth = getattr(mcp, "auth", None)
     assert auth is not None, "Auth should be set when ENABLE_AUTH is true"
     assert auth.issuer_url == "https://test-issuer.com"
@@ -181,8 +163,9 @@ def main():
     print("\n✅ All basic tests passed!")
     print("\n📋 Summary:")
     print("  ✅ All required packages can be imported")
-    print("  ✅ MCP server modules can be imported")
-    print("  ✅ FastMCP instances can be accessed")
+    print("  ✅ Unified MCP server module can be imported")
+    print("  ✅ FastMCP instance can be accessed")
+    print("  ✅ Mode detection functionality works")
     print("  ✅ Server tools are available")
     print("  ✅ Helper classes and managers are available")
     

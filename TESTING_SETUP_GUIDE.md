@@ -1,74 +1,82 @@
 # Testing Setup Guide
 
-This guide provides multiple options for setting up the Schema Registry environment needed to run the comprehensive integration tests.
+This guide provides setup instructions for the unified Kafka Schema Registry MCP Server testing environment.
 
 ## Quick Start (Recommended)
 
-### Multi-Registry Environment (Production-Ready)
+### Unified Test Environment
 ```bash
-# Start the complete multi-registry environment
+# Start the unified test environment and run all tests
 cd tests
-./start_multi_registry_environment.sh
+./run_all_tests.sh
 
-# Run all tests including migration and comparison
-./run_multi_registry_tests.sh
+# Or run essential tests only (faster)
+./run_all_tests.sh --quick
 
-# Or run comprehensive tests
-./run_comprehensive_tests.sh
+# Keep environment running for debugging
+./run_all_tests.sh --no-cleanup
 ```
 
-This sets up:
-- **AKHQ UI**: http://localhost:38080
-- **DEV Registry**: http://localhost:38081 (read-write)
-- **PROD Registry**: http://localhost:38082 (read-only)
-- **Kafka DEV**: localhost:39092
+This automatically sets up:
+- **AKHQ UI**: http://localhost:38080 (monitoring interface)
+- **DEV Registry**: http://localhost:38081 (primary registry)
+- **PROD Registry**: http://localhost:38082 (secondary registry)
+- **Kafka DEV**: localhost:9092 
 - **Kafka PROD**: localhost:39093
 
-## Option 1: Docker Multi-Registry Setup (Recommended)
+## Option 1: Automated Testing (Recommended)
 
-### Install Docker Desktop
-1. Download Docker Desktop for macOS: https://www.docker.com/products/docker-desktop/
+### Prerequisites
+1. Download Docker Desktop: https://www.docker.com/products/docker-desktop/
 2. Install and start Docker Desktop
 3. Verify installation: `docker --version`
+4. Ensure ports 38080-38082 and 9092 are available
 
-### Start Multi-Registry Test Environment
+### Run Unified Test Environment
 ```bash
-# Start the complete multi-registry environment
+# Complete automated testing (recommended)
 cd tests
-./start_multi_registry_environment.sh
+./run_all_tests.sh
 
-# Verify all services are running
+# Verify services manually (if needed):
 curl http://localhost:38081/subjects  # DEV Registry
-curl http://localhost:38082/subjects  # PROD Registry
+curl http://localhost:38082/subjects  # PROD Registry  
 curl http://localhost:38080/api/health # AKHQ UI
-
-# Run all tests
-./run_multi_registry_tests.sh
 ```
 
-### Stop Multi-Registry Environment
+### Manual Environment Control
 ```bash
+# Start environment manually
 cd tests
-./stop_multi_registry_environment.sh
+./start_test_environment.sh multi
 
-# Or complete cleanup
-./cleanup_multi_registry.sh
+# Run individual tests
+python3 test_basic_server.py
+
+# Stop environment
+./stop_test_environment.sh clean
 ```
 
-## Option 2: Single Registry Docker Setup
+## Option 2: Manual Environment Modes
 
-For basic testing with a single registry:
+You can start specific environment configurations:
 
 ```bash
-# Start single test Schema Registry on port 38081
+# DEV only (single registry testing)
 cd tests
-docker-compose -f docker-compose.test.yml up -d
+./start_test_environment.sh dev
 
-# Verify it's running
+# Multi-registry (both DEV and PROD)
+./start_test_environment.sh multi
+
+# With monitoring UI
+./start_test_environment.sh ui
+
+# Verify services
 curl http://localhost:38081/subjects
 
-# Run basic tests
-./run_comprehensive_tests.sh --basic
+# Run tests
+./run_all_tests.sh --quick
 ```
 
 ## Option 3: Use Confluent Cloud
@@ -124,36 +132,31 @@ export READONLY_3="true"
 
 ## Test Categories
 
-You can run specific test categories based on your setup:
+The unified test runner includes all test categories automatically:
 
-### Multi-Registry Tests (Full Environment Required)
+### Unified Test Options
 ```bash
-# Complete multi-registry test suite
-./run_multi_registry_tests.sh
+# Complete test suite (all categories)
+./run_all_tests.sh
 
-# Migration and comparison tests
-./run_migration_tests.sh
+# Essential tests only (faster execution)
+./run_all_tests.sh --quick
 
-# All categories
-./run_multi_registry_tests.sh --all
+# Keep environment running for debugging
+./run_all_tests.sh --no-cleanup
+
+# Show all available options
+./run_all_tests.sh --help
 ```
 
-### Single Registry Tests
+### Individual Test Files
 ```bash
-# Basic functionality tests
-./run_comprehensive_tests.sh --basic
-
-# Workflow tests (requires functional Schema Registry)
-./run_comprehensive_tests.sh --workflows
-
-# Error handling tests
-./run_comprehensive_tests.sh --errors
-
-# Performance tests (generates load)
-./run_comprehensive_tests.sh --performance
-
-# Production readiness tests
-./run_comprehensive_tests.sh --production
+# Run specific test files manually
+python3 test_basic_server.py           # Basic functionality
+python3 test_multi_registry_mcp.py     # Multi-registry features
+python3 test_production_readiness.py   # Production readiness
+python3 test_all_tools_validation.py   # All MCP tools
+python3 test_batch_cleanup.py          # Batch operations
 ```
 
 ## Troubleshooting
@@ -231,12 +234,12 @@ echo $SCHEMA_REGISTRY_PASSWORD
 
 ## Port Configuration
 
-### Multi-Registry Environment
-- **AKHQ UI**: `http://localhost:38080`
-- **DEV Registry**: `http://localhost:38081` (read-write, backward compatibility)
-- **PROD Registry**: `http://localhost:38082` (read-only, forward compatibility)
-- **Kafka DEV**: `localhost:39092` (external), `9092` (internal)
-- **Kafka PROD**: `localhost:39093` (external), `9093` (internal)
+### Unified Environment
+- **AKHQ UI**: `http://localhost:38080` (monitoring and management)
+- **DEV Registry**: `http://localhost:38081` (primary registry)
+- **PROD Registry**: `http://localhost:38082` (secondary registry) 
+- **Kafka DEV**: `localhost:9092` (primary Kafka)
+- **Kafka PROD**: `localhost:39093` (secondary Kafka)
 
 ### Test Results Location
 All test results are saved to:
@@ -247,31 +250,34 @@ All test results are saved to:
 
 ## Quick Start Commands
 
-### Complete Multi-Registry Setup
+### Complete Unified Setup (Recommended)
 ```bash
 # 1. Install Docker Desktop if not installed
-# 2. Start complete environment
+# 2. Run complete test suite with automatic environment management
 cd tests
-./start_multi_registry_environment.sh
+./run_all_tests.sh
 
-# 3. Wait for startup (about 2 minutes)
-# Services will report when ready
-
-# 4. Run all tests
-./run_multi_registry_tests.sh
+# Automatically handles:
+# - Environment startup (about 2 minutes)
+# - All test execution (~28 test categories)  
+# - Environment cleanup
+# - Detailed reporting
 ```
 
-### Minimal Setup (Single Registry)
+### Manual Environment Control
 ```bash
-# 1. Start single registry
+# 1. Start environment manually
 cd tests
-docker-compose -f docker-compose.test.yml up -d
+./start_test_environment.sh multi
 
-# 2. Wait for startup (about 30 seconds)
-sleep 30
+# 2. Wait for startup (about 1-2 minutes)
+# Services will report when ready
 
-# 3. Run basic tests
-./run_comprehensive_tests.sh --basic
+# 3. Run tests
+./run_all_tests.sh --quick
+
+# 4. Stop environment
+./stop_test_environment.sh clean
 ```
 
 ### External Registry Setup
@@ -279,41 +285,35 @@ sleep 30
 # 1. Point to your Schema Registry
 export SCHEMA_REGISTRY_URL="http://your-registry:38081"
 
-# 2. Run basic tests
-./run_comprehensive_tests.sh --basic
+# 2. Run tests against external registry
+./run_all_tests.sh --quick
 ```
 
 ## Test Suites Available
 
-### 1. Comprehensive Test Suite
-- **File**: `run_comprehensive_tests.sh`
-- **Purpose**: Single registry testing
-- **Categories**: Basic, Workflows, Errors, Performance, Production
+### 1. Unified Test Suite (Primary)
+- **File**: `run_all_tests.sh`
+- **Purpose**: Comprehensive testing of all functionality
+- **Categories**: Basic server, Multi-registry, Production readiness, All tools, Batch operations
+- **Features**: Automatic environment management, detailed reporting, timeout protection
 
-### 2. Multi-Registry Test Suite
-- **File**: `run_multi_registry_tests.sh`
-- **Purpose**: Multi-registry environment testing
-- **Categories**: Configuration, Workflows, Tools, Performance
-
-### 3. Migration Test Suite
-- **File**: `run_migration_tests.sh`
-- **Purpose**: Schema migration and comparison testing
-- **Categories**: Migration, Comparison, Validation
-
-### 4. Integration Test Suites
-- **Files**: `run_integration_tests.sh`, `run_numbered_integration_tests.sh`
-- **Purpose**: Legacy integration testing
+### 2. Individual Test Files
+- **test_basic_server.py**: Core MCP server functionality
+- **test_multi_registry_mcp.py**: Multi-registry operations and environment detection
+- **test_production_readiness.py**: Production validation and performance testing  
+- **test_all_tools_validation.py**: Comprehensive MCP tool validation (~48 tools)
+- **test_batch_cleanup.py**: Batch cleanup and bulk operations
 
 ## Validation Checklist
 
 After successful test execution:
 - ✅ Check test results in `tests/results/`
-- ✅ Review test summary for any failed tests
+- ✅ Review test summary for any failed tests (~28 test categories)
 - ✅ Verify CSV results for performance metrics
 - ✅ Check logs for detailed execution information
-- ✅ Validate all 68 MCP tools are working
-- ✅ Confirm multi-registry operations (if applicable)
-- ✅ Test migration and comparison features (if applicable)
+- ✅ Validate all MCP tools are working (~48 tools tested)
+- ✅ Confirm multi-registry operations (automatic environment detection)
+- ✅ Verify timeout protection and error handling
 
 ## Next Steps
 

@@ -17,7 +17,7 @@ def test_default_context_url_building():
     print("🧪 Testing URL building for default context '.'...")
     
     try:
-        import kafka_schema_registry_multi_mcp as mcp_server
+        import kafka_schema_registry_unified_mcp as mcp_server
         
         # Setup minimal environment
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
@@ -63,7 +63,7 @@ def test_default_context_subject_listing():
     print("\n🧪 Testing subject listing for default context '.' (read-only mode)...")
     
     try:
-        import kafka_schema_registry_multi_mcp as mcp_server
+        import kafka_schema_registry_unified_mcp as mcp_server
         
         # Test listing subjects with different context parameters
         subjects_none = mcp_server.list_subjects(context=None, registry="dev")

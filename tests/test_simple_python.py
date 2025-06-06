@@ -36,8 +36,8 @@ for dep in dependencies:
 
 # Test 4: Check if MCP server files exist
 server_files = [
-    "kafka_schema_registry_mcp.py",
-    "kafka_schema_registry_multi_mcp.py"
+    "kafka_schema_registry_unified_mcp.py",
+    "kafka_schema_registry_unified_mcp.py"
 ]
 
 for file in server_files:
@@ -48,7 +48,7 @@ for file in server_files:
 
 # Test 5: Try to read a small portion of server file
 try:
-    with open("kafka_schema_registry_mcp.py", "r") as f:
+    with open("kafka_schema_registry_unified_mcp.py", "r") as f:
         first_line = f.readline().strip()
         print(f"5. ✅ Server file readable: {first_line}")
 except Exception as e:

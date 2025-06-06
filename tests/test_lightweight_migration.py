@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 # Global executor for cleanup
 _executor = None

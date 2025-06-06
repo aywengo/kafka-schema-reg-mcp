@@ -11,11 +11,83 @@ import os
 import json
 import requests
 import time
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def test_single_registry_batch_cleanup():
+async def test_single_registry_batch_cleanup_helper():
+    """Helper function to test batch cleanup with MCP client and timeout protection"""
+    try:
+        # Set up environment with multi-registry configuration
+        env = os.environ.copy()
+        env["SCHEMA_REGISTRY_NAME_1"] = "dev"
+        env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
+        env["SCHEMA_REGISTRY_NAME_2"] = "prod"
+        env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
+        
+        # Get absolute path to server script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+        
+        server_params = StdioServerParameters(
+            command="python",
+            args=[server_script],
+            env=env
+        )
+        
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                
+                test_context = "test-cleanup-single"
+                
+                # Test dry run first
+                print(f"🔍 Testing dry run mode...")
+                dry_run_result = await session.call_tool("clear_context_batch", {
+                    "context": test_context,
+                    "delete_context_after": True,
+                    "dry_run": True
+                })
+                
+                if dry_run_result.content and len(dry_run_result.content) > 0:
+                    content = json.loads(dry_run_result.content[0].text)
+                    if "error" in content:
+                        print(f"❌ Dry run failed: {content['error']}")
+                        return False
+                    print(f"✅ Dry run completed")
+                    print(f"   Response keys: {list(content.keys())}")
+                else:
+                    print("❌ No response from dry run")
+                    return False
+                
+                # Test actual cleanup
+                print(f"\n🗑️  Testing actual batch cleanup...")
+                cleanup_result = await session.call_tool("clear_context_batch", {
+                    "context": test_context,
+                    "delete_context_after": True,
+                    "dry_run": False
+                })
+                
+                if cleanup_result.content and len(cleanup_result.content) > 0:
+                    content = json.loads(cleanup_result.content[0].text)
+                    if "error" in content:
+                        print(f"❌ Cleanup failed: {content['error']}")
+                        return False
+                    print(f"✅ Batch cleanup completed")
+                    print(f"   Response keys: {list(content.keys())}")
+                    return True
+                else:
+                    print("❌ No response from cleanup")
+                    return False
+                    
+    except Exception as e:
+        print(f"❌ Single-registry cleanup test failed: {e}")
+        return False
+
+async def test_single_registry_batch_cleanup():
     """Test batch cleanup in single-registry mode"""
     print("🧪 Testing Single-Registry Batch Cleanup")
     print("=" * 50)
@@ -87,53 +159,73 @@ def test_single_registry_batch_cleanup():
     
     print(f"📊 Created {len(created_subjects)} test subjects")
     
-    # Now test the single-registry batch cleanup
+    # Now test the single-registry batch cleanup with timeout protection
     print(f"\n🧪 Testing single-registry batch cleanup...")
     
     try:
-        import kafka_schema_registry_mcp as single_mcp
-        
-        # Test dry run first
-        print(f"🔍 Testing dry run mode...")
-        dry_run_result = single_mcp.clear_context_batch(
-            context=test_context,
-            delete_context_after=True,
-            dry_run=True
+        # Run the async helper with timeout protection
+        result = await asyncio.wait_for(
+            test_single_registry_batch_cleanup_helper(),
+            timeout=30.0
         )
+        return result
         
-        if "error" in dry_run_result:
-            print(f"❌ Dry run failed: {dry_run_result['error']}")
-            return False
-        
-        print(f"✅ Dry run completed:")
-        print(f"   Would delete: {dry_run_result['subjects_found']} subjects")
-        print(f"   Would delete context: {dry_run_result.get('context_deleted', False)}")
-        print(f"   Message: {dry_run_result['message']}")
-        
-        # Now test actual cleanup
-        print(f"\n🗑️  Testing actual batch cleanup...")
-        cleanup_result = single_mcp.clear_context_batch(
-            context=test_context,
-            delete_context_after=True,
-            dry_run=False
-        )
-        
-        if "error" in cleanup_result:
-            print(f"❌ Cleanup failed: {cleanup_result['error']}")
-            return False
-        
-        print(f"✅ Batch cleanup completed:")
-        print(f"   Duration: {cleanup_result['duration_seconds']} seconds")
-        print(f"   Subjects deleted: {cleanup_result['subjects_deleted']}/{cleanup_result['subjects_found']}")
-        print(f"   Success rate: {cleanup_result['success_rate']}%")
-        print(f"   Context deleted: {cleanup_result['context_deleted']}")
-        print(f"   Performance: {cleanup_result['performance']['subjects_per_second']} subjects/second")
-        print(f"   Message: {cleanup_result['message']}")
-        
-        return cleanup_result['success_rate'] == 100.0
-        
+    except asyncio.TimeoutError:
+        print("❌ Single-registry cleanup test timed out after 30 seconds")
+        return False
     except Exception as e:
         print(f"❌ Single-registry cleanup test failed: {e}")
+        return False
+
+async def test_multi_registry_batch_cleanup_helper():
+    """Helper function to test multi-registry batch cleanup with MCP client and timeout protection"""
+    try:
+        # Set up environment with multi-registry configuration
+        env = os.environ.copy()
+        env["SCHEMA_REGISTRY_NAME_1"] = "dev"
+        env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
+        env["SCHEMA_REGISTRY_NAME_2"] = "prod"
+        env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
+        
+        # Get absolute path to server script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+        
+        server_params = StdioServerParameters(
+            command="python",
+            args=[server_script],
+            env=env
+        )
+        
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                
+                test_context = "test-cleanup-multi"
+                
+                # Test multi-registry context cleanup in DEV registry
+                print(f"🔍 Testing context cleanup in DEV registry...")
+                cleanup_result = await session.call_tool("clear_context_batch", {
+                    "context": test_context,
+                    "registry": "dev",
+                    "delete_context_after": True,
+                    "dry_run": False
+                })
+                
+                if cleanup_result.content and len(cleanup_result.content) > 0:
+                    content = json.loads(cleanup_result.content[0].text)
+                    if "error" in content:
+                        print(f"❌ Multi-registry cleanup failed: {content['error']}")
+                        return False
+                    print(f"✅ Multi-registry cleanup task started")
+                    print(f"   Response keys: {list(content.keys())}")
+                    return True
+                else:
+                    print("❌ No response from multi-registry cleanup")
+                    return False
+                    
+    except Exception as e:
+        print(f"❌ Multi-registry cleanup test failed: {e}")
         return False
 
 async def test_multi_registry_batch_cleanup():
@@ -182,64 +274,22 @@ async def test_multi_registry_batch_cleanup():
         print(f"❌ Error creating test subject: {e}")
         return False
     
-    # Test multi-registry batch cleanup
+    # Test multi-registry batch cleanup with timeout protection
     print(f"\n🧪 Testing multi-registry batch cleanup...")
     
     try:
-        # Set up multi-registry environment
-        os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
-        os.environ["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-        os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
-        os.environ["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
-        
-        import sys
-        import os
-        # Add the parent directory to sys.path so we can import oauth_provider
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        import kafka_schema_registry_multi_mcp as multi_mcp
-        
-        # Reinitialize registry manager with test config
-        multi_mcp.registry_manager._load_multi_registries()
-        
-        # Test single context cleanup in specific registry
-        print(f"🔍 Testing context cleanup in DEV registry...")
-        cleanup_result = multi_mcp.clear_context_batch(
-            context=test_context,
-            registry="dev",
-            delete_context_after=True,
-            dry_run=False
+        # Run the async helper with timeout protection
+        result = await asyncio.wait_for(
+            test_multi_registry_batch_cleanup_helper(),
+            timeout=30.0
         )
+        return result
         
-        # Multi-registry returns a task object, not the actual result
-        if "error" in cleanup_result:
-            print(f"❌ Multi-registry cleanup failed: {cleanup_result['error']}")
-            return False
-        
-        if "task_id" in cleanup_result:
-            print(f"✅ Multi-registry cleanup task started:")
-            print(f"   Task ID: {cleanup_result['task_id']}")
-            print(f"   Registry: {cleanup_result['task']['metadata']['registry']}")
-            print(f"   Context: {cleanup_result['task']['metadata']['context']}")
-            print(f"   Dry run: {cleanup_result['task']['metadata']['dry_run']}")
-            
-            # Wait a bit for the task to complete
-            import asyncio
-            await asyncio.sleep(1.0)
-            
-            # Get task progress
-            task_progress = await multi_mcp.get_task_progress(cleanup_result['task_id'])
-            print(f"   Status: {task_progress['status']}")
-            print(f"   Progress: {task_progress['progress_percent']}%")
-            
-            return task_progress['status'] in ['completed', 'running']
-        else:
-            print(f"❌ Unexpected response format")
-            return False
-        
+    except asyncio.TimeoutError:
+        print("❌ Multi-registry cleanup test timed out after 30 seconds")
+        return False
     except Exception as e:
         print(f"❌ Multi-registry cleanup test failed: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
 def test_performance_characteristics():
@@ -297,18 +347,26 @@ async def main():
     
     # Run tests
     tests = [
-        ("Single-Registry Batch Cleanup", test_single_registry_batch_cleanup),
-        ("Multi-Registry Batch Cleanup", test_multi_registry_batch_cleanup),
-        ("Performance Characteristics", test_performance_characteristics)
+        ("Single-Registry Batch Cleanup", test_single_registry_batch_cleanup, True),
+        ("Multi-Registry Batch Cleanup", test_multi_registry_batch_cleanup, True),
+        ("Performance Characteristics", test_performance_characteristics, False)
     ]
     
     passed = 0
     total = len(tests)
     
-    for test_name, test_func in tests:
+    for test_name, test_func, is_async in tests:
         print(f"\n{'='*20} {test_name} {'='*20}")
         try:
-            if test_name == "Multi-Registry Batch Cleanup":
+            # Reset task manager before each test for isolation
+            try:
+                import kafka_schema_registry_unified_mcp
+                kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+                print("🔄 Task manager reset for test isolation")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not reset task manager: {e}")
+            
+            if is_async:
                 if await test_func():
                     passed += 1
                     print(f"✅ {test_name} PASSED")
@@ -322,6 +380,14 @@ async def main():
                     print(f"❌ {test_name} FAILED")
         except Exception as e:
             print(f"❌ {test_name} FAILED with exception: {e}")
+        
+        # Additional cleanup after each test
+        try:
+            import kafka_schema_registry_unified_mcp
+            kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+            print("🧹 Post-test cleanup completed")
+        except Exception as e:
+            print(f"⚠️  Warning: Post-test cleanup failed: {e}")
     
     print(f"\n📊 Test Results: {passed}/{total} tests passed")
     

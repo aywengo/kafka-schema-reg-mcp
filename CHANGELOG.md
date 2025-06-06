@@ -5,6 +5,125 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2025-06-06
+
+### 🏗️ Modular Architecture Refactoring
+
+This release introduces a comprehensive modular architecture that transforms the monolithic codebase into 8 specialized modules, significantly improving maintainability, development efficiency, and code organization.
+
+### Added
+- **Modular Architecture**: Split 3917-line monolithic file into 8 focused modules
+  - `task_management.py` (280 lines): Async task queue operations for long-running processes
+  - `migration_tools.py` (400+ lines): Schema and context migration between registries
+  - `comparison_tools.py` (160 lines): Registry and context comparison operations
+  - `export_tools.py` (200 lines): Schema export in multiple formats (JSON, Avro IDL)
+  - `batch_operations.py` (350+ lines): Batch cleanup operations with progress tracking
+  - `statistics_tools.py` (150 lines): Counting and statistics operations
+  - `core_registry_tools.py` (600+ lines): Basic CRUD operations for schemas, subjects, configs
+  - `kafka_schema_registry_unified_modular.py` (500 lines): Main orchestration server file
+
+### Improved
+
+#### Development & Maintainability
+- **Focused Responsibility**: Each module handles a specific area of functionality
+- **Parallel Development**: Multiple developers can work on different modules simultaneously
+- **Code Navigation**: Smaller, focused files are significantly easier to understand and navigate
+- **Isolated Testing**: Modules can be tested independently for better test coverage
+- **Easier Debugging**: Clear module boundaries help isolate and fix issues faster
+
+#### Architecture Benefits
+- **Single Responsibility Principle**: Each module has one clear purpose
+- **Reduced Merge Conflicts**: Developers working on different features rarely conflict
+- **Plugin-Ready Structure**: Foundation for future plugin architecture
+- **Selective Loading**: Potential for loading only needed modules
+- **Better Documentation**: Each module is self-documenting with focused docstrings
+
+#### Performance & Scalability
+- **Memory Efficiency**: Only required modules are fully loaded
+- **Faster Startup**: Reduced initial loading time
+- **Better Resource Management**: Cleaner separation of concerns
+- **Future Optimizations**: Module-specific performance improvements possible
+
+### Maintained
+- **100% Backward Compatibility**: Original monolithic file still available and functional
+- **All 48 MCP Tools**: Every existing tool continues to work exactly as before
+- **API Compatibility**: No breaking changes to any tool signatures or responses
+- **Configuration Support**: All environment variables and settings remain the same
+- **Docker Images**: Same container behavior and deployment process
+
+### Technical Details
+
+#### Module Dependencies
+```
+kafka_schema_registry_unified_modular.py (main server)
+├── task_management.py (task queue & progress tracking)
+├── migration_tools.py ────┐
+├── comparison_tools.py    │── All import task_management
+├── export_tools.py        │   for async operations
+├── batch_operations.py ───┘
+├── statistics_tools.py
+├── core_registry_tools.py (foundation CRUD operations)
+├── schema_registry_common.py (shared utilities)
+└── oauth_provider.py (authentication)
+```
+
+#### Migration Path
+- **Gradual Migration**: Users can switch to modular version when ready
+- **Development Choice**: New features developed in modular structure
+- **Zero Downtime**: Switch between versions without service interruption
+- **Rollback Support**: Can revert to monolithic version if needed
+
+### Developer Experience
+
+#### Before (Monolithic)
+- Single 3917-line file
+- Difficult to navigate and find specific functionality
+- Merge conflicts common with multiple developers
+- Hard to test individual features in isolation
+- Debugging required searching through large file
+
+#### After (Modular)
+- 8 focused modules with clear responsibilities
+- Easy to locate and modify specific functionality
+- Parallel development without conflicts
+- Independent module testing
+- Clear boundaries for issue isolation
+
+### Future Enhancements Enabled
+- **Plugin Architecture**: Third-party modules can be added
+- **Independent Versioning**: Modules can be versioned separately
+- **Selective Deployment**: Deploy only needed functionality
+- **Better Testing**: Comprehensive per-module test suites
+- **Community Contributions**: Easier for external contributors
+
+### Usage
+Both versions are available and fully compatible:
+
+```bash
+# New modular version (recommended for development)
+python kafka_schema_registry_unified_modular.py
+
+# Original monolithic version (still supported)  
+python kafka_schema_registry_unified_mcp.py
+```
+
+### Docker Support
+The Docker image includes both versions with the modular version as default:
+
+```bash
+# Uses modular version by default
+docker run aywengo/kafka-schema-reg-mcp:1.8.1
+
+# Explicitly use original version
+docker run aywengo/kafka-schema-reg-mcp:1.8.1 python kafka_schema_registry_unified_mcp.py
+```
+
+### Documentation
+- Added `MODULAR_ARCHITECTURE.md` with comprehensive architecture guide
+- Module responsibility documentation
+- Development guidelines for modular structure
+- Migration path documentation
+
 ## [1.7.2] - 2025-06-01
 
 ### Changed

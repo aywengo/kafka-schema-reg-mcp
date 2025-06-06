@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Performance and Load Testing for Multi-Registry MCP Server
+Performance and Load Testing for unified server in multi-registry mode
 
 Tests system performance under various loads:
 - Concurrent operations across registries
@@ -168,7 +168,7 @@ async def test_schema_registration_performance():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -230,7 +230,7 @@ async def test_concurrent_operations():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -314,7 +314,7 @@ async def test_multi_registry_performance():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -393,7 +393,7 @@ async def test_large_schema_performance():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -472,7 +472,7 @@ async def test_memory_and_resource_usage():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     

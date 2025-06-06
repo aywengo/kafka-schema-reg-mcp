@@ -37,7 +37,7 @@ run_test() {
 
 # Test 1: Application files exist
 run_test "Application Files Check" \
-"docker run --rm ${IMAGE_NAME} ls -la | grep -q kafka_schema_registry_mcp.py"
+"docker run --rm ${IMAGE_NAME} ls -la | grep -q kafka_schema_registry_unified_mcp.py"
 
 # Test 2: MCP SDK installation
 run_test "MCP SDK Installation" \
@@ -49,7 +49,7 @@ run_test "MCP Server Import (No Pydantic Warnings)" \
 
 # Test 4: Python syntax validation
 run_test "Python Syntax Validation" \
-"docker run --rm ${IMAGE_NAME} python -m py_compile kafka_schema_registry_mcp.py"
+"docker run --rm ${IMAGE_NAME} python -m py_compile kafka_schema_registry_unified_mcp.py"
 
 # Test 5: Dependencies check
 run_test "All Dependencies Available" \
@@ -73,7 +73,7 @@ run_test "Working Directory Setup" \
 
 # Test 10: File permissions
 run_test "File Permissions" \
-"docker run --rm ${IMAGE_NAME} ls -la kafka_schema_registry_mcp.py | grep -q mcp"
+"docker run --rm ${IMAGE_NAME} ls -la kafka_schema_registry_unified_mcp.py | grep -q mcp"
 
 # If timeout command is available, test startup behavior
 if command -v timeout >/dev/null 2>&1; then

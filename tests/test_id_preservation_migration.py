@@ -14,7 +14,7 @@ from datetime import datetime
 
 # Add parent directory to path to import the MCP server and oauth_provider
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"

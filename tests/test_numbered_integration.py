@@ -202,37 +202,49 @@ async def test_single_registry_mode():
         env.pop(f"SCHEMA_REGISTRY_PASSWORD_{i}", None)
         env.pop(f"READONLY_{i}", None)
     
+    # Get the absolute path to the server script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+    
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=[server_script],
         env=env
     )
     
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # Test registry listing
-                result = await session.call_tool("list_registries", {})
-                if result.content and len(result.content) > 0:
-                    registries = json.loads(result.content[0].text)
-                    print(f"✅ Single mode: Found {len(registries)} registry")
-                    
-                # Test schema operations
-                result = await session.call_tool("list_subjects", {})
-                if result.content and len(result.content) > 0:
-                    subjects = json.loads(result.content[0].text)
-                    print(f"✅ Found {len(subjects)} subjects in default registry")
-                    
-                # Test contexts
-                result = await session.call_tool("list_contexts", {})
-                if result.content and len(result.content) > 0:
-                    contexts = json.loads(result.content[0].text)
-                    print(f"✅ Found {len(contexts)} contexts: {contexts}")
-                
+        await asyncio.wait_for(
+            _test_single_registry_with_client(server_params),
+            timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        print("❌ Single registry test timed out after 30 seconds")
     except Exception as e:
         print(f"❌ Single registry integration test failed: {e}")
+
+async def _test_single_registry_with_client(server_params):
+    """Helper function for single registry test with timeout protection."""
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Test registry listing
+            result = await session.call_tool("list_registries", {})
+            if result.content and len(result.content) > 0:
+                registries = json.loads(result.content[0].text)
+                print(f"✅ Single mode: Found {len(registries)} registry")
+                
+            # Test schema operations
+            result = await session.call_tool("list_subjects", {})
+            if result.content and len(result.content) > 0:
+                subjects = json.loads(result.content[0].text)
+                print(f"✅ Found {len(subjects)} subjects in default registry")
+                
+            # Test contexts
+            result = await session.call_tool("list_contexts", {})
+            if result.content and len(result.content) > 0:
+                contexts = json.loads(result.content[0].text)
+                print(f"✅ Found {len(contexts)} contexts: {contexts}")
 
 async def test_multi_registry_mode():
     """Test multi-registry mode using contexts to simulate registries."""
@@ -264,48 +276,60 @@ async def test_multi_registry_mode():
     env["SCHEMA_REGISTRY_PASSWORD_3"] = ""
     env["READONLY_3"] = "true"
     
+    # Get the absolute path to the server script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+    
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=[server_script],
         env=env
     )
     
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # Test registry listing
-                result = await session.call_tool("list_registries", {})
-                if result.content and len(result.content) > 0:
-                    registries = json.loads(result.content[0].text)
-                    print(f"✅ Multi mode: Found {len(registries)} registries")
-                    for registry in registries:
-                        name = registry.get('name')
-                        readonly = registry.get('readonly', False)
-                        print(f"   • {name}: readonly={readonly}")
-                
-                # Test connection to all registries
-                result = await session.call_tool("test_all_registries", {})
-                if result.content and len(result.content) > 0:
-                    test_results = json.loads(result.content[0].text)
-                    connected = test_results.get("connected", 0)
-                    total = test_results.get("total_registries", 0)
-                    print(f"✅ Registry connections: {connected}/{total} successful")
-                
-                # Test schema operations with registry parameter
-                result = await session.call_tool("list_subjects", {"context": "development"})
-                if result.content and len(result.content) > 0:
-                    subjects = json.loads(result.content[0].text)
-                    print(f"✅ Development context: {len(subjects)} subjects")
-                
-                result = await session.call_tool("list_subjects", {"context": "staging"})
-                if result.content and len(result.content) > 0:
-                    subjects = json.loads(result.content[0].text)
-                    print(f"✅ Staging context: {len(subjects)} subjects")
-                    
+        await asyncio.wait_for(
+            _test_multi_registry_with_client(server_params),
+            timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        print("❌ Multi-registry test timed out after 30 seconds")
     except Exception as e:
         print(f"❌ Multi-registry integration test failed: {e}")
+
+async def _test_multi_registry_with_client(server_params):
+    """Helper function for multi-registry test with timeout protection."""
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Test registry listing
+            result = await session.call_tool("list_registries", {})
+            if result.content and len(result.content) > 0:
+                registries = json.loads(result.content[0].text)
+                print(f"✅ Multi mode: Found {len(registries)} registries")
+                for registry in registries:
+                    name = registry.get('name')
+                    readonly = registry.get('readonly', False)
+                    print(f"   • {name}: readonly={readonly}")
+            
+            # Test connection to all registries
+            result = await session.call_tool("test_all_registries", {})
+            if result.content and len(result.content) > 0:
+                test_results = json.loads(result.content[0].text)
+                connected = test_results.get("connected", 0)
+                total = test_results.get("total_registries", 0)
+                print(f"✅ Registry connections: {connected}/{total} successful")
+            
+            # Test schema operations with registry parameter
+            result = await session.call_tool("list_subjects", {"context": "development"})
+            if result.content and len(result.content) > 0:
+                subjects = json.loads(result.content[0].text)
+                print(f"✅ Development context: {len(subjects)} subjects")
+            
+            result = await session.call_tool("list_subjects", {"context": "staging"})
+            if result.content and len(result.content) > 0:
+                subjects = json.loads(result.content[0].text)
+                print(f"✅ Staging context: {len(subjects)} subjects")
 
 async def test_cross_registry_operations():
     """Test cross-registry operations using contexts."""
@@ -328,62 +352,74 @@ async def test_cross_registry_operations():
     env["SCHEMA_REGISTRY_URL_3"] = SCHEMA_REGISTRY_BASE_URL
     env["READONLY_3"] = "true"
     
+    # Get the absolute path to the server script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+    
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=[server_script],
         env=env
     )
     
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # Test registry comparison
-                result = await session.call_tool("compare_registries", {
-                    "source_registry": "development",
-                    "target_registry": "staging"
-                })
-                if result.content and len(result.content) > 0:
-                    comparison = json.loads(result.content[0].text)
-                    if "error" in comparison:
-                        print(f"⚠️  Registry comparison: {comparison['error']}")
-                    else:
-                        print(f"✅ Registry comparison completed: dev vs staging")
-                        subjects = comparison.get('subjects', {})
-                        print(f"   Common subjects: {len(subjects.get('common', []))}")
-                        print(f"   Dev only: {len(subjects.get('source_only', []))}")
-                        print(f"   Staging only: {len(subjects.get('target_only', []))}")
-                
-                # Test finding missing schemas
-                result = await session.call_tool("find_missing_schemas", {
-                    "source_registry": "development",
-                    "target_registry": "production"
-                })
-                if result.content and len(result.content) > 0:
-                    missing = json.loads(result.content[0].text)
-                    if "error" in missing:
-                        print(f"⚠️  Missing schemas check: {missing['error']}")
-                    else:
-                        missing_count = missing.get('missing_count', 0)
-                        print(f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod")
-                
-                # Test migration (dry run)
-                result = await session.call_tool("migrate_schema", {
-                    "subject": "user-events",
-                    "source_registry": "development", 
-                    "target_registry": "staging",
-                    "dry_run": True
-                })
-                if result.content and len(result.content) > 0:
-                    migration = json.loads(result.content[0].text)
-                    if "error" in migration:
-                        print(f"⚠️  Schema migration: {migration['error']}")
-                    else:
-                        print(f"✅ Schema migration dry run: {migration.get('status')}")
-                        
+        await asyncio.wait_for(
+            _test_cross_registry_with_client(server_params),
+            timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        print("❌ Cross-registry test timed out after 30 seconds")
     except Exception as e:
         print(f"❌ Cross-registry operations test failed: {e}")
+
+async def _test_cross_registry_with_client(server_params):
+    """Helper function for cross-registry test with timeout protection."""
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Test registry comparison
+            result = await session.call_tool("compare_registries", {
+                "source_registry": "development",
+                "target_registry": "staging"
+            })
+            if result.content and len(result.content) > 0:
+                comparison = json.loads(result.content[0].text)
+                if "error" in comparison:
+                    print(f"⚠️  Registry comparison: {comparison['error']}")
+                else:
+                    print(f"✅ Registry comparison completed: dev vs staging")
+                    subjects = comparison.get('subjects', {})
+                    print(f"   Common subjects: {len(subjects.get('common', []))}")
+                    print(f"   Dev only: {len(subjects.get('source_only', []))}")
+                    print(f"   Staging only: {len(subjects.get('target_only', []))}")
+            
+            # Test finding missing schemas
+            result = await session.call_tool("find_missing_schemas", {
+                "source_registry": "development",
+                "target_registry": "production"
+            })
+            if result.content and len(result.content) > 0:
+                missing = json.loads(result.content[0].text)
+                if "error" in missing:
+                    print(f"⚠️  Missing schemas check: {missing['error']}")
+                else:
+                    missing_count = missing.get('missing_count', 0)
+                    print(f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod")
+            
+            # Test migration (dry run)
+            result = await session.call_tool("migrate_schema", {
+                "subject": "user-events",
+                "source_registry": "development", 
+                "target_registry": "staging",
+                "dry_run": True
+            })
+            if result.content and len(result.content) > 0:
+                migration = json.loads(result.content[0].text)
+                if "error" in migration:
+                    print(f"⚠️  Schema migration: {migration['error']}")
+                else:
+                    print(f"✅ Schema migration dry run: {migration.get('status')}")
 
 async def test_per_registry_readonly():
     """Test per-registry READONLY mode protection."""
@@ -402,64 +438,76 @@ async def test_per_registry_readonly():
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
     env["READONLY_2"] = "true"
     
+    # Get the absolute path to the server script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+    
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_multi_mcp.py"],
+        args=[server_script],
         env=env
     )
     
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # Test schema registration in development (should work)
-                test_schema = {
-                    "type": "record",
-                    "name": "TestSchema", 
-                    "fields": [{"name": "test_field", "type": "string"}]
-                }
-                
-                result = await session.call_tool("register_schema", {
-                    "subject": "integration-test-schema",
-                    "schema_definition": test_schema,
-                    "registry": "development"
-                })
-                if result.content and len(result.content) > 0:
-                    response = json.loads(result.content[0].text)
-                    if "error" in response:
-                        if "Connection refused" in response["error"]:
-                            print("⚠️  Development schema registration skipped (connection issue)")
-                        else:
-                            print(f"⚠️  Development schema registration: {response['error']}")
-                    else:
-                        print("✅ Development schema registration successful")
-                
-                # Test schema registration in production (should be blocked)
-                result = await session.call_tool("register_schema", {
-                    "subject": "integration-test-schema",
-                    "schema_definition": test_schema,
-                    "registry": "production"
-                })
-                if result.content and len(result.content) > 0:
-                    response = json.loads(result.content[0].text)
-                    if "readonly_mode" in response:
-                        print("✅ Production schema registration blocked by READONLY mode")
-                        print(f"   Message: {response.get('error', 'Blocked')}")
-                    else:
-                        print("❌ Production READONLY mode not working correctly")
-                
-                # Test read operations in production (should work)
-                result = await session.call_tool("list_subjects", {"context": "production"})
-                if result.content and len(result.content) > 0:
-                    subjects = json.loads(result.content[0].text)
-                    if isinstance(subjects, list):
-                        print(f"✅ Production read operations working: {len(subjects)} subjects")
-                    else:
-                        print(f"⚠️  Production read operations: {subjects}")
-                        
+        await asyncio.wait_for(
+            _test_per_registry_readonly_with_client(server_params),
+            timeout=30.0
+        )
+    except asyncio.TimeoutError:
+        print("❌ Per-registry readonly test timed out after 30 seconds")
     except Exception as e:
         print(f"❌ Per-registry READONLY test failed: {e}")
+
+async def _test_per_registry_readonly_with_client(server_params):
+    """Helper function for per-registry readonly test with timeout protection."""
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            
+            # Test schema registration in development (should work)
+            test_schema = {
+                "type": "record",
+                "name": "TestSchema", 
+                "fields": [{"name": "test_field", "type": "string"}]
+            }
+            
+            result = await session.call_tool("register_schema", {
+                "subject": "integration-test-schema",
+                "schema_definition": test_schema,
+                "registry": "development"
+            })
+            if result.content and len(result.content) > 0:
+                response = json.loads(result.content[0].text)
+                if "error" in response:
+                    if "Connection refused" in response["error"]:
+                        print("⚠️  Development schema registration skipped (connection issue)")
+                    else:
+                        print(f"⚠️  Development schema registration: {response['error']}")
+                else:
+                    print("✅ Development schema registration successful")
+            
+            # Test schema registration in production (should be blocked)
+            result = await session.call_tool("register_schema", {
+                "subject": "integration-test-schema",
+                "schema_definition": test_schema,
+                "registry": "production"
+            })
+            if result.content and len(result.content) > 0:
+                response = json.loads(result.content[0].text)
+                if "readonly_mode" in response:
+                    print("✅ Production schema registration blocked by READONLY mode")
+                    print(f"   Message: {response.get('error', 'Blocked')}")
+                else:
+                    print("❌ Production READONLY mode not working correctly")
+            
+            # Test read operations in production (should work)
+            result = await session.call_tool("list_subjects", {"context": "production"})
+            if result.content and len(result.content) > 0:
+                subjects = json.loads(result.content[0].text)
+                if isinstance(subjects, list):
+                    print(f"✅ Production read operations working: {len(subjects)} subjects")
+                else:
+                    print(f"⚠️  Production read operations: {subjects}")
 
 async def main():
     """Run all integration tests."""

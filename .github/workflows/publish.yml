@@ -89,7 +89,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "True MCP Server for Kafka Schema Registry - 48 tools, async operations, multi-registry support, Claude Desktop ready"
+          short-description: "True MCP Server for Kafka Schema Registry - Modular Architecture, 48 tools, async operations, multi-registry support, Claude Desktop ready"
           readme-filepath: ./README.md
 
   create-release:
@@ -109,9 +109,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
           body: |
-            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - True MCP Implementation with Async Operations
+            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Modular Architecture with Async Operations
             
-            **🚀 MAJOR UPDATE**: Enhanced with async task management, real-time progress tracking, and non-blocking operations for large-scale schema management.
+            **🏗️ MAJOR UPDATE**: Comprehensive modular architecture refactoring! The monolithic 3917-line codebase has been split into 8 specialized modules for improved maintainability, parallel development, and easier testing. Enhanced with async task management, real-time progress tracking, and non-blocking operations for large-scale schema management.
             
             ### Docker Image
             ```bash
@@ -184,7 +184,14 @@ jobs:
             → Non-blocking comparison with detailed progress updates
             ```
             
-            ### 📋 MCP Features (v1.8.0)
+            ### 🏗️ Modular Architecture (v1.8.1)
+            - ✅ **8 Specialized Modules**: Focused, maintainable codebase architecture
+            - ✅ **Parallel Development**: Multiple developers can work simultaneously
+            - ✅ **100% Backward Compatibility**: Original monolithic version still available
+            - ✅ **Independent Testing**: Each module can be tested in isolation
+            - ✅ **Plugin-Ready Structure**: Foundation for future extensibility
+            
+            ### 📋 MCP Features (v1.8.1)
             - ✅ **48 MCP Tools**: Complete schema operations via natural language
             - ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
             - ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)

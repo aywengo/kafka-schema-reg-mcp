@@ -8,6 +8,7 @@ including schema registration, context management, configuration, export, and mo
 
 import asyncio
 import json
+import os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -17,7 +18,7 @@ async def test_advanced_mcp_features():
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
         command="python",
-        args=["../kafka_schema_registry_mcp.py"],
+        args=[os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kafka_schema_registry_unified_mcp.py")],
         env={
             "SCHEMA_REGISTRY_URL": "http://localhost:38081",
             "SCHEMA_REGISTRY_USER": "",
@@ -198,8 +199,19 @@ async def test_advanced_mcp_features():
                     "include_versions": "all"
                 })
                 if result.content:
-                    export_data = json.loads(result.content[0].text)
-                    print(f"Production export: {len(export_data.get('subjects', []))} subjects exported")
+                    try:
+                        response_text = result.content[0].text
+                        if response_text:
+                            export_data = json.loads(response_text)
+                            if "error" in export_data:
+                                print(f"⚠️ Export failed: {export_data['error']}")
+                            else:
+                                print(f"Production export: {len(export_data.get('subjects', []))} subjects exported")
+                        else:
+                            print("⚠️ Empty response from export_context")
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ Failed to parse export response as JSON: {e}")
+                        print(f"Raw response: {result.content[0].text}")
                 else:
                     print(f"❌ No content returned for export_context: {result}")
 

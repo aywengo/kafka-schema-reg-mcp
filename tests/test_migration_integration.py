@@ -23,7 +23,7 @@ from typing import Dict, List, Any
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 class MigrationIntegrationTests:
     """Comprehensive integration tests for migration functionality"""

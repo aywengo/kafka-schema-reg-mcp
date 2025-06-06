@@ -22,7 +22,7 @@ project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"

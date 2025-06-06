@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Single-Registry Test Runner Validation
+Unified Server Test Runner Validation
 
-This script validates that the single-registry test runner components
+This script validates that the unified server test runner components
 are compatible and can be imported successfully.
 """
 
@@ -13,13 +13,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def validate_single_registry_tests():
-    """Validate that single-registry test components are available and compatible"""
-    print("🔍 Validating Single-Registry Test Runner Components")
+    """Validate that unified server test components are available and compatible"""
+    print("🔍 Validating Unified Server Test Runner Components")
     print("=" * 60)
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Single-registry test files that should work
+    # Unified server test files that should work
     working_tests = [
         "test_basic_server.py",
         "test_mcp_server.py",
@@ -50,7 +50,7 @@ def validate_single_registry_tests():
     found_incompatible = []
     found_excluded = []
     
-    print("📋 Checking Compatible Single-Registry Tests:")
+    print("📋 Checking Compatible Unified Server Tests:")
     for test_file in working_tests:
         test_path = os.path.join(script_dir, test_file)
         if os.path.exists(test_path):
@@ -73,7 +73,7 @@ def validate_single_registry_tests():
     for test_file in excluded_tests:
         test_path = os.path.join(script_dir, test_file)
         if os.path.exists(test_path):
-            print(f"   ⚠️  {test_file} (exists but excluded from single-registry)")
+            print(f"   ⚠️  {test_file} (exists but excluded from basic runner)")
             found_excluded.append(test_file)
         else:
             print(f"   ✅ {test_file} (not found, which is fine)")
@@ -81,10 +81,10 @@ def validate_single_registry_tests():
     # Test basic imports
     print(f"\n🧪 Testing Basic Imports:")
     try:
-        import kafka_schema_registry_mcp
-        print(f"   ✅ kafka_schema_registry_mcp can be imported")
+        import kafka_schema_registry_unified_mcp
+        print(f"   ✅ kafka_schema_registry_unified_mcp can be imported")
     except ImportError as e:
-        print(f"   ❌ Cannot import kafka_schema_registry_mcp: {e}")
+        print(f"   ❌ Cannot import kafka_schema_registry_unified_mcp: {e}")
         return False
     
     try:
@@ -109,14 +109,14 @@ def validate_single_registry_tests():
     
     if missing_working:
         print(f"\n❌ VALIDATION FAILED")
-        print(f"   Missing required single-registry tests:")
+        print(f"   Missing required unified server tests:")
         for test in missing_working:
             print(f"     • {test}")
         return False
     else:
         print(f"\n✅ VALIDATION PASSED")
-        print(f"   All required single-registry components are available!")
-        print(f"   The single-registry test runner is ready to use.")
+        print(f"   All required unified server components are available!")
+        print(f"   The unified server test runner is ready to use.")
         
         if found_incompatible:
             print(f"\n⚠️  Incompatible tests found (will be automatically skipped):")
@@ -124,7 +124,7 @@ def validate_single_registry_tests():
                 print(f"     • {test} (FastAPI-based, incompatible with MCP)")
         
         if found_excluded:
-            print(f"\n⚠️  Multi-registry tests found (excluded from single-registry runner):")
+            print(f"\n⚠️  Multi-registry tests found (excluded from basic runner):")
             for test in found_excluded[:3]:  # Show first 3
                 print(f"     • {test}")
             if len(found_excluded) > 3:

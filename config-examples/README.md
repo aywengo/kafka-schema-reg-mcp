@@ -5,10 +5,14 @@ This directory contains example Claude Desktop configuration files for different
 ## 📂 Available Configurations
 
 ### Single Registry Configurations
-- **`claude_desktop_config.json`** - Basic local Python configuration
+- **`claude_desktop_config.json`** - Basic local Python configuration (unified)
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_readonly_config.json`** - Read-only mode for production safety
+
+### Modular Architecture Configurations (v1.8.1+)
+- **`claude_desktop_modular_config.json`** - Local Python modular architecture
+- **`claude_desktop_modular_docker_config.json`** - Docker modular architecture configuration
 
 ### Multi-Registry Configurations
 - **`claude_desktop_numbered_config.json`** - Local Python multi-registry setup
@@ -18,6 +22,7 @@ This directory contains example Claude Desktop configuration files for different
 
 ### Development Configurations
 - **`claude_desktop_env_file.json`** - Docker Compose based configuration
+- **`claude_desktop_async_monitoring_config.json`** - Optimized for async task monitoring
 
 ## 🚀 Quick Start
 
@@ -69,8 +74,8 @@ cd tests
 ./start_multi_registry_environment.sh    # Multi-registry (recommended)
 
 # Run tests
-./run_comprehensive_tests.sh --basic     # Basic functionality
-./run_multi_registry_tests.sh           # Multi-registry features
+./run_all_tests.sh --quick              # Essential tests (faster)
+./run_all_tests.sh                      # Comprehensive test suite
 ```
 
 **📖 Complete Testing Guide**: [`tests/TEST_ENVIRONMENT_SUMMARY.md`](../tests/TEST_ENVIRONMENT_SUMMARY.md)
@@ -96,11 +101,25 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
+### Use Case: Modular Architecture Development (v1.8.1+)
+**Recommended:** `claude_desktop_modular_config.json`
+- ✅ New modular architecture
+- ✅ Better code organization
+- ✅ Improved maintainability
+- ✅ Focused module responsibilities
+
 ### Use Case: Production Safety
 **Recommended:** `claude_desktop_readonly_config.json`
 - ✅ Read-only mode enforced
 - ✅ Prevents accidental modifications
 - ✅ Safe production monitoring
+
+### Use Case: Async Operations & Long-Running Tasks
+**Recommended:** `claude_desktop_async_monitoring_config.json`
+- ✅ Optimized for task monitoring
+- ✅ Great for migration operations
+- ✅ Progress tracking capabilities
+- ✅ Long-running operation management
 
 ## 📝 Customization
 

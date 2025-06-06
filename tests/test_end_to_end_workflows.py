@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-End-to-End Workflow Integration Tests for Multi-Registry MCP Server
+End-to-End Workflow Integration Tests for unified server in multi-registry mode
 
 Tests complete workflows including:
 - Schema registration and evolution workflow
@@ -72,6 +72,14 @@ async def test_schema_evolution_workflow():
     print("\n🔄 Testing Schema Evolution Workflow")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     # Multi-registry setup
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
@@ -90,7 +98,7 @@ async def test_schema_evolution_workflow():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -172,6 +180,14 @@ async def test_multi_schema_deployment_workflow():
     print("\n🚀 Testing Multi-Schema Deployment Workflow")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -185,7 +201,7 @@ async def test_multi_schema_deployment_workflow():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -263,6 +279,14 @@ async def test_context_management_workflow():
     print("\n📁 Testing Context Management Workflow")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -272,7 +296,7 @@ async def test_context_management_workflow():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -364,6 +388,14 @@ async def test_configuration_management_workflow():
     print("\n⚙️ Testing Configuration Management Workflow")
     print("-" * 50)
     
+    # Clean up any existing task manager state to prevent deadlocks
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Task manager state cleaned up")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager: {e}")
+    
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
     
@@ -373,7 +405,7 @@ async def test_configuration_management_workflow():
     
     server_params = StdioServerParameters(
         command="python",
-        args=["kafka_schema_registry_multi_mcp.py"],
+        args=["kafka_schema_registry_unified_mcp.py"],
         env=env
     )
     
@@ -473,6 +505,14 @@ async def main():
     """Run all end-to-end workflow tests."""
     print("🧪 Starting End-to-End Workflow Integration Tests")
     print("=" * 70)
+    
+    # Clean up any existing task manager state before starting
+    try:
+        import kafka_schema_registry_unified_mcp
+        kafka_schema_registry_unified_mcp.task_manager.reset_for_testing()
+        print("🧹 Initial task manager cleanup completed")
+    except Exception as e:
+        print(f"⚠️ Warning: Could not cleanup task manager initially: {e}")
     
     try:
         await test_schema_evolution_workflow()

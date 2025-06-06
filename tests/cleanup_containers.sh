@@ -14,7 +14,7 @@ docker rm kafka-test schema-registry-test 2>/dev/null || true
 
 # Clean up with docker-compose
 echo "Running docker-compose cleanup..."
-docker-compose -f docker-compose.test.yml down --remove-orphans 2>/dev/null || true
+docker-compose -f docker-compose.yml down --remove-orphans 2>/dev/null || true
 
 # Clean up networks
 echo "Cleaning up networks..."

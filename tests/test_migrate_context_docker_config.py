@@ -14,7 +14,7 @@ import json
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import kafka_schema_registry_multi_mcp as mcp_server
+import kafka_schema_registry_unified_mcp as mcp_server
 
 async def test_docker_config_generation():
     """Test that migrate_context generates proper Docker configuration."""

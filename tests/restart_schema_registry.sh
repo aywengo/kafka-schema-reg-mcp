@@ -52,7 +52,7 @@ sleep 2
 
 # Start just the Schema Registry
 print_color $BLUE "🚀 Starting Schema Registry..."
-docker-compose -f "$SCRIPT_DIR/docker-compose.test.yml" up -d schema-registry-test
+docker-compose -f "$SCRIPT_DIR/docker-compose.yml" up -d schema-registry-dev
 
 # Wait for it to start
 print_color $BLUE "⏳ Waiting for Schema Registry to start..."
@@ -71,7 +71,7 @@ while [ $elapsed -lt $timeout ]; do
         print_color $BLUE "Response: $response"
         
         print_color $GREEN "🎉 Schema Registry restart successful!"
-        print_color $WHITE "You can now run: ./run_comprehensive_tests.sh"
+        print_color $WHITE "You can now run: ./run_all_tests.sh"
         exit 0
     fi
     

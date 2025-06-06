@@ -26,8 +26,8 @@ import asyncio
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import kafka_schema_registry_mcp as single_mcp
-import kafka_schema_registry_multi_mcp as multi_mcp
+import kafka_schema_registry_unified_mcp as single_mcp
+import kafka_schema_registry_unified_mcp as multi_mcp
 
 class TestBatchCleanupIntegration:
     """Comprehensive integration tests for batch cleanup tools"""
