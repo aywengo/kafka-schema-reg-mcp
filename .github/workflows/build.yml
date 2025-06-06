@@ -61,7 +61,7 @@ jobs:
           
           # Test that the script is syntactically valid
           echo "Testing Python syntax..."
-          docker run --rm kafka-schema-reg-mcp:test python -m py_compile kafka_schema_registry_unified_mcp.py
+          docker run --rm kafka-schema-reg-mcp:test python -B -m py_compile kafka_schema_registry_unified_mcp.py
           
           # Test basic MCP server startup (should start and wait for stdio)
           echo "Testing unified MCP server startup..."
