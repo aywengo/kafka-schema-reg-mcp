@@ -14,7 +14,7 @@
         "-e", "SCHEMA_REGISTRY_URL_3=http://localhost:38081",
         "-e", "READONLY_3=true",
         "aywengo/kafka-schema-reg-mcp:stable",
-        "python", "kafka_schema_registry_multi_mcp.py"
+        "python", "kafka_schema_registry_unified_mcp.py"
       ]
     }
   }

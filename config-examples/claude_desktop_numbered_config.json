@@ -2,7 +2,7 @@
   "mcpServers": {
     "kafka-schema-registry-multi": {
       "command": "python",
-      "args": ["kafka_schema_registry_multi_mcp.py"],
+      "args": ["kafka_schema_registry_unified_mcp.py"],
       "env": {
         "SCHEMA_REGISTRY_NAME_1": "development",
         "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
