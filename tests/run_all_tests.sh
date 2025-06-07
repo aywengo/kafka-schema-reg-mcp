@@ -301,6 +301,7 @@ run_basic_tests() {
         "test_mcp_server.py:MCP protocol connectivity"
         "test_prompts.py:MCP prompts functionality and content validation"
         "test_config.py:Configuration management"
+        "test_provider_configs_only.py:OAuth provider configurations validation"
         "test_simple_python.py:Python environment validation"
     )
     
@@ -317,6 +318,7 @@ run_essential_integration_tests() {
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
+        "test_oauth.py:OAuth authentication and provider configurations"
     )
     
     run_test_list "${tests[@]}"
@@ -334,7 +336,7 @@ run_integration_tests() {
         "test_readonly_mcp_client.py:READONLY mode with MCP client"
         "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
-        "test_oauth.py:OAuth authentication"
+        "test_oauth.py:OAuth authentication and provider configurations"
         "advanced_mcp_test.py:Advanced MCP functionality"
     )
     

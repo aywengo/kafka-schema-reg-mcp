@@ -15,7 +15,7 @@ from typing import Dict, Any
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from oauth_provider import get_oauth_scopes_info, ENABLE_AUTH
+from oauth_provider import get_oauth_scopes_info, get_oauth_provider_configs, ENABLE_AUTH
 
 class OAuthTest:
     """OAuth functionality test class."""
@@ -243,6 +243,142 @@ class OAuthTest:
             print(f"   ❌ Error testing development tokens: {e}")
             return False
     
+    def test_oauth_provider_configs(self) -> bool:
+        """Test OAuth provider configuration examples."""
+        print("🏢 Testing OAuth provider configurations...")
+        
+        try:
+            provider_configs = get_oauth_provider_configs()
+            
+            # Check that we have provider configs
+            if not provider_configs:
+                print("   ❌ No provider configurations returned")
+                return False
+            
+            print(f"   ✅ Found {len(provider_configs)} provider configurations")
+            
+            # Expected providers
+            expected_providers = ["azure", "google", "keycloak", "okta"]
+            
+            for provider in expected_providers:
+                if provider not in provider_configs:
+                    print(f"   ❌ Missing provider configuration: {provider}")
+                    return False
+                
+                config = provider_configs[provider]
+                print(f"   ✅ Found provider: {provider}")
+                
+                # Check required configuration keys for each provider
+                required_keys = ["name", "issuer_url", "auth_url", "token_url", "scopes", "setup_docs"]
+                
+                for key in required_keys:
+                    if key not in config:
+                        print(f"   ❌ Missing key '{key}' in {provider} configuration")
+                        return False
+                
+                # Validate specific configurations
+                if provider == "azure":
+                    expected_values = {
+                        "name": "Azure AD / Entra ID",
+                        "client_id_env": "AZURE_CLIENT_ID",
+                        "client_secret_env": "AZURE_CLIENT_SECRET",
+                        "tenant_id_env": "AZURE_TENANT_ID"
+                    }
+                    for key, expected_value in expected_values.items():
+                        if config.get(key) != expected_value:
+                            print(f"   ❌ Azure config key '{key}': expected '{expected_value}', got '{config.get(key)}'")
+                            return False
+                    
+                    # Check Azure-specific scopes
+                    if "https://graph.microsoft.com/User.Read" not in config["scopes"]:
+                        print("   ❌ Azure config missing Microsoft Graph scope")
+                        return False
+                    
+                    print("   ✅ Azure AD configuration is valid")
+                
+                elif provider == "google":
+                    expected_values = {
+                        "name": "Google OAuth 2.0",
+                        "issuer_url": "https://accounts.google.com",
+                        "client_id_env": "GOOGLE_CLIENT_ID",
+                        "client_secret_env": "GOOGLE_CLIENT_SECRET"
+                    }
+                    for key, expected_value in expected_values.items():
+                        if config.get(key) != expected_value:
+                            print(f"   ❌ Google config key '{key}': expected '{expected_value}', got '{config.get(key)}'")
+                            return False
+                    
+                    print("   ✅ Google OAuth configuration is valid")
+                
+                elif provider == "keycloak":
+                    expected_values = {
+                        "name": "Keycloak",
+                        "client_id_env": "KEYCLOAK_CLIENT_ID",
+                        "client_secret_env": "KEYCLOAK_CLIENT_SECRET",
+                        "keycloak_server_env": "KEYCLOAK_SERVER_URL",
+                        "keycloak_realm_env": "KEYCLOAK_REALM"
+                    }
+                    for key, expected_value in expected_values.items():
+                        if config.get(key) != expected_value:
+                            print(f"   ❌ Keycloak config key '{key}': expected '{expected_value}', got '{config.get(key)}'")
+                            return False
+                    
+                    # Check Keycloak URL patterns
+                    if "{keycloak-server}" not in config["issuer_url"] or "{realm}" not in config["issuer_url"]:
+                        print("   ❌ Keycloak issuer URL doesn't contain expected placeholders")
+                        return False
+                    
+                    print("   ✅ Keycloak configuration is valid")
+                
+                elif provider == "okta":
+                    expected_values = {
+                        "name": "Okta",
+                        "client_id_env": "OKTA_CLIENT_ID",
+                        "client_secret_env": "OKTA_CLIENT_SECRET",
+                        "okta_domain_env": "OKTA_DOMAIN"
+                    }
+                    for key, expected_value in expected_values.items():
+                        if config.get(key) != expected_value:
+                            print(f"   ❌ Okta config key '{key}': expected '{expected_value}', got '{config.get(key)}'")
+                            return False
+                    
+                    # Check Okta URL patterns
+                    if "{okta-domain}" not in config["issuer_url"]:
+                        print("   ❌ Okta issuer URL doesn't contain expected placeholders")
+                        return False
+                    
+                    print("   ✅ Okta configuration is valid")
+                
+                # Check that scopes include standard OpenID Connect scopes
+                standard_scopes = ["openid", "email", "profile"]
+                config_scopes = config["scopes"]
+                
+                for scope in standard_scopes:
+                    if scope not in config_scopes:
+                        print(f"   ❌ {provider} configuration missing standard scope: {scope}")
+                        return False
+                
+                # Check that URLs are properly formatted
+                url_keys = ["issuer_url", "auth_url", "token_url"]
+                for url_key in url_keys:
+                    url = config[url_key]
+                    if not url.startswith("https://"):
+                        print(f"   ❌ {provider} {url_key} should start with https://: {url}")
+                        return False
+                
+                # Check that setup docs URL is valid
+                setup_docs = config["setup_docs"]
+                if not setup_docs.startswith("https://"):
+                    print(f"   ❌ {provider} setup_docs should start with https://: {setup_docs}")
+                    return False
+            
+            print("   ✅ All provider configurations are valid")
+            return True
+            
+        except Exception as e:
+            print(f"   ❌ Error testing provider configurations: {e}")
+            return False
+    
     def print_usage_examples(self):
         """Print usage examples for OAuth testing."""
         print("\n" + "="*60)
@@ -274,7 +410,16 @@ class OAuthTest:
         print("\n🔧 Production setup:")
         print("1. Replace dev tokens with real JWT tokens")
         print("2. Implement proper token validation in oauth_provider.py")
-        print("3. Set up a real OAuth 2.0 server (Auth0, Keycloak, etc.)")
+        print("3. Set up a real OAuth 2.0 server (Azure AD, Google, Keycloak, Okta)")
+        print("4. Use get_oauth_provider_configs() for provider-specific settings")
+        
+        print("\n🏢 OAuth Provider Configuration:")
+        print("from oauth_provider import get_oauth_provider_configs")
+        print("configs = get_oauth_provider_configs()")
+        print("azure_config = configs['azure']")
+        print("google_config = configs['google']")
+        print("keycloak_config = configs['keycloak']")
+        print("okta_config = configs['okta']")
     
     def generate_summary(self):
         """Generate test summary."""
@@ -289,6 +434,7 @@ class OAuthTest:
             print("✅ Scope definitions are correct")
             print("✅ Tool permissions are properly mapped")
             print("✅ Configuration values are consistent")
+            print("✅ OAuth provider configs are valid (Azure, Google, Keycloak, Okta)")
             
             if ENABLE_AUTH:
                 print("✅ OAuth is enabled and ready for testing")
@@ -316,7 +462,8 @@ def main():
         ("Scope Definitions", test.test_scope_definitions),
         ("Tool Permissions", test.test_tool_permissions),
         ("Configuration Values", test.test_configuration_values),
-        ("Development Tokens", test.test_development_tokens)
+        ("Development Tokens", test.test_development_tokens),
+        ("OAuth Provider Configs", test.test_oauth_provider_configs)
     ]
     
     success = True

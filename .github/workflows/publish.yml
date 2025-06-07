@@ -45,7 +45,7 @@ jobs:
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
-            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with single & multi-registry support, 48 tools, numbered env config, context isolation, schema export, and Claude Desktop integration
+            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 48 tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration
             org.opencontainers.image.vendor=aywengo
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
@@ -108,7 +108,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "MCP Server for Kafka Schema Registry - 48 tools, multi-registry support, Claude Desktop ready"
+          short-description: "MCP Server for Kafka Schema Registry - 48 tools, OAuth integration (Azure/Google/Keycloak/Okta), Kubernetes ready"
           readme-filepath: ./dockerhub-readme.md
 
   create-release:
@@ -126,9 +126,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Simplified Context Migration
+            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Enterprise OAuth Integration & Kubernetes Production Readiness
             
-            **🚀 LATEST UPDATE**: Streamlined context migration with simplified Docker command generation! The `migrate_context` tool now generates ready-to-run Docker commands instead of configuration files, providing immediate execution and automatic credential mapping using the external kafka-schema-reg-migrator tool.
+            **🔐 MAJOR RELEASE**: Complete OAuth 2.0 provider integration with support for Azure AD, Google, Keycloak, and Okta! This release introduces production-ready Kubernetes deployment configurations, comprehensive OAuth provider documentation, and enhanced VSCode + Copilot integration with enterprise identity platforms.
             
             ### Docker Image
             ```bash
@@ -139,7 +139,7 @@ jobs:
             docker pull aywengo/kafka-schema-reg-mcp:stable
             
             # Next release (planned):
-            docker pull aywengo/kafka-schema-reg-mcp:1.8.4
+            docker pull aywengo/kafka-schema-reg-mcp:1.9.1
             ```
             
             ### 🤖 Claude Desktop Integration
@@ -192,16 +192,16 @@ jobs:
             }
             ```
             
-            ### 🗣️ Natural Language Usage with Context Migration
+            ### 🔐 Enterprise OAuth Integration (v1.9.0)
             ```
-            "Migrate all schemas from staging to production"
-            → Generates ready-to-run Docker command with automatic credential mapping
+            "Deploy with Azure AD authentication to Kubernetes"
+            → Uses helm/examples/values-azure.yaml with complete OAuth setup
             
-            "Clean up all feature branch contexts"
-            → Executes in parallel with progress tracking
+            "Connect VSCode to OAuth-secured MCP server"
+            → Seamless enterprise identity integration with Copilot
             
-            "Compare production and DR registries"
-            → Non-blocking comparison with detailed progress updates
+            "Configure Keycloak for self-hosted identity management"
+            → Production-ready OAuth with realm and client configuration
             ```
             
             ### 🏗️ Modular Architecture (v1.8.1)
@@ -211,7 +211,11 @@ jobs:
             - ✅ **Independent Testing**: Each module can be tested in isolation
             - ✅ **Plugin-Ready Structure**: Foundation for future extensibility
             
-            ### 📋 MCP Features (v1.8.3)
+            ### 📋 MCP Features (v1.9.0)
+            - ✅ **Enterprise OAuth Integration**: Azure AD, Google, Keycloak, Okta support
+            - ✅ **Production Kubernetes Deployment**: Helm charts with OAuth provider examples
+            - ✅ **OAuth Provider Configuration**: `get_oauth_provider_configs()` function for programmatic access
+            - ✅ **VSCode + Copilot OAuth**: Seamless enterprise identity integration
             - ✅ **48 MCP Tools**: Complete schema operations via natural language
             - ✅ **Simplified Context Migration**: Ready-to-run Docker commands with automatic credential mapping
             - ✅ **External Tool Integration**: Leverages kafka-schema-reg-migrator for robust context migrations
@@ -247,7 +251,19 @@ jobs:
             - `get_cleanup_progress`: Batch cleanup monitoring
             - `get_comparison_progress`: Registry comparison status
             
+            ### 🔐 OAuth Provider Features (v1.9.0)
+            - `get_oauth_provider_configs`: Access provider-specific OAuth configurations
+            - **Azure AD Integration**: Complete Microsoft Graph API scope support
+            - **Google OAuth**: Workspace and Cloud platform integration  
+            - **Keycloak Support**: Self-hosted identity management with realm configuration
+            - **Okta Integration**: Enterprise SaaS identity platform
+            - **Kubernetes Deployment**: Production-ready Helm charts for each provider
+            - **VSCode Integration**: OAuth-aware MCP client configuration
+            - **JWT Validation**: Production-ready token verification framework
+            
             ### 📚 Documentation
+            - [OAuth Providers Guide](docs/oauth-providers-guide.md) - **NEW in v1.9.0**
+            - [Kubernetes Deployment Guide](K8S-DEPLOYMENT-GUIDE.md) - **ENHANCED with OAuth**
             - [MCP Transformation Guide](MCP_TRANSFORMATION.md)
             - [MCP Tools Reference](docs/mcp-tools-reference.md)
             - [Use Cases](docs/use-cases.md)

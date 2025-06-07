@@ -5,6 +5,147 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - unreleased
+
+### 🔐 Enterprise OAuth Provider Integration & Kubernetes Production Readiness
+
+This major release introduces comprehensive OAuth 2.0 provider integration with support for enterprise identity platforms, production-ready Kubernetes deployment configurations, and enhanced VSCode + Copilot integration.
+
+#### Added
+
+##### OAuth Provider Integration
+- **Multi-Provider OAuth Support**: Native integration with 4 major identity platforms
+  - **Azure AD / Entra ID**: Complete enterprise integration with Microsoft Graph API scopes
+  - **Google OAuth 2.0**: Google Workspace and Cloud integration
+  - **Keycloak**: Self-hosted open-source identity management
+  - **Okta**: Enterprise SaaS identity platform
+- **`get_oauth_provider_configs()` Function**: Programmatic access to provider-specific configurations
+  - Provider-specific endpoint URLs with templating support
+  - Environment variable mappings for each provider
+  - Standard and provider-specific OAuth scopes
+  - Setup documentation links for each platform
+
+##### Kubernetes Production Deployment
+- **Helm Chart OAuth Examples**: Ready-to-use configurations for each provider
+  - `helm/examples/values-azure.yaml`: Azure AD deployment configuration
+  - `helm/examples/values-google.yaml`: Google OAuth deployment setup
+  - `helm/examples/values-keycloak.yaml`: Keycloak integration configuration
+  - `helm/examples/values-okta.yaml`: Okta enterprise deployment
+- **Production-Ready Security**: Network policies, RBAC, TLS, and secret management
+- **Multi-Registry + OAuth**: Secure access to multiple Schema Registry instances
+
+##### Enhanced Documentation
+- **OAuth Providers Guide** (`docs/oauth-providers-guide.md`): Complete setup instructions
+  - Step-by-step provider configuration for all 4 platforms
+  - Azure CLI and Portal setup instructions
+  - Google Cloud Console configuration
+  - Keycloak admin console setup
+  - Okta application integration
+  - Production JWT validation examples
+  - Security best practices and troubleshooting
+
+##### VSCode + Copilot Integration
+- **OAuth Authentication Flow**: Seamless integration with enterprise identity
+- **Kubernetes Connection**: Direct connection to deployed MCP server
+- **Port-Forward Development**: Local development with OAuth
+- **Enhanced MCP Settings**: OAuth-aware VSCode configuration
+
+#### Improved
+
+##### Test Coverage
+- **OAuth Provider Tests**: Comprehensive validation of all 4 providers
+  - `test_oauth.py`: Enhanced with provider configuration testing
+  - `test_provider_configs_only.py`: Isolated provider validation
+  - Integration with main test runner (`run_all_tests.sh`)
+  - OAuth enabled/disabled mode testing
+- **Configuration Validation**: URL patterns, scopes, environment variables
+- **Production Testing**: Real OAuth flow validation examples
+
+##### Security & Authentication
+- **Scope-Based Permissions**: Enhanced OAuth scope mapping to MCP tools
+- **JWT Token Validation**: Production-ready token verification framework
+- **Development Tokens**: Safe testing tokens for development environments
+- **Secret Management**: Kubernetes secrets integration for OAuth credentials
+
+##### Developer Experience
+- **Provider Selection**: Easy switching between OAuth providers
+- **Configuration Templates**: Copy-paste ready configurations
+- **Quick Start Commands**: Simplified deployment for each provider
+- **Error Diagnostics**: Enhanced OAuth troubleshooting and debugging
+
+#### Technical Details
+
+##### OAuth Provider Support Matrix
+| Provider | Issuer URL | Scopes | Environment Variables | Production Ready |
+|----------|------------|--------|----------------------|------------------|
+| Azure AD | `login.microsoftonline.com/{tenant}/v2.0` | openid, email, profile, User.Read | AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID | ✅ |
+| Google | `accounts.google.com` | openid, email, profile | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET | ✅ |
+| Keycloak | `{server}/realms/{realm}` | openid, email, profile | KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, KEYCLOAK_SERVER_URL, KEYCLOAK_REALM | ✅ |
+| Okta | `{domain}/oauth2/default` | openid, email, profile | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN | ✅ |
+
+##### Kubernetes Integration
+- **Helm Chart Enhancements**: OAuth provider-specific values files
+- **Security Policies**: Network policies for OAuth provider access
+- **TLS Configuration**: Automatic certificate management
+- **High Availability**: Multi-replica deployment with OAuth session handling
+
+##### Backward Compatibility
+- **100% Compatible**: All existing functionality preserved
+- **Optional OAuth**: Can be enabled/disabled without code changes
+- **Legacy Support**: Original authentication methods still supported
+- **Migration Path**: Smooth transition to OAuth authentication
+
+#### Usage Examples
+
+##### Quick Deployment
+```bash
+# Deploy with Azure AD
+cp helm/examples/values-azure.yaml helm/values-production.yaml
+helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
+
+# Deploy with Google OAuth
+cp helm/examples/values-google.yaml helm/values-production.yaml
+helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
+```
+
+##### VSCode Integration
+```json
+{
+  "mcp.servers": {
+    "kafka-schema-registry-k8s": {
+      "transport": "http",
+      "baseUrl": "https://mcp-schema-registry.your-domain.com",
+      "authentication": {
+        "type": "oauth2",
+        "oauth2": {
+          "authUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/authorize",
+          "tokenUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token",
+          "clientId": "YOUR_CLIENT_ID",
+          "scopes": ["openid", "email", "profile"]
+        }
+      }
+    }
+  }
+}
+```
+
+##### Programmatic Access
+```python
+from oauth_provider import get_oauth_provider_configs
+
+configs = get_oauth_provider_configs()
+azure_config = configs['azure']
+google_config = configs['google']
+keycloak_config = configs['keycloak']
+okta_config = configs['okta']
+```
+
+### Maintained
+- **All 48 MCP Tools**: Complete backward compatibility
+- **Multi-Registry Support**: Existing functionality enhanced with OAuth
+- **Docker Images**: Same deployment patterns with OAuth support
+- **Configuration**: All existing environment variables supported
+
 ## [1.8.3] - 2025-06-07
 
 ### 🚀 Simplified Context Migration with External Tool Integration

@@ -5,6 +5,13 @@ OAuth Provider for Kafka Schema Registry MCP Server
 This module provides OAuth 2.0 authentication and authorization functionality
 with scope-based permissions for the Kafka Schema Registry MCP server.
 
+Supported OAuth Providers:
+- Azure AD / Entra ID
+- Google OAuth 2.0
+- Keycloak
+- Okta
+- Any OAuth 2.0 compliant provider
+
 Scopes:
 - read: Can view schemas, subjects, configurations
 - write: Can register schemas, update configs (includes read permissions)
@@ -228,6 +235,60 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
+def get_oauth_provider_configs():
+    """
+    Get OAuth configuration examples for supported providers.
+    
+    Returns:
+        Dictionary containing configuration examples for Azure, Google, Keycloak, and Okta
+    """
+    return {
+        "azure": {
+            "name": "Azure AD / Entra ID",
+            "issuer_url": "https://login.microsoftonline.com/{tenant-id}/v2.0",
+            "auth_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/authorize",
+            "token_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token",
+            "scopes": ["openid", "email", "profile", "https://graph.microsoft.com/User.Read"],
+            "client_id_env": "AZURE_CLIENT_ID",
+            "client_secret_env": "AZURE_CLIENT_SECRET",
+            "tenant_id_env": "AZURE_TENANT_ID",
+            "setup_docs": "https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app"
+        },
+        "google": {
+            "name": "Google OAuth 2.0",
+            "issuer_url": "https://accounts.google.com",
+            "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+            "token_url": "https://oauth2.googleapis.com/token",
+            "scopes": ["openid", "email", "profile"],
+            "client_id_env": "GOOGLE_CLIENT_ID",
+            "client_secret_env": "GOOGLE_CLIENT_SECRET",
+            "setup_docs": "https://developers.google.com/identity/protocols/oauth2"
+        },
+        "keycloak": {
+            "name": "Keycloak",
+            "issuer_url": "https://{keycloak-server}/realms/{realm}",
+            "auth_url": "https://{keycloak-server}/realms/{realm}/protocol/openid-connect/auth",
+            "token_url": "https://{keycloak-server}/realms/{realm}/protocol/openid-connect/token",
+            "scopes": ["openid", "email", "profile"],
+            "client_id_env": "KEYCLOAK_CLIENT_ID",
+            "client_secret_env": "KEYCLOAK_CLIENT_SECRET",
+            "keycloak_server_env": "KEYCLOAK_SERVER_URL",
+            "keycloak_realm_env": "KEYCLOAK_REALM",
+            "setup_docs": "https://www.keycloak.org/docs/latest/server_admin/#_clients"
+        },
+        "okta": {
+            "name": "Okta",
+            "issuer_url": "https://{okta-domain}/oauth2/default",
+            "auth_url": "https://{okta-domain}/oauth2/default/v1/authorize",
+            "token_url": "https://{okta-domain}/oauth2/default/v1/token",
+            "scopes": ["openid", "email", "profile"],
+            "client_id_env": "OKTA_CLIENT_ID",
+            "client_secret_env": "OKTA_CLIENT_SECRET",
+            "okta_domain_env": "OKTA_DOMAIN",
+            "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/"
+        }
+    }
+
 def get_fastmcp_config(server_name: str):
     """
     Get FastMCP configuration with or without OAuth based on ENABLE_AUTH setting.
@@ -263,5 +324,6 @@ __all__ = [
     "oauth_settings",
     "require_scopes",
     "get_oauth_scopes_info",
+    "get_oauth_provider_configs",
     "get_fastmcp_config"
 ] 

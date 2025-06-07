@@ -1,0 +1,133 @@
+# Example values for Google OAuth 2.0 authentication
+# Copy and customize this file for your Google OAuth setup
+
+# 🔧 CUSTOMIZE THESE VALUES:
+# 1. Replace YOUR_GOOGLE_CLIENT_ID with your Google OAuth client ID
+# 2. Replace YOUR_GOOGLE_CLIENT_SECRET with your Google OAuth client secret
+# 3. Update your-k8s-domain.com with your ingress domain
+# 4. Update Schema Registry URLs for your Kubernetes cluster
+
+replicaCount: 2
+
+image:
+  repository: aywengo/kafka-schema-reg-mcp
+  pullPolicy: Always
+  tag: "1.8.0"
+
+# 🟨 Google OAuth 2.0 Authentication Configuration
+auth:
+  enabled: true
+  oauth2:
+    issuerUrl: "https://accounts.google.com"
+    validScopes: "openid,email,profile"
+    defaultScopes: "openid,email,profile"
+    requiredScopes: "openid,email"
+    clientRegistrationEnabled: true
+    revocationEnabled: true
+  createSecret:
+    enabled: true
+    clientId: "YOUR_GOOGLE_CLIENT_ID"
+    clientSecret: "YOUR_GOOGLE_CLIENT_SECRET"
+
+# Schema Registry Configuration
+schemaRegistry:
+  multiRegistry:
+    enabled: true
+    registries:
+      - name: "development"
+        url: "http://schema-registry-dev.kafka.svc.cluster.local:8081"
+        readonly: false
+      - name: "staging"
+        url: "http://schema-registry-staging.kafka.svc.cluster.local:8081"
+        readonly: false
+      - name: "production"
+        url: "http://schema-registry-prod.kafka.svc.cluster.local:8081"
+        readonly: true
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
+  hosts:
+    - host: mcp-schema-registry.your-k8s-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mcp-schema-registry-tls
+      hosts:
+        - mcp-schema-registry.your-k8s-domain.com
+
+# Resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# App configuration
+app:
+  readonly: false
+  logLevel: "INFO"
+  port: 8080
+
+# Security
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Network policies
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      - namespaceSelector:
+          matchLabels:
+            name: kafka
+  egress:
+    enabled: true
+    to:
+      - namespaceSelector:
+          matchLabels:
+            name: kafka
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1 
