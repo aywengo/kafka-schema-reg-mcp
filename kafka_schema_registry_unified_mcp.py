@@ -794,6 +794,8 @@ for prompt_name, prompt_function in PROMPT_REGISTRY.items():
 # ===== SERVER ENTRY POINT =====
 
 if __name__ == "__main__":
+    # Print startup banner to stderr to avoid interfering with MCP JSON protocol on stdout
+    import sys
     print(f"""
 🚀 Kafka Schema Registry Unified MCP Server Starting (Modular)
 📡 Mode: {REGISTRY_MODE.upper()}
@@ -801,7 +803,7 @@ if __name__ == "__main__":
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 📦 Architecture: Modular (8 specialized modules)
 💬 Prompts: 6 comprehensive guides available
-    """)
+    """, file=sys.stderr)
     
     # Log startup information
     logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture)")
