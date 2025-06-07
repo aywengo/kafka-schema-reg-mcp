@@ -1,8 +1,21 @@
 # Kafka Schema Registry MCP Server
 
-A comprehensive **Message Control Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features include advanced **Schema Context** support for logical schema grouping, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
+A comprehensive **Message Control Protocol (MCP) server** that provide
+s Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features include advanced **Schema Context** support for logical schema grouping, **Configuration Management** for compatibility settings, **Mode Control** for operational state management, and **comprehensive Schema Export** capabilities for backup, migration, and schema documentation.
+
+<table width="100%">
+<tr>
+<td width="33%" style="vertical-align: top;">
+<div style="background-color: white; padding: 20px; border-radius: 10px;">
+  <img src="docs/logo_400_mcp_kafka_schema_reg.png" alt="Kafka Schema Registry MCP Logo" width="100%">
+</div>
+</td>
+<td width="67%" style="vertical-align: top; padding-left: 20px;">
 
 > **🎯 True MCP Implementation**: This server uses the official MCP Python SDK and communicates via JSON-RPC over stdio, making it fully compatible with Claude Desktop and other MCP clients.
+</td>
+</tr>
+</table>
 
 ## ✨ Features
 
