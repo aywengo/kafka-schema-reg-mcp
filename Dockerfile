@@ -1,10 +1,17 @@
 # Use a more recent base image with latest security patches
 FROM python:3.13-slim-bookworm as builder
 
-# Build arguments for metadata
+# Build arguments for metadata and multi-platform support
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION="dev"
 ARG BUILD_DATE
 ARG VCS_REF
+
+# Log build platform information
+RUN echo "Building on $BUILDPLATFORM for $TARGETPLATFORM"
 
 # Update package lists and upgrade all packages to latest versions to patch vulnerabilities
 RUN apt-get update && apt-get upgrade -y && apt-get install -y \
@@ -22,10 +29,17 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Production stage with minimal attack surface
 FROM python:3.13-slim-bookworm as production
 
-# Build arguments for metadata
+# Build arguments for metadata and multi-platform support
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM  
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION="dev"
 ARG BUILD_DATE
 ARG VCS_REF
+
+# Log production platform information
+RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \

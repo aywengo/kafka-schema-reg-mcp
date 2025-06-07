@@ -39,6 +39,17 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
 
+      - name: Build multi-platform Docker image (for release)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          tags: kafka-schema-reg-mcp:multi-platform
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Note: Cannot use load: true with multi-platform builds
+          # This build verifies multi-platform compatibility
+
       - name: Test MCP server Docker image
         run: |
           echo "Testing MCP server Docker image..."

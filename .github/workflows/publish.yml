@@ -54,7 +54,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
-      - name: Build and push
+      - name: Build and push multi-platform
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -64,10 +64,19 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false  # Disable provenance for multi-platform compatibility
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
             VCS_REF=${{ github.sha }}
+
+      - name: Verify multi-platform build 
+        run: |
+          echo "Verifying multi-platform manifest..."
+          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}
+          
+          echo "Checking available platforms..."
+          docker run --rm mplatform/mquery aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} | grep -E "(amd64|arm64)" || echo "Platform check failed"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master

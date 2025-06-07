@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "--rm", 
+        "-i",
+        "--platform", "linux/amd64",
+        "-e", "SCHEMA_REGISTRY_URL=http://httpbin.org/status/200",
+        "aywengo/kafka-schema-reg-mcp:stable"
+      ]
+    }
+  }
+} 
