@@ -29,7 +29,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image for testing (single platform)
+      - name: Build Docker image for testing (amd64 only)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -39,16 +39,8 @@ jobs:
           cache-to: type=gha,mode=max
           load: true
 
-      - name: Build multi-platform Docker image (for release)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          tags: kafka-schema-reg-mcp:multi-platform
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Note: Cannot use load: true with multi-platform builds
-          # This build verifies multi-platform compatibility
+      # Multi-platform builds are only done during releases/publishing
+      # This saves CI time and GitHub Actions minutes while still validating functionality
 
       - name: Test MCP server Docker image
         run: |
