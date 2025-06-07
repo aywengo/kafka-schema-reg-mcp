@@ -46,6 +46,7 @@ include = [
     "export_tools.py",
     "comparison_tools.py",
     "migration_tools.py",
+    "mcp_prompts.py",
     "kafka_schema_registry_unified_mcp.py",
     "README.md",
     "LICENSE",

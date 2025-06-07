@@ -71,6 +71,7 @@ COPY --chown=mcp:mcp statistics_tools.py .
 COPY --chown=mcp:mcp export_tools.py .
 COPY --chown=mcp:mcp comparison_tools.py .
 COPY --chown=mcp:mcp migration_tools.py .
+COPY --chown=mcp:mcp mcp_prompts.py .
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 
 # Switch to non-root user
