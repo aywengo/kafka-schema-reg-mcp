@@ -29,6 +29,19 @@ Real-world scenarios using Claude Desktop integration:
 - **Complete Development Lifecycle**: End-to-end workflows with Claude Desktop
 - **Async Operations**: Long-running migrations with progress monitoring
 
+### 💬 **[MCP Prompts Guide](prompts-guide.md)** - Interactive Learning & Workflows
+Comprehensive guide to all 8 MCP prompts for guided schema management:
+- **Getting Started**: Perfect introduction for new users
+- **Schema Registration**: Complete guide with examples and best practices  
+- **Context Management**: Environment organization and team workflows
+- **Schema Export**: Backup, documentation, and compliance workflows
+- **Multi-Registry**: Cross-environment management and disaster recovery
+- **Schema Compatibility**: Safe evolution and breaking change prevention
+- **Troubleshooting**: Diagnostic guides for common issues
+- **Advanced Workflows**: Enterprise patterns and automation
+- **Role-Based Learning Paths**: Customized guidance for developers, DevOps, data engineers
+- **Interactive Examples**: Real-world scenarios with Claude Desktop integration
+
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
 Comprehensive reference for all 48 MCP tools:
 - **Schema Management Tools** (4): register, retrieve, versions, compatibility

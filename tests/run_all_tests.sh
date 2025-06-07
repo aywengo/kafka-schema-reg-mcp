@@ -299,6 +299,7 @@ run_basic_tests() {
     local tests=(
         "test_basic_server.py:Basic server import and functionality"
         "test_mcp_server.py:MCP protocol connectivity"
+        "test_prompts.py:MCP prompts functionality and content validation"
         "test_config.py:Configuration management"
         "test_simple_python.py:Python environment validation"
     )
@@ -312,6 +313,7 @@ run_essential_integration_tests() {
     
     local tests=(
         "test_integration.py:Core schema operations"
+        "test_prompts.py:MCP prompts functionality and workflow scenarios"
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"

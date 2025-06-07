@@ -5,6 +5,18 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - Unreleased
+
+### 🔒 Security, OAuth, and Documentation Consistency Release
+
+#### Changed
+- **Enforced tool-level OAuth scope requirements**: All MCP tools now have explicit `@require_scopes` decorators (`read`, `write`, or `admin`) matching their intended permissions.
+- **README updated**: Tool-to-scope mapping in the documentation now matches the code exactly. Security and OAuth documentation clarified.
+- **Internal consistency**: All `@mcp.tool()` functions are now consistently protected by the correct scope decorators.
+- **No breaking changes**: All tool signatures and APIs remain backward compatible.
+- **Minor documentation improvements**: Clarified how to audit tool permissions using `get_oauth_scopes_info`.
+- **No configuration or deployment changes**: All environment variables and Docker usage remain the same.
+
 ## [1.8.1] - 2025-06-06
 
 ### 🏗️ Modular Architecture Refactoring

@@ -167,6 +167,40 @@ def test_test_registry_comparison():
         print(f"❌ Test failed: {e}")
         return False
 
+def test_normalize_subject():
+    from comparison_tools import normalize_subject
+    # Test default context (should not change)
+    assert normalize_subject('user-value', '.') == 'user-value'
+    # Test context-prefixed subject
+    assert normalize_subject(':.test1:user-value', 'test1') == 'user-value'
+    # Test context-prefixed subject with different context
+    assert normalize_subject(':.otherctx:user-value', 'otherctx') == 'user-value'
+    # Test subject that does not match context prefix
+    assert normalize_subject('user-value', 'test1') == 'user-value'
+    # Test subject with similar but not exact prefix
+    assert normalize_subject(':test1:user-value', 'test1') == ':test1:user-value'
+
+
+def test_context_aware_subject_comparison():
+    from comparison_tools import normalize_subject
+    # Simulate subjects in two contexts
+    source_context = '.'
+    target_context = 'test1'
+    source_subjects = ['user-value', 'order-value']
+    target_subjects = [':.test1:user-value', ':.test1:product-value']
+    
+    normalized_source = {normalize_subject(s, source_context) for s in source_subjects}
+    normalized_target = {normalize_subject(s, target_context) for s in target_subjects}
+    
+    # user-value should be common, order-value only in source, product-value only in target
+    common = normalized_source & normalized_target
+    source_only = normalized_source - normalized_target
+    target_only = normalized_target - normalized_source
+    
+    assert 'user-value' in common
+    assert 'order-value' in source_only
+    assert 'product-value' in target_only
+
 if __name__ == "__main__":
     success = test_test_registry_comparison()
     sys.exit(0 if success else 1)

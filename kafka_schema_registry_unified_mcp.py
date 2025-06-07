@@ -260,6 +260,7 @@ def get_schema(subject: str, version: str = "latest", context: str = None, regis
     return get_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, registry, auth, headers, SCHEMA_REGISTRY_URL)
 
 @mcp.tool()
+@require_scopes("read")
 def get_schema_versions(subject: str, context: str = None, registry: str = None):
     """Get all versions of a schema for a subject."""
     return get_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry, auth, headers, SCHEMA_REGISTRY_URL)
@@ -271,6 +272,7 @@ def list_subjects(context: str = None, registry: str = None):
     return list_subjects_tool(registry_manager, REGISTRY_MODE, context, registry, auth, headers, SCHEMA_REGISTRY_URL)
 
 @mcp.tool()
+@require_scopes("read")
 def check_compatibility(subject: str, schema_definition: dict, schema_type: str = "AVRO", context: str = None, registry: str = None):
     """Check if a schema is compatible with the latest version."""
     return check_compatibility_tool(subject, schema_definition, registry_manager, REGISTRY_MODE, schema_type, context, registry, auth, headers, SCHEMA_REGISTRY_URL)
@@ -278,6 +280,7 @@ def check_compatibility(subject: str, schema_definition: dict, schema_type: str 
 # ===== CONFIGURATION TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def get_global_config(context: str = None, registry: str = None):
     """Get global configuration settings."""
     return get_global_config_tool(registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
@@ -289,6 +292,7 @@ def update_global_config(compatibility: str, context: str = None, registry: str 
     return update_global_config_tool(compatibility, registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
 
 @mcp.tool()
+@require_scopes("read")
 def get_subject_config(subject: str, context: str = None, registry: str = None):
     """Get configuration settings for a specific subject."""
     return get_subject_config_tool(subject, registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
@@ -302,6 +306,7 @@ def update_subject_config(subject: str, compatibility: str, context: str = None,
 # ===== MODE TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def get_mode(context: str = None, registry: str = None):
     """Get the current mode of the Schema Registry."""
     return get_mode_tool(registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
@@ -313,6 +318,7 @@ def update_mode(mode: str, context: str = None, registry: str = None):
     return update_mode_tool(mode, registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
 
 @mcp.tool()
+@require_scopes("read")
 def get_subject_mode(subject: str, context: str = None, registry: str = None):
     """Get the mode for a specific subject."""
     return get_subject_mode_tool(subject, registry_manager, REGISTRY_MODE, context, registry, auth, standard_headers, SCHEMA_REGISTRY_URL)
@@ -326,6 +332,7 @@ def update_subject_mode(subject: str, mode: str, context: str = None, registry: 
 # ===== CONTEXT TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def list_contexts(registry: str = None):
     """List all available schema contexts."""
     return list_contexts_tool(registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL)
@@ -351,21 +358,25 @@ async def delete_subject(subject: str, context: str = None, registry: str = None
 # ===== EXPORT TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def export_schema(subject: str, version: str = "latest", context: str = None, format: str = "json", registry: str = None):
     """Export a single schema in the specified format."""
     return export_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, format, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def export_subject(subject: str, context: str = None, include_metadata: bool = True, include_config: bool = True, include_versions: str = "all", registry: str = None):
     """Export all versions of a subject."""
     return export_subject_tool(subject, registry_manager, REGISTRY_MODE, context, include_metadata, include_config, include_versions, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def export_context(context: str, registry: str = None, include_metadata: bool = True, include_config: bool = True, include_versions: str = "all"):
     """Export all subjects within a context."""
     return export_context_tool(context, registry_manager, REGISTRY_MODE, registry, include_metadata, include_config, include_versions)
 
 @mcp.tool()
+@require_scopes("read")
 def export_global(registry: str = None, include_metadata: bool = True, include_config: bool = True, include_versions: str = "all"):
     """Export all contexts and schemas from a registry."""
     return export_global_tool(registry_manager, REGISTRY_MODE, registry, include_metadata, include_config, include_versions)
@@ -379,11 +390,13 @@ def migrate_schema(subject: str, source_registry: str, target_registry: str, dry
     return migrate_schema_tool(subject, source_registry, target_registry, registry_manager, REGISTRY_MODE, dry_run, preserve_ids, source_context, target_context, versions, migrate_all_versions)
 
 @mcp.tool()
+@require_scopes("read")
 def list_migrations():
     """List all migration tasks and their status."""
     return list_migrations_tool(REGISTRY_MODE)
 
 @mcp.tool()
+@require_scopes("read")
 def get_migration_status(migration_id: str):
     """Get detailed status of a specific migration."""
     return get_migration_status_tool(migration_id, REGISTRY_MODE)
@@ -411,11 +424,13 @@ def clear_multiple_contexts_batch(contexts: list, registry: str = None, delete_c
 # ===== STATISTICS TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def count_contexts(registry: str = None):
     """Count the number of contexts in a registry."""
     return count_contexts_tool(registry_manager, REGISTRY_MODE, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def count_schemas(context: str = None, registry: str = None):
     """Count the number of schemas in a context or registry."""
     # Use task queue version for better performance when counting across multiple contexts
@@ -427,11 +442,13 @@ def count_schemas(context: str = None, registry: str = None):
         return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def count_schema_versions(subject: str, context: str = None, registry: str = None):
     """Count the number of versions for a specific schema."""
     return count_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def get_registry_statistics(registry: str = None, include_context_details: bool = True):
     """Get comprehensive statistics about a registry."""
     # Always use task queue version for better performance due to complexity
@@ -440,6 +457,7 @@ def get_registry_statistics(registry: str = None, include_context_details: bool 
 # ===== TASK MANAGEMENT TOOLS =====
 
 @mcp.tool()
+@require_scopes("read")
 def get_task_status(task_id: str):
     """Get the status and progress of an async task."""
     try:
@@ -451,6 +469,7 @@ def get_task_status(task_id: str):
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_task_progress(task_id: str):
     """Get the progress of an async task (alias for get_task_status)."""
     task_status = get_task_status(task_id)
@@ -467,6 +486,7 @@ def get_task_progress(task_id: str):
     }
 
 @mcp.tool()
+@require_scopes("read")
 def list_active_tasks():
     """List all active tasks in the system."""
     try:
@@ -480,6 +500,7 @@ def list_active_tasks():
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("admin")
 async def cancel_task(task_id: str):
     """Cancel a running task."""
     try:
@@ -492,6 +513,7 @@ async def cancel_task(task_id: str):
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def list_statistics_tasks():
     """List all statistics-related tasks."""
     try:
@@ -507,6 +529,7 @@ def list_statistics_tasks():
         return {"error": str(e)}
 
 @mcp.tool()
+@require_scopes("read")
 def get_statistics_task_progress(task_id: str):
     """Get detailed progress for a statistics task."""
     try:
@@ -555,6 +578,7 @@ def get_statistics_task_progress(task_id: str):
 # ===== UTILITY TOOLS =====
 
 @mcp.tool()
+@require_scopes("admin")
 def set_default_registry(registry_name: str):
     """Set the default registry."""
     try:
@@ -577,6 +601,7 @@ def set_default_registry(registry_name: str):
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
 
 @mcp.tool()
+@require_scopes("read")
 def get_default_registry():
     """Get the current default registry."""
     try:
@@ -601,16 +626,19 @@ def get_default_registry():
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
 
 @mcp.tool()
+@require_scopes("read")
 def check_readonly_mode(registry: str = None):
     """Check if a registry is in readonly mode."""
     return _check_readonly_mode(registry_manager, registry)
 
 @mcp.tool()
+@require_scopes("read")
 def get_oauth_scopes_info():
     """Get information about OAuth scopes and permissions."""
     return get_oauth_scopes_info()
 
 @mcp.tool()
+@require_scopes("read")
 def get_operation_info_tool(operation_name: str = None):
     """Get information about MCP operations."""
     try:
@@ -744,6 +772,25 @@ def get_mode_info():
     except Exception as e:
         return json.dumps({"error": str(e)}, indent=2)
 
+# ===== MCP PROMPTS =====
+
+# Import prompts from external module
+from mcp_prompts import PROMPT_REGISTRY
+
+# Register all prompts with the MCP server
+for prompt_name, prompt_function in PROMPT_REGISTRY.items():
+    @mcp.prompt(prompt_name)
+    def create_prompt_handler(func=prompt_function):
+        return lambda: func()
+    
+    # Set the proper function name and docstring
+    prompt_handler = create_prompt_handler()
+    prompt_handler.__name__ = prompt_name.replace('-', '_')
+    prompt_handler.__doc__ = prompt_function.__doc__
+    
+    # Store the handler
+    globals()[prompt_name.replace('-', '_')] = prompt_handler
+
 # ===== SERVER ENTRY POINT =====
 
 if __name__ == "__main__":
@@ -753,10 +800,12 @@ if __name__ == "__main__":
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 📦 Architecture: Modular (8 specialized modules)
+💬 Prompts: 6 comprehensive guides available
     """)
     
     # Log startup information
     logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture)")
     logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
+    logger.info("Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows")
     
     mcp.run() 

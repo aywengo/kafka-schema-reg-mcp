@@ -44,6 +44,13 @@ async def compare_registries_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+def normalize_subject(subject, context):
+    """Remove context prefix if present from subject name."""
+    prefix = f":.{context}:"
+    if subject.startswith(prefix):
+        return subject[len(prefix):]
+    return subject
+
 async def compare_contexts_across_registries_tool(
     source_registry: str,
     target_registry: str,
@@ -86,50 +93,49 @@ async def compare_contexts_across_registries_tool(
         if not target_client:
             return {"error": f"Target registry '{target_registry}' not found", "registry_mode": "multi"}
         
-        # Simple synchronous implementation for now
-        try:
-            # Get subjects from both registries for their respective contexts
-            source_subjects = source_client.get_subjects(source_context)
-            target_subjects = target_client.get_subjects(target_context)
-            
-            # Handle error cases
-            if isinstance(source_subjects, dict) and "error" in source_subjects:
-                source_subjects = []
-            if isinstance(target_subjects, dict) and "error" in target_subjects:
-                target_subjects = []
-            
-            # Compare contexts
-            source_only = list(set(source_subjects) - set(target_subjects))
-            target_only = list(set(target_subjects) - set(source_subjects))
-            common = list(set(source_subjects) & set(target_subjects))
-            
-            result = {
-                "source_registry": source_registry,
-                "target_registry": target_registry,
-                "source_context": source_context,
-                "target_context": target_context,
-                "compared_at": datetime.now().isoformat(),
-                "registry_mode": "multi",
-                "summary": {
-                    "source_only_subjects": len(source_only),
-                    "target_only_subjects": len(target_only),
-                    "common_subjects": len(common),
-                    "total_source_subjects": len(source_subjects),
-                    "total_target_subjects": len(target_subjects)
-                },
-                "subjects": {
-                    "source_only": source_only,
-                    "target_only": target_only,
-                    "common": common,
-                    "source_total": len(source_subjects),
-                    "target_total": len(target_subjects)
-                }
+        # Get subjects from both registries for their respective contexts
+        source_subjects = source_client.get_subjects(source_context)
+        target_subjects = target_client.get_subjects(target_context)
+        
+        # Handle error cases
+        if isinstance(source_subjects, dict) and "error" in source_subjects:
+            source_subjects = []
+        if isinstance(target_subjects, dict) and "error" in target_subjects:
+            target_subjects = []
+        
+        # Normalize subject names for comparison
+        normalized_source_subjects = {normalize_subject(s, source_context) for s in source_subjects}
+        normalized_target_subjects = {normalize_subject(s, target_context) for s in target_subjects}
+        
+        # Compare contexts using normalized names
+        common = list(normalized_source_subjects & normalized_target_subjects)
+        source_only = list(normalized_source_subjects - normalized_target_subjects)
+        target_only = list(normalized_target_subjects - normalized_source_subjects)
+        
+        result = {
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "source_context": source_context,
+            "target_context": target_context,
+            "compared_at": datetime.now().isoformat(),
+            "registry_mode": "multi",
+            "summary": {
+                "source_only_subjects": len(source_only),
+                "target_only_subjects": len(target_only),
+                "common_subjects": len(common),
+                "total_source_subjects": len(source_subjects),
+                "total_target_subjects": len(target_subjects)
+            },
+            "subjects": {
+                "source_only": source_only,
+                "target_only": target_only,
+                "common": common,
+                "source_total": len(source_subjects),
+                "target_total": len(target_subjects)
             }
-            
-            return result
-            
-        except Exception as e:
-            return {"error": f"Context comparison failed: {str(e)}", "registry_mode": "multi"}
+        }
+        
+        return result
         
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}

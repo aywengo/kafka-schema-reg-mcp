@@ -118,6 +118,9 @@ jobs:
             
             # Latest stable release
             docker pull aywengo/kafka-schema-reg-mcp:stable
+            
+            # Next release (planned):
+            docker pull aywengo/kafka-schema-reg-mcp:1.8.2
             ```
             
             ### 🤖 Claude Desktop Integration

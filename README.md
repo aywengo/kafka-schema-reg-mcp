@@ -308,6 +308,73 @@ With the MCP server connected to Claude Desktop, you can use natural language:
 
 **📖 Complete Tool Documentation**: [API Reference](docs/api-reference.md)
 
+## 💬 MCP Prompts & Guided Workflows
+
+The MCP server includes **8 comprehensive prompts** that provide guided workflows and best practices for schema management. These prompts appear in Claude Desktop to help you learn and execute complex operations.
+
+### **🚀 Available Prompts**
+
+| Prompt | Purpose | Best For |
+|---------|---------|----------|
+| **`schema-getting-started`** | Introduction to basic operations | New users, onboarding |
+| **`schema-registration`** | Complete guide for registering schemas | Developers, schema creation |
+| **`context-management`** | Organizing schemas by environment/team | DevOps, multi-environment setups |
+| **`schema-export`** | Export for backup, docs, compliance | Documentation, backup procedures |
+| **`multi-registry`** | Managing multiple registries | Multi-environment, disaster recovery |
+| **`schema-compatibility`** | Safe schema evolution | Schema changes, production safety |
+| **`troubleshooting`** | Diagnose and resolve issues | Problem resolution, debugging |
+| **`advanced-workflows`** | Enterprise patterns and automation | Complex deployments, team coordination |
+
+### **🎮 How to Use Prompts**
+
+#### In Claude Desktop:
+```
+Human: Show me the schema-getting-started prompt
+
+Claude: [Displays comprehensive getting started guide with examples]
+```
+
+```
+Human: I need help with schema compatibility
+
+Claude: Let me show you the schema-compatibility prompt which covers compatibility levels, safe vs breaking changes, and evolution workflows.
+```
+
+#### **Learning Path Recommendations:**
+
+**🔰 Beginner Path** (15-30 minutes):
+1. `schema-getting-started` - Understand basics
+2. `schema-registration` - Register your first schema  
+3. `context-management` - Organize with contexts
+
+**⚡ Intermediate Path** (30-60 minutes):
+4. `schema-export` - Document and backup
+5. `schema-compatibility` - Safe evolution
+6. `troubleshooting` - Handle common issues
+
+**🚀 Advanced Path** (1-2 hours):
+7. `multi-registry` - Multi-environment management
+8. `advanced-workflows` - Enterprise patterns
+
+### **📋 Prompt Features**
+
+- **🎯 Actionable Commands**: Direct copy-paste examples for immediate use
+- **📖 Step-by-Step Workflows**: Guided processes for complex operations
+- **🏢 Enterprise Patterns**: Real-world scenarios and best practices
+- **🔗 Cross-References**: Connections between related prompts and tools
+- **📊 Use Case Examples**: Concrete scenarios for different industries
+
+### **🛠️ Role-Based Recommendations**
+
+| Role | Recommended Prompts |
+|------|-------------------|
+| **Developers** | `schema-registration`, `schema-compatibility` |
+| **DevOps Engineers** | `multi-registry`, `advanced-workflows` |
+| **Data Engineers** | `schema-export`, `context-management` |
+| **System Administrators** | `troubleshooting`, `multi-registry` |
+
+**📖 Complete Prompts Guide**: [MCP Prompts Documentation](docs/prompts-guide.md)
+
 ## 🎯 Key Capabilities
 
 ### **📦 Schema Export System**
@@ -426,24 +493,32 @@ The MCP server implements a three-tier permission system when OAuth authenticati
 
 All MCP tools are protected by scopes:
 
-#### Read Scope (`read`) - View Operations
-- `list_registries`, `get_registry_info`, `test_registry_connection` 
-- `get_subjects`, `list_subjects`, `get_schema`, `get_schema_versions`
+#### Read Scope (`read`) — View/Export/Status Operations
+- `list_registries`, `get_registry_info`, `test_registry_connection`, `test_all_registries`
+- `compare_registries`, `compare_contexts_across_registries`, `find_missing_schemas`
+- `get_schema`, `get_schema_versions`, `list_subjects`, `check_compatibility`
 - `get_global_config`, `get_subject_config`
 - `get_mode`, `get_subject_mode`
-- `compare_registries`, `compare_contexts_across_registries`
-- All progress monitoring and task status tools
+- `list_contexts`
+- `export_schema`, `export_subject`, `export_context`, `export_global`
+- `list_migrations`, `get_migration_status`
+- `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics`
+- `get_task_status`, `get_task_progress`, `list_active_tasks`, `list_statistics_tasks`, `get_statistics_task_progress`
+- `get_default_registry`, `check_readonly_mode`, `get_oauth_scopes_info`, `get_operation_info_tool`
 
-#### Write Scope (`write`) - Modification Operations  
-- `register_schema`, `check_compatibility`
+#### Write Scope (`write`) — Modification Operations
+- `register_schema`
 - `update_global_config`, `update_subject_config`
 - `update_mode`, `update_subject_mode`
-- `migrate_schema` (schema migration operations)
+- `create_context`
 
-#### Admin Scope (`admin`) - Administrative Operations
-- `delete_subject`, `clear_context_batch`, `clear_multiple_contexts_batch`
-- `migrate_context` (full context migration)
-- All cleanup and deletion operations
+#### Admin Scope (`admin`) — Administrative/Cleanup Operations
+- `delete_context`, `delete_subject`
+- `migrate_schema`, `migrate_context`
+- `clear_context_batch`, `clear_multiple_contexts_batch`
+- `set_default_registry`, `cancel_task`
+
+> **Note:** The `get_oauth_scopes_info` tool will show the enforced required scopes for every tool, as defined in the code. Use it to audit or discover permissions for any operation.
 
 ### **🧪 Development Testing**
 
