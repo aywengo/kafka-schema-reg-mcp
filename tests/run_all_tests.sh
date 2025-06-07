@@ -378,7 +378,7 @@ run_advanced_feature_tests() {
         "test_migration_implementation.py:Migration implementation details"
         "test_lightweight_migration.py:Lightweight migration operations"
         "test_lightweight_migration_integration.py:Lightweight migration integration"
-        "test_migrate_context_docker_config.py:Docker migration configuration"
+        "test_migrate_context_docker_config.py:Docker migration command generation"
         "test_all_versions_migration.py:All versions migration testing"
         "test_version_migration.py:Version-specific migration testing"
         "test_sparse_version_migration.py:Sparse version migration"

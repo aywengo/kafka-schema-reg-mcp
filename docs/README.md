@@ -95,11 +95,11 @@ Production deployment instructions covering:
 - **`core_registry_tools.py`**: Basic CRUD operations for schemas, subjects, configs
 - **`kafka_schema_registry_unified_modular.py`**: Main orchestration server file
 
-### **Enhanced Migration System (v1.7.2)**
-- **Docker-Based Migration**: `migrate_context` now generates Docker configuration files
-- **Improved Error Handling**: Uses [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) for robustness
-- **Configuration Review**: Users can review settings before execution
-- **Scalable Operations**: Better handling of large-scale migrations
+### **Enhanced Migration System (v1.8.3)**
+- **Docker Command Generation**: `migrate_context` generates ready-to-run Docker commands
+- **External Tool Integration**: Uses [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) for robust migrations
+- **Immediate Execution**: Copy-paste commands with automatic credential mapping
+- **Streamlined Workflow**: Single command approach instead of multi-file configuration
 
 ## 🎉 What's New in v1.7.0 - Advanced Async Operations
 
@@ -131,11 +131,11 @@ Production deployment instructions covering:
 ## What's New in Recent Updates
 
 ### Context Migration Enhancement
-- **`migrate_context` Now Generates Docker Config**: Instead of performing direct migration, the tool now generates configuration files for the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) Docker tool
-- **Better Error Handling**: The Docker-based migrator provides robust error recovery
-- **Scalable Migrations**: Handles large-scale context migrations efficiently
-- **Configuration Review**: Users can review and adjust settings before execution
-- **Progress Monitoring**: Real-time progress tracking with detailed logging
+- **`migrate_context` Generates Docker Commands**: Returns ready-to-run Docker commands using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool
+- **Streamlined Workflow**: Single command execution instead of multi-file configuration
+- **Automatic Mapping**: Registry credentials and contexts automatically configured
+- **External Tool Integration**: Leverages specialized migration tool for robust operations
+- **Immediate Execution**: Copy command and run - no file setup required
 
 ## What's New in Previous Versions
 

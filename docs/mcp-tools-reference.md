@@ -972,72 +972,66 @@ Migration in progress. Use get_migration_progress('mig-789-user-events') to trac
 
 ### 29. migrate_context
 
-Generate Docker configuration files for migrating an entire context using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool.
+Generate ready-to-run Docker commands for migrating an entire context using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool.
 
-**Purpose**: Generate configuration for bulk schema migration, environment promotion, disaster recovery.
+**Purpose**: Generate Docker commands for bulk schema migration, environment promotion, disaster recovery.
 
-**Note**: This tool now generates Docker configuration files instead of performing direct migration. This provides better error handling, scalability, and monitoring capabilities.
+**Note**: This tool generates a single Docker command with all necessary environment variables pre-configured. This provides a streamlined workflow for context migration using the specialized external tool.
 
 **Parameters:**
 - `context` (string): Context name to migrate
 - `source_registry` (string): Source registry name
 - `target_registry` (string): Target registry name
 - `target_context` (string, optional): Target context name
-- `dry_run` (boolean, optional): Generate config for preview mode
+- `dry_run` (boolean, optional): Generate command for preview mode (default: true)
 - `preserve_ids` (boolean, optional): Preserve schema IDs (default: true)
 - `migrate_all_versions` (boolean, optional): Migrate all versions (default: true)
 
-**Returns**: Migration guide with:
-- `.env` file content with registry configurations
-- `docker-compose.yml` for easy Docker execution
-- `migrate-context.sh` shell script
-- Instructions for running the migration
-- Warnings and safety notes
+**Returns**: Docker command with:
+- Complete docker run command with all environment variables
+- Automatic registry credential mapping
+- Context configuration
+- Instructions for execution
+- Environment variables list for reference
 
 **Claude Desktop Usage:**
 ```
 Human: "Promote all schemas from the staging 'v2-features' context to production"
 
-Claude: I'll generate the migration configuration for the v2-features context.
+Claude: I'll generate the Docker migration command for the v2-features context.
 
 [Uses migrate_context MCP tool]
-📋 Migration configuration generated:
-   
-   Files to create:
-   • .env - Registry credentials and settings
-   • docker-compose.yml - Docker container setup
-   • migrate-context.sh - Execution script
-   
-   Migration details:
-   Context: v2-features → production
-   Source: staging registry
-   Target: production registry
-   Options: Preserve IDs, migrate all versions
-   
-   Instructions:
-   1. Save the generated files to a directory
-   2. Review and adjust .env if needed
-   3. Run: ./migrate-context.sh (or docker-compose up)
-   4. Monitor logs in ./logs directory
-   
-   ⚠️ Warning: This will perform actual data migration. Consider dry_run=true first.
+🚀 Ready to migrate v2-features context to production:
+
+Copy and run this command:
+docker run --platform linux/amd64 --network host -it --rm \
+  -e SOURCE_SCHEMA_REGISTRY_URL=http://staging-registry:8081 \
+  -e DEST_SCHEMA_REGISTRY_URL=http://prod-registry:8082 \
+  -e SOURCE_USERNAME=staging_user \
+  -e SOURCE_PASSWORD=staging_pass \
+  -e DEST_USERNAME=prod_user \
+  -e DEST_PASSWORD=prod_pass \
+  -e ENABLE_MIGRATION=true \
+  -e DRY_RUN=true \
+  -e PRESERVE_IDS=true \
+  -e SOURCE_CONTEXT=v2-features \
+  -e DEST_CONTEXT=production \
+  -e DEST_IMPORT_MODE=true \
+  aywengo/kafka-schema-reg-migrator:latest
+
+Change DRY_RUN=false when ready for actual migration.
+
+⚠️ This is a DRY RUN - no actual changes will be made
+⚠️ Ensure Docker is installed and running
+⚠️ Review documentation for advanced options
 ```
 
-**Example of generated files:**
-```bash
-# .env file
-SCHEMA_REGISTRY_URL=http://staging-registry:8081
-SCHEMA_REGISTRY_USERNAME=staging_user
-SCHEMA_REGISTRY_PASSWORD=staging_pass
-TARGET_SCHEMA_REGISTRY_URL=http://prod-registry:8081
-TARGET_SCHEMA_REGISTRY_USERNAME=prod_user
-TARGET_SCHEMA_REGISTRY_PASSWORD=prod_pass
-SOURCE_CONTEXT=v2-features
-TARGET_CONTEXT=v2-features
-PRESERVE_SCHEMA_IDS=true
-MIGRATE_ALL_VERSIONS=true
-DRY_RUN=false
-```
+**Command Features:**
+- **Single Command**: No file creation or setup required
+- **Automatic Mapping**: Registry credentials and contexts pre-configured
+- **Platform Handling**: Includes --platform for ARM64 compatibility
+- **Network Access**: Uses --network host for localhost registry access
+- **Safety**: Defaults to dry run mode for testing
 
 ---
 

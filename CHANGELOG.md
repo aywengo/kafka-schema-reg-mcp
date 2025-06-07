@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.8.2] - Unreleased
 
+### 🚀 Simplified Context Migration with External Tool Integration
+
+#### Changed
+- **`migrate_context` Simplified**: Now generates ready-to-run Docker commands instead of configuration files
+  - Returns single Docker command with all necessary environment variables
+  - Simplified workflow: copy command → run → monitor output
+  - Leverages [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) for robust context migrations
+  - Automatic registry credential mapping and context handling
+  - Clear separation: MCP handles single schema operations, external tool handles context migrations
+  - Updated tests to match new simplified behavior
+
+#### Improved
+- **Migration Architecture**: Clear separation of concerns between MCP and external migration tool
+- **User Experience**: Streamlined from multi-file configuration to single command execution
+- **Documentation**: Updated all references to reflect new migrate_context behavior
+- **Test Coverage**: Comprehensive testing of Docker command generation and validation
+
+## [1.8.2] - 2025-06-07
+
 ### 🔒 Security, OAuth, and Documentation Consistency Release
 
 #### Changed

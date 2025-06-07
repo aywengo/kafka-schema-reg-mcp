@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Test migrate_context Docker configuration generation functionality.
+Test migrate_context Docker command generation functionality.
 
 This test validates that migrate_context correctly generates Docker 
-configuration files and instructions for the kafka-schema-reg-migrator tool.
+run commands for the kafka-schema-reg-migrator tool.
 """
 
 import os
@@ -16,9 +16,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import kafka_schema_registry_unified_mcp as mcp_server
 
-async def test_docker_config_generation():
-    """Test that migrate_context generates proper Docker configuration."""
-    print("🧪 Testing migrate_context Docker configuration generation")
+async def test_docker_command_generation():
+    """Test that migrate_context generates proper Docker command."""
+    print("🧪 Testing migrate_context Docker command generation")
     
     # Set up test environment variables
     os.environ["SCHEMA_REGISTRY_NAME_1"] = "source-test"
@@ -48,14 +48,14 @@ async def test_docker_config_generation():
     
     # Check for errors
     if "error" in result:
-        print(f"❌ Error generating config: {result['error']}")
+        print(f"❌ Error generating command: {result['error']}")
         return False
     
-    print(f"✅ Successfully generated Docker configuration")
+    print(f"✅ Successfully generated Docker command")
     
     # Validate the result structure
-    required_keys = ["migration_type", "tool", "documentation", "source", "target", 
-                     "options", "files_to_create", "instructions"]
+    required_keys = ["message", "reason", "tool", "documentation", "docker_command", 
+                     "migration_details", "instructions", "env_variables", "warnings"]
     
     for key in required_keys:
         if key not in result:
@@ -64,9 +64,13 @@ async def test_docker_config_generation():
     
     print(f"✅ All required keys present")
     
-    # Check migration type
-    if result["migration_type"] != "Docker-based Context Migration":
-        print(f"❌ Unexpected migration_type: {result['migration_type']}")
+    # Check message and reason
+    if "external kafka-schema-reg-migrator tool" not in result["message"]:
+        print(f"❌ Unexpected message: {result['message']}")
+        return False
+    
+    if "single schema migration" not in result["reason"]:
+        print(f"❌ Unexpected reason: {result['reason']}")
         return False
     
     # Check tool name
@@ -74,122 +78,84 @@ async def test_docker_config_generation():
         print(f"❌ Unexpected tool: {result['tool']}")
         return False
     
-    # Check source configuration
-    source = result["source"]
-    if source["registry"] != "source-test":
-        print(f"❌ Wrong source registry: {source['registry']}")
-        return False
-    if source["url"] != "http://source-registry:8081":
-        print(f"❌ Wrong source URL: {source['url']}")
-        return False
-    if source["context"] != "test-context":
-        print(f"❌ Wrong source context: {source['context']}")
+    # Check documentation URLs
+    if "github.com/aywengo/kafka-schema-reg-migrator" not in result["documentation"]:
+        print(f"❌ Wrong documentation URL: {result['documentation']}")
         return False
     
-    print(f"✅ Source configuration correct")
+    print(f"✅ Basic fields correct")
     
-    # Check target configuration
-    target = result["target"]
-    if target["registry"] != "target-test":
-        print(f"❌ Wrong target registry: {target['registry']}")
-        return False
-    if target["url"] != "http://target-registry:8082":
-        print(f"❌ Wrong target URL: {target['url']}")
-        return False
-    if target["context"] != "prod-context":
-        print(f"❌ Wrong target context: {target['context']}")
+    # Check migration details
+    details = result["migration_details"]
+    source = details["source"]
+    target = details["target"]
+    options = details["options"]
+    
+    if source["registry"] != "source-test" or source["url"] != "http://source-registry:8081" or source["context"] != "test-context":
+        print(f"❌ Wrong source details: {source}")
         return False
     
-    print(f"✅ Target configuration correct")
-    
-    # Check options
-    options = result["options"]
-    if options["preserve_ids"] != True:
-        print(f"❌ preserve_ids should be True")
-        return False
-    if options["dry_run"] != True:
-        print(f"❌ dry_run should be True")
-        return False
-    if options["migrate_all_versions"] != True:
-        print(f"❌ migrate_all_versions should be True")
+    if target["registry"] != "target-test" or target["url"] != "http://target-registry:8082" or target["context"] != "prod-context":
+        print(f"❌ Wrong target details: {target}")
         return False
     
-    print(f"✅ Options correct")
-    
-    # Check files to create
-    files = result["files_to_create"]
-    required_files = [".env", "docker-compose.yml", "migrate-context.sh"]
-    
-    for file in required_files:
-        if file not in files:
-            print(f"❌ Missing file: {file}")
-            return False
-        
-        if "content" not in files[file]:
-            print(f"❌ Missing content for file: {file}")
-            return False
-    
-    print(f"✅ All required files present")
-    
-    # Check .env file content
-    env_content = files[".env"]["content"]
-    env_checks = [
-        "SCHEMA_REGISTRY_URL=http://source-registry:8081",
-        "SCHEMA_REGISTRY_USERNAME=source_user",
-        "SCHEMA_REGISTRY_PASSWORD=source_pass",
-        "TARGET_SCHEMA_REGISTRY_URL=http://target-registry:8082",
-        "TARGET_SCHEMA_REGISTRY_USERNAME=target_user",
-        "TARGET_SCHEMA_REGISTRY_PASSWORD=target_pass",
-        "SOURCE_CONTEXT=test-context",
-        "TARGET_CONTEXT=prod-context",
-        "PRESERVE_SCHEMA_IDS=true",
-        "MIGRATE_ALL_VERSIONS=true",
-        "DRY_RUN=true"
-    ]
-    
-    for check in env_checks:
-        if check not in env_content:
-            print(f"❌ Missing in .env: {check}")
-            return False
-    
-    print(f"✅ .env file content correct")
-    
-    # Check docker-compose.yml content
-    compose_content = files["docker-compose.yml"]["content"]
-    compose_checks = [
-        "aywengo/kafka-schema-reg-migrator:latest",
-        "MODE=migrate-context",
-        "--source-context", "test-context",
-        "--target-context", "prod-context"
-    ]
-    
-    for check in compose_checks:
-        if check not in compose_content:
-            print(f"❌ Missing in docker-compose.yml: {check}")
-            return False
-    
-    print(f"✅ docker-compose.yml content correct")
-    
-    # Check shell script
-    script_content = files["migrate-context.sh"]["content"]
-    if files["migrate-context.sh"].get("make_executable") != True:
-        print(f"❌ Shell script should be marked as executable")
+    if not options["preserve_ids"] or not options["dry_run"] or not options["migrate_all_versions"]:
+        print(f"❌ Wrong options: {options}")
         return False
     
-    script_checks = [
+    print(f"✅ Migration details correct")
+    
+    # Check docker command
+    docker_cmd = result["docker_command"]
+    
+    required_in_command = [
         "docker run -it --rm",
         "aywengo/kafka-schema-reg-migrator:latest",
-        "--dry-run",
-        "--preserve-ids",
-        "--all-versions"
+        "SOURCE_SCHEMA_REGISTRY_URL=http://source-registry:8081",
+        "DEST_SCHEMA_REGISTRY_URL=http://target-registry:8082",
+        "SOURCE_USERNAME=source_user",
+        "SOURCE_PASSWORD=source_pass",
+        "DEST_USERNAME=target_user",
+        "DEST_PASSWORD=target_pass",
+        "ENABLE_MIGRATION=true",
+        "DRY_RUN=true",
+        "PRESERVE_IDS=true",
+        "SOURCE_CONTEXT=test-context",
+        "DEST_CONTEXT=prod-context",
+        "DEST_IMPORT_MODE=true"
     ]
     
-    for check in script_checks:
-        if check not in script_content:
-            print(f"❌ Missing in shell script: {check}")
+    for check in required_in_command:
+        if check not in docker_cmd:
+            print(f"❌ Missing in docker command: {check}")
             return False
     
-    print(f"✅ Shell script content correct")
+    print(f"✅ Docker command correct")
+    
+    # Check environment variables
+    env_vars = result["env_variables"]
+    
+    required_env_vars = [
+        "SOURCE_SCHEMA_REGISTRY_URL=http://source-registry:8081",
+        "DEST_SCHEMA_REGISTRY_URL=http://target-registry:8082",
+        "ENABLE_MIGRATION=true",
+        "DRY_RUN=true",
+        "PRESERVE_IDS=true",
+        "SOURCE_USERNAME=source_user",
+        "SOURCE_PASSWORD=source_pass",
+        "DEST_USERNAME=target_user",
+        "DEST_PASSWORD=target_pass",
+        "SOURCE_CONTEXT=test-context",
+        "DEST_CONTEXT=prod-context",
+        "DEST_IMPORT_MODE=true"
+    ]
+    
+    for env_var in required_env_vars:
+        if env_var not in env_vars:
+            print(f"❌ Missing environment variable: {env_var}")
+            return False
+    
+    print(f"✅ Environment variables correct")
     
     # Check instructions
     if not isinstance(result["instructions"], list):
@@ -200,83 +166,141 @@ async def test_docker_config_generation():
         print(f"❌ Not enough instructions provided")
         return False
     
-    print(f"✅ Instructions provided")
+    # Should contain the docker command in instructions
+    instructions_text = " ".join(result["instructions"])
+    if docker_cmd not in instructions_text:
+        print(f"❌ Docker command not found in instructions")
+        return False
+    
+    print(f"✅ Instructions correct")
     
     # Check warnings
-    if "warnings" not in result:
-        print(f"❌ Missing warnings section")
+    warnings = result["warnings"]
+    if not isinstance(warnings, list):
+        print(f"❌ Warnings should be a list")
         return False
+    
+    # Should have warnings about external tool, Docker requirement, and dry run
+    expected_warnings = ["external Docker container", "Docker is installed", "DRY RUN"]
+    for expected in expected_warnings:
+        if not any(expected in warning for warning in warnings):
+            print(f"❌ Missing expected warning about: {expected}")
+            return False
+    
+    print(f"✅ Warnings correct")
     
     print(f"✅ All validations passed!")
     return True
 
-async def test_readonly_warning():
-    """Test that readonly target registry generates appropriate warning."""
-    print("\n🧪 Testing readonly target warning")
-    
-    # Set target as readonly
-    os.environ["READONLY_2"] = "true"
-    mcp_server.registry_manager._load_multi_registries()
+async def test_default_context():
+    """Test with default context (.)"""
+    print("\n🧪 Testing default context handling")
     
     result = await mcp_server.migrate_context(
         source_registry="source-test",
         target_registry="target-test",
-        dry_run=True
+        # No context specified - should default to "."
+        preserve_ids=False,  # Test without preserve_ids
+        dry_run=False,
+        migrate_all_versions=False
     )
     
     if "error" in result:
         print(f"❌ Error: {result['error']}")
         return False
     
-    # Check for readonly warning
-    warnings = result.get("warnings", [])
-    readonly_warning_found = any("READONLY" in warning for warning in warnings)
-    
-    if not readonly_warning_found:
-        print(f"❌ No readonly warning found")
+    # Check that default context is used
+    details = result["migration_details"]
+    if details["source"]["context"] != "." or details["target"]["context"] != ".":
+        print(f"❌ Default context not set correctly: {details}")
         return False
     
-    print(f"✅ Readonly warning correctly generated")
+    # Check that context env vars are not included for default context
+    env_vars = result["env_variables"]
+    context_vars = [var for var in env_vars if "CONTEXT" in var]
+    if context_vars:
+        print(f"❌ Context variables should not be included for default context: {context_vars}")
+        return False
+    
+    # Check that IMPORT mode is not set when not preserving IDs
+    import_mode_vars = [var for var in env_vars if "DEST_IMPORT_MODE" in var]
+    if import_mode_vars:
+        print(f"❌ IMPORT mode should not be set when not preserving IDs: {import_mode_vars}")
+        return False
+    
+    # Check that non-dry-run warning is present
+    warnings = result["warnings"]
+    non_dry_run_warning = any("actual data migration" in warning for warning in warnings)
+    if not non_dry_run_warning:
+        print(f"❌ Missing non-dry-run warning")
+        return False
+    
+    print(f"✅ Default context and options handled correctly")
     return True
 
-async def test_non_dry_run_warning():
-    """Test that non-dry-run generates appropriate warning."""
-    print("\n🧪 Testing non-dry-run warning")
+async def test_single_registry_mode():
+    """Test error handling for single registry mode."""
+    print("\n🧪 Testing single registry mode error")
     
-    # Reset readonly
-    os.environ["READONLY_2"] = "false"
-    mcp_server.registry_manager._load_multi_registries()
+    # Temporarily set to single registry mode
+    original_mode = mcp_server.REGISTRY_MODE
+    mcp_server.REGISTRY_MODE = "single"
+    
+    try:
+        result = await mcp_server.migrate_context(
+            source_registry="source-test",
+            target_registry="target-test"
+        )
+        
+        if "error" not in result:
+            print(f"❌ Expected error for single registry mode")
+            return False
+        
+        if "single-registry mode" not in result["error"]:
+            print(f"❌ Wrong error message: {result['error']}")
+            return False
+        
+        if result.get("registry_mode") != "single":
+            print(f"❌ Wrong registry_mode in response: {result.get('registry_mode')}")
+            return False
+        
+        print(f"✅ Single registry mode error handled correctly")
+        return True
+        
+    finally:
+        # Restore original mode
+        mcp_server.REGISTRY_MODE = original_mode
+
+async def test_missing_registry():
+    """Test error handling for missing registry."""
+    print("\n🧪 Testing missing registry error")
     
     result = await mcp_server.migrate_context(
-        source_registry="source-test",
-        target_registry="target-test",
-        dry_run=False  # Non-dry-run
+        source_registry="nonexistent-registry",
+        target_registry="target-test"
     )
     
-    if "error" in result:
-        print(f"❌ Error: {result['error']}")
+    if "error" not in result:
+        print(f"❌ Expected error for missing registry")
         return False
     
-    # Check for actual migration warning
-    warnings = result.get("warnings", [])
-    actual_migration_warning_found = any("actual data migration" in warning for warning in warnings)
-    
-    if not actual_migration_warning_found:
-        print(f"❌ No actual migration warning found")
+    if "not found" not in result["error"]:
+        print(f"❌ Wrong error message: {result['error']}")
         return False
     
-    print(f"✅ Actual migration warning correctly generated")
+    print(f"✅ Missing registry error handled correctly")
     return True
 
 async def main():
     """Run all tests."""
-    print("🚀 Testing migrate_context Docker Configuration Generation")
+    print("🚀 Testing migrate_context Docker Command Generation")
     print("=" * 60)
     
     tests = [
-        ("Docker Config Generation", test_docker_config_generation),
-        ("Readonly Warning", test_readonly_warning),
-        ("Non-Dry-Run Warning", test_non_dry_run_warning)
+        ("Docker Command Generation", test_docker_command_generation),
+        ("Default Context Handling", test_default_context),
+        ("Single Registry Mode Error", test_single_registry_mode),
+        ("Missing Registry Error", test_missing_registry)
     ]
     
     passed = 0
@@ -299,7 +323,7 @@ async def main():
     
     if passed == total:
         print("\n🎉 ALL TESTS PASSED!")
-        print("✅ migrate_context correctly generates Docker configuration")
+        print("✅ migrate_context correctly generates Docker commands")
         return True
     else:
         print(f"\n⚠️  {total - passed} tests failed")

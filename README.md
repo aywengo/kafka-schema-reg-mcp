@@ -402,25 +402,33 @@ Comprehensive export functionality with 17 endpoints supporting backup, migratio
 Advanced migration tools for moving schemas between registries and contexts:
 
 #### Context Migration (Docker-Based)
-The `migrate_context` tool now generates Docker configuration files for the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator):
-- **Better Error Handling**: Robust error recovery and retry mechanisms
-- **Scalable**: Handles large-scale migrations efficiently
-- **Progress Monitoring**: Real-time progress tracking and logging
-- **Configuration Review**: Preview before execution
+The `migrate_context` tool generates ready-to-run Docker commands using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator):
+- **Single Command**: Returns complete Docker command with all environment variables
+- **Automatic Mapping**: Registry credentials and contexts automatically configured
+- **Immediate Execution**: Copy command and run - no file setup required
+- **External Tool Integration**: Leverages specialized migration tool for robust operations
 
 **Example:**
 ```
 Human: "Migrate all schemas from development context to production"
 
-Claude: I'll generate the migration configuration for you.
+Claude: I'll generate the Docker migration command for you.
 
 [Uses migrate_context MCP tool]
-📋 Migration configuration generated:
-   - .env file with registry credentials
-   - docker-compose.yml for the migrator
-   - migrate-context.sh execution script
-   
-To run: Save files and execute ./migrate-context.sh
+🚀 Ready to migrate development context to production:
+
+Copy and run this command:
+docker run --platform linux/amd64 --network host -it --rm \
+  -e SOURCE_SCHEMA_REGISTRY_URL=http://dev-registry:8081 \
+  -e DEST_SCHEMA_REGISTRY_URL=http://prod-registry:8082 \
+  -e ENABLE_MIGRATION=true \
+  -e DRY_RUN=true \
+  -e PRESERVE_IDS=true \
+  -e SOURCE_CONTEXT=development \
+  -e DEST_CONTEXT=production \
+  aywengo/kafka-schema-reg-migrator:latest
+
+Set DRY_RUN=false when ready for actual migration.
 ```
 
 #### Direct Schema Migration

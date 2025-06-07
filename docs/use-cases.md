@@ -457,54 +457,49 @@ A company needs to migrate their entire schema registry from staging to producti
 ```
 Human: "Migrate all schemas from the staging registry to production"
 
-Claude: I'll generate the migration configuration for staging to production.
+Claude: I'll generate the Docker migration command for staging to production.
 
 [Uses migrate_context MCP tool]
-📋 Migration configuration generated:
-   
-   Files created:
-   • .env - Registry credentials and settings
-   • docker-compose.yml - Docker container setup  
-   • migrate-context.sh - Execution script
-   
-   Migration scope:
-   Source: staging registry (215 schemas across 8 contexts)
-   Target: production registry
-   Options: Preserve IDs, migrate all versions
-   
-   To execute:
-   1. Save the generated files to a directory
-   2. Review and adjust .env if needed
-   3. Run: ./migrate-context.sh
-   4. Monitor logs: tail -f logs/migration.log
-   
-⚠️ This is a large migration. The Docker-based migrator provides:
-- Automatic retry on failures
-- Progress tracking per context
-- Detailed success/failure logs
+🚀 Ready to migrate staging registry to production:
+
+Copy and run this command:
+docker run --platform linux/amd64 --network host -it --rm \
+  -e SOURCE_SCHEMA_REGISTRY_URL=http://staging-registry:8081 \
+  -e DEST_SCHEMA_REGISTRY_URL=http://prod-registry:8082 \
+  -e SOURCE_USERNAME=staging_user \
+  -e SOURCE_PASSWORD=staging_pass \
+  -e DEST_USERNAME=prod_user \
+  -e DEST_PASSWORD=prod_pass \
+  -e ENABLE_MIGRATION=true \
+  -e DRY_RUN=true \
+  -e PRESERVE_IDS=true \
+  -e DEST_IMPORT_MODE=true \
+  aywengo/kafka-schema-reg-migrator:latest
+
+Migration scope: All contexts from staging registry (215 schemas)
+Set DRY_RUN=false when ready for actual migration.
+
+⚠️ This is a DRY RUN - no actual changes will be made
+⚠️ Ensure Docker is installed and running
+⚠️ Large migration - monitor output for progress
 ```
 
 **Monitoring Migration Progress:**
 ```
 Human: "How can I monitor the migration once it's running?"
 
-Claude: The Docker-based migrator provides comprehensive logging:
+Claude: The external migrator provides comprehensive real-time output:
 
-```bash
-# Real-time log monitoring
-tail -f logs/migration.log
-
-# The migrator shows:
+# The Docker command shows live progress:
 - Current context being migrated
 - Schemas processed: 87/215
 - Failed schemas with retry count
 - Estimated time remaining
 
-# Check specific logs:
-tail -f logs/success.log    # Successfully migrated schemas
-tail -f logs/failed.log     # Failed migrations
-cat logs/summary.txt        # Final migration report
-```
+# Example output:
+2024-06-07 16:49:15 - INFO - Processing subject: user-events
+2024-06-07 16:49:15 - INFO - [DRY RUN] Would migrate user-events version 1 - compatible
+2024-06-07 16:49:15 - INFO - Progress: 87/215 schemas (40% complete)
 
 For individual schema migrations, use migrate_schema which returns a task ID for monitoring with get_migration_progress.
 ```
@@ -687,43 +682,39 @@ A production incident requires restoring schemas from a backup registry to a new
 ```
 Human: "We need to restore all production schemas from our backup registry to the new disaster recovery instance ASAP"
 
-Claude: I'll generate an emergency recovery configuration from your backup registry.
+Claude: I'll generate an emergency recovery command from your backup registry.
 
 [Uses migrate_context MCP tool for disaster recovery]
-🚨 Emergency Recovery Configuration Generated:
-   
-   Files created:
-   • .env - Backup → DR registry credentials
-   • docker-compose.yml - High-priority migration setup
-   • dr-restore.sh - Emergency restore script
-   
-   Recovery scope:
-   Source: backup-registry/production (127 schemas)
-   Target: dr-registry/production
-   Options: Preserve IDs, parallel migration
-   
-   To execute emergency recovery:
-   1. Save configuration files
-   2. Run: chmod +x dr-restore.sh && ./dr-restore.sh
-   3. Monitor: tail -f logs/dr-recovery.log
-   
-The Docker migrator will:
-- Use maximum parallelism for speed
-- Automatically retry failed schemas
-- Generate detailed recovery report
+🚨 Emergency Recovery Command Generated:
+
+Copy and run this command for immediate recovery:
+docker run --platform linux/amd64 --network host -it --rm \
+  -e SOURCE_SCHEMA_REGISTRY_URL=http://backup-registry:8081 \
+  -e DEST_SCHEMA_REGISTRY_URL=http://dr-registry:8082 \
+  -e SOURCE_USERNAME=backup_user \
+  -e SOURCE_PASSWORD=backup_pass \
+  -e DEST_USERNAME=dr_user \
+  -e DEST_PASSWORD=dr_pass \
+  -e ENABLE_MIGRATION=true \
+  -e DRY_RUN=false \
+  -e PRESERVE_IDS=true \
+  -e DEST_IMPORT_MODE=true \
+  aywengo/kafka-schema-reg-migrator:latest
+
+Recovery scope: All contexts from backup registry (127 schemas)
+
+⚠️ This is a LIVE MIGRATION - changes will be made immediately
+⚠️ Monitor output for progress and any errors
+⚠️ External tool provides automatic retry and parallel processing
 ```
 
 **Real-Time Recovery Monitoring:**
 ```
 Human: "How do I track the recovery progress?"
 
-Claude: Monitor the Docker-based recovery in real-time:
+Claude: Monitor the external migrator's real-time output:
 
-```bash
-# Real-time progress
-tail -f logs/dr-recovery.log
-
-# Example output:
+# The Docker command shows live recovery progress:
 [INFO] Starting disaster recovery...
 [INFO] Source: backup-registry/production
 [INFO] Target: dr-registry/production
@@ -733,12 +724,7 @@ tail -f logs/dr-recovery.log
 [INFO] Progress: 45/127 schemas (35%)
 [INFO] Estimated time remaining: 1m 30s
 
-# Check recovery status
-cat logs/recovery-status.txt    # Current progress
-cat logs/recovery-summary.txt   # Final report
-```
-
-The migrator provides automatic retry and detailed error reporting for mission-critical recovery operations.
+The external migrator provides automatic retry and detailed error reporting for mission-critical recovery operations.
 
 **Post-Recovery Validation:**
 ```
