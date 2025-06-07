@@ -107,9 +107,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Modular Architecture with Async Operations
+            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Simplified Context Migration
             
-            **🏗️ MAJOR UPDATE**: Comprehensive modular architecture refactoring! The monolithic 3917-line codebase has been split into 8 specialized modules for improved maintainability, parallel development, and easier testing. Enhanced with async task management, real-time progress tracking, and non-blocking operations for large-scale schema management.
+            **🚀 LATEST UPDATE**: Streamlined context migration with simplified Docker command generation! The `migrate_context` tool now generates ready-to-run Docker commands instead of configuration files, providing immediate execution and automatic credential mapping using the external kafka-schema-reg-migrator tool.
             
             ### Docker Image
             ```bash
@@ -120,7 +120,7 @@ jobs:
             docker pull aywengo/kafka-schema-reg-mcp:stable
             
             # Next release (planned):
-            docker pull aywengo/kafka-schema-reg-mcp:1.8.2
+            docker pull aywengo/kafka-schema-reg-mcp:1.8.4
             ```
             
             ### 🤖 Claude Desktop Integration
@@ -173,10 +173,10 @@ jobs:
             }
             ```
             
-            ### 🗣️ Natural Language Usage with Async Operations
+            ### 🗣️ Natural Language Usage with Context Migration
             ```
             "Migrate all schemas from staging to production"
-            → Returns task ID immediately, monitor progress in real-time
+            → Generates ready-to-run Docker command with automatic credential mapping
             
             "Clean up all feature branch contexts"
             → Executes in parallel with progress tracking
@@ -192,11 +192,12 @@ jobs:
             - ✅ **Independent Testing**: Each module can be tested in isolation
             - ✅ **Plugin-Ready Structure**: Foundation for future extensibility
             
-            ### 📋 MCP Features (v1.8.1)
+            ### 📋 MCP Features (v1.8.3)
             - ✅ **48 MCP Tools**: Complete schema operations via natural language
+            - ✅ **Simplified Context Migration**: Ready-to-run Docker commands with automatic credential mapping
+            - ✅ **External Tool Integration**: Leverages kafka-schema-reg-migrator for robust context migrations
             - ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
             - ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)
-            - ✅ **Task Lifecycle Control**: Create, monitor, cancel operations
             - ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances
             - ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
             - ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control

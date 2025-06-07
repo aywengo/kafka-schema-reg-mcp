@@ -5,7 +5,7 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.2] - Unreleased
+## [1.8.3] - 2025-06-07
 
 ### 🚀 Simplified Context Migration with External Tool Integration
 
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation**: Updated all references to reflect new migrate_context behavior
 - **Test Coverage**: Comprehensive testing of Docker command generation and validation
 
-## [1.8.2] - 2025-06-07
+## [1.8.2] - 2025-06-06
 
 ### 🔒 Security, OAuth, and Documentation Consistency Release
 
