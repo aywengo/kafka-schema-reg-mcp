@@ -71,6 +71,7 @@ jobs:
         with:
           charts_dir: .
           config: .github/cr.yaml
+          skip_existing: true
 
   update-index:
     needs: release-helm-chart
