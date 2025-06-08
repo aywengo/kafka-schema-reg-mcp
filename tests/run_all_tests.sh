@@ -302,6 +302,7 @@ run_basic_tests() {
         "test_prompts.py:MCP prompts functionality and content validation"
         "test_config.py:Configuration management"
         "test_provider_configs_only.py:OAuth provider configurations validation"
+        "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_simple_python.py:Python environment validation"
     )
     
@@ -319,6 +320,7 @@ run_essential_integration_tests() {
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_oauth.py:OAuth authentication and provider configurations"
+        "test_user_roles.py:OAuth user role assignment and scope extraction"
     )
     
     run_test_list "${tests[@]}"
@@ -337,6 +339,7 @@ run_integration_tests() {
         "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
         "test_oauth.py:OAuth authentication and provider configurations"
+        "test_user_roles.py:OAuth user role assignment and scope extraction"
         "advanced_mcp_test.py:Advanced MCP functionality"
     )
     
