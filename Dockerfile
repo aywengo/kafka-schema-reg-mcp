@@ -43,7 +43,7 @@ RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
-      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 20 tools, context support, schema export, and Claude Desktop integration" \
+      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 48 tools, OAuth authentication, remote deployment support, context management, and Claude Desktop integration" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.revision="$VCS_REF" \
@@ -87,6 +87,7 @@ COPY --chown=mcp:mcp comparison_tools.py .
 COPY --chown=mcp:mcp migration_tools.py .
 COPY --chown=mcp:mcp mcp_prompts.py .
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
+COPY --chown=mcp:mcp remote-mcp-server.py .
 
 # Switch to non-root user
 USER mcp

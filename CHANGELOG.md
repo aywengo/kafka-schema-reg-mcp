@@ -5,11 +5,31 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - unreleased
+## [2.0.0] - unreleased
 
-### 🔐 Enterprise OAuth Provider Integration & Kubernetes Production Readiness
+### 🚀 MAJOR RELEASE: Enterprise OAuth Integration & Remote MCP Server Revolution
 
-This major release introduces comprehensive OAuth 2.0 provider integration with support for enterprise identity platforms, production-ready Kubernetes deployment configurations, and enhanced VSCode + Copilot integration.
+This **major version release** represents a fundamental transformation of the Kafka Schema Registry MCP Server from a local-only tool to a **production-ready, enterprise-grade remote MCP server**. This release introduces comprehensive OAuth 2.0 provider integration, remote deployment capabilities, and full compatibility with [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers).
+
+**🔥 BREAKING CHANGES & NEW ARCHITECTURE:**
+- **Single Image, Dual Mode**: Same Docker image supports both local (stdio) and remote (HTTP/SSE) deployment modes
+- **Enterprise Authentication**: Production OAuth 2.0 with cryptographic JWT validation
+- **Remote MCP Ecosystem**: Full compatibility with Anthropic's remote MCP server standards
+- **Transport Revolution**: FastMCP-powered SSE and Streamable HTTP support
+
+#### 🎯 Why v2.0.0? - Major Version Justification
+
+This release qualifies as a **major version bump** because it introduces:
+
+1. **🌐 Architectural Transformation**: Complete shift from local-only to local+remote dual-mode architecture
+2. **🔐 Security Model Revolution**: Introduction of enterprise OAuth 2.0 with JWT validation as a core feature
+3. **🚀 Deployment Paradigm Change**: New remote deployment patterns that fundamentally change how the server is used
+4. **📡 Transport Layer Evolution**: Addition of HTTP/SSE transports alongside existing stdio transport
+5. **🏢 Enterprise Readiness**: Production-grade features that transform this from a development tool to enterprise infrastructure
+6. **🔧 Configuration Complexity**: Significant expansion of configuration options and deployment modes
+7. **📚 API Surface Expansion**: New OAuth-related tools and remote-specific functionality
+
+**Migration Impact**: Existing local deployments continue to work unchanged, but the introduction of OAuth, remote deployment options, and new configuration patterns represents a significant evolution in the server's capabilities and intended use cases.
 
 #### Added
 
@@ -34,7 +54,21 @@ This major release introduces comprehensive OAuth 2.0 provider integration with 
 - **Production-Ready Security**: Network policies, RBAC, TLS, and secret management
 - **Multi-Registry + OAuth**: Secure access to multiple Schema Registry instances
 
+##### Remote MCP Server Deployment
+- **Remote MCP Compatibility**: Full support for [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers)
+- **FastMCP Transport Support**: SSE and Streamable HTTP transports for remote connectivity
+- **Remote MCP Server Script** (`remote-mcp-server.py`): Dedicated script for remote deployment
+- **Production Helm Configuration** (`helm/values-remote-mcp.yaml`): Complete Kubernetes setup
+- **HTTPS/TLS Support**: Automatic certificate management with cert-manager
+- **Remote Client Testing** (`examples/test-remote-mcp.py`): Comprehensive connectivity validation
+
 ##### Enhanced Documentation
+- **Remote MCP Deployment Guide** (`docs/remote-mcp-deployment.md`): Complete remote deployment instructions
+  - Quick deployment options (Docker and Kubernetes)
+  - OAuth authentication setup for all providers
+  - Transport configuration (SSE and Streamable HTTP)
+  - Client connection examples and testing
+  - Production security best practices
 - **OAuth Providers Guide** (`docs/oauth-providers-guide.md`): Complete setup instructions
   - Step-by-step provider configuration for all 4 platforms
   - Azure CLI and Portal setup instructions
@@ -494,13 +528,19 @@ while True:
 - Configuration to environment variables
 - Documentation for MCP usage
 
-### Compatibility
-- Backward compatible with v1.3.x
-- All existing tools continue to work
-- New async pattern opt-in for long operations
+### Compatibility & Migration (v1.x → v2.0.0)
+- **100% Backward Compatible**: All existing local deployments continue to work unchanged
+- **All 48 Tools Preserved**: Every existing MCP tool maintains the same API and functionality
+- **Configuration Migration**: Existing environment variables and Docker usage remain the same
+- **Optional Features**: OAuth and remote deployment are opt-in features
+- **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption
 
-### Docker
+### Docker v2.0.0
 ```bash
-docker pull aywengo/kafka-schema-reg-mcp:1.7.0
+# v2.0.0 Release
+docker pull aywengo/kafka-schema-reg-mcp:2.0.0
 docker pull aywengo/kafka-schema-reg-mcp:stable  # Latest stable
+
+# Previous stable
+docker pull aywengo/kafka-schema-reg-mcp:1.8.3
 ``` 

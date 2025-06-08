@@ -1,0 +1,537 @@
+#!/usr/bin/env python3
+"""
+Kafka Schema Registry Remote MCP Server
+
+This file configures the MCP server for remote deployment with monitoring endpoints,
+making it compatible with Anthropic's remote MCP server ecosystem.
+
+Remote MCP servers typically expose endpoints like:
+- https://your-domain.com/mcp (for MCP protocol)
+- https://your-domain.com/health (for health checks)
+- https://your-domain.com/metrics (for Prometheus metrics)
+
+Usage:
+    # Local development
+    python remote-mcp-server.py
+    
+    # Production deployment (via Docker/K8s)
+    docker run -p 8000:8000 -e ENABLE_AUTH=true aywengo/kafka-schema-reg-mcp:stable python remote-mcp-server.py
+"""
+
+import os
+import json
+import time
+import logging
+from datetime import datetime
+from collections import defaultdict
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Import the unified MCP server
+from kafka_schema_registry_unified_mcp import mcp, registry_manager, REGISTRY_MODE
+
+# Configure logging for remote deployment
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Metrics collection
+class RemoteMCPMetrics:
+    """Collect and expose metrics for remote MCP server."""
+    
+    def __init__(self):
+        self.start_time = time.time()
+        self.request_count = defaultdict(int)
+        self.error_count = defaultdict(int)
+        self.response_times = defaultdict(list)
+        self.oauth_token_validations = 0
+        self.oauth_validation_errors = 0
+        self.registry_health_checks = 0
+        self.last_health_check = None
+        
+        # Schema Registry specific metrics
+        self.schema_operations = defaultdict(int)  # operation type -> count
+        self.registry_operations = defaultdict(int)  # registry -> operation count
+        self.registry_errors = defaultdict(int)  # registry -> error count
+        self.registry_response_times = defaultdict(list)  # registry -> [response_times]
+        self.schema_registrations = defaultdict(int)  # registry -> registration count
+        self.schema_compatibility_checks = defaultdict(int)  # registry -> compatibility checks
+        self.schema_exports = defaultdict(int)  # registry -> export count
+        self.context_operations = defaultdict(int)  # context -> operation count
+        
+        # Cache for registry stats (refreshed periodically)
+        self.registry_stats_cache = {}
+        self.stats_cache_timestamp = 0
+        self.stats_cache_ttl = 300  # 5 minutes
+        
+    def record_request(self, method: str, duration: float, success: bool):
+        """Record a request metric."""
+        self.request_count[method] += 1
+        self.response_times[method].append(duration)
+        if not success:
+            self.error_count[method] += 1
+    
+    def record_oauth_validation(self, success: bool):
+        """Record OAuth validation metric."""
+        self.oauth_token_validations += 1
+        if not success:
+            self.oauth_validation_errors += 1
+    
+    def record_health_check(self):
+        """Record health check execution."""
+        self.registry_health_checks += 1
+        self.last_health_check = datetime.utcnow()
+    
+    def record_schema_operation(self, operation: str, registry: str, duration: float, success: bool, context: str = None):
+        """Record schema registry operation metrics."""
+        self.schema_operations[operation] += 1
+        self.registry_operations[registry] += 1
+        self.registry_response_times[registry].append(duration)
+        
+        if not success:
+            self.registry_errors[registry] += 1
+        
+        # Track specific operations
+        if operation == "register_schema":
+            self.schema_registrations[registry] += 1
+        elif operation == "check_compatibility":
+            self.schema_compatibility_checks[registry] += 1
+        elif operation in ["export_schema", "export_subject", "export_context"]:
+            self.schema_exports[registry] += 1
+        
+        # Track context operations
+        if context:
+            self.context_operations[f"{registry}_{context}"] += 1
+    
+    def get_registry_stats(self):
+        """Get current registry statistics (cached for performance)."""
+        current_time = time.time()
+        
+        # Return cached data if still valid
+        if (current_time - self.stats_cache_timestamp) < self.stats_cache_ttl:
+            return self.registry_stats_cache
+        
+        stats = {}
+        try:
+            # Get registry statistics
+            for registry_name in registry_manager.list_registries():
+                try:
+                    client = registry_manager.get_registry(registry_name)
+                    if client:
+                        # Get subject count
+                        subjects = client.list_subjects()
+                        subject_count = len(subjects) if subjects else 0
+                        
+                        # Count total schemas across all subjects
+                        total_schemas = 0
+                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
+                            try:
+                                versions = client.get_schema_versions(subject)
+                                total_schemas += len(versions) if versions else 0
+                            except:
+                                pass  # Skip subjects that can't be queried
+                        
+                        # Get contexts (if available)
+                        try:
+                            contexts = client.list_contexts() or ["."]
+                            context_count = len(contexts)
+                        except:
+                            context_count = 1  # Default context
+                        
+                        stats[registry_name] = {
+                            "subjects": subject_count,
+                            "schemas": total_schemas,
+                            "contexts": context_count,
+                            "status": "healthy"
+                        }
+                    else:
+                        stats[registry_name] = {
+                            "subjects": 0,
+                            "schemas": 0,
+                            "contexts": 0,
+                            "status": "error"
+                        }
+                except Exception as e:
+                    stats[registry_name] = {
+                        "subjects": 0,
+                        "schemas": 0,
+                        "contexts": 0,
+                        "status": "error",
+                        "error": str(e)
+                    }
+        except Exception as e:
+            logger.warning(f"Failed to collect registry stats: {e}")
+        
+        # Update cache
+        self.registry_stats_cache = stats
+        self.stats_cache_timestamp = current_time
+        
+        return stats
+    
+    def get_uptime(self) -> float:
+        """Get server uptime in seconds."""
+        return time.time() - self.start_time
+    
+    def get_prometheus_metrics(self) -> str:
+        """Generate Prometheus-format metrics."""
+        uptime = self.get_uptime()
+        
+        metrics = [
+            "# HELP mcp_server_uptime_seconds Time since server started",
+            "# TYPE mcp_server_uptime_seconds counter",
+            f"mcp_server_uptime_seconds {uptime}",
+            "",
+            "# HELP mcp_requests_total Total number of MCP requests",
+            "# TYPE mcp_requests_total counter"
+        ]
+        
+        for method, count in self.request_count.items():
+            metrics.append(f'mcp_requests_total{{method="{method}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_request_errors_total Total number of MCP request errors",
+            "# TYPE mcp_request_errors_total counter"
+        ])
+        
+        for method, count in self.error_count.items():
+            metrics.append(f'mcp_request_errors_total{{method="{method}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_request_duration_seconds Request duration in seconds",
+            "# TYPE mcp_request_duration_seconds histogram"
+        ])
+        
+        for method, times in self.response_times.items():
+            if times:
+                avg_time = sum(times) / len(times)
+                max_time = max(times)
+                min_time = min(times)
+                metrics.append(f'mcp_request_duration_seconds_avg{{method="{method}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_max{{method="{method}"}} {max_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_min{{method="{method}"}} {min_time:.6f}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_oauth_validations_total Total OAuth token validations",
+            "# TYPE mcp_oauth_validations_total counter",
+            f"mcp_oauth_validations_total {self.oauth_token_validations}",
+            "",
+            "# HELP mcp_oauth_validation_errors_total OAuth validation errors",
+            "# TYPE mcp_oauth_validation_errors_total counter",
+            f"mcp_oauth_validation_errors_total {self.oauth_validation_errors}",
+            "",
+            "# HELP mcp_registry_health_checks_total Registry health checks performed",
+            "# TYPE mcp_registry_health_checks_total counter",
+            f"mcp_registry_health_checks_total {self.registry_health_checks}",
+            "",
+            "# HELP mcp_registry_mode_info Registry mode information",
+            "# TYPE mcp_registry_mode_info gauge",
+            f'mcp_registry_mode_info{{mode="{REGISTRY_MODE}"}} 1'
+        ])
+        
+        # Schema Registry specific metrics
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_operations_total Total schema registry operations by type",
+            "# TYPE mcp_schema_registry_operations_total counter"
+        ])
+        
+        for operation, count in self.schema_operations.items():
+            metrics.append(f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_operations_by_registry_total Operations by registry",
+            "# TYPE mcp_schema_registry_operations_by_registry_total counter"
+        ])
+        
+        for registry, count in self.registry_operations.items():
+            metrics.append(f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_errors_total Registry operation errors",
+            "# TYPE mcp_schema_registry_errors_total counter"
+        ])
+        
+        for registry, count in self.registry_errors.items():
+            metrics.append(f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_response_time_seconds Registry response times",
+            "# TYPE mcp_schema_registry_response_time_seconds histogram"
+        ])
+        
+        for registry, times in self.registry_response_times.items():
+            if times:
+                avg_time = sum(times) / len(times)
+                max_time = max(times)
+                min_time = min(times)
+                metrics.append(f'mcp_schema_registry_response_time_seconds_avg{{registry="{registry}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_max{{registry="{registry}"}} {max_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_registrations_total Schema registrations by registry",
+            "# TYPE mcp_schema_registry_registrations_total counter"
+        ])
+        
+        for registry, count in self.schema_registrations.items():
+            metrics.append(f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_compatibility_checks_total Compatibility checks by registry",
+            "# TYPE mcp_schema_registry_compatibility_checks_total counter"
+        ])
+        
+        for registry, count in self.schema_compatibility_checks.items():
+            metrics.append(f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_exports_total Schema exports by registry",
+            "# TYPE mcp_schema_registry_exports_total counter"
+        ])
+        
+        for registry, count in self.schema_exports.items():
+            metrics.append(f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}')
+        
+        # Current registry statistics (from cache)
+        registry_stats = self.get_registry_stats()
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_subjects Current number of subjects per registry",
+            "# TYPE mcp_schema_registry_subjects gauge"
+        ])
+        
+        for registry, stats in registry_stats.items():
+            metrics.append(f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_schemas Current number of schemas per registry",
+            "# TYPE mcp_schema_registry_schemas gauge"
+        ])
+        
+        for registry, stats in registry_stats.items():
+            metrics.append(f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_contexts Current number of contexts per registry",
+            "# TYPE mcp_schema_registry_contexts gauge"
+        ])
+        
+        for registry, stats in registry_stats.items():
+            metrics.append(f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_status Registry health status (1=healthy, 0=unhealthy)",
+            "# TYPE mcp_schema_registry_status gauge"
+        ])
+        
+        for registry, stats in registry_stats.items():
+            status_value = 1 if stats.get("status") == "healthy" else 0
+            metrics.append(f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}')
+        
+        metrics.extend([
+            "",
+            "# HELP mcp_schema_registry_context_operations_total Operations by context",
+            "# TYPE mcp_schema_registry_context_operations_total counter"
+        ])
+        
+        for context_key, count in self.context_operations.items():
+            if "_" in context_key:
+                registry, context = context_key.split("_", 1)
+                metrics.append(f'mcp_schema_registry_context_operations_total{{registry="{registry}",context="{context}"}} {count}')
+        
+        return "\n".join(metrics)
+
+# Global metrics instance
+metrics = RemoteMCPMetrics()
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request):
+    """Health check endpoint for Kubernetes and monitoring."""
+    try:
+        start_time = time.time()
+        
+        # Test basic server functionality
+        server_status = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "uptime_seconds": metrics.get_uptime(),
+            "registry_mode": REGISTRY_MODE,
+            "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
+            "transport": os.getenv("MCP_TRANSPORT", "streamable-http")
+        }
+        
+        # Test registry connectivity
+        registry_health = {}
+        overall_healthy = True
+        
+        try:
+            if REGISTRY_MODE == "single":
+                # Test single registry
+                default_registry = registry_manager.get_default_registry()
+                if default_registry:
+                    client = registry_manager.get_registry(default_registry)
+                    if client:
+                        test_result = client.test_connection()
+                        registry_health[default_registry] = test_result
+                        if test_result.get("status") != "connected":
+                            overall_healthy = False
+                    else:
+                        overall_healthy = False
+                        registry_health["error"] = "No registry client available"
+            else:
+                # Test all registries in multi mode
+                for registry_name in registry_manager.list_registries():
+                    try:
+                        client = registry_manager.get_registry(registry_name)
+                        if client:
+                            test_result = client.test_connection()
+                            registry_health[registry_name] = test_result
+                            if test_result.get("status") != "connected":
+                                overall_healthy = False
+                        else:
+                            registry_health[registry_name] = {"status": "error", "error": "Client not available"}
+                            overall_healthy = False
+                    except Exception as e:
+                        registry_health[registry_name] = {"status": "error", "error": str(e)}
+                        overall_healthy = False
+        
+        except Exception as e:
+            overall_healthy = False
+            registry_health["error"] = str(e)
+        
+        # Update server status based on registry health
+        if not overall_healthy:
+            server_status["status"] = "degraded"
+        
+        server_status["registries"] = registry_health
+        server_status["response_time_ms"] = (time.time() - start_time) * 1000
+        
+        # Record metrics
+        metrics.record_health_check()
+        metrics.record_request("health", time.time() - start_time, overall_healthy)
+        
+        # Return appropriate HTTP status
+        from starlette.responses import JSONResponse
+        status_code = 200 if overall_healthy else 503
+        
+        return JSONResponse(server_status, status_code=status_code)
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        metrics.record_request("health", time.time() - start_time, False)
+        
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }, status_code=503)
+
+@mcp.custom_route("/metrics", methods=["GET"])
+async def prometheus_metrics(request):
+    """Prometheus metrics endpoint."""
+    try:
+        start_time = time.time()
+        
+        prometheus_output = metrics.get_prometheus_metrics()
+        
+        metrics.record_request("metrics", time.time() - start_time, True)
+        
+        from starlette.responses import Response
+        return Response(
+            prometheus_output,
+            media_type="text/plain; version=0.0.4; charset=utf-8"
+        )
+        
+    except Exception as e:
+        logger.error(f"Metrics generation failed: {e}")
+        metrics.record_request("metrics", time.time() - start_time, False)
+        
+        from starlette.responses import Response
+        return Response(
+            f"# Error generating metrics: {str(e)}\n",
+            status_code=500,
+            media_type="text/plain"
+        )
+
+@mcp.custom_route("/ready", methods=["GET"])
+async def readiness_check(request):
+    """Readiness check for Kubernetes (simpler than health check)."""
+    try:
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "status": "ready",
+            "timestamp": datetime.utcnow().isoformat(),
+            "uptime_seconds": metrics.get_uptime()
+        })
+    except Exception as e:
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "status": "not_ready",
+            "error": str(e)
+        }, status_code=503)
+
+def main():
+    """Run MCP server with remote transport configuration and monitoring."""
+    
+    # Get transport configuration from environment
+    transport = os.getenv("MCP_TRANSPORT", "streamable-http")  # Default to modern HTTP
+    host = os.getenv("MCP_HOST", "0.0.0.0")  # Bind to all interfaces for containers
+    port = int(os.getenv("MCP_PORT", "8000"))
+    path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
+    
+    logger.info(f"🚀 Starting Kafka Schema Registry Remote MCP Server")
+    logger.info(f"📡 Transport: {transport}")
+    logger.info(f"🌐 Host: {host}")
+    logger.info(f"🔌 Port: {port}")
+    logger.info(f"📍 Path: {path}")
+    logger.info(f"🔐 OAuth Enabled: {os.getenv('ENABLE_AUTH', 'false')}")
+    logger.info(f"🏷️  OAuth Provider: {os.getenv('AUTH_PROVIDER', 'auto')}")
+    
+    # Remote server URL for client connections
+    server_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}{path}"
+    logger.info(f"🔗 Remote MCP Server URL: {server_url}")
+    
+    # Monitoring endpoints
+    health_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/health"
+    metrics_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/metrics"
+    logger.info(f"🏥 Health Check URL: {health_url}")
+    logger.info(f"📊 Metrics URL: {metrics_url}")
+    
+    try:
+        if transport == "streamable-http":
+            # Modern HTTP transport (recommended)
+            mcp.run(transport="streamable-http")
+        elif transport == "sse":
+            # SSE transport (compatible with existing SSE clients)
+            mcp.run(transport="sse")
+        else:
+            logger.error(f"Unsupported transport: {transport}")
+            logger.info("Supported transports: streamable-http, sse")
+            return 1
+            
+    except Exception as e:
+        logger.error(f"Failed to start remote MCP server: {e}")
+        return 1
+    
+    return 0
+
+if __name__ == "__main__":
+    exit(main()) 

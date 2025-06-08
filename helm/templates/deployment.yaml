@@ -28,6 +28,12 @@ spec:
         {{- include "kafka-schema-registry-mcp.annotations" . | nindent 8 }}
       labels:
         {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 8 }}
+        {{- if .Values.monitoring.enabled }}
+        # Instance identification for metrics
+        instanceId: {{ .Release.Name }}
+        deployment: {{ include "kafka-schema-registry-mcp.fullname" . }}
+        environment: {{ .Values.global.environment | default .Release.Namespace }}
+        {{- end }}
         {{- with .Values.commonLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

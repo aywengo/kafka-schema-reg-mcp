@@ -303,6 +303,8 @@ run_basic_tests() {
         "test_config.py:Configuration management"
         "test_provider_configs_only.py:OAuth provider configurations validation"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
+        "test_remote_mcp_server.py:Remote MCP server deployment functionality"
+        "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
         "test_simple_python.py:Python environment validation"
     )
     
@@ -321,6 +323,8 @@ run_essential_integration_tests() {
         "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_oauth.py:OAuth authentication and provider configurations"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
+        "test_remote_mcp_server.py:Remote MCP server deployment functionality"
+        "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
     )
     
     run_test_list "${tests[@]}"

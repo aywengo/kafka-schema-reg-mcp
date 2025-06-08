@@ -126,9 +126,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🎉 Kafka Schema Registry MCP Server ${{ github.ref_name }} - Enterprise OAuth Integration & Kubernetes Production Readiness
+            ## 🚀 Kafka Schema Registry MCP Server ${{ github.ref_name }} - MAJOR RELEASE: Remote MCP Server Revolution
             
-            **🔐 MAJOR RELEASE**: Complete OAuth 2.0 provider integration with support for Azure AD, Google, Keycloak, and Okta! This release introduces production-ready Kubernetes deployment configurations, comprehensive OAuth provider documentation, and enhanced VSCode + Copilot integration with enterprise identity platforms.
+            **🔥 BREAKING RELEASE v2.0.0**: Complete transformation from local-only to enterprise-grade remote MCP server! This major version introduces OAuth 2.0 integration with 4 providers (Azure AD, Google, Keycloak, Okta), remote deployment capabilities compatible with Anthropic's MCP ecosystem, single-image dual-mode architecture, and production-ready Kubernetes deployment with FastMCP transport support.
             
             ### Docker Image
             ```bash
@@ -139,7 +139,7 @@ jobs:
             docker pull aywengo/kafka-schema-reg-mcp:stable
             
             # Next release (planned):
-            docker pull aywengo/kafka-schema-reg-mcp:1.9.1
+            docker pull aywengo/kafka-schema-reg-mcp:2.1.0
             ```
             
             ### 🤖 Claude Desktop Integration

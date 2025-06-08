@@ -1,6 +1,11 @@
 # Default values for kafka-schema-registry-mcp
 # This is a YAML-formatted file.
 
+# Global settings
+global:
+  environment: "default"  # Environment label for metrics
+  cluster: "default"      # Cluster label for metrics
+
 # Application configuration
 replicaCount: 2
 
@@ -190,6 +195,66 @@ monitoring:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
     prometheus.io/path: "/metrics"
+  
+  # ServiceMonitor configuration (for Service-based monitoring)
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    labels:
+      release: prometheus
+    scrapeTimeout: 10s
+    
+  # PodMonitor configuration (preferred for direct pod monitoring)
+  podMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    scrapeTimeout: 10s
+    honorLabels: false
+    
+    # Additional labels for the PodMonitor resource
+    labels:
+      release: prometheus
+      component: mcp-server
+      
+    # Labels to copy from pods to metrics
+    podTargetLabels:
+      - instanceId
+      - deployment
+      - environment
+      - app.kubernetes.io/version
+      
+    # Relabeling rules to enhance metrics
+    relabelings:
+      # Add cluster label
+      - sourceLabels: []
+        targetLabel: cluster
+        replacement: "default"
+      
+      # Add service label
+      - sourceLabels: []
+        targetLabel: service
+        replacement: "kafka-schema-registry-mcp"
+        
+      # Preserve instance label as instanceId
+      - sourceLabels: [__meta_kubernetes_pod_label_instanceId]
+        targetLabel: instanceId
+        
+      # Add deployment info
+      - sourceLabels: [__meta_kubernetes_pod_label_deployment]
+        targetLabel: deployment
+        
+      # Add environment info
+      - sourceLabels: [__meta_kubernetes_pod_label_environment]
+        targetLabel: environment
+    
+    # Metric relabeling (optional - for metric transformation)
+    metricRelabelings: []
+    
+    # Limits
+    sampleLimit: 10000
+    targetLimit: 100
 
 # Additional environment variables
 extraEnvVars: []

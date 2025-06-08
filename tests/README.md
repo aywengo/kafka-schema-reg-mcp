@@ -16,12 +16,16 @@ The unified server automatically detects whether to run in single-registry or mu
 - `test_basic_server.py` - Server import and initialization tests
 - `test_mcp_server.py` - MCP protocol connectivity tests
 - `test_config.py` - Configuration management tests
+- `test_remote_mcp_server.py` - Remote MCP server deployment functionality
+- `test_remote_mcp_metrics.py` - Remote MCP server metrics and monitoring
 - `test_simple_python.py` - Basic Python environment validation
 
 ### Integration Tests
 - `test_integration.py` - Comprehensive schema registry operations
 - `advanced_mcp_test.py` - Advanced MCP functionality
 - `test_docker_mcp.py` - Docker container integration
+- `test_oauth.py` - OAuth authentication and provider configurations
+- `test_user_roles.py` - OAuth user role assignment and scope extraction
 
 ### Mode-Specific Tests
 - `test_readonly_mode.py` - READONLY mode enforcement
@@ -33,6 +37,18 @@ The unified server automatically detects whether to run in single-registry or mu
 - `test_migration_integration.py` - Schema migration functionality
 - `test_performance_load.py` - Performance and load testing
 - `test_error_handling.py` - Error handling and recovery
+
+### Remote MCP Server Tests
+- `test_remote_mcp_server.py` - Remote deployment functionality and transport configuration
+- `test_remote_mcp_metrics.py` - Comprehensive metrics and monitoring testing:
+  - RemoteMCPMetrics class functionality and initialization
+  - Schema Registry custom metrics (`mcp_schema_registry_*`)
+  - Prometheus metrics format validation and content verification
+  - Health check endpoint testing (/health, /ready)
+  - OAuth validation metrics and error tracking
+  - Registry statistics collection with caching
+  - Response time tracking and performance metrics
+  - Integration testing with monitoring endpoints
 
 ### Validation Tests
 - `test_all_tools_validation.py` - Validates all MCP tools

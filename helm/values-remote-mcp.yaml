@@ -1,0 +1,307 @@
+# Helm values for Remote MCP Server Deployment
+# This configuration deploys the Kafka Schema Registry MCP Server 
+# as a remote MCP server compatible with Anthropic's MCP ecosystem
+
+# Global settings
+global:
+  deployment:
+    mode: "remote-mcp"  # Remote MCP server mode
+  environment: "production"  # Environment label for metrics
+    
+# Application configuration
+app:
+  name: "kafka-schema-registry-remote-mcp"
+  version: "2.0.0"
+  
+image:
+  repository: "aywengo/kafka-schema-reg-mcp"
+  tag: "stable"
+  pullPolicy: IfNotPresent
+
+# Remote MCP Server Configuration
+remoteMcp:
+  # Transport configuration
+  transport: "streamable-http"  # Options: streamable-http, sse
+  host: "0.0.0.0"
+  port: 8000
+  path: "/mcp"  # Will be /sse for SSE transport
+  
+  # TLS/HTTPS configuration
+  tls:
+    enabled: true
+    certManager: true
+    issuer: "letsencrypt-prod"  # ClusterIssuer name
+    
+  # OAuth Authentication (required for remote deployment)
+  oauth:
+    enabled: true
+    provider: "azure"  # Options: azure, google, keycloak, okta, auto
+    
+    # Azure AD Configuration
+    azure:
+      tenantId: "${AZURE_TENANT_ID}"
+      clientId: "${AZURE_CLIENT_ID}"
+      clientSecret: "${AZURE_CLIENT_SECRET}"
+      
+    # Custom OAuth configuration
+    issuerUrl: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
+    audience: "${AZURE_CLIENT_ID}"
+    
+    # Scope-based authorization
+    validScopes: ["read", "write", "admin"]
+    defaultScopes: ["read"]
+    requiredScopes: ["read"]
+
+# Environment variables
+env:
+  # Remote MCP specific
+  MCP_TRANSPORT: "streamable-http"
+  MCP_HOST: "0.0.0.0"
+  MCP_PORT: "8000"
+  MCP_PATH: "/mcp"
+  TLS_ENABLED: "true"
+  
+  # OAuth configuration
+  ENABLE_AUTH: "true"
+  AUTH_PROVIDER: "azure"
+  AUTH_ISSUER_URL: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
+  AUTH_AUDIENCE: "${AZURE_CLIENT_ID}"
+  AUTH_VALID_SCOPES: "read,write,admin"
+  AUTH_DEFAULT_SCOPES: "read"
+  AUTH_REQUIRED_SCOPES: "read"
+  
+  # Azure AD specific
+  AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
+  
+  # JWT validation
+  JWKS_CACHE_TTL: "3600"
+  
+  # Schema Registry connection (example - replace with your registries)
+  SCHEMA_REGISTRY_NAME_1: "production"
+  SCHEMA_REGISTRY_URL_1: "https://prod-schema-registry.your-domain.com"
+  SCHEMA_REGISTRY_USER_1: "${PROD_REGISTRY_USER}"
+  SCHEMA_REGISTRY_PASSWORD_1: "${PROD_REGISTRY_PASSWORD}"
+  READONLY_1: "true"
+  
+  SCHEMA_REGISTRY_NAME_2: "staging"
+  SCHEMA_REGISTRY_URL_2: "https://staging-schema-registry.your-domain.com"
+  SCHEMA_REGISTRY_USER_2: "${STAGING_REGISTRY_USER}"
+  SCHEMA_REGISTRY_PASSWORD_2: "${STAGING_REGISTRY_PASSWORD}"
+  READONLY_2: "false"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+
+# Ingress configuration for remote access
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+  hosts:
+    - host: mcp-schema-registry.your-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mcp-schema-registry-tls
+      hosts:
+        - mcp-schema-registry.your-domain.com
+
+# Deployment configuration
+deployment:
+  replicaCount: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+      
+  # Use remote MCP server script
+  command: ["python", "remote-mcp-server.py"]
+  
+  # Health checks for remote deployment
+  healthCheck:
+    enabled: true
+    httpGet:
+      path: "/health"
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Resource limits
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: true
+
+# Network policies
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow OAuth provider access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS for OAuth providers
+    # Allow Schema Registry access
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 8081  # Schema Registry
+        - protocol: TCP
+          port: 8082
+
+# Secrets for OAuth credentials
+secrets:
+  oauth:
+    enabled: true
+    annotations:
+      reloader.stakater.com/match: "true"
+    data:
+      AZURE_CLIENT_SECRET: "${AZURE_CLIENT_SECRET}"
+      PROD_REGISTRY_PASSWORD: "${PROD_REGISTRY_PASSWORD}"
+      STAGING_REGISTRY_PASSWORD: "${STAGING_REGISTRY_PASSWORD}"
+
+# ConfigMaps
+configMaps:
+  app:
+    enabled: true
+    data:
+      mcp-config.yaml: |
+        server:
+          name: "Kafka Schema Registry Remote MCP Server"
+          description: "Remote MCP server for Kafka Schema Registry operations with OAuth authentication"
+          version: "2.0.0"
+          
+        endpoints:
+          mcp: "https://mcp-schema-registry.your-domain.com/mcp"
+          health: "https://mcp-schema-registry.your-domain.com/health"
+          
+        oauth:
+          provider: "azure"
+          issuer: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
+          
+        features:
+          - "48 MCP Tools"
+          - "Multi-Registry Support"
+          - "OAuth Authentication"
+          - "Real-time Operations"
+          - "Schema Migration"
+          - "Context Management"
+
+# Monitoring
+monitoring:
+  enabled: true
+  
+  # ServiceMonitor configuration (for Service-based monitoring)
+  serviceMonitor:
+    enabled: false  # Disabled in favor of PodMonitor
+    interval: 30s
+    path: /metrics
+    labels:
+      release: prometheus
+    scrapeTimeout: 10s
+    
+  # PodMonitor configuration (preferred for direct pod monitoring)
+  podMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    scrapeTimeout: 10s
+    honorLabels: false
+    
+    # Additional labels for the PodMonitor resource
+    labels:
+      release: prometheus
+      component: mcp-server
+      
+    # Labels to copy from pods to metrics
+    podTargetLabels:
+      - instanceId
+      - deployment
+      - environment
+      - app.kubernetes.io/version
+      
+    # Relabeling rules to enhance metrics
+    relabelings:
+      # Add cluster label
+      - sourceLabels: []
+        targetLabel: cluster
+        replacement: "{{ .Values.global.cluster | default \"default\" }}"
+      
+      # Add service label
+      - sourceLabels: []
+        targetLabel: service
+        replacement: "kafka-schema-registry-mcp"
+        
+      # Preserve instance label as instanceId
+      - sourceLabels: [__meta_kubernetes_pod_label_instanceId]
+        targetLabel: instanceId
+        
+      # Add deployment info
+      - sourceLabels: [__meta_kubernetes_pod_label_deployment]
+        targetLabel: deployment
+        
+      # Add environment info
+      - sourceLabels: [__meta_kubernetes_pod_label_environment]
+        targetLabel: environment
+    
+    # Metric relabeling (optional - for metric transformation)
+    metricRelabelings: []
+    
+    # Limits
+    sampleLimit: 10000
+    targetLimit: 100
+    
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  
+# Documentation annotations
+annotations:
+  "mcp.anthropic.com/server": "true"
+  "mcp.anthropic.com/transport": "streamable-http"
+  "mcp.anthropic.com/oauth": "true"
+  "mcp.anthropic.com/tools": "48"
+  "description": "Remote MCP server for Kafka Schema Registry with OAuth authentication" 
