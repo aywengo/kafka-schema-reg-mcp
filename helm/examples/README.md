@@ -10,6 +10,7 @@ This directory contains ready-to-use Helm values files for different OAuth 2.0 p
 | **🟨 Google** | `values-google.yaml` | Google OAuth 2.0 |
 | **🟥 Keycloak** | `values-keycloak.yaml` | Open-source identity management |
 | **🟧 Okta** | `values-okta.yaml` | Enterprise identity platform |
+| **⚫ GitHub** | `values-github.yaml` | GitHub OAuth 2.0 and GitHub Apps |
 
 ## 🚀 Quick Start
 
@@ -29,6 +30,9 @@ cp helm/examples/values-keycloak.yaml helm/values-production.yaml
 
 # For Okta
 cp helm/examples/values-okta.yaml helm/values-production.yaml
+
+# For GitHub OAuth
+cp helm/examples/values-github.yaml helm/values-production.yaml
 ```
 
 ### 2. Customize Configuration
@@ -71,9 +75,15 @@ All examples include:
 - Best for: Google Workspace organizations
 
 #### **🟥 Keycloak** (`values-keycloak.yaml`)
-- Requires: Keycloak server URL, realm, client secret
-- Client ID: `mcp-schema-registry` (configurable)
-- Best for: Self-hosted identity management
+- Requires: Keycloak Server URL, Realm, Client ID, Client Secret
+- Scopes: `openid,email,profile`
+- Best for: Self-hosted enterprise identity management
+
+#### **⚫ GitHub** (`values-github.yaml`)
+- Requires: GitHub Client ID, Client Secret
+- Scopes: `read:user,user:email,read:org,repo`
+- Organization restriction: Optional `GITHUB_ORG` setting
+- Best for: GitHub-centric development teams and open source projects
 
 #### **🟧 Okta** (`values-okta.yaml`)
 - Requires: Okta domain, Client ID, Client Secret

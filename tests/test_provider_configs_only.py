@@ -23,10 +23,10 @@ def test_provider_configs():
         
         # Basic structure test
         assert isinstance(configs, dict), "Should return a dictionary"
-        assert len(configs) == 4, f"Should have 4 providers, got {len(configs)}"
+        assert len(configs) == 5, f"Should have 5 providers, got {len(configs)}"
         
         # Check all expected providers exist
-        expected_providers = ["azure", "google", "keycloak", "okta"]
+        expected_providers = ["azure", "google", "keycloak", "okta", "github"]
         for provider in expected_providers:
             assert provider in configs, f"Missing provider: {provider}"
         
@@ -51,6 +51,16 @@ def test_provider_configs():
         okta = configs["okta"]
         assert okta["name"] == "Okta"
         assert "{okta-domain}" in okta["issuer_url"]
+        
+        # Test GitHub config
+        github = configs["github"]
+        assert github["name"] == "GitHub OAuth"
+        assert github["issuer_url"] == "https://api.github.com"
+        assert github["auth_url"] == "https://github.com/login/oauth/authorize"
+        assert github["token_url"] == "https://github.com/login/oauth/access_token"
+        assert "read:user" in github["scopes"]
+        assert "user:email" in github["scopes"]
+        assert "read:org" in github["scopes"]
         
         # Test that all providers have required keys
         required_keys = ["name", "issuer_url", "auth_url", "token_url", "scopes", "setup_docs"]

@@ -322,6 +322,7 @@ run_essential_integration_tests() {
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_oauth.py:OAuth authentication and provider configurations"
+        "test_github_oauth.py:GitHub OAuth integration and token validation"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
@@ -343,6 +344,7 @@ run_integration_tests() {
         "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
         "test_oauth.py:OAuth authentication and provider configurations"
+        "test_github_oauth.py:GitHub OAuth integration and token validation"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "advanced_mcp_test.py:Advanced MCP functionality"
     )

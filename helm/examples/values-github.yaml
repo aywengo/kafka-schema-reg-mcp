@@ -1,0 +1,301 @@
+# Helm values for GitHub OAuth Integration
+# This configuration deploys the Kafka Schema Registry MCP Server 
+# with GitHub OAuth 2.0 authentication
+
+# Global settings
+global:
+  environment: "production"
+  cluster: "production-cluster"
+
+# Application configuration
+replicaCount: 2
+
+image:
+  repository: aywengo/kafka-schema-reg-mcp
+  pullPolicy: Always
+  tag: "2.0.0"
+
+# OAuth2 Authentication Configuration - GitHub
+auth:
+  enabled: true
+  
+  # OAuth2 Provider Settings - GitHub Specific
+  oauth2:
+    issuerUrl: "https://api.github.com"
+    validScopes: "read:user,user:email,read:org,repo,admin:org"
+    defaultScopes: "read:user,user:email"
+    requiredScopes: "read:user"
+    clientRegistrationEnabled: true
+    revocationEnabled: true
+  
+  # Secret configuration - use existing secret for production
+  existingSecret:
+    enabled: true
+    name: "github-oauth-secret"
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
+  
+  # Alternative: Create new secret from values (not recommended for production)
+  createSecret:
+    enabled: false
+    clientId: "YOUR_GITHUB_CLIENT_ID"
+    clientSecret: "YOUR_GITHUB_CLIENT_SECRET"
+
+# GitHub-specific configuration
+github:
+  # Organization-based access control (optional)
+  organization: "your-organization"  # Restrict to org members
+  
+  # Scope mapping to MCP permissions
+  scopes:
+    read: ["read:user", "user:email", "read:org"]
+    write: ["repo"]
+    admin: ["admin:org", "admin:repo_hook"]
+
+# Schema Registry Configuration
+schemaRegistry:
+  # Primary/default registry
+  url: "http://schema-registry:8081"
+  user: ""
+  password: ""
+  
+  # Multi-registry support for different environments
+  multiRegistry:
+    enabled: true
+    registries:
+      - name: "production"
+        url: "https://prod-schema-registry.company.com:8081"
+        readonly: true
+        user: "${PROD_REGISTRY_USER}"
+        password: "${PROD_REGISTRY_PASSWORD}"
+      - name: "staging"
+        url: "https://staging-schema-registry.company.com:8081"
+        readonly: false
+        user: "${STAGING_REGISTRY_USER}"
+        password: "${STAGING_REGISTRY_PASSWORD}"
+      - name: "development"
+        url: "https://dev-schema-registry.company.com:8081"
+        readonly: false
+
+# Application settings
+app:
+  readonly: false
+  logLevel: "INFO"
+  port: 8080
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # CORS for GitHub OAuth
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://github.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+  hosts:
+    - host: mcp-schema-registry.company.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mcp-schema-registry-tls
+      hosts:
+        - mcp-schema-registry.company.com
+
+# Resource configuration for production
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector for production nodes
+nodeSelector:
+  kubernetes.io/os: linux
+  node-type: "worker"
+
+# Tolerations for dedicated nodes
+tolerations: []
+
+# Affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - kafka-schema-registry-mcp
+          topologyKey: kubernetes.io/hostname
+
+# Pod Disruption Budget for availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network Policy for security
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      # Allow GitHub webhooks (optional)
+      - ipBlock:
+          cidr: 192.30.252.0/22  # GitHub webhook IPs
+      - ipBlock:
+          cidr: 185.199.108.0/22  # GitHub webhook IPs
+  egress:
+    enabled: true
+    to:
+      # Allow GitHub API access
+      - ipBlock:
+          cidr: 140.82.112.0/20  # GitHub API
+      - ipBlock:
+          cidr: 192.30.252.0/22  # GitHub API
+      # Allow Schema Registry access
+      - namespaceSelector:
+          matchLabels:
+            name: schema-registry
+
+# Monitoring with GitHub-specific metrics
+monitoring:
+  enabled: true
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+  
+  # PodMonitor for GitHub OAuth metrics
+  podMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
+      component: mcp-server
+      oauth-provider: github
+
+# Security context for GitHub OAuth
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+# GitHub OAuth specific environment variables
+extraEnvVars:
+  - name: ENABLE_AUTH
+    value: "true"
+  - name: AUTH_PROVIDER
+    value: "github"
+  - name: AUTH_ISSUER_URL
+    value: "https://api.github.com"
+  - name: AUTH_VALID_SCOPES
+    value: "read:user,user:email,read:org,repo,admin:org"
+  - name: AUTH_DEFAULT_SCOPES
+    value: "read:user,user:email"
+  - name: AUTH_REQUIRED_SCOPES
+    value: "read:user"
+  - name: GITHUB_ORG
+    value: "your-organization"  # Optional: restrict to org members
+
+# GitHub OAuth credentials from existing secret
+extraEnvVarsSecret:
+  - name: GITHUB_CLIENT_ID
+    secretName: github-oauth-secret
+    key: client-id
+  - name: GITHUB_CLIENT_SECRET
+    secretName: github-oauth-secret
+    key: client-secret
+
+# Additional labels for GitHub OAuth
+commonLabels:
+  oauth-provider: "github"
+  auth-type: "oauth2"
+  integration: "github"
+
+# Additional annotations
+commonAnnotations:
+  "mcp.anthropic.com/oauth-provider": "github"
+  "mcp.anthropic.com/auth-enabled": "true"
+  "github.com/integration": "oauth-app"
+
+# Example secret creation for GitHub OAuth
+# Create this secret manually or via external-secrets operator:
+#
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: github-oauth-secret
+#   namespace: kafka-tools
+# type: Opaque
+# data:
+#   client-id: <base64-encoded-github-client-id>
+#   client-secret: <base64-encoded-github-client-secret>
+
+# Example GitHub OAuth App configuration:
+# 1. Go to GitHub → Settings → Developer settings → OAuth Apps
+# 2. Create new OAuth App with:
+#    - Application name: "Kafka Schema Registry MCP Server"
+#    - Homepage URL: "https://mcp-schema-registry.company.com"
+#    - Authorization callback URL: "https://mcp-schema-registry.company.com/auth/callback"
+# 3. Copy Client ID and Client Secret to the secret above 

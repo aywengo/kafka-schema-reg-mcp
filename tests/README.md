@@ -25,6 +25,7 @@ The unified server automatically detects whether to run in single-registry or mu
 - `advanced_mcp_test.py` - Advanced MCP functionality
 - `test_docker_mcp.py` - Docker container integration
 - `test_oauth.py` - OAuth authentication and provider configurations
+- `test_github_oauth.py` - GitHub OAuth integration and token validation
 - `test_user_roles.py` - OAuth user role assignment and scope extraction
 
 ### Mode-Specific Tests

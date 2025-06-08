@@ -55,11 +55,13 @@ AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() i
 AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
 
 # Provider-specific configuration
-AUTH_PROVIDER = os.getenv("AUTH_PROVIDER", "auto").lower()  # azure, google, keycloak, okta, auto
+AUTH_PROVIDER = os.getenv("AUTH_PROVIDER", "auto").lower()  # azure, google, keycloak, okta, github, auto
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
 AUTH_AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
 AUTH_KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "")
 AUTH_OKTA_DOMAIN = os.getenv("OKTA_DOMAIN", "")
+AUTH_GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
+AUTH_GITHUB_ORG = os.getenv("GITHUB_ORG", "")  # Optional: restrict to organization members
 
 # JWKS cache configuration
 JWKS_CACHE_TTL = int(os.getenv("JWKS_CACHE_TTL", "3600"))  # 1 hour default
@@ -227,6 +229,37 @@ if ENABLE_AUTH:
                     elif isinstance(custom_scopes, str):
                         user_scopes.extend([s.strip() for s in custom_scopes.split() if s.strip() in self.valid_scopes])
                 
+                # Method 7: GitHub scopes mapping
+                if "github_scopes" in jwt_payload or "github_permissions" in jwt_payload:
+                    github_scopes = jwt_payload.get("github_scopes", jwt_payload.get("github_permissions", []))
+                    if isinstance(github_scopes, list):
+                        # Map GitHub scopes to MCP scopes
+                        github_mapping = {
+                            "read:user": "read",
+                            "user:email": "read",
+                            "read:org": "read",
+                            "repo": "write",  # Repository access implies write capability
+                            "admin:org": "admin",
+                            "admin:repo_hook": "admin"
+                        }
+                        for github_scope in github_scopes:
+                            if github_scope in github_mapping:
+                                user_scopes.append(github_mapping[github_scope])
+                    elif isinstance(github_scopes, str):
+                        github_scopes_list = github_scopes.split(",")
+                        github_mapping = {
+                            "read:user": "read",
+                            "user:email": "read", 
+                            "read:org": "read",
+                            "repo": "write",
+                            "admin:org": "admin",
+                            "admin:repo_hook": "admin"
+                        }
+                        for github_scope in github_scopes_list:
+                            scope = github_scope.strip()
+                            if scope in github_mapping:
+                                user_scopes.append(github_mapping[scope])
+                
                 # Remove duplicates and enforce hierarchy
                 user_scopes = list(set(user_scopes))
                 user_scopes = self.enforce_scope_hierarchy(user_scopes)
@@ -257,13 +290,20 @@ if ENABLE_AUTH:
                 """
                 Validate JWT token using provider-specific validation.
                 
-                Supports Azure AD, Google, Keycloak, and Okta with automatic provider detection.
+                Supports Azure AD, Google, Keycloak, Okta, and GitHub with automatic provider detection.
                 """
                 if not JWT_AVAILABLE:
                     logger.warning("JWT validation libraries not available")
                     return None
                 
                 try:
+                    # For GitHub, try API validation first as it's more common
+                    if AUTH_PROVIDER == "github" or (AUTH_PROVIDER == "auto" and len(token) > 20 and token.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_"))):
+                        github_result = await self.validate_github_token(token)
+                        if github_result:
+                            return github_result
+                    
+                    # Try JWT validation for all providers including GitHub Apps
                     # Decode token without verification to get header and payload
                     unverified_header = jwt.get_unverified_header(token)
                     unverified_payload = jwt.decode(token, options={"verify_signature": False})
@@ -274,10 +314,21 @@ if ENABLE_AUTH:
                         provider = self.detect_provider_from_token(unverified_payload)
                         logger.info(f"Auto-detected provider: {provider}")
                     
+                    # For GitHub, try API validation if JWT fails
+                    if provider == "github":
+                        github_result = await self.validate_github_token(token)
+                        if github_result:
+                            return github_result
+                    
                     # Get provider-specific configuration
                     config = self.get_provider_config(provider)
                     if not config:
                         logger.error(f"No configuration found for provider: {provider}")
+                        return None
+                    
+                    # Skip JWKS validation for GitHub API tokens
+                    if provider == "github" and config.get("validation_type") == "hybrid":
+                        logger.info("GitHub API token validation already attempted")
                         return None
                     
                     # Fetch JWKS and get public key
@@ -316,6 +367,76 @@ if ENABLE_AUTH:
                     logger.error(f"JWT validation error: {e}")
                     return None
             
+            async def validate_github_token(self, token: str) -> Optional[Dict[str, Any]]:
+                """
+                Validate GitHub access token by calling GitHub API.
+                
+                GitHub OAuth tokens are not JWTs but access tokens that need API validation.
+                """
+                try:
+                    headers = {
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github+json",
+                        "X-GitHub-Api-Version": "2022-11-28"
+                    }
+                    
+                    async with aiohttp.ClientSession() as session:
+                        # Get user information
+                        async with session.get("https://api.github.com/user", headers=headers, timeout=10) as response:
+                            if response.status != 200:
+                                logger.warning(f"GitHub API validation failed: HTTP {response.status}")
+                                return None
+                            
+                            user_data = await response.json()
+                        
+                        # Get user's organization memberships if ORG is specified
+                        user_orgs = []
+                        if AUTH_GITHUB_ORG:
+                            try:
+                                async with session.get("https://api.github.com/user/orgs", headers=headers, timeout=10) as org_response:
+                                    if org_response.status == 200:
+                                        orgs_data = await org_response.json()
+                                        user_orgs = [org["login"] for org in orgs_data]
+                                        
+                                        # Check if user is member of required organization
+                                        if AUTH_GITHUB_ORG not in user_orgs:
+                                            logger.warning(f"User {user_data.get('login')} is not a member of required organization: {AUTH_GITHUB_ORG}")
+                                            return None
+                            except Exception as e:
+                                logger.warning(f"Could not verify GitHub organization membership: {e}")
+                        
+                        # Get user's scopes from the token
+                        scopes = []
+                        if "X-OAuth-Scopes" in response.headers:
+                            scopes = [s.strip() for s in response.headers["X-OAuth-Scopes"].split(",")]
+                    
+                    # Create JWT-like payload for consistency
+                    github_payload = {
+                        "iss": "https://api.github.com",
+                        "sub": str(user_data["id"]),
+                        "aud": AUTH_AUDIENCE or AUTH_GITHUB_CLIENT_ID,
+                        "exp": int(time.time()) + 3600,  # GitHub tokens don't expire quickly
+                        "iat": int(time.time()),
+                        "login": user_data["login"],
+                        "email": user_data.get("email"),
+                        "name": user_data.get("name"),
+                        "github_scopes": scopes,
+                        "github_orgs": user_orgs,
+                        "github_id": user_data["id"],
+                        "url": user_data.get("html_url", ""),
+                        "github_permissions": scopes  # For scope extraction compatibility
+                    }
+                    
+                    logger.info(f"GitHub token validated successfully for user: {user_data['login']}")
+                    return github_payload
+                    
+                except asyncio.TimeoutError:
+                    logger.error("Timeout validating GitHub token")
+                    return None
+                except Exception as e:
+                    logger.error(f"GitHub token validation error: {e}")
+                    return None
+            
             def detect_provider_from_token(self, payload: Dict[str, Any]) -> str:
                 """Auto-detect OAuth provider from token payload."""
                 issuer = payload.get("iss", "")
@@ -328,6 +449,11 @@ if ENABLE_AUTH:
                     return "okta"
                 elif "keycloak" in issuer.lower() or AUTH_KEYCLOAK_REALM:
                     return "keycloak"
+                elif "github.com" in issuer or "api.github.com" in issuer:
+                    return "github"
+                elif payload.get("login") and payload.get("id") and "github" in str(payload.get("url", "")).lower():
+                    # GitHub access token response format detection
+                    return "github"
                 else:
                     logger.warning(f"Could not auto-detect provider from issuer: {issuer}")
                     return "unknown"
@@ -358,6 +484,15 @@ if ENABLE_AUTH:
                         "issuer": f"https://{AUTH_OKTA_DOMAIN}/oauth2/default",
                         "audience": AUTH_AUDIENCE,
                         "algorithms": ["RS256"]
+                    },
+                    "github": {
+                        # GitHub supports both JWT (GitHub Apps) and access token validation
+                        "jwks_url": f"https://api.github.com/app/installations/{AUTH_GITHUB_CLIENT_ID}/access_tokens",
+                        "issuer": "https://api.github.com",
+                        "audience": AUTH_AUDIENCE or AUTH_GITHUB_CLIENT_ID,
+                        "algorithms": ["RS256"],
+                        "validation_type": "hybrid",  # Supports both JWT and API validation
+                        "api_validation_url": "https://api.github.com/user"
                     }
                 }
                 
@@ -374,6 +509,9 @@ if ENABLE_AUTH:
                     return None
                 elif provider == "keycloak" and not AUTH_ISSUER_URL:
                     logger.error("AUTH_ISSUER_URL required for Keycloak validation")
+                    return None
+                elif provider == "github" and not AUTH_GITHUB_CLIENT_ID:
+                    logger.error("GITHUB_CLIENT_ID required for GitHub validation")
                     return None
                 
                 return config
@@ -609,6 +747,38 @@ def get_oauth_provider_configs():
                 "claims": {"iss": "Okta domain issuer", "aud": "Client ID", "exp": "Expiration check"}
             },
             "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/"
+        },
+        "github": {
+            "name": "GitHub OAuth",
+            "issuer_url": "https://api.github.com",
+            "auth_url": "https://github.com/login/oauth/authorize",
+            "token_url": "https://github.com/login/oauth/access_token",
+            "api_url": "https://api.github.com/user",
+            "scopes": ["read:user", "user:email", "read:org"],
+            "client_id_env": "GITHUB_CLIENT_ID",
+            "client_secret_env": "GITHUB_CLIENT_SECRET",
+            "organization_env": "GITHUB_ORG",
+            "token_validation": {
+                "type": "api_based",
+                "required_env": ["AUTH_PROVIDER=github", "GITHUB_CLIENT_ID"],
+                "optional_env": ["GITHUB_ORG"],
+                "validation_endpoint": "https://api.github.com/user",
+                "scope_mapping": {
+                    "read:user": "read",
+                    "user:email": "read",
+                    "read:org": "read",
+                    "repo": "write",
+                    "admin:org": "admin",
+                    "admin:repo_hook": "admin"
+                }
+            },
+            "features": {
+                "organization_restriction": "Restrict access to specific GitHub organization members",
+                "scope_mapping": "Maps GitHub scopes to MCP permissions",
+                "api_validation": "Uses GitHub API for token validation (not JWT)",
+                "hybrid_support": "Supports both OAuth tokens and GitHub App JWT tokens"
+            },
+            "setup_docs": "https://docs.github.com/en/developers/apps/building-oauth-apps"
         }
     }
 
@@ -647,6 +817,8 @@ __all__ = [
     "AUTH_AZURE_TENANT_ID",
     "AUTH_KEYCLOAK_REALM",
     "AUTH_OKTA_DOMAIN",
+    "AUTH_GITHUB_CLIENT_ID",
+    "AUTH_GITHUB_ORG",
     "JWT_AVAILABLE",
     "SCOPE_DEFINITIONS",
     "oauth_provider",

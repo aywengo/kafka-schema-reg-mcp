@@ -8,6 +8,7 @@ This guide provides step-by-step instructions for integrating the Kafka Schema R
 - **🟨 Google OAuth 2.0** - Google's identity and access management
 - **🟥 Keycloak** - Open-source identity and access management
 - **🟧 Okta** - Enterprise identity and access management
+- **⚫ GitHub OAuth** - GitHub's OAuth 2.0 and GitHub Apps authentication
 
 ## 🟦 Azure AD / Entra ID Integration
 
@@ -338,6 +339,181 @@ OKTA_CLIENT_SECRET=your_client_secret
 OKTA_DOMAIN=your-domain.okta.com
 ```
 
+## ⚫ GitHub OAuth Integration
+
+### Prerequisites
+- GitHub account or GitHub organization
+- Repository or organization admin permissions
+- GitHub OAuth App or GitHub App
+
+### Step 1: Create GitHub OAuth Application
+
+#### Using GitHub Web Interface
+
+1. Go to **GitHub** → **Settings** → **Developer settings** → **OAuth Apps**
+2. Click **New OAuth App**
+3. Fill in the application details:
+   - **Application name**: `Kafka Schema Registry MCP Server`
+   - **Homepage URL**: `https://your-mcp-server.com`
+   - **Authorization callback URL**: `https://your-mcp-server.com/auth/callback`
+4. Click **Register application**
+5. Note the **Client ID** and generate a **Client Secret**
+
+#### Using GitHub CLI
+
+```bash
+# Install GitHub CLI if not already installed
+# brew install gh  # macOS
+# sudo apt install gh  # Ubuntu
+
+# Login to GitHub
+gh auth login
+
+# Create OAuth app (requires manual creation via web interface)
+echo "Visit https://github.com/settings/applications/new to create OAuth app"
+```
+
+### Step 2: Configure Application Settings
+
+1. In your OAuth app settings, configure:
+   - **Client ID**: Copy this value
+   - **Client Secret**: Generate and copy this value
+   - **Callback URL**: `https://your-mcp-server.com/auth/callback`
+
+### Step 3: Set Scopes and Permissions
+
+For the MCP server, recommended scopes:
+- `read:user` - Read user profile information (maps to `read` permission)
+- `user:email` - Read user email address (maps to `read` permission)
+- `read:org` - Read organization membership (maps to `read` permission)
+- `repo` - Repository access for advanced features (maps to `write` permission)
+
+### Step 4: Configure MCP Server
+
+#### Helm Values Configuration
+
+```yaml
+# helm/values-github.yaml
+auth:
+  enabled: true
+  oauth2:
+    issuerUrl: "https://api.github.com"
+    validScopes: "read:user,user:email,read:org,repo"
+    defaultScopes: "read:user,user:email"
+    requiredScopes: "read:user"
+    clientRegistrationEnabled: true
+    revocationEnabled: true
+  createSecret:
+    enabled: true
+    clientId: "YOUR_GITHUB_CLIENT_ID"
+    clientSecret: "YOUR_GITHUB_CLIENT_SECRET"
+
+# GitHub-specific configuration
+github:
+  organization: "your-org-name"  # Optional: restrict to org members
+  scopes:
+    read: ["read:user", "user:email", "read:org"]
+    write: ["repo"]
+    admin: ["admin:org", "admin:repo_hook"]
+```
+
+#### Environment Variables
+
+```bash
+# .env file
+ENABLE_AUTH=true
+AUTH_PROVIDER=github
+AUTH_ISSUER_URL=https://api.github.com
+AUTH_AUDIENCE=your_github_client_id
+AUTH_VALID_SCOPES=read:user,user:email,read:org,repo
+AUTH_DEFAULT_SCOPES=read:user,user:email
+AUTH_REQUIRED_SCOPES=read:user
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
+GITHUB_ORG=your-organization  # Optional
+```
+
+### Step 5: Organization-Based Access Control (Optional)
+
+To restrict access to members of a specific GitHub organization:
+
+1. Set the `GITHUB_ORG` environment variable
+2. Ensure your OAuth app has `read:org` scope
+3. Users must be public members of the organization or grant organization access
+
+```bash
+# Restrict to organization members
+export GITHUB_ORG=my-company
+```
+
+### GitHub Apps Alternative
+
+For enhanced security, you can use GitHub Apps instead of OAuth Apps:
+
+#### Create GitHub App
+
+1. Go to **Organization Settings** → **Developer settings** → **GitHub Apps**
+2. Click **New GitHub App**
+3. Configure:
+   - **GitHub App name**: `MCP Schema Registry`
+   - **Homepage URL**: `https://your-mcp-server.com`
+   - **Callback URL**: `https://your-mcp-server.com/auth/callback`
+   - **Permissions**: 
+     - Repository permissions: `Metadata: Read`
+     - Organization permissions: `Members: Read`
+     - Account permissions: `Email addresses: Read`
+
+#### GitHub App Configuration
+
+```bash
+# .env file for GitHub Apps
+ENABLE_AUTH=true
+AUTH_PROVIDER=github
+GITHUB_APP_ID=your_app_id
+GITHUB_APP_PRIVATE_KEY_PATH=/path/to/private-key.pem
+GITHUB_APP_INSTALLATION_ID=your_installation_id
+```
+
+### GitHub Scope Mapping
+
+The MCP server maps GitHub scopes to internal permissions:
+
+| GitHub Scope | MCP Permission | Description |
+|--------------|----------------|-------------|
+| `read:user` | `read` | Read user profile information |
+| `user:email` | `read` | Access user email address |
+| `read:org` | `read` | Read organization membership |
+| `repo` | `write` | Repository access (implies schema write access) |
+| `admin:org` | `admin` | Organization administration |
+| `admin:repo_hook` | `admin` | Repository webhook administration |
+
+### Testing GitHub OAuth
+
+#### Test Token Validation
+
+```bash
+# Get GitHub personal access token for testing
+GITHUB_TOKEN="ghp_your_personal_access_token"
+
+# Test API access
+curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     https://api.github.com/user
+
+# Test with MCP server
+curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+     https://your-mcp-server.com/api/registries
+```
+
+#### Verify Organization Membership
+
+```bash
+# Check organization membership
+curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+     -H "Accept: application/vnd.github+json" \
+     https://api.github.com/user/orgs
+```
+
 ## 🔧 Advanced Configuration
 
 ### Custom Scopes Mapping
@@ -515,6 +691,8 @@ auth:
 - **Google OAuth**: [Google Identity Documentation](https://developers.google.com/identity)
 - **Keycloak**: [Keycloak Documentation](https://www.keycloak.org/documentation)
 - **Okta**: [Okta Developer Documentation](https://developer.okta.com/)
+- **GitHub OAuth**: [GitHub OAuth Apps Documentation](https://docs.github.com/en/developers/apps/building-oauth-apps)
+- **GitHub Apps**: [GitHub Apps Documentation](https://docs.github.com/en/developers/apps/building-github-apps)
 - **OAuth 2.0**: [RFC 6749](https://tools.ietf.org/html/rfc6749)
 - **OpenID Connect**: [OpenID Connect Specification](https://openid.net/connect/)
 
