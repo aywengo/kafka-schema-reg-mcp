@@ -4,7 +4,7 @@ mcp[cli]==1.9.3
 # Kafka Schema Registry integration
 requests==2.32.3
 python-dotenv==1.1.0
-aiohttp==3.9.3
+aiohttp==3.12.11
 
 # OAuth JWT validation dependencies
 PyJWT==2.8.0
