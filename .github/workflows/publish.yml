@@ -55,7 +55,7 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
       - name: Build and push multi-platform
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
