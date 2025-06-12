@@ -73,18 +73,19 @@ jobs:
       - name: Verify multi-platform build 
         run: |
           echo "Verifying multi-platform manifest..."
-          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} > manifest.txt
+          cat manifest.txt
           
           echo "Checking available platforms..."
-          docker run --rm mplatform/mquery aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} > platforms.txt
-          cat platforms.txt
-          
-          # Verify both platforms are present
-          if grep -q "amd64" platforms.txt && grep -q "arm64" platforms.txt; then
+          # Verify both platforms are present in the buildx inspect output
+          if grep -q "linux/amd64" manifest.txt && grep -q "linux/arm64" manifest.txt; then
             echo "✅ Multi-platform build verified: AMD64 and ARM64 both available"
+            echo "Available platforms:"
+            grep -E "Platform:\s+linux/(amd64|arm64)" manifest.txt
           else
             echo "❌ Multi-platform build failed: Missing platforms"
-            cat platforms.txt
+            echo "Found platforms:"
+            grep -E "Platform:\s+" manifest.txt || echo "No platforms found"
             exit 1
           fi
 
