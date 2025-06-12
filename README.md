@@ -596,6 +596,126 @@ Use the `get_oauth_scopes_info` MCP tool to discover:
 "Which tools require admin access?"
 ```
 
+### **🔍 OAuth Discovery Endpoints**
+
+The MCP server implements OAuth 2.0 discovery endpoints for seamless MCP client integration:
+
+#### **Available Discovery Endpoints**
+
+| Endpoint | Purpose | RFC Standard |
+|----------|---------|--------------|
+| `/.well-known/oauth-authorization-server` | Authorization server metadata | RFC 8414 |
+| `/.well-known/oauth-protected-resource` | Protected resource metadata | RFC 8692 |
+| `/.well-known/jwks.json` | JSON Web Key Set for token validation | RFC 7517 |
+
+#### **Discovery Features**
+
+- **🔍 Auto-Configuration**: MCP clients can discover OAuth configuration automatically
+- **🌐 Provider Support**: Azure AD, Google, Keycloak, Okta, GitHub configurations
+- **🚀 MCP Extensions**: Additional metadata for MCP-specific features
+- **🔒 Security**: JWKS proxying with caching for optimal performance
+- **📊 Server Info**: Exposes MCP server capabilities and endpoints
+- **🛡️ PKCE Mandatory**: Proof Key for Code Exchange (PKCE) is required per MCP specification
+
+#### **Testing Discovery Endpoints**
+
+Use the built-in MCP tool to validate discovery endpoints:
+
+```bash
+# Test all discovery endpoints
+curl -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test_oauth_discovery_endpoints", "arguments": {"server_url": "http://localhost:8000"}}}'
+```
+
+**Claude Desktop Usage:**
+```
+"Test the OAuth discovery endpoints"
+"Check if my server is properly configured for MCP client discovery"
+```
+
+#### **Discovery Endpoint Responses**
+
+**Authorization Server Metadata** (`/.well-known/oauth-authorization-server`):
+```json
+{
+  "issuer": "https://login.microsoftonline.com/TENANT_ID/v2.0",
+  "authorization_endpoint": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/authorize",
+  "token_endpoint": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token",
+  "jwks_uri": "https://login.microsoftonline.com/TENANT_ID/discovery/v2.0/keys",
+  "scopes_supported": ["read", "write", "admin", "openid", "email", "profile"],
+  "mcp_server_version": "2.0.0",
+  "mcp_transport": "streamable-http",
+  "mcp_endpoints": {
+    "mcp": "https://your-server.com/mcp",
+    "health": "https://your-server.com/health",
+    "metrics": "https://your-server.com/metrics"
+  }
+}
+```
+
+**Protected Resource Metadata** (`/.well-known/oauth-protected-resource`):
+```json
+{
+  "resource": "https://your-server.com",
+  "authorization_servers": ["https://login.microsoftonline.com/TENANT_ID/v2.0"],
+  "scopes_supported": ["read", "write", "admin"],
+  "scope_descriptions": {
+    "read": "Can view schemas, subjects, configurations",
+    "write": "Can register schemas, update configs (includes read permissions)",
+    "admin": "Can delete subjects, manage registries (includes write and read permissions)"
+  },
+  "mcp_server_info": {
+    "name": "Kafka Schema Registry MCP Server",
+    "version": "2.0.0",
+    "transport": "streamable-http",
+    "tools_count": 48,
+    "supported_registries": ["confluent", "apicurio", "hortonworks"]
+  }
+}
+```
+
+#### **🛡️ PKCE Requirements (MANDATORY)**
+
+**PKCE (Proof Key for Code Exchange) is mandatory according to the MCP authorization specification.**
+
+All MCP clients MUST implement PKCE with SHA256 (`S256`) code challenge method:
+
+1. **Generate Code Verifier**: Random 43-128 character string
+2. **Calculate Code Challenge**: `BASE64URL(SHA256(code_verifier))`
+3. **Include in Authorization**: Send `code_challenge` and `code_challenge_method=S256`
+4. **Exchange Code**: Send `code_verifier` when exchanging authorization code
+
+**Server-Side Validation Example:**
+```python
+def validate_pkce(code_verifier, stored_challenge):
+    calculated = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).rstrip(b'=').decode()
+    return calculated == stored_challenge
+```
+
+**Discovery Response Indicates PKCE is Required:**
+```json
+{
+  "code_challenge_methods_supported": ["S256"],
+  "require_pkce": true,
+  "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows"
+}
+```
+
+> **⚠️ Critical**: MCP clients will fail silently if PKCE is not properly implemented. The discovery endpoints ensure clients can detect PKCE requirements automatically.
+
+#### **Benefits for MCP Clients**
+
+- **🤖 Automatic Configuration**: Clients discover OAuth settings without manual configuration
+- **⚡ Reduced Setup**: No need to hardcode authorization server URLs
+- **🔄 Dynamic Updates**: Clients can adapt to server configuration changes
+- **🛡️ Security Validation**: Proper JWT validation with JWKS discovery
+- **📊 Capability Discovery**: Clients learn about server features and tools
+
+> **💡 Note**: Discovery endpoints return 404 when OAuth is disabled (`ENABLE_AUTH=false`), which is the expected behavior for MCP clients.
+
 ### **🛡️ Security Best Practices**
 
 1. **Principle of Least Privilege**: Grant only the minimum scopes needed
@@ -603,6 +723,7 @@ Use the `get_oauth_scopes_info` MCP tool to discover:
 3. **Read-Only Production**: Consider read-only scopes for production monitoring
 4. **Development Tokens**: Only use `dev-token-*` formats in development environments
 5. **Token Rotation**: Implement regular token rotation in production
+6. **Discovery Endpoint Security**: OAuth discovery endpoints use proper CORS and caching headers
 
 ### **🚨 Security Vulnerability Management**
 

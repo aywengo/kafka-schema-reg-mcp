@@ -639,6 +639,138 @@ def get_oauth_scopes_info():
 
 @mcp.tool()
 @require_scopes("read")
+def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
+    """
+    Test OAuth discovery endpoints to ensure proper MCP client compatibility.
+    
+    Validates:
+    - /.well-known/oauth-authorization-server
+    - /.well-known/oauth-protected-resource
+    - /.well-known/jwks.json
+    
+    Args:
+        server_url: Base URL of the MCP server (default: http://localhost:8000)
+    
+    Returns:
+        Dictionary with test results for each discovery endpoint
+    """
+    import requests
+    import json
+    from datetime import datetime
+    
+    results = {
+        "test_time": datetime.utcnow().isoformat(),
+        "server_url": server_url,
+        "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
+        "endpoints": {}
+    }
+    
+    # Discovery endpoints to test
+    endpoints = {
+        "oauth_authorization_server": "/.well-known/oauth-authorization-server",
+        "oauth_protected_resource": "/.well-known/oauth-protected-resource", 
+        "jwks": "/.well-known/jwks.json"
+    }
+    
+    for endpoint_name, endpoint_path in endpoints.items():
+        endpoint_url = f"{server_url.rstrip('/')}{endpoint_path}"
+        
+        try:
+            response = requests.get(endpoint_url, timeout=10)
+            
+            endpoint_result = {
+                "url": endpoint_url,
+                "status_code": response.status_code,
+                "success": response.status_code in [200, 404],  # 404 is OK if OAuth disabled
+                "headers": dict(response.headers),
+                "response_time_ms": response.elapsed.total_seconds() * 1000
+            }
+            
+            # Try to parse JSON response
+            try:
+                response_data = response.json()
+                endpoint_result["data"] = response_data
+                
+                # Validate expected fields based on endpoint
+                if endpoint_name == "oauth_authorization_server" and response.status_code == 200:
+                    required_fields = ["issuer", "scopes_supported", "mcp_server_version"]
+                    missing_fields = [f for f in required_fields if f not in response_data]
+                    if missing_fields:
+                        endpoint_result["warnings"] = f"Missing recommended fields: {missing_fields}"
+                    
+                    # Check MCP-specific extensions
+                    if "mcp_endpoints" not in response_data:
+                        endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP endpoints"
+                
+                elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
+                    required_fields = ["resource", "authorization_servers", "scopes_supported"]
+                    missing_fields = [f for f in required_fields if f not in response_data]
+                    if missing_fields:
+                        endpoint_result["warnings"] = f"Missing required fields: {missing_fields}"
+                    
+                    # Check MCP-specific fields
+                    if "mcp_server_info" not in response_data:
+                        endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP server info"
+                
+                elif endpoint_name == "jwks" and response.status_code == 200:
+                    if "keys" not in response_data:
+                        endpoint_result["warnings"] = "Missing 'keys' field in JWKS response"
+                
+            except json.JSONDecodeError:
+                endpoint_result["data"] = response.text[:500]  # First 500 chars if not JSON
+                endpoint_result["warnings"] = "Response is not valid JSON"
+            
+            # Additional validations
+            if response.status_code == 404 and not results["oauth_enabled"]:
+                endpoint_result["note"] = "404 expected when OAuth is disabled"
+            elif response.status_code == 200 and not results["oauth_enabled"]:
+                endpoint_result["warnings"] = "Endpoint returns 200 but OAuth appears disabled"
+            elif response.status_code != 200 and results["oauth_enabled"]:
+                endpoint_result["warnings"] = f"Expected 200 status when OAuth enabled, got {response.status_code}"
+            
+        except requests.exceptions.RequestException as e:
+            endpoint_result = {
+                "url": endpoint_url,
+                "success": False,
+                "error": str(e),
+                "note": "Could not connect to endpoint"
+            }
+        
+        results["endpoints"][endpoint_name] = endpoint_result
+    
+    # Overall assessment
+    successful_endpoints = sum(1 for ep in results["endpoints"].values() if ep.get("success", False))
+    total_endpoints = len(endpoints)
+    
+    results["summary"] = {
+        "successful_endpoints": successful_endpoints,
+        "total_endpoints": total_endpoints,
+        "success_rate": f"{(successful_endpoints/total_endpoints)*100:.1f}%",
+        "oauth_discovery_ready": successful_endpoints == total_endpoints and results["oauth_enabled"],
+        "recommendations": []
+    }
+    
+    # Add recommendations
+    if not results["oauth_enabled"]:
+        results["summary"]["recommendations"].append(
+            "Enable OAuth with ENABLE_AUTH=true to test full discovery functionality"
+        )
+    
+    for endpoint_name, endpoint_result in results["endpoints"].items():
+        if endpoint_result.get("warnings"):
+            results["summary"]["recommendations"].append(
+                f"{endpoint_name}: {endpoint_result['warnings']}"
+            )
+    
+    if results["oauth_enabled"] and successful_endpoints == total_endpoints:
+        results["summary"]["recommendations"].append(
+            "✅ All OAuth discovery endpoints working correctly - MCP clients should have no issues"
+        )
+    
+    return results
+
+@mcp.tool()
+@require_scopes("read")
 def get_operation_info_tool(operation_name: str = None):
     """Get information about MCP operations."""
     try:

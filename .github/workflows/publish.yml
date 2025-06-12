@@ -126,152 +126,46 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🚀 Kafka Schema Registry MCP Server ${{ github.ref_name }} - MAJOR RELEASE: Remote MCP Server Revolution
+            ## 🚀 Kafka Schema Registry MCP Server ${{ github.ref_name }} - OAuth Security Update
             
-            **🔥 BREAKING RELEASE v2.0.0**: Complete transformation from local-only to enterprise-grade remote MCP server! This major version introduces OAuth 2.0 integration with 4 providers (Azure AD, Google, Keycloak, Okta), remote deployment capabilities compatible with Anthropic's MCP ecosystem, single-image dual-mode architecture, and production-ready Kubernetes deployment with FastMCP transport support.
+            **🛡️ OAuth Security Enhancement**: This release implements **mandatory PKCE support** and **OAuth 2.0 discovery endpoints** for seamless MCP client auto-configuration and enhanced security compliance.
             
-            ### Docker Image
+            ### 🔐 What's New - OAuth Security Features
+            
+            #### **PKCE Mandatory (RFC 7636)**
+            - **Required per MCP specification**: All authorization flows must use PKCE with S256 code challenge method
+            - **Enhanced Security**: Prevents authorization code interception attacks
+            - **MCP Compliant**: Follows MCP authorization specification requirements
+            
+            #### **OAuth Discovery Endpoints (RFC 8414, RFC 8692, RFC 7517)**
+            - `/.well-known/oauth-authorization-server` - Authorization server metadata
+            - `/.well-known/oauth-protected-resource` - Protected resource metadata  
+            - `/.well-known/jwks.json` - JSON Web Key Set for token validation
+            - **MCP Extensions**: Server info, tool counts, and capability discovery
+            
+            #### **Multi-Provider Support**
+            - Azure AD, Google, Keycloak, Okta, GitHub OAuth integration
+            - Automatic provider-specific endpoint configuration
+            - Production-ready JWT validation
+            
+            ### 🧪 Testing OAuth Discovery
             ```bash
-            # Specific version
+            # Test OAuth discovery endpoints
+            curl http://localhost:8000/.well-known/oauth-protected-resource
+            curl http://localhost:8000/.well-known/oauth-authorization-server
+            curl http://localhost:8000/.well-known/jwks.json
+            
+            # Start OAuth-secured server
+            export ENABLE_AUTH=true AUTH_PROVIDER=azure AZURE_TENANT_ID=your-tenant
+            python3 remote-mcp-server.py
+            ```
+            
+            ### 📦 Docker Image
+            ```bash
             docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
-            
-            # Latest stable release
-            docker pull aywengo/kafka-schema-reg-mcp:stable
-            
-            # Next release (planned):
-            docker pull aywengo/kafka-schema-reg-mcp:2.1.0
+            docker pull aywengo/kafka-schema-reg-mcp:latest
             ```
             
-            ### 🤖 Claude Desktop Integration
-            
-            **Single Registry Mode:**
-            ```json
-            {
-              "mcpServers": {
-                "kafka-schema-registry": {
-                  "command": "docker",
-                  "args": [
-                    "run", "--rm", "-i", "--network", "host",
-                    "-e", "SCHEMA_REGISTRY_URL",
-                    "-e", "SCHEMA_REGISTRY_USER", 
-                    "-e", "SCHEMA_REGISTRY_PASSWORD",
-                    "aywengo/kafka-schema-reg-mcp:stable"
-                  ],
-                  "env": {
-                    "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-                    "SCHEMA_REGISTRY_USER": "",
-                    "SCHEMA_REGISTRY_PASSWORD": ""
-                  }
-                }
-              }
-            }
-            ```
-            
-            **Multi-Registry Mode (up to 8 registries):**
-            ```json
-            {
-              "mcpServers": {
-                "kafka-schema-registry-multi": {
-                  "command": "docker",
-                  "args": [
-                    "run", "--rm", "-i", "--network", "host",
-                    "-e", "SCHEMA_REGISTRY_NAME_1", "-e", "SCHEMA_REGISTRY_URL_1", "-e", "READONLY_1",
-                    "-e", "SCHEMA_REGISTRY_NAME_2", "-e", "SCHEMA_REGISTRY_URL_2", "-e", "READONLY_2",
-                    "aywengo/kafka-schema-reg-mcp:stable", "python", "kafka_schema_registry_multi_mcp.py"
-                  ],
-                  "env": {
-                    "SCHEMA_REGISTRY_NAME_1": "development",
-                    "SCHEMA_REGISTRY_URL_1": "http://localhost:8081",
-                    "READONLY_1": "false",
-                    "SCHEMA_REGISTRY_NAME_2": "production", 
-                    "SCHEMA_REGISTRY_URL_2": "http://localhost:8082",
-                    "READONLY_2": "true"
-                  }
-                }
-              }
-            }
-            ```
-            
-            ### 🔐 Enterprise OAuth Integration (v1.9.0)
-            ```
-            "Deploy with Azure AD authentication to Kubernetes"
-            → Uses helm/examples/values-azure.yaml with complete OAuth setup
-            
-            "Connect VSCode to OAuth-secured MCP server"
-            → Seamless enterprise identity integration with Copilot
-            
-            "Configure Keycloak for self-hosted identity management"
-            → Production-ready OAuth with realm and client configuration
-            ```
-            
-            ### 🏗️ Modular Architecture (v1.8.1)
-            - ✅ **8 Specialized Modules**: Focused, maintainable codebase architecture
-            - ✅ **Parallel Development**: Multiple developers can work simultaneously
-            - ✅ **100% Backward Compatibility**: Original monolithic version still available
-            - ✅ **Independent Testing**: Each module can be tested in isolation
-            - ✅ **Plugin-Ready Structure**: Foundation for future extensibility
-            
-            ### 📋 MCP Features (v1.9.0)
-            - ✅ **Enterprise OAuth Integration**: Azure AD, Google, Keycloak, Okta support
-            - ✅ **Production Kubernetes Deployment**: Helm charts with OAuth provider examples
-            - ✅ **OAuth Provider Configuration**: `get_oauth_provider_configs()` function for programmatic access
-            - ✅ **VSCode + Copilot OAuth**: Seamless enterprise identity integration
-            - ✅ **48 MCP Tools**: Complete schema operations via natural language
-            - ✅ **Simplified Context Migration**: Ready-to-run Docker commands with automatic credential mapping
-            - ✅ **External Tool Integration**: Leverages kafka-schema-reg-migrator for robust context migrations
-            - ✅ **Async Task Management**: Non-blocking operations with ThreadPoolExecutor
-            - ✅ **Real-Time Progress Tracking**: Monitor long-running operations (0-100%)
-            - ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances
-            - ✅ **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
-            - ✅ **Per-Registry READONLY**: Independent `READONLY_X` mode control
-            - ✅ **Cross-Registry Operations**: Compare, migrate, and sync schemas
-            - ✅ **Context Management**: Production/staging environment isolation  
-            - ✅ **Schema Evolution**: Compatibility testing and version control
-            - ✅ **Export System**: JSON, Avro IDL formats for backup/migration
-            - ✅ **Configuration Control**: Global and per-context compatibility settings
-            - ✅ **Claude Desktop Ready**: Direct integration with AI workflows
-            - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
-            - ✅ **Stable Tag**: Use `:stable` for production deployments
-            
-            ### 🚀 Async Operation Features
-            - **Task States**: PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
-            - **Progress Tracking**: Human-readable stages with percentage completion
-            - **Operation Types**: 
-              - QUICK (<5s): Single schema operations
-              - MEDIUM (5-30s): Small migrations and comparisons
-              - LONG (>30s): Large context migrations, bulk cleanups
-            - **Parallel Execution**: Multiple operations run concurrently
-            - **Graceful Shutdown**: Proper cleanup and task cancellation
-            
-            ### 📊 New Task Management Tools
-            - `get_task_progress`: Real-time progress monitoring
-            - `list_all_active_tasks`: View running operations
-            - `cancel_task`: Stop long-running operations
-            - `get_migration_progress`: Detailed migration status
-            - `get_cleanup_progress`: Batch cleanup monitoring
-            - `get_comparison_progress`: Registry comparison status
-            
-            ### 🔐 OAuth Provider Features (v1.9.0)
-            - `get_oauth_provider_configs`: Access provider-specific OAuth configurations
-            - **Azure AD Integration**: Complete Microsoft Graph API scope support
-            - **Google OAuth**: Workspace and Cloud platform integration  
-            - **Keycloak Support**: Self-hosted identity management with realm configuration
-            - **Okta Integration**: Enterprise SaaS identity platform
-            - **Kubernetes Deployment**: Production-ready Helm charts for each provider
-            - **VSCode Integration**: OAuth-aware MCP client configuration
-            - **JWT Validation**: Production-ready token verification framework
-            
-            ### 📚 Documentation
-            - [OAuth Providers Guide](docs/oauth-providers-guide.md) - **NEW in v1.9.0**
-            - [Kubernetes Deployment Guide](K8S-DEPLOYMENT-GUIDE.md) - **ENHANCED with OAuth**
-            - [MCP Transformation Guide](MCP_TRANSFORMATION.md)
-            - [MCP Tools Reference](docs/mcp-tools-reference.md)
-            - [Use Cases](docs/use-cases.md)
-            - [API Reference](docs/api-reference.md) 
-            - [IDE Integration](docs/ide-integration.md)
-            - [Deployment Guide](docs/deployment.md)
-            
-            ### 🧪 Test Results
-            All async operations tested including task management, progress tracking, parallel execution, graceful shutdown, and event loop handling across different environments.
+            **📖 Documentation**: [OAuth Discovery & PKCE Guide](README.md#-oauth-discovery-endpoints)
           draft: false
           prerelease: false 

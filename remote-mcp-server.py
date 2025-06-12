@@ -488,6 +488,249 @@ async def readiness_check(request):
             "error": str(e)
         }, status_code=503)
 
+@mcp.custom_route("/.well-known/oauth-authorization-server-custom", methods=["GET"])
+async def oauth_authorization_server_metadata(request):
+    """OAuth 2.0 Authorization Server Metadata (RFC 8414)."""
+    try:
+        from starlette.responses import JSONResponse
+        
+        # Only provide metadata if OAuth is enabled
+        if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
+            return JSONResponse({
+                "error": "OAuth not enabled"
+            }, status_code=404)
+        
+        # Get the server's base URL
+        host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
+        port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        base_url = f"{scheme}://{host}:{port}"
+        
+        # Get OAuth provider info
+        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        
+        # Provider-specific metadata
+        provider_configs = {
+            "azure": {
+                "issuer": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
+                "authorization_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/authorize",
+                "token_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/token",
+                "jwks_uri": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
+            },
+            "google": {
+                "issuer": "https://accounts.google.com",
+                "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+                "token_endpoint": "https://oauth2.googleapis.com/token",
+                "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
+            },
+            "okta": {
+                "issuer": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
+                "authorization_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/authorize",
+                "token_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/token",
+                "jwks_uri": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
+            },
+            "keycloak": {
+                "issuer": os.getenv("AUTH_ISSUER_URL", f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}"),
+                "authorization_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/auth",
+                "token_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/token",
+                "jwks_uri": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
+            },
+            "github": {
+                "issuer": "https://github.com",
+                "authorization_endpoint": "https://github.com/login/oauth/authorize",
+                "token_endpoint": "https://github.com/login/oauth/access_token",
+                "jwks_uri": "https://api.github.com/meta/public_keys/oauth",
+            }
+        }
+        
+        provider_config = provider_configs.get(auth_provider, {})
+        
+        metadata = {
+            "issuer": provider_config.get("issuer", base_url),
+            "authorization_endpoint": provider_config.get("authorization_endpoint"),
+            "token_endpoint": provider_config.get("token_endpoint"),
+            "jwks_uri": provider_config.get("jwks_uri"),
+            "scopes_supported": ["read", "write", "admin", "openid", "email", "profile"],
+            "response_types_supported": ["code", "token"],
+            "grant_types_supported": ["authorization_code", "client_credentials"],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+            "code_challenge_methods_supported": ["S256"],
+            "require_pkce": True,  # PKCE is mandatory per MCP specification
+            "subject_types_supported": ["public"],
+            "id_token_signing_alg_values_supported": ["RS256"],
+            "claims_supported": ["sub", "iss", "aud", "exp", "iat", "name", "email", "preferred_username", "groups"],
+            
+            # MCP-specific extensions
+            "mcp_server_version": "2.0.0",
+            "mcp_transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "mcp_endpoints": {
+                "mcp": f"{base_url}/mcp",
+                "health": f"{base_url}/health",
+                "metrics": f"{base_url}/metrics"
+            }
+        }
+        
+        # Remove None values
+        metadata = {k: v for k, v in metadata.items() if v is not None}
+        
+        return JSONResponse(metadata, headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=3600"
+        })
+        
+    except Exception as e:
+        logger.error(f"OAuth authorization server metadata error: {e}")
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "error": "Failed to generate OAuth metadata"
+        }, status_code=500)
+
+@mcp.custom_route("/.well-known/oauth-protected-resource", methods=["GET"])
+async def oauth_protected_resource_metadata(request):
+    """OAuth 2.0 Protected Resource Metadata (RFC 8692)."""
+    try:
+        from starlette.responses import JSONResponse
+        
+        # Only provide metadata if OAuth is enabled
+        if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
+            return JSONResponse({
+                "error": "OAuth not enabled"
+            }, status_code=404)
+        
+        # Get the server's base URL
+        host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
+        port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        base_url = f"{scheme}://{host}:{port}"
+        
+        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        
+        # Get authorization server URL
+        auth_server_configs = {
+            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
+            "google": "https://accounts.google.com",
+            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
+            "keycloak": os.getenv("AUTH_ISSUER_URL", f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}"),
+            "github": "https://github.com"
+        }
+        
+        authorization_server = auth_server_configs.get(auth_provider, base_url)
+        
+        metadata = {
+            "resource": base_url,
+            "authorization_servers": [authorization_server],
+            "jwks_uri": f"{base_url}/.well-known/jwks.json",
+            "bearer_methods_supported": ["header"],
+            "resource_documentation": f"{base_url}/docs",
+            
+            # Scopes and permissions
+            "scopes_supported": ["read", "write", "admin"],
+            "scope_descriptions": {
+                "read": "Can view schemas, subjects, configurations",
+                "write": "Can register schemas, update configs (includes read permissions)",
+                "admin": "Can delete subjects, manage registries (includes write and read permissions)"
+            },
+            
+            # MCP-specific resource information
+            "mcp_server_info": {
+                "name": "Kafka Schema Registry MCP Server",
+                "version": "2.0.0",
+                "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+                "tools_count": 48,
+                "supported_registries": ["confluent", "apicurio", "hortonworks"]
+            },
+            
+            # API endpoints that require OAuth
+            "protected_endpoints": {
+                "mcp": f"{base_url}/mcp",
+                "tools": f"{base_url}/mcp",
+                "resources": f"{base_url}/mcp"
+            },
+            
+            # Token validation info
+            "token_introspection_endpoint": f"{authorization_server}/introspect" if auth_provider != "github" else None,
+            "token_validation_methods": ["jwt", "introspection"] if auth_provider != "github" else ["api_validation"],
+            
+            # PKCE requirements (mandatory per MCP specification)
+            "require_pkce": True,
+            "pkce_code_challenge_methods": ["S256"],
+            "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows"
+        }
+        
+        # Remove None values
+        metadata = {k: v for k, v in metadata.items() if v is not None}
+        
+        return JSONResponse(metadata, headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=3600"
+        })
+        
+    except Exception as e:
+        logger.error(f"OAuth protected resource metadata error: {e}")
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "error": "Failed to generate protected resource metadata"
+        }, status_code=500)
+
+@mcp.custom_route("/.well-known/jwks.json", methods=["GET"])
+async def jwks_endpoint(request):
+    """JSON Web Key Set endpoint for token validation."""
+    try:
+        from starlette.responses import JSONResponse
+        
+        # Only provide JWKS if OAuth is enabled
+        if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
+            return JSONResponse({
+                "error": "OAuth not enabled"
+            }, status_code=404)
+        
+        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        
+        # For most providers, redirect to their JWKS endpoint
+        jwks_urls = {
+            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
+            "google": "https://www.googleapis.com/oauth2/v3/certs",
+            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
+            "keycloak": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
+            "github": "https://api.github.com/meta/public_keys/oauth"
+        }
+        
+        jwks_url = jwks_urls.get(auth_provider)
+        
+        if jwks_url:
+            # Proxy the request to the actual JWKS endpoint
+            import aiohttp
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(jwks_url, timeout=10) as response:
+                        if response.status == 200:
+                            jwks_data = await response.json()
+                            return JSONResponse(jwks_data, headers={
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*",
+                                "Cache-Control": "public, max-age=3600"
+                            })
+            except Exception:
+                pass
+        
+        # Fallback: return empty JWKS
+        return JSONResponse({
+            "keys": [],
+            "note": f"JWKS available at provider endpoint: {jwks_url}"
+        }, headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        })
+        
+    except Exception as e:
+        logger.error(f"JWKS endpoint error: {e}")
+        from starlette.responses import JSONResponse
+        return JSONResponse({
+            "keys": []
+        }, status_code=500)
+
 def main():
     """Run MCP server with remote transport configuration and monitoring."""
     
@@ -516,6 +759,10 @@ def main():
     logger.info(f"📊 Metrics URL: {metrics_url}")
     
     try:
+        # Set uvicorn environment variables for FastMCP
+        os.environ["UVICORN_HOST"] = host
+        os.environ["UVICORN_PORT"] = str(port)
+        
         if transport == "streamable-http":
             # Modern HTTP transport (recommended)
             mcp.run(transport="streamable-http")
