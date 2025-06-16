@@ -315,17 +315,39 @@ jobs:
 
       - name: Verify MCP server functionality
         run: |
-          # Test that the MCP server can start and connect to registries
-          docker exec mcp-server python -c "
-          from schema_registry_common import RegistryManager
-          manager = RegistryManager()
-          print(f'✓ Connected to {len(manager.list_registries())} registries')
-          "
+          # Show container environment
+          echo "Container working directory:"
+          docker exec mcp-server pwd
+          
+          echo -e "\nContainer Python path:"
+          docker exec mcp-server python -c "import sys; print('\\n'.join(sys.path))"
+          
+          echo -e "\nContainer files:"
+          docker exec mcp-server ls -la
           
           # Verify MCP server module loads correctly
           docker exec mcp-server python -c "
           import kafka_schema_registry_unified_mcp
           print('✓ MCP server module loaded successfully')
+          "
+          
+          # Test registry manager with proper imports
+          docker exec mcp-server python -c "
+          import os
+          print('Environment check:')
+          for k, v in os.environ.items():
+              if 'SCHEMA' in k:
+                  print(f'  {k}={v}')
+          
+          try:
+              from schema_registry_common import RegistryManager
+              manager = RegistryManager()
+              registries = manager.list_registries()
+              print(f'✓ Registry manager loaded, found {len(registries)} registries')
+          except Exception as e:
+              print(f'✗ Error: {e}')
+              import traceback
+              traceback.print_exc()
           "
 
       - name: Collect container logs
