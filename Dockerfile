@@ -1,5 +1,4 @@
 # Use a more recent base image with latest security patches
-# Using distroless or Alpine to minimize attack surface
 FROM python:3.13-slim-bookworm as builder
 
 # Build arguments for metadata and multi-platform support
@@ -53,23 +52,15 @@ LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
       org.opencontainers.image.url="https://github.com/aywengo/kafka-schema-reg-mcp" \
       org.opencontainers.image.documentation="https://github.com/aywengo/kafka-schema-reg-mcp#readme"
 
-# Critical security updates - explicitly update vulnerable packages
-# Fix for CVE issues in glibc, perl-base
-RUN apt-get update && apt-get upgrade -y && \
-    # Remove perl if not needed (fixes CPAN.pm TLS issue)
-    apt-get remove -y perl perl-base && \
-    # Update glibc to fix LD_LIBRARY_PATH vulnerability
-    apt-get install -y --only-upgrade \
-    libc6 \
-    libc-bin \
-    zlib1g \
-    zlib1g-dev \
-    libaom3 \
-    libaom-dev \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && find /var/log -type f -exec truncate -s 0 {} \;
+# Critical security updates - update all packages to get latest patches
+# This ensures we have the latest security fixes for glibc, perl, and other system packages
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get dist-upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    find /var/log -type f -exec truncate -s 0 {} \;
 
 # Create non-root user for security (before copying files)
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /bin/bash mcp
