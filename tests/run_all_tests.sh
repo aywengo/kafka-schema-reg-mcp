@@ -311,6 +311,7 @@ run_basic_tests() {
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
         "test_simple_python.py:Python environment validation"
+        "test_ssrf_vulnerability.py:SSRF vulnerability protection and URL validation"
     )
     
     run_test_list "${tests[@]}"
