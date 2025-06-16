@@ -6,21 +6,22 @@ Handles async task queue operations for long-running Schema Registry operations.
 Provides TaskStatus, TaskType, AsyncTask, and AsyncTaskManager classes.
 """
 
-import uuid
+import asyncio
+import atexit
+import inspect
+import logging
 import threading
 import time
-import asyncio
-import logging
-import inspect
-import atexit
-from datetime import datetime
-from typing import Dict, List, Optional, Union, Any, Tuple, Callable
-from dataclasses import dataclass
-from enum import Enum
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
 
 class TaskStatus(Enum):
     PENDING = "pending"
@@ -28,6 +29,7 @@ class TaskStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
 
 class TaskType(Enum):
     MIGRATION = "migration"
@@ -37,27 +39,32 @@ class TaskType(Enum):
     IMPORT = "import"
     STATISTICS = "statistics"
 
+
 class OperationDuration(Enum):
-    QUICK = "quick"        # < 5 seconds
-    MEDIUM = "medium"      # 5-30 seconds  
-    LONG = "long"          # > 30 seconds
+    QUICK = "quick"  # < 5 seconds
+    MEDIUM = "medium"  # 5-30 seconds
+    LONG = "long"  # > 30 seconds
+
 
 class AsyncPattern(Enum):
-    DIRECT = "direct"      # Direct async execution (blocks MCP client)
+    DIRECT = "direct"  # Direct async execution (blocks MCP client)
     TASK_QUEUE = "task_queue"  # Background task execution (non-blocking)
+
 
 # Operation metadata for MCP client guidance
 OPERATION_METADATA = {
     # Registry management operations
     "list_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_registry_info": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "test_registry_connection": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "test_registry_connection": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     "test_all_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "compare_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "set_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "check_readonly_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    
     # Subject and schema operations (all are quick)
     "get_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "list_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
@@ -66,53 +73,64 @@ OPERATION_METADATA = {
     "register_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "check_compatibility": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "delete_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    
     # Configuration operations (all are quick)
     "get_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "update_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "update_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    
     # Mode operations (all are quick)
     "get_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "update_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "get_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "update_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    
     # Long-running operations using task queue
     "migrate_context": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "migrate_schema": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
-    "clear_context_batch": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
-    "clear_multiple_contexts_batch": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "compare_contexts_across_registries": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    "compare_different_contexts": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
-    
+    "clear_context_batch": {
+        "duration": OperationDuration.MEDIUM,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
+    "clear_multiple_contexts_batch": {
+        "duration": OperationDuration.LONG,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
+    "compare_contexts_across_registries": {
+        "duration": OperationDuration.LONG,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
+    "compare_different_contexts": {
+        "duration": OperationDuration.LONG,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
     # Export operations
     "export_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "export_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "export_context": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
     "export_global": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
-    
     # Statistics operations (can be slow due to multiple API calls)
     "count_contexts": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     "count_schemas": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
     "count_schema_versions": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_registry_statistics": {"duration": OperationDuration.LONG, "pattern": AsyncPattern.TASK_QUEUE},
+    "get_registry_statistics": {
+        "duration": OperationDuration.LONG,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
 }
+
 
 def get_operation_info(operation_name: str, registry_mode: str) -> Dict[str, Any]:
     """Get operation metadata for MCP client guidance."""
-    metadata = OPERATION_METADATA.get(operation_name, {
-        "duration": OperationDuration.QUICK,
-        "pattern": AsyncPattern.DIRECT
-    })
+    metadata = OPERATION_METADATA.get(
+        operation_name, {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT}
+    )
     return {
         "operation": operation_name,
         "expected_duration": metadata["duration"].value,
         "async_pattern": metadata["pattern"].value,
         "guidance": _get_operation_guidance(metadata),
-        "registry_mode": registry_mode
+        "registry_mode": registry_mode,
     }
+
 
 def _get_operation_guidance(metadata: Dict[str, Any]) -> str:
     """Generate guidance text for operation."""
@@ -121,9 +139,11 @@ def _get_operation_guidance(metadata: Dict[str, Any]) -> str:
     else:
         return "Quick operation. Returns results directly."
 
+
 @dataclass
 class AsyncTask:
     """Represents an async task in the queue."""
+
     id: str
     type: TaskType
     status: TaskStatus
@@ -149,62 +169,55 @@ class AsyncTask:
             "progress": self.progress,
             "error": self.error,
             "result": self.result,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
+
 
 class AsyncTaskManager:
     """Manages async tasks and their execution."""
-    
+
     def __init__(self):
         self.tasks: Dict[str, AsyncTask] = {}
         self._executor = ThreadPoolExecutor(max_workers=10)
         self._lock = threading.Lock()
         self._shutdown = False
-    
+
     def create_task(
-        self,
-        task_type: TaskType,
-        metadata: Optional[Dict[str, Any]] = None
+        self, task_type: TaskType, metadata: Optional[Dict[str, Any]] = None
     ) -> AsyncTask:
         """Create a new async task."""
         if self._shutdown:
             raise RuntimeError("TaskManager is shutting down")
-            
+
         task_id = str(uuid.uuid4())
         task = AsyncTask(
             id=task_id,
             type=task_type,
             status=TaskStatus.PENDING,
             created_at=datetime.now().isoformat(),
-            metadata=metadata
+            metadata=metadata,
         )
-        
+
         with self._lock:
             self.tasks[task_id] = task
-        
+
         return task
-    
-    async def execute_task(
-        self,
-        task: AsyncTask,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> None:
+
+    async def execute_task(self, task: AsyncTask, func: Callable, *args, **kwargs) -> None:
         """Execute a task asynchronously."""
         if self._shutdown:
             task.status = TaskStatus.CANCELLED
             task.error = "TaskManager is shutting down"
             return
-            
+
         try:
             task.status = TaskStatus.RUNNING
             task.started_at = datetime.now().isoformat()
-            
+
             # Create future for the task
             loop = asyncio.get_event_loop()
             task._future = loop.create_future()
-            
+
             # Run the function in thread pool
             def run_in_thread():
                 try:
@@ -215,19 +228,13 @@ class AsyncTaskManager:
                         # Run coroutine in the event loop and get the result
                         result = asyncio.run_coroutine_threadsafe(result, loop).result()
                     if not task._cancelled and not self._shutdown:
-                        loop.call_soon_threadsafe(
-                            task._future.set_result,
-                            result
-                        )
+                        loop.call_soon_threadsafe(task._future.set_result, result)
                 except Exception as e:
                     if not task._cancelled and not self._shutdown:
-                        loop.call_soon_threadsafe(
-                            task._future.set_exception,
-                            e
-                        )
-            
+                        loop.call_soon_threadsafe(task._future.set_exception, e)
+
             self._executor.submit(run_in_thread)
-            
+
             # Wait for completion
             try:
                 result = await task._future
@@ -239,52 +246,50 @@ class AsyncTaskManager:
             except Exception as e:
                 task.status = TaskStatus.FAILED
                 task.error = str(e)
-            
+
         finally:
             task.completed_at = datetime.now().isoformat()
             task._future = None
-    
+
     def get_task(self, task_id: str) -> Optional[AsyncTask]:
         """Get task by ID."""
         return self.tasks.get(task_id)
-    
+
     def list_tasks(
-        self,
-        task_type: Optional[TaskType] = None,
-        status: Optional[TaskStatus] = None
+        self, task_type: Optional[TaskType] = None, status: Optional[TaskStatus] = None
     ) -> List[AsyncTask]:
         """List tasks with optional filtering."""
         with self._lock:
             tasks = list(self.tasks.values())
-        
+
         if task_type:
             tasks = [t for t in tasks if t.type == task_type]
         if status:
             tasks = [t for t in tasks if t.status == status]
-        
+
         return tasks
-    
+
     async def cancel_task(self, task_id: str) -> bool:
         """Cancel a running task."""
         task = self.get_task(task_id)
         if not task:
             return False
-        
+
         if task.status == TaskStatus.RUNNING and task._future:
             task._cancelled = True
             task._future.cancel()
             task.status = TaskStatus.CANCELLED
             task.completed_at = datetime.now().isoformat()
             return True
-        
+
         return False
-    
+
     def update_progress(self, task_id: str, progress: float) -> None:
         """Update task progress."""
         task = self.get_task(task_id)
         if task:
             task.progress = min(max(progress, 0.0), 100.0)
-    
+
     def reset_for_testing(self) -> None:
         """Reset task manager state for test isolation."""
         with self._lock:
@@ -298,10 +303,10 @@ class AsyncTaskManager:
                         pass  # Event loop might be closed
                     task.status = TaskStatus.CANCELLED
                     task.completed_at = datetime.now().isoformat()
-            
+
             # Clear all tasks
             self.tasks.clear()
-            
+
             # Reset the ThreadPoolExecutor to stop all background threads
             if self._executor:
                 try:
@@ -313,11 +318,11 @@ class AsyncTaskManager:
                         pass
                 # Create a new executor
                 self._executor = ThreadPoolExecutor(max_workers=10)
-    
+
     def shutdown_sync(self) -> None:
         """Synchronous shutdown for use in exit handlers."""
         self._shutdown = True
-        
+
         # Cancel all running tasks
         for task in self.list_tasks(status=TaskStatus.RUNNING):
             if task._future:
@@ -328,7 +333,7 @@ class AsyncTaskManager:
                     pass
                 task.status = TaskStatus.CANCELLED
                 task.completed_at = datetime.now().isoformat()
-        
+
         # Shutdown the executor
         if self._executor:
             try:
@@ -340,8 +345,10 @@ class AsyncTaskManager:
                     pass
             self._executor = None
 
+
 # Create global task manager instance
 task_manager = AsyncTaskManager()
+
 
 # Register cleanup handler
 def cleanup_task_manager():
@@ -349,4 +356,5 @@ def cleanup_task_manager():
     if task_manager:
         task_manager.shutdown_sync()
 
-atexit.register(cleanup_task_manager) 
+
+atexit.register(cleanup_task_manager)

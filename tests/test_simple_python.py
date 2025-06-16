@@ -10,10 +10,11 @@ print("1. Python is working")
 
 # Test 2: Standard library imports
 try:
-    import sys
-    import os
-    import json
     import asyncio
+    import json
+    import os
+    import sys
+
     print("2. ✅ Standard library imports successful")
     print(f"   Python version: {sys.version}")
     print(f"   Current directory: {os.getcwd()}")
@@ -23,7 +24,7 @@ except ImportError as e:
 # Test 3: Third-party dependencies
 dependencies = [
     "mcp",
-    "requests", 
+    "requests",
     "dotenv",
 ]
 
@@ -35,10 +36,7 @@ for dep in dependencies:
         print(f"3. ❌ {dep} not available: {e}")
 
 # Test 4: Check if MCP server files exist
-server_files = [
-    "kafka_schema_registry_unified_mcp.py",
-    "kafka_schema_registry_unified_mcp.py"
-]
+server_files = ["kafka_schema_registry_unified_mcp.py", "kafka_schema_registry_unified_mcp.py"]
 
 for file in server_files:
     if os.path.exists(file):
@@ -57,10 +55,11 @@ except Exception as e:
 # Test 6: Basic network test (this should work even without Schema Registry)
 try:
     import requests
+
     # Test with a simple URL that should always work
     response = requests.get("http://httpbin.org/status/200", timeout=5)
     print(f"6. ✅ Network requests working: {response.status_code}")
 except Exception as e:
     print(f"6. ⚠️ Network test failed: {e}")
 
-print("=== Test Complete ===") 
+print("=== Test Complete ===")

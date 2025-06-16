@@ -3,10 +3,12 @@
 Quick test script to verify Schema Registry connections
 """
 
-import os
-import requests
 import json
-from typing import Dict, Any
+import os
+from typing import Any, Dict
+
+import requests
+
 
 def test_registry_connection(url: str) -> Dict[str, Any]:
     """Test connection to a Schema Registry instance."""
@@ -18,20 +20,17 @@ def test_registry_connection(url: str) -> Dict[str, Any]:
                 "status": "connected",
                 "url": url,
                 "subjects_count": len(subjects),
-                "subjects": subjects[:5]  # Show first 5 subjects
+                "subjects": subjects[:5],  # Show first 5 subjects
             }
         else:
             return {
                 "status": "error",
                 "url": url,
-                "error": f"HTTP {response.status_code}: {response.text}"
+                "error": f"HTTP {response.status_code}: {response.text}",
             }
     except Exception as e:
-        return {
-            "status": "error",
-            "url": url,
-            "error": str(e)
-        }
+        return {"status": "error", "url": url, "error": str(e)}
+
 
 def main():
     # Test DEV registry
@@ -47,7 +46,10 @@ def main():
     # Print summary
     print("\nConnection Summary:")
     print(f"DEV Registry: {'✅ Connected' if dev_result['status'] == 'connected' else '❌ Failed'}")
-    print(f"PROD Registry: {'✅ Connected' if prod_result['status'] == 'connected' else '❌ Failed'}")
+    print(
+        f"PROD Registry: {'✅ Connected' if prod_result['status'] == 'connected' else '❌ Failed'}"
+    )
+
 
 if __name__ == "__main__":
-    main() 
+    main()

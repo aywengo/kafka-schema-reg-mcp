@@ -9,63 +9,91 @@ while read and export operations continue to work.
 import asyncio
 import os
 import sys
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # Add parent directory to Python path to find the main modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 async def test_readonly_mode():
     print("🔒 Testing READONLY mode functionality...")
     print("=" * 50)
-    
+
     # Test with READONLY=false first (normal mode)
     print("\n🟢 Testing NORMAL mode (READONLY=false)...")
     os.environ["READONLY"] = "false"
-    
+
     # Import the MCP server after setting environment
     import importlib
-    import schema_registry_common
+
     import kafka_schema_registry_unified_mcp
+    import schema_registry_common
+
     importlib.reload(schema_registry_common)
     importlib.reload(kafka_schema_registry_unified_mcp)
-    
+
     print(f"READONLY setting: {kafka_schema_registry_unified_mcp.READONLY}")
-    
+
     # Test with READONLY=true (readonly mode)
     print("\n🔴 Testing READONLY mode (READONLY=true)...")
     os.environ["READONLY"] = "true"
-    
+
     # Reload the modules to pick up new environment variable
     importlib.reload(schema_registry_common)
     importlib.reload(kafka_schema_registry_unified_mcp)
-    
+
     print(f"READONLY setting: {kafka_schema_registry_unified_mcp.READONLY}")
-    
+
     # Test the helper function directly
     readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode()
     if readonly_check:
         print("✅ READONLY check working:", readonly_check)
     else:
         print("❌ READONLY check failed - should return error in readonly mode")
-    
+
     # Test individual functions that should be blocked
     print("\n🧪 Testing blocked operations in READONLY mode...")
-    
+
     blocked_functions = [
-        ("register_schema", lambda: kafka_schema_registry_unified_mcp.register_schema(
-            "test-subject", {"type": "string"})),
-        ("create_context", lambda: kafka_schema_registry_unified_mcp.create_context("test-context")),
-        ("delete_context", lambda: kafka_schema_registry_unified_mcp.delete_context("test-context")),
-        ("delete_subject", lambda: asyncio.run(kafka_schema_registry_unified_mcp.delete_subject("test-subject"))),
-        ("update_global_config", lambda: kafka_schema_registry_unified_mcp.update_global_config("BACKWARD")),
-        ("update_subject_config", lambda: kafka_schema_registry_unified_mcp.update_subject_config(
-            "test-subject", "BACKWARD")),
+        (
+            "register_schema",
+            lambda: kafka_schema_registry_unified_mcp.register_schema(
+                "test-subject", {"type": "string"}
+            ),
+        ),
+        (
+            "create_context",
+            lambda: kafka_schema_registry_unified_mcp.create_context("test-context"),
+        ),
+        (
+            "delete_context",
+            lambda: kafka_schema_registry_unified_mcp.delete_context("test-context"),
+        ),
+        (
+            "delete_subject",
+            lambda: asyncio.run(kafka_schema_registry_unified_mcp.delete_subject("test-subject")),
+        ),
+        (
+            "update_global_config",
+            lambda: kafka_schema_registry_unified_mcp.update_global_config("BACKWARD"),
+        ),
+        (
+            "update_subject_config",
+            lambda: kafka_schema_registry_unified_mcp.update_subject_config(
+                "test-subject", "BACKWARD"
+            ),
+        ),
         ("update_mode", lambda: kafka_schema_registry_unified_mcp.update_mode("READONLY")),
-        ("update_subject_mode", lambda: kafka_schema_registry_unified_mcp.update_subject_mode(
-            "test-subject", "READONLY")),
+        (
+            "update_subject_mode",
+            lambda: kafka_schema_registry_unified_mcp.update_subject_mode(
+                "test-subject", "READONLY"
+            ),
+        ),
     ]
-    
+
     for func_name, func in blocked_functions:
         try:
             result = func()
@@ -75,17 +103,17 @@ async def test_readonly_mode():
                 print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result}")
         except Exception as e:
             print(f"⚠️  {func_name}: Exception occurred: {e}")
-    
+
     # Test functions that should still work (read-only operations)
     print("\n🧪 Testing allowed operations in READONLY mode...")
-    
+
     allowed_functions = [
         ("list_contexts", lambda: kafka_schema_registry_unified_mcp.list_contexts()),
         ("list_subjects", lambda: kafka_schema_registry_unified_mcp.list_subjects()),
         ("get_global_config", lambda: kafka_schema_registry_unified_mcp.get_global_config()),
         ("get_mode", lambda: kafka_schema_registry_unified_mcp.get_mode()),
     ]
-    
+
     for func_name, func in allowed_functions:
         try:
             result = func()
@@ -99,17 +127,23 @@ async def test_readonly_mode():
                 print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
             else:
                 print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
-    
+
     # Test export functions (should also be allowed)
     print("\n🧪 Testing export operations in READONLY mode...")
-    
+
     export_functions = [
         ("export_schema", lambda: kafka_schema_registry_unified_mcp.export_schema("test-subject")),
-        ("export_subject", lambda: kafka_schema_registry_unified_mcp.export_subject("test-subject")),
-        ("export_context", lambda: kafka_schema_registry_unified_mcp.export_context("test-context")),
+        (
+            "export_subject",
+            lambda: kafka_schema_registry_unified_mcp.export_subject("test-subject"),
+        ),
+        (
+            "export_context",
+            lambda: kafka_schema_registry_unified_mcp.export_context("test-context"),
+        ),
         ("export_global", lambda: kafka_schema_registry_unified_mcp.export_global()),
     ]
-    
+
     for func_name, func in export_functions:
         try:
             result = func()
@@ -122,12 +156,13 @@ async def test_readonly_mode():
                 print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
             else:
                 print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
-    
+
     # Test check_compatibility (should be allowed since it doesn't modify anything)
     print("\n🧪 Testing compatibility check in READONLY mode...")
     try:
         result = kafka_schema_registry_unified_mcp.check_compatibility(
-            "test-subject", {"type": "string"})
+            "test-subject", {"type": "string"}
+        )
         if isinstance(result, dict) and "readonly_mode" in result:
             print(f"❌ check_compatibility: Should NOT be blocked but was!")
         else:
@@ -137,26 +172,28 @@ async def test_readonly_mode():
             print(f"❌ check_compatibility: Incorrectly blocked by readonly mode")
         else:
             print(f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)")
-    
+
     print("\n" + "=" * 50)
     print("🎉 READONLY mode test completed!")
     print("\nSummary:")
     print("- Modification operations should be blocked ❌")
-    print("- Read operations should be allowed ✅") 
+    print("- Read operations should be allowed ✅")
     print("- Export operations should be allowed ✅")
     print("- Compatibility checks should be allowed ✅")
+
 
 async def test_readonly_environment_variations():
     """Test different ways to set READONLY=true"""
     print("\n🧪 Testing different READONLY environment variable values...")
-    
+
     import importlib
-    import schema_registry_common
+
     import kafka_schema_registry_unified_mcp
-    
+    import schema_registry_common
+
     test_values = [
         ("true", True),
-        ("TRUE", True), 
+        ("TRUE", True),
         ("True", True),
         ("1", True),
         ("yes", True),
@@ -171,7 +208,7 @@ async def test_readonly_environment_variations():
         ("", False),
         ("invalid", False),
     ]
-    
+
     for value, expected in test_values:
         os.environ["READONLY"] = value
         importlib.reload(schema_registry_common)
@@ -180,6 +217,7 @@ async def test_readonly_environment_variations():
         status = "✅" if actual == expected else "❌"
         print(f"{status} READONLY='{value}' → {actual} (expected: {expected})")
 
+
 if __name__ == "__main__":
     asyncio.run(test_readonly_mode())
-    asyncio.run(test_readonly_environment_variations()) 
+    asyncio.run(test_readonly_environment_variations())

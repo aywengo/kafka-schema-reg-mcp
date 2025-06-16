@@ -7,6 +7,7 @@ Claude Desktop for schema management tasks. Prompts provide guided workflows,
 examples, and best practices.
 """
 
+
 def get_schema_getting_started_prompt():
     """Getting started with Schema Registry operations"""
     return """# Getting Started with Schema Registry Guide
@@ -30,6 +31,7 @@ This guide will help you get started with essential schema operations. Here are 
 - **Export for backup**: "Export all schemas from production context"
 
 What would you like to do first?"""
+
 
 def get_schema_registration_prompt():
     """Guide for registering new schemas"""
@@ -62,6 +64,7 @@ I'll help you register a new schema. Here's what you need to know:
 3. **Event schema**: event_id, event_type, timestamp, payload
 
 What type of schema would you like to register?"""
+
 
 def get_context_management_prompt():
     """Guide for managing schema contexts"""
@@ -102,6 +105,7 @@ Contexts help organize schemas by environment, team, or purpose. Let me help you
 4. **Monitor**: Export for documentation and compliance
 
 Which context operation would you like to perform?"""
+
 
 def get_schema_export_prompt():
     """Guide for exporting schemas and documentation"""
@@ -147,6 +151,7 @@ I can help you export schemas for backup, documentation, migration, or complianc
 - **Structured output**: Ready for documentation tools or migration
 
 What would you like to export?"""
+
 
 def get_multi_registry_prompt():
     """Guide for multi-registry operations"""
@@ -194,6 +199,7 @@ I can help you manage multiple Schema Registry instances for different environme
 4. **Team coordination**: Compare team registries before merging
 
 Which multi-registry operation would you like to perform?"""
+
 
 def get_schema_compatibility_prompt():
     """Guide for schema compatibility and evolution"""
@@ -256,6 +262,7 @@ I'll help you understand and manage schema compatibility for safe evolution:
 - Test schema changes in development first
 
 What compatibility question can I help you with?"""
+
 
 def get_troubleshooting_prompt():
     """Troubleshooting guide for common issues"""
@@ -349,6 +356,7 @@ If you're still having issues:
 4. **Environment validation**: Ensure all components are properly configured
 
 What issue are you experiencing? I'll help you diagnose and resolve it."""
+
 
 def get_advanced_workflows_prompt():
     """Guide for complex Schema Registry workflows"""
@@ -469,6 +477,7 @@ I can help you implement sophisticated schema management workflows:
 
 Which advanced workflow would you like to implement?"""
 
+
 # Prompt registry mapping prompt names to their functions
 PROMPT_REGISTRY = {
     "schema-getting-started": get_schema_getting_started_prompt,
@@ -481,9 +490,11 @@ PROMPT_REGISTRY = {
     "advanced-workflows": get_advanced_workflows_prompt,
 }
 
+
 def get_all_prompt_names():
     """Get list of all available prompt names."""
     return list(PROMPT_REGISTRY.keys())
+
 
 def get_prompt_content(prompt_name: str):
     """Get the content for a specific prompt."""
@@ -491,6 +502,7 @@ def get_prompt_content(prompt_name: str):
         return PROMPT_REGISTRY[prompt_name]()
     else:
         return f"Prompt '{prompt_name}' not found. Available prompts: {', '.join(get_all_prompt_names())}"
+
 
 def get_prompt_summary():
     """Get a summary of all available prompts."""
@@ -501,6 +513,6 @@ def get_prompt_summary():
             "getting_started": ["schema-getting-started"],
             "basic_operations": ["schema-registration", "context-management"],
             "advanced_features": ["schema-export", "multi-registry", "schema-compatibility"],
-            "support": ["troubleshooting", "advanced-workflows"]
-        }
-    } 
+            "support": ["troubleshooting", "advanced-workflows"],
+        },
+    }

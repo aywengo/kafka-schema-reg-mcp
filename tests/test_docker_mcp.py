@@ -5,30 +5,32 @@ Test the MCP server running in Docker container
 
 import asyncio
 import json
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+
 async def test_docker_mcp_server():
     """Test the MCP server running in Docker."""
-    
+
     # Create server parameters to run via Docker
     server_params = StdioServerParameters(
         command="docker",
         args=[
-            "run", 
-            "--rm", 
+            "run",
+            "--rm",
             "-i",
-            "--network", "host",
-            "-e", "SCHEMA_REGISTRY_URL",
-            "kafka-schema-reg-mcp:test"
+            "--network",
+            "host",
+            "-e",
+            "SCHEMA_REGISTRY_URL",
+            "kafka-schema-reg-mcp:test",
         ],
-        env={
-            "SCHEMA_REGISTRY_URL": "http://localhost:38081"
-        }
+        env={"SCHEMA_REGISTRY_URL": "http://localhost:38081"},
     )
 
     print("🐳 Testing MCP server in Docker container...")
-    
+
     try:
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -61,5 +63,6 @@ async def test_docker_mcp_server():
         print(f"❌ Error during Docker test: {e}")
         raise
 
+
 if __name__ == "__main__":
-    asyncio.run(test_docker_mcp_server()) 
+    asyncio.run(test_docker_mcp_server())

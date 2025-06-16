@@ -6,14 +6,13 @@ Handles schema export operations in various formats.
 Provides schema, subject, context, and global export functionality.
 """
 
-from typing import Dict, List, Optional, Union, Any
-from schema_registry_common import (
-    get_default_client,
-    export_schema as common_export_schema,
-    export_subject as common_export_subject,
-    export_context as common_export_context,
-    export_global as common_export_global,
-)
+from typing import Any, Dict, List, Optional, Union
+
+from schema_registry_common import export_context as common_export_context
+from schema_registry_common import export_global as common_export_global
+from schema_registry_common import export_schema as common_export_schema
+from schema_registry_common import export_subject as common_export_subject
+from schema_registry_common import get_default_client
 
 
 def export_schema_tool(
@@ -273,9 +272,7 @@ def export_global_tool(
 
             result = {
                 "contexts": contexts_data,
-                "default_context": default_export
-                if "error" not in default_export
-                else None,
+                "default_context": default_export if "error" not in default_export else None,
                 "registry": client.config.name,
             }
 

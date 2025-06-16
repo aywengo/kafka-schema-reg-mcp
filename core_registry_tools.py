@@ -7,18 +7,25 @@ Provides schema, subject, configuration, and mode management functionality.
 """
 
 import json
-import requests
-from typing import Dict, List, Optional, Union, Any
-from schema_registry_common import check_readonly_mode as _check_readonly_mode
-import aiohttp
+from typing import Any, Dict, List, Optional, Union
 
-def build_context_url_legacy(base_url: str, schema_registry_url: str, context: Optional[str] = None) -> str:
+import aiohttp
+import requests
+
+from schema_registry_common import check_readonly_mode as _check_readonly_mode
+
+
+def build_context_url_legacy(
+    base_url: str, schema_registry_url: str, context: Optional[str] = None
+) -> str:
     """Build URL with optional context support (legacy function for single-registry mode)."""
     if context and context != ".":
         return f"{schema_registry_url}/contexts/{context}{base_url}"
     return f"{schema_registry_url}{base_url}"
 
+
 # ===== SCHEMA MANAGEMENT TOOLS =====
+
 
 def register_schema_tool(
     subject: str,
@@ -30,18 +37,18 @@ def register_schema_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Register a new schema version under the specified subject.
-    
+
     Args:
         subject: The subject name for the schema
         schema_definition: The schema definition as a dictionary
         schema_type: The schema type (AVRO, JSON, PROTOBUF)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing the schema ID
     """
@@ -49,23 +56,17 @@ def register_schema_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            payload = {
-                "schema": json.dumps(schema_definition),
-                "schemaType": schema_type
-            }
-            
-            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
-            
-            response = requests.post(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=headers
+            payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
+
+            url = build_context_url_legacy(
+                f"/subjects/{subject}/versions", schema_registry_url, context
             )
+
+            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -75,19 +76,13 @@ def register_schema_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
-            payload = {
-                "schema": json.dumps(schema_definition),
-                "schemaType": schema_type
-            }
-            
+
+            payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
+
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
-            
+
             response = requests.post(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers=client.headers
+                url, data=json.dumps(payload), auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             result = response.json()
@@ -96,6 +91,7 @@ def register_schema_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def get_schema_tool(
     subject: str,
@@ -106,30 +102,28 @@ def get_schema_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Get a specific version of a schema.
-    
+
     Args:
         subject: The subject name
         version: The schema version (default: latest)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing schema information
     """
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}/versions/{version}", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=headers
+            url = build_context_url_legacy(
+                f"/subjects/{subject}/versions/{version}", schema_registry_url, context
             )
+
+            response = requests.get(url, auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -139,14 +133,10 @@ def get_schema_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
-            
-            response = requests.get(
-                url,
-                auth=client.auth,
-                headers=client.headers
-            )
+
+            response = requests.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = client.config.name
@@ -154,6 +144,7 @@ def get_schema_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def get_schema_versions_tool(
     subject: str,
@@ -163,34 +154,32 @@ def get_schema_versions_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> List[int]:
     """
     Get all versions of a schema for a subject.
-    
+
     Args:
         subject: The subject name
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         List of version numbers
     """
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=headers
+            url = build_context_url_legacy(
+                f"/subjects/{subject}/versions", schema_registry_url, context
             )
-            
+
+            response = requests.get(url, auth=auth, headers=headers)
+
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
                 return []
-                
+
             response.raise_for_status()
             return response.json()
         else:
@@ -198,23 +187,20 @@ def get_schema_versions_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
-            
+
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
-            
-            response = requests.get(
-                url,
-                auth=client.auth,
-                headers=client.headers
-            )
-            
+
+            response = requests.get(url, auth=client.auth, headers=client.headers)
+
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
                 return []
-                
+
             response.raise_for_status()
             return response.json()
     except Exception as e:
         return {"error": str(e)}
+
 
 def list_subjects_tool(
     registry_manager,
@@ -223,15 +209,15 @@ def list_subjects_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> List[str]:
     """
     List all subjects, optionally filtered by context.
-    
+
     Args:
         context: Optional schema context to filter by
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         List of subject names
     """
@@ -239,12 +225,8 @@ def list_subjects_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/subjects", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=headers
-            )
+
+            response = requests.get(url, auth=auth, headers=headers)
             response.raise_for_status()
             return response.json()
         else:
@@ -252,10 +234,11 @@ def list_subjects_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
-            
+
             return client.get_subjects(context)
     except Exception as e:
         return {"error": str(e)}
+
 
 def check_compatibility_tool(
     subject: str,
@@ -267,37 +250,31 @@ def check_compatibility_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Check if a schema is compatible with the latest version.
-    
+
     Args:
         subject: The subject name
         schema_definition: The schema definition to check
         schema_type: The schema type (AVRO, JSON, PROTOBUF)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Compatibility check result
     """
     try:
-        payload = {
-            "schema": json.dumps(schema_definition),
-            "schemaType": schema_type
-        }
-        
+        payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
+
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/compatibility/subjects/{subject}/versions/latest", schema_registry_url, context)
-            
-            response = requests.post(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=headers
+            url = build_context_url_legacy(
+                f"/compatibility/subjects/{subject}/versions/latest", schema_registry_url, context
             )
+
+            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -307,14 +284,13 @@ def check_compatibility_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
-            url = client.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
-            
+
+            url = client.build_context_url(
+                f"/compatibility/subjects/{subject}/versions/latest", context
+            )
+
             response = requests.post(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers=client.headers
+                url, data=json.dumps(payload), auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             result = response.json()
@@ -324,7 +300,9 @@ def check_compatibility_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+
 # ===== CONFIGURATION MANAGEMENT TOOLS =====
+
 
 def get_global_config_tool(
     registry_manager,
@@ -333,15 +311,15 @@ def get_global_config_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Get global configuration settings.
-    
+
     Args:
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing configuration
     """
@@ -349,12 +327,8 @@ def get_global_config_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/config", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=standard_headers
-            )
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -364,13 +338,11 @@ def get_global_config_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url("/config", context)
-            
+
             response = requests.get(
-                url,
-                auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
             result = response.json()
@@ -379,6 +351,7 @@ def get_global_config_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def update_global_config_tool(
     compatibility: str,
@@ -388,16 +361,16 @@ def update_global_config_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Update global configuration settings.
-    
+
     Args:
         compatibility: Compatibility level (BACKWARD, FORWARD, FULL, NONE, etc.)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Updated configuration
     """
@@ -405,19 +378,16 @@ def update_global_config_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         payload = {"compatibility": compatibility}
-        
+
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/config", schema_registry_url, context)
-            
+
             response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=standard_headers
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
             )
             response.raise_for_status()
             result = response.json()
@@ -428,14 +398,14 @@ def update_global_config_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url("/config", context)
-            
+
             response = requests.put(
                 url,
                 data=json.dumps(payload),
                 auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             result = response.json()
@@ -445,6 +415,7 @@ def update_global_config_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+
 def get_subject_config_tool(
     subject: str,
     registry_manager,
@@ -453,16 +424,16 @@ def get_subject_config_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Get configuration settings for a specific subject.
-    
+
     Args:
         subject: The subject name
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing subject configuration
     """
@@ -470,12 +441,8 @@ def get_subject_config_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=standard_headers
-            )
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -485,13 +452,11 @@ def get_subject_config_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url(f"/config/{subject}", context)
-            
+
             response = requests.get(
-                url,
-                auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
             result = response.json()
@@ -500,6 +465,7 @@ def get_subject_config_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def update_subject_config_tool(
     subject: str,
@@ -510,17 +476,17 @@ def update_subject_config_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, Any]:
     """
     Update configuration settings for a specific subject.
-    
+
     Args:
         subject: The subject name
         compatibility: Compatibility level (BACKWARD, FORWARD, FULL, NONE, etc.)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Updated configuration
     """
@@ -528,19 +494,16 @@ def update_subject_config_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         payload = {"compatibility": compatibility}
-        
+
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
-            
+
             response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=standard_headers
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
             )
             response.raise_for_status()
             result = response.json()
@@ -551,14 +514,14 @@ def update_subject_config_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url(f"/config/{subject}", context)
-            
+
             response = requests.put(
                 url,
                 data=json.dumps(payload),
                 auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             result = response.json()
@@ -568,7 +531,9 @@ def update_subject_config_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+
 # ===== MODE MANAGEMENT TOOLS =====
+
 
 def get_mode_tool(
     registry_manager,
@@ -577,15 +542,15 @@ def get_mode_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Get the current mode of the Schema Registry.
-    
+
     Args:
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing the current mode
     """
@@ -593,12 +558,8 @@ def get_mode_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/mode", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=standard_headers
-            )
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -608,13 +569,11 @@ def get_mode_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url("/mode", context)
-            
+
             response = requests.get(
-                url,
-                auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
             result = response.json()
@@ -623,6 +582,7 @@ def get_mode_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def update_mode_tool(
     mode: str,
@@ -632,16 +592,16 @@ def update_mode_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Update the mode of the Schema Registry.
-    
+
     Args:
         mode: The mode to set (IMPORT, READONLY, READWRITE)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Updated mode information
     """
@@ -649,19 +609,16 @@ def update_mode_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         payload = {"mode": mode}
-        
+
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/mode", schema_registry_url, context)
-            
+
             response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=standard_headers
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
             )
             response.raise_for_status()
             result = response.json()
@@ -672,14 +629,14 @@ def update_mode_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url("/mode", context)
-            
+
             response = requests.put(
                 url,
                 data=json.dumps(payload),
                 auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             result = response.json()
@@ -689,6 +646,7 @@ def update_mode_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+
 def get_subject_mode_tool(
     subject: str,
     registry_manager,
@@ -697,16 +655,16 @@ def get_subject_mode_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Get the mode for a specific subject.
-    
+
     Args:
         subject: The subject name
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Dictionary containing the subject mode
     """
@@ -714,12 +672,8 @@ def get_subject_mode_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
-            
-            response = requests.get(
-                url,
-                auth=auth,
-                headers=standard_headers
-            )
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -729,13 +683,11 @@ def get_subject_mode_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url(f"/mode/{subject}", context)
-            
+
             response = requests.get(
-                url,
-                auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
             result = response.json()
@@ -744,6 +696,7 @@ def get_subject_mode_tool(
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def update_subject_mode_tool(
     subject: str,
@@ -754,17 +707,17 @@ def update_subject_mode_tool(
     registry: Optional[str] = None,
     auth=None,
     standard_headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Update the mode for a specific subject.
-    
+
     Args:
         subject: The subject name
         mode: The mode to set (IMPORT, READONLY, READWRITE)
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Updated mode information
     """
@@ -772,19 +725,16 @@ def update_subject_mode_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         payload = {"mode": mode}
-        
+
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
-            
+
             response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=auth,
-                headers=standard_headers
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
             )
             response.raise_for_status()
             result = response.json()
@@ -795,14 +745,14 @@ def update_subject_mode_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             url = client.build_context_url(f"/mode/{subject}", context)
-            
+
             response = requests.put(
                 url,
                 data=json.dumps(payload),
                 auth=client.auth,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json"},
             )
             response.raise_for_status()
             result = response.json()
@@ -812,7 +762,9 @@ def update_subject_mode_tool(
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
 
+
 # ===== CONTEXT AND SUBJECT MANAGEMENT =====
+
 
 def list_contexts_tool(
     registry_manager,
@@ -820,25 +772,21 @@ def list_contexts_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> List[str]:
     """
     List all available schema contexts.
-    
+
     Args:
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         List of context names
     """
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            response = requests.get(
-                f"{schema_registry_url}/contexts",
-                auth=auth,
-                headers=headers
-            )
+            response = requests.get(f"{schema_registry_url}/contexts", auth=auth, headers=headers)
             response.raise_for_status()
             return response.json()
         else:
@@ -846,10 +794,11 @@ def list_contexts_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
-            
+
             return client.get_contexts()
     except Exception as e:
         return {"error": str(e)}
+
 
 def create_context_tool(
     context: str,
@@ -858,15 +807,15 @@ def create_context_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Create a new schema context.
-    
+
     Args:
         context: The context name to create
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Success message
     """
@@ -874,36 +823,36 @@ def create_context_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             response = requests.post(
-                f"{schema_registry_url}/contexts/{context}",
-                auth=auth,
-                headers=headers
+                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
             )
             response.raise_for_status()
-            return {"message": f"Context '{context}' created successfully", "registry_mode": "single"}
+            return {
+                "message": f"Context '{context}' created successfully",
+                "registry_mode": "single",
+            }
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             response = requests.post(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             return {
                 "message": f"Context '{context}' created successfully",
                 "registry": client.config.name,
-                "registry_mode": "multi"
+                "registry_mode": "multi",
             }
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 def delete_context_tool(
     context: str,
@@ -912,15 +861,15 @@ def delete_context_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> Dict[str, str]:
     """
     Delete a schema context.
-    
+
     Args:
         context: The context name to delete
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         Success message
     """
@@ -928,36 +877,36 @@ def delete_context_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             response = requests.delete(
-                f"{schema_registry_url}/contexts/{context}",
-                auth=auth,
-                headers=headers
+                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
             )
             response.raise_for_status()
-            return {"message": f"Context '{context}' deleted successfully", "registry_mode": "single"}
+            return {
+                "message": f"Context '{context}' deleted successfully",
+                "registry_mode": "single",
+            }
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
-            
+
             response = requests.delete(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             return {
                 "message": f"Context '{context}' deleted successfully",
                 "registry": client.config.name,
-                "registry_mode": "multi"
+                "registry_mode": "multi",
             }
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
+
 
 async def delete_subject_tool(
     subject: str,
@@ -967,16 +916,16 @@ async def delete_subject_tool(
     registry: Optional[str] = None,
     auth=None,
     headers=None,
-    schema_registry_url: str = ""
+    schema_registry_url: str = "",
 ) -> List[int]:
     """
     Delete a subject and all its versions.
-    
+
     Args:
         subject: The subject name to delete
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
-    
+
     Returns:
         List of deleted version numbers
     """
@@ -984,17 +933,13 @@ async def delete_subject_tool(
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
         return readonly_check
-    
+
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(f"/subjects/{subject}", schema_registry_url, context)
-            
-            response = requests.delete(
-                url,
-                auth=auth,
-                headers=headers
-            )
+
+            response = requests.delete(url, auth=auth, headers=headers)
             response.raise_for_status()
             return response.json()
         else:
@@ -1002,16 +947,13 @@ async def delete_subject_tool(
             client = registry_manager.get_registry(registry)
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
-            
+
             url = client.build_context_url(f"/subjects/{subject}", context)
-            
+
             # Use aiohttp for async HTTP requests
             async with aiohttp.ClientSession() as session:
-                async with session.delete(
-                    url,
-                    headers=client.headers
-                ) as response:
+                async with session.delete(url, headers=client.headers) as response:
                     response.raise_for_status()
                     return await response.json()
     except Exception as e:
-        return {"error": str(e)} 
+        return {"error": str(e)}
