@@ -128,6 +128,48 @@ services:
     networks:
       - kafka-test-network
 
+  # MCP Server for testing MCP protocol integration
+  mcp-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: kafka-schema-registry-mcp:test
+    container_name: mcp-server
+    depends_on:
+      schema-registry-dev:
+        condition: service_healthy
+      schema-registry-prod:
+        condition: service_healthy
+    environment:
+      # Single registry mode (default for backward compatibility)
+      - SCHEMA_REGISTRY_URL=http://schema-registry-dev:8081
+      # Multi-registry mode configuration
+      - SCHEMA_REGISTRY_1_NAME=dev
+      - SCHEMA_REGISTRY_1_URL=http://schema-registry-dev:8081
+      - SCHEMA_REGISTRY_2_NAME=prod
+      - SCHEMA_REGISTRY_2_URL=http://schema-registry-prod:8082
+      # MCP configuration
+      - MCP_SERVER_NAME=kafka-schema-registry
+      - MCP_SERVER_VERSION=1.0.0
+      - PYTHONUNBUFFERED=1
+    networks:
+      - kafka-test-network
+    # Keep container running for MCP stdio communication
+    stdin_open: true
+    tty: true
+    # Override CMD to keep container running for testing
+    command: >
+      bash -c "
+        echo 'MCP Server container started. Ready for stdio communication.' &&
+        echo 'To test: docker exec -i mcp-server python kafka_schema_registry_unified_mcp.py' &&
+        tail -f /dev/null"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import kafka_schema_registry_unified_mcp; print('healthy')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # AKHQ UI for monitoring and management
   akhq:
     image: tchiotludo/akhq:0.25.1
