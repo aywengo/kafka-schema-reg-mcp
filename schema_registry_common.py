@@ -33,10 +33,10 @@ def validate_url(url: str) -> bool:
     try:
         parsed = urlparse(url)
         # Whitelist allowed protocols
-        if parsed.scheme not in ['http', 'https']:
+        if parsed.scheme not in ["http", "https"]:
             return False
         # Prevent internal network access
-        if parsed.hostname in ['localhost', '127.0.0.1', '0.0.0.0']:
+        if parsed.hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
             return False
         # Check for private IP ranges
         try:
@@ -89,7 +89,7 @@ class RegistryClient:
         # Validate the registry URL on initialization
         if not validate_url(config.url):
             raise ValueError(f"Invalid or unsafe registry URL: {config.url}")
-        
+
         self.config = config
         self.auth = None
         self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
@@ -108,11 +108,11 @@ class RegistryClient:
         # Validate base registry URL
         if not validate_url(self.config.url):
             raise ValueError("Invalid registry URL")
-        
+
         # Handle default context "." as no context
         if context and context != ".":
             # URL encode the context to prevent injection
-            safe_context = quote(context, safe='')
+            safe_context = quote(context, safe="")
             return f"{self.config.url}/contexts/{safe_context}{base_url}"
         return f"{self.config.url}{base_url}"
 
@@ -685,7 +685,9 @@ class LegacyRegistryManager(BaseRegistryManager):
                             url=config_data["url"],
                             user=config_data.get("user", ""),
                             password=config_data.get("password", ""),
-                            description=config_data.get("description", f"{name} registry"),
+                            description=config_data.get(
+                                "description", f"{name} registry"
+                            ),
                             readonly=config_data.get("readonly", False),
                         )
                         self.registries[name] = RegistryClient(config)
@@ -725,11 +727,11 @@ def build_context_url(
     # Validate the registry URL
     if not validate_url(registry_url):
         raise ValueError("Invalid registry URL")
-    
+
     # Handle default context "." as no context
     if context and context != ".":
         # URL encode the context to prevent injection
-        safe_context = quote(context, safe='')
+        safe_context = quote(context, safe="")
         return f"{registry_url}/contexts/{safe_context}{base_url}"
     return f"{registry_url}{base_url}"
 
@@ -1137,4 +1139,4 @@ def clear_context_batch(
         return result
 
     except Exception as e:
-        return {"error": f"Batch cleanup failed: {str(e)}"}
+        return {"error": f"Batch cleanup failed: {str(e)"}
