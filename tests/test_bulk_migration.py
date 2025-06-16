@@ -106,7 +106,9 @@ def test_test_bulk_migration():
                     print(f"   ✅ Created {subject}")
                 else:
                     failed_subjects.append(subject)
-                    print(f"   ❌ Failed to create {subject}: {create_response.status_code}")
+                    print(
+                        f"   ❌ Failed to create {subject}: {create_response.status_code}"
+                    )
                     # Print response details for debugging
                     try:
                         error_details = create_response.json()
@@ -185,15 +187,22 @@ def test_test_bulk_migration():
                     print(f"   ⚠️  {subject} migration blocked by read-only PROD")
                 else:
                     migration_results["failed"].append(
-                        {"subject": subject, "reason": f"HTTP {migrate_response.status_code}"}
+                        {
+                            "subject": subject,
+                            "reason": f"HTTP {migrate_response.status_code}",
+                        }
                     )
-                    print(f"   ❌ {subject} migration failed: {migrate_response.status_code}")
+                    print(
+                        f"   ❌ {subject} migration failed: {migrate_response.status_code}"
+                    )
 
                 # Small delay between migrations
                 time.sleep(0.1)
 
             except Exception as e:
-                migration_results["failed"].append({"subject": subject, "reason": str(e)})
+                migration_results["failed"].append(
+                    {"subject": subject, "reason": str(e)}
+                )
                 print(f"   ❌ {subject} migration error: {e}")
 
         # Summary of bulk migration
@@ -204,9 +213,13 @@ def test_test_bulk_migration():
         print(f"   Skipped (already exist): {len(migration_results['skipped'])}")
 
         # Calculate success rate
-        total_attempted = len(migration_results["successful"]) + len(migration_results["failed"])
+        total_attempted = len(migration_results["successful"]) + len(
+            migration_results["failed"]
+        )
         if total_attempted > 0:
-            success_rate = (len(migration_results["successful"]) / total_attempted) * 100
+            success_rate = (
+                len(migration_results["successful"]) / total_attempted
+            ) * 100
             print(f"   Success rate: {success_rate:.1f}%")
 
         # Show details for failed migrations
@@ -231,7 +244,9 @@ def test_test_bulk_migration():
             except Exception:
                 pass
 
-        print(f"   ✅ Validated {validation_count}/{min(3, len(created_subjects))} schemas in DEV")
+        print(
+            f"   ✅ Validated {validation_count}/{min(3, len(created_subjects))} schemas in DEV"
+        )
 
         print("✅ Bulk migration test completed successfully")
         return True

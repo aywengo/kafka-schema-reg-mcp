@@ -272,7 +272,9 @@ def export_global_tool(
 
             result = {
                 "contexts": contexts_data,
-                "default_context": default_export if "error" not in default_export else None,
+                "default_context": (
+                    default_export if "error" not in default_export else None
+                ),
                 "registry": client.config.name,
             }
 

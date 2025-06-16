@@ -51,7 +51,9 @@ def clear_context_batch_tool(
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
             if available_registries:
-                registry = available_registries[0]  # list_registries() returns list of strings
+                registry = available_registries[
+                    0
+                ]  # list_registries() returns list of strings
             else:
                 return {"error": "No registries available"}
 
@@ -158,7 +160,9 @@ def _execute_clear_context_batch(
         # Get registry client (registry is already resolved, never None here)
         registry_client = registry_manager.get_registry(registry)
 
-        update_progress(5.0, f"Starting cleanup of context '{context}' in registry '{registry}'")
+        update_progress(
+            5.0, f"Starting cleanup of context '{context}' in registry '{registry}'"
+        )
 
         if not registry_client:
             return {
@@ -263,7 +267,9 @@ def _execute_clear_context_batch(
 
         # Calculate metrics
         duration = time.time() - start_time
-        success_rate = (subjects_deleted / subjects_found * 100) if subjects_found > 0 else 100.0
+        success_rate = (
+            (subjects_deleted / subjects_found * 100) if subjects_found > 0 else 100.0
+        )
         performance = subjects_deleted / duration if duration > 0 else 0.0
 
         # Delete context if requested (not supported by Schema Registry API)
@@ -271,7 +277,9 @@ def _execute_clear_context_batch(
             context_deleted = False  # Context deletion not supported by API
             update_progress(95.0, "Context deletion not supported by API")
 
-        update_progress(100.0, f"Cleanup completed - deleted {subjects_deleted} subjects")
+        update_progress(
+            100.0, f"Cleanup completed - deleted {subjects_deleted} subjects"
+        )
 
         return {
             "subjects_found": subjects_found,
@@ -307,7 +315,9 @@ def _delete_subject_from_context(
     """Helper function to delete a subject from a context."""
     try:
         url = registry_client.build_context_url(f"/subjects/{subject}", context)
-        response = requests.delete(url, auth=registry_client.auth, headers=registry_client.headers)
+        response = requests.delete(
+            url, auth=registry_client.auth, headers=registry_client.headers
+        )
         return response.status_code in [200, 404]  # 404 is OK, subject already deleted
     except Exception:
         return False
@@ -342,7 +352,9 @@ def clear_multiple_contexts_batch_tool(
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
             if available_registries:
-                registry = available_registries[0]  # list_registries() returns list of strings
+                registry = available_registries[
+                    0
+                ]  # list_registries() returns list of strings
             else:
                 return {"error": "No registries available"}
 

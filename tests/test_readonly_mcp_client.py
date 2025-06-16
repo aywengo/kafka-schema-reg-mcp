@@ -129,7 +129,9 @@ async def test_readonly_with_mcp_client():
                             content = result.contents[0].text
                             info = json.loads(content)
                             readonly_status = info.get("readonly_mode", "unknown")
-                            print(f"✅ Server info shows readonly_mode: {readonly_status}")
+                            print(
+                                f"✅ Server info shows readonly_mode: {readonly_status}"
+                            )
                         break
 
             except Exception as e:

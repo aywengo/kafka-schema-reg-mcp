@@ -71,7 +71,10 @@ class AllVersionsMigrationTest:
         base_schema = {
             "type": "record",
             "name": "TestRecord",
-            "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "name", "type": "string"},
+            ],
         }
 
         # Create multiple versions
@@ -79,7 +82,9 @@ class AllVersionsMigrationTest:
             schema = copy.deepcopy(base_schema)
             # Add a new field for each version (ensure unique field name, and make it optional for compatibility)
             for j in range(i + 1):
-                schema["fields"].append({"name": f"field_{j}", "type": "string", "default": ""})
+                schema["fields"].append(
+                    {"name": f"field_{j}", "type": "string", "default": ""}
+                )
             # Register schema using the top-level function
             result = mcp_server.register_schema(
                 subject=subject,
@@ -89,7 +94,9 @@ class AllVersionsMigrationTest:
                 registry="dev",
             )
             if "error" in result:
-                raise Exception(f"Failed to register schema version {i+1}: {result['error']}")
+                raise Exception(
+                    f"Failed to register schema version {i+1}: {result['error']}"
+                )
             print(f"✓ Registered schema version {i+1}")
         return True
 
@@ -97,11 +104,15 @@ class AllVersionsMigrationTest:
         self, subject: str, registry: str, context: str, expected_versions: int
     ):
         """Verify that a schema has the expected number of versions."""
-        versions = mcp_server.get_schema_versions(subject, context=context, registry=registry)
+        versions = mcp_server.get_schema_versions(
+            subject, context=context, registry=registry
+        )
         if isinstance(versions, dict) and "error" in versions:
             raise Exception(f"Error getting versions: {versions['error']}")
         if len(versions) != expected_versions:
-            raise Exception(f"Expected {expected_versions} versions, got {len(versions)}")
+            raise Exception(
+                f"Expected {expected_versions} versions, got {len(versions)}"
+            )
         print(f"✓ Verified {len(versions)} versions in {registry} registry")
         return True
 
@@ -157,7 +168,9 @@ class AllVersionsMigrationTest:
                 task_status = await mcp_server.get_task_progress(result["task_id"])
 
                 if "error" in task_status:
-                    raise Exception(f"Failed to get task status: {task_status['error']}")
+                    raise Exception(
+                        f"Failed to get task status: {task_status['error']}"
+                    )
 
                 status = task_status.get("status", "")
                 progress = task_status.get("progress_percent", 0)
@@ -207,7 +220,9 @@ class AllVersionsMigrationTest:
                 except Exception as e:
                     # It's ok if subject doesn't exist
                     if "not found" not in str(e).lower():
-                        print(f"Warning: Failed to delete {subject} from {registry}: {str(e)}")
+                        print(
+                            f"Warning: Failed to delete {subject} from {registry}: {str(e)}"
+                        )
 
         return True
 

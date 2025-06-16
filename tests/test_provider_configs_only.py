@@ -64,10 +64,19 @@ def test_provider_configs():
         assert "read:org" in github["scopes"]
 
         # Test that all providers have required keys
-        required_keys = ["name", "issuer_url", "auth_url", "token_url", "scopes", "setup_docs"]
+        required_keys = [
+            "name",
+            "issuer_url",
+            "auth_url",
+            "token_url",
+            "scopes",
+            "setup_docs",
+        ]
         for provider_name, provider_config in configs.items():
             for key in required_keys:
-                assert key in provider_config, f"Provider {provider_name} missing key: {key}"
+                assert (
+                    key in provider_config
+                ), f"Provider {provider_name} missing key: {key}"
 
         print("✅ All provider configuration tests passed!")
         return True

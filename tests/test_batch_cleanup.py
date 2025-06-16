@@ -36,7 +36,9 @@ async def test_single_registry_batch_cleanup_helper():
             os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
         )
 
-        server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+        server_params = StdioServerParameters(
+            command="python", args=[server_script], env=env
+        )
 
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -48,7 +50,11 @@ async def test_single_registry_batch_cleanup_helper():
                 print(f"🔍 Testing dry run mode...")
                 dry_run_result = await session.call_tool(
                     "clear_context_batch",
-                    {"context": test_context, "delete_context_after": True, "dry_run": True},
+                    {
+                        "context": test_context,
+                        "delete_context_after": True,
+                        "dry_run": True,
+                    },
                 )
 
                 if dry_run_result.content and len(dry_run_result.content) > 0:
@@ -66,7 +72,11 @@ async def test_single_registry_batch_cleanup_helper():
                 print(f"\n🗑️  Testing actual batch cleanup...")
                 cleanup_result = await session.call_tool(
                     "clear_context_batch",
-                    {"context": test_context, "delete_context_after": True, "dry_run": False},
+                    {
+                        "context": test_context,
+                        "delete_context_after": True,
+                        "dry_run": False,
+                    },
                 )
 
                 if cleanup_result.content and len(cleanup_result.content) > 0:
@@ -105,7 +115,10 @@ async def test_single_registry_batch_cleanup():
                 "type": "record",
                 "name": "CleanupUser",
                 "namespace": "com.example.cleanup.test",
-                "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+                "fields": [
+                    {"name": "id", "type": "int"},
+                    {"name": "name", "type": "string"},
+                ],
             },
         },
         {
@@ -160,7 +173,9 @@ async def test_single_registry_batch_cleanup():
 
     try:
         # Run the async helper with timeout protection
-        result = await asyncio.wait_for(test_single_registry_batch_cleanup_helper(), timeout=30.0)
+        result = await asyncio.wait_for(
+            test_single_registry_batch_cleanup_helper(), timeout=30.0
+        )
         return result
 
     except asyncio.TimeoutError:
@@ -187,7 +202,9 @@ async def test_multi_registry_batch_cleanup_helper():
             os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
         )
 
-        server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+        server_params = StdioServerParameters(
+            command="python", args=[server_script], env=env
+        )
 
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -240,7 +257,10 @@ async def test_multi_registry_batch_cleanup():
         "type": "record",
         "name": "MultiCleanupTest",
         "namespace": "com.example.multi.cleanup",
-        "fields": [{"name": "id", "type": "string"}, {"name": "data", "type": "string"}],
+        "fields": [
+            {"name": "id", "type": "string"},
+            {"name": "data", "type": "string"},
+        ],
     }
 
     test_subject = "multi-cleanup-test"
@@ -261,7 +281,9 @@ async def test_multi_registry_batch_cleanup():
             print(f"❌ Failed to create test subject: {response.status_code}")
             return False
 
-        print(f"   ✅ Created {test_subject} in context '{test_context}' (DEV registry)")
+        print(
+            f"   ✅ Created {test_subject} in context '{test_context}' (DEV registry)"
+        )
 
     except Exception as e:
         print(f"❌ Error creating test subject: {e}")
@@ -272,7 +294,9 @@ async def test_multi_registry_batch_cleanup():
 
     try:
         # Run the async helper with timeout protection
-        result = await asyncio.wait_for(test_multi_registry_batch_cleanup_helper(), timeout=30.0)
+        result = await asyncio.wait_for(
+            test_multi_registry_batch_cleanup_helper(), timeout=30.0
+        )
         return result
 
     except asyncio.TimeoutError:

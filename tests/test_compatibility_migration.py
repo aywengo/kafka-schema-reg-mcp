@@ -131,11 +131,15 @@ def test_test_compatibility_migration():
         print("🔍 Testing compatibility levels...")
 
         # Get current compatibility level
-        compat_level_response = requests.get(f"{dev_url}/config/{test_subject}-value", timeout=5)
+        compat_level_response = requests.get(
+            f"{dev_url}/config/{test_subject}-value", timeout=5
+        )
 
         if compat_level_response.status_code == 200:
             level_data = compat_level_response.json()
-            print(f"✅ Compatibility level: {level_data.get('compatibilityLevel', 'BACKWARD')}")
+            print(
+                f"✅ Compatibility level: {level_data.get('compatibilityLevel', 'BACKWARD')}"
+            )
         elif compat_level_response.status_code == 404:
             # Get global compatibility level
             global_compat = requests.get(f"{dev_url}/config", timeout=5)
@@ -160,7 +164,8 @@ def test_test_compatibility_migration():
             # Test each version for migration compatibility
             for version in versions[-2:]:  # Test last 2 versions
                 version_response = requests.get(
-                    f"{dev_url}/subjects/{test_subject}-value/versions/{version}", timeout=5
+                    f"{dev_url}/subjects/{test_subject}-value/versions/{version}",
+                    timeout=5,
                 )
 
                 if version_response.status_code == 200:

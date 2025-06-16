@@ -31,8 +31,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import the unified MCP server
-from kafka_schema_registry_unified_mcp import (REGISTRY_MODE, mcp,
-                                               registry_manager)
+from kafka_schema_registry_unified_mcp import REGISTRY_MODE, mcp, registry_manager
 
 # Configure logging for remote deployment
 logging.basicConfig(
@@ -61,7 +60,9 @@ class RemoteMCPMetrics:
         self.registry_errors = defaultdict(int)  # registry -> error count
         self.registry_response_times = defaultdict(list)  # registry -> [response_times]
         self.schema_registrations = defaultdict(int)  # registry -> registration count
-        self.schema_compatibility_checks = defaultdict(int)  # registry -> compatibility checks
+        self.schema_compatibility_checks = defaultdict(
+            int
+        )  # registry -> compatibility checks
         self.schema_exports = defaultdict(int)  # registry -> export count
         self.context_operations = defaultdict(int)  # context -> operation count
 
@@ -89,7 +90,12 @@ class RemoteMCPMetrics:
         self.last_health_check = datetime.utcnow()
 
     def record_schema_operation(
-        self, operation: str, registry: str, duration: float, success: bool, context: str = None
+        self,
+        operation: str,
+        registry: str,
+        duration: float,
+        success: bool,
+        context: str = None,
     ):
         """Record schema registry operation metrics."""
         self.schema_operations[operation] += 1
@@ -132,7 +138,9 @@ class RemoteMCPMetrics:
 
                         # Count total schemas across all subjects
                         total_schemas = 0
-                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
+                        for subject in (subjects or [])[
+                            :50
+                        ]:  # Limit to first 50 for performance
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
@@ -287,7 +295,9 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.registry_errors.items():
-            metrics.append(f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}')
+            metrics.append(
+                f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}'
+            )
 
         metrics.extend(
             [
@@ -347,7 +357,9 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_exports.items():
-            metrics.append(f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}')
+            metrics.append(
+                f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}'
+            )
 
         # Current registry statistics (from cache)
         registry_stats = self.get_registry_stats()
@@ -401,7 +413,9 @@ class RemoteMCPMetrics:
 
         for registry, stats in registry_stats.items():
             status_value = 1 if stats.get("status") == "healthy" else 0
-            metrics.append(f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}')
+            metrics.append(
+                f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}'
+            )
 
         metrics.extend(
             [
@@ -476,7 +490,10 @@ async def health_check(request):
                             }
                             overall_healthy = False
                     except Exception as e:
-                        registry_health[registry_name] = {"status": "error", "error": str(e)}
+                        registry_health[registry_name] = {
+                            "status": "error",
+                            "error": str(e),
+                        }
                         overall_healthy = False
 
         except Exception as e:
@@ -508,7 +525,11 @@ async def health_check(request):
         from starlette.responses import JSONResponse
 
         return JSONResponse(
-            {"status": "unhealthy", "timestamp": datetime.utcnow().isoformat(), "error": str(e)},
+            {
+                "status": "unhealthy",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e),
+            },
             status_code=503,
         )
 
@@ -525,7 +546,9 @@ async def prometheus_metrics(request):
 
         from starlette.responses import Response
 
-        return Response(prometheus_output, media_type="text/plain; version=0.0.4; charset=utf-8")
+        return Response(
+            prometheus_output, media_type="text/plain; version=0.0.4; charset=utf-8"
+        )
 
     except Exception as e:
         logger.error(f"Metrics generation failed: {e}")
@@ -534,7 +557,9 @@ async def prometheus_metrics(request):
         from starlette.responses import Response
 
         return Response(
-            f"# Error generating metrics: {str(e)}\n", status_code=500, media_type="text/plain"
+            f"# Error generating metrics: {str(e)}\n",
+            status_code=500,
+            media_type="text/plain",
         )
 
 
@@ -570,7 +595,9 @@ async def oauth_authorization_server_metadata(request):
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        scheme = (
+            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        )
         base_url = f"{scheme}://{host}:{port}"
 
         # Get OAuth provider info
@@ -620,10 +647,20 @@ async def oauth_authorization_server_metadata(request):
             "authorization_endpoint": provider_config.get("authorization_endpoint"),
             "token_endpoint": provider_config.get("token_endpoint"),
             "jwks_uri": provider_config.get("jwks_uri"),
-            "scopes_supported": ["read", "write", "admin", "openid", "email", "profile"],
+            "scopes_supported": [
+                "read",
+                "write",
+                "admin",
+                "openid",
+                "email",
+                "profile",
+            ],
             "response_types_supported": ["code", "token"],
             "grant_types_supported": ["authorization_code", "client_credentials"],
-            "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+            "token_endpoint_auth_methods_supported": [
+                "client_secret_basic",
+                "client_secret_post",
+            ],
             "code_challenge_methods_supported": ["S256"],
             "require_pkce": True,  # PKCE is mandatory per MCP specification
             "subject_types_supported": ["public"],
@@ -665,7 +702,9 @@ async def oauth_authorization_server_metadata(request):
         logger.error(f"OAuth authorization server metadata error: {e}")
         from starlette.responses import JSONResponse
 
-        return JSONResponse({"error": "Failed to generate OAuth metadata"}, status_code=500)
+        return JSONResponse(
+            {"error": "Failed to generate OAuth metadata"}, status_code=500
+        )
 
 
 @mcp.custom_route("/.well-known/oauth-protected-resource", methods=["GET"])
@@ -681,7 +720,9 @@ async def oauth_protected_resource_metadata(request):
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        scheme = (
+            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
+        )
         base_url = f"{scheme}://{host}:{port}"
 
         auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
@@ -729,10 +770,14 @@ async def oauth_protected_resource_metadata(request):
             },
             # Token validation info
             "token_introspection_endpoint": (
-                f"{authorization_server}/introspect" if auth_provider != "github" else None
+                f"{authorization_server}/introspect"
+                if auth_provider != "github"
+                else None
             ),
             "token_validation_methods": (
-                ["jwt", "introspection"] if auth_provider != "github" else ["api_validation"]
+                ["jwt", "introspection"]
+                if auth_provider != "github"
+                else ["api_validation"]
             ),
             # PKCE requirements (mandatory per MCP specification)
             "require_pkce": True,
@@ -807,7 +852,10 @@ async def jwks_endpoint(request):
         # Fallback: return empty JWKS
         return JSONResponse(
             {"keys": [], "note": f"JWKS available at provider endpoint: {jwks_url}"},
-            headers={"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+            headers={
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
     except Exception as e:

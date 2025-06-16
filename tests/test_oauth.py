@@ -15,8 +15,11 @@ from typing import Any, Dict
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from oauth_provider import (ENABLE_AUTH, get_oauth_provider_configs,
-                            get_oauth_scopes_info)
+from oauth_provider import (
+    ENABLE_AUTH,
+    get_oauth_provider_configs,
+    get_oauth_scopes_info,
+)
 
 
 class OAuthTest:
@@ -72,7 +75,9 @@ class OAuthTest:
                 print(f"   ✅ {var}: {value}")
 
         if missing_vars:
-            print(f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}")
+            print(
+                f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}"
+            )
             # This is expected when OAuth is enabled but not fully configured
             return True
 
@@ -108,7 +113,9 @@ class OAuthTest:
 
                 for scope_key in required_scope_keys:
                     if scope_key not in scope_info:
-                        print(f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'")
+                        print(
+                            f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'"
+                        )
                         return False
 
                 print(
@@ -160,7 +167,9 @@ class OAuthTest:
                     if all(scope in actual_scopes for scope in expected_scopes):
                         print(f"   ✅ {tool}: {actual_scopes}")
                     else:
-                        print(f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}")
+                        print(
+                            f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}"
+                        )
                 else:
                     print(f"   ⚠️  Tool '{tool}' not found in scope definitions")
 
@@ -345,7 +354,9 @@ class OAuthTest:
                         "{keycloak-server}" not in config["issuer_url"]
                         or "{realm}" not in config["issuer_url"]
                     ):
-                        print("   ❌ Keycloak issuer URL doesn't contain expected placeholders")
+                        print(
+                            "   ❌ Keycloak issuer URL doesn't contain expected placeholders"
+                        )
                         return False
 
                     print("   ✅ Keycloak configuration is valid")
@@ -366,7 +377,9 @@ class OAuthTest:
 
                     # Check Okta URL patterns
                     if "{okta-domain}" not in config["issuer_url"]:
-                        print("   ❌ Okta issuer URL doesn't contain expected placeholders")
+                        print(
+                            "   ❌ Okta issuer URL doesn't contain expected placeholders"
+                        )
                         return False
 
                     print("   ✅ Okta configuration is valid")
@@ -377,7 +390,9 @@ class OAuthTest:
 
                 for scope in standard_scopes:
                     if scope not in config_scopes:
-                        print(f"   ❌ {provider} configuration missing standard scope: {scope}")
+                        print(
+                            f"   ❌ {provider} configuration missing standard scope: {scope}"
+                        )
                         return False
 
                 # Check that URLs are properly formatted
@@ -385,13 +400,17 @@ class OAuthTest:
                 for url_key in url_keys:
                     url = config[url_key]
                     if not url.startswith("https://"):
-                        print(f"   ❌ {provider} {url_key} should start with https://: {url}")
+                        print(
+                            f"   ❌ {provider} {url_key} should start with https://: {url}"
+                        )
                         return False
 
                 # Check that setup docs URL is valid
                 setup_docs = config["setup_docs"]
                 if not setup_docs.startswith("https://"):
-                    print(f"   ❌ {provider} setup_docs should start with https://: {setup_docs}")
+                    print(
+                        f"   ❌ {provider} setup_docs should start with https://: {setup_docs}"
+                    )
                     return False
 
             print("   ✅ All provider configurations are valid")

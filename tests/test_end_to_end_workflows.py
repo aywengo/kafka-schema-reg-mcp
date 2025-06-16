@@ -91,7 +91,9 @@ async def test_schema_evolution_workflow():
     env["READONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
-    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38081"  # Same registry, different contexts
+    env["SCHEMA_REGISTRY_URL_2"] = (
+        "http://localhost:38081"  # Same registry, different contexts
+    )
     env["READONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
@@ -152,9 +154,12 @@ async def test_schema_evolution_workflow():
                 # Step 4: Get all versions
                 print("\nStep 4: Get all schema versions")
                 result = await session.call_tool(
-                    "get_schema_versions", {"subject": "user-events", "registry": "development"}
+                    "get_schema_versions",
+                    {"subject": "user-events", "registry": "development"},
                 )
-                print(f"✅ Versions: {result.content[0].text if result.content else 'Success'}")
+                print(
+                    f"✅ Versions: {result.content[0].text if result.content else 'Success'}"
+                )
 
                 # Step 5: Migrate latest schema to staging
                 print("\nStep 5: Migrate schema from development to staging")
@@ -167,7 +172,9 @@ async def test_schema_evolution_workflow():
                         "dry_run": False,
                     },
                 )
-                print(f"✅ Migration: {result.content[0].text if result.content else 'Success'}")
+                print(
+                    f"✅ Migration: {result.content[0].text if result.content else 'Success'}"
+                )
 
                 # Step 6: Compare development and staging
                 print("\nStep 6: Compare development and staging registries")
@@ -175,7 +182,9 @@ async def test_schema_evolution_workflow():
                     "compare_registries",
                     {"source_registry": "development", "target_registry": "staging"},
                 )
-                print(f"✅ Comparison: {result.content[0].text if result.content else 'Success'}")
+                print(
+                    f"✅ Comparison: {result.content[0].text if result.content else 'Success'}"
+                )
 
                 # Step 7: Try to migrate to production (should fail due to readonly)
                 print("\nStep 7: Try to migrate to production (should fail)")
@@ -253,7 +262,9 @@ async def test_multi_schema_deployment_workflow():
 
                 # Step 2: List all subjects in development
                 print("\nStep 2: List all subjects in development")
-                result = await session.call_tool("list_subjects", {"registry": "development"})
+                result = await session.call_tool(
+                    "list_subjects", {"registry": "development"}
+                )
                 subjects = json.loads(result.content[0].text) if result.content else []
                 print(f"  ✅ Found {len(subjects)} subjects: {subjects}")
 
@@ -287,14 +298,20 @@ async def test_multi_schema_deployment_workflow():
                     "compare_registries",
                     {"source_registry": "development", "target_registry": "staging"},
                 )
-                comparison = json.loads(result.content[0].text) if result.content else {}
-                missing_count = len(comparison.get("subjects", {}).get("target_only", []))
+                comparison = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
+                missing_count = len(
+                    comparison.get("subjects", {}).get("target_only", [])
+                )
                 print(f"  ✅ Schemas missing in staging: {missing_count}")
 
                 # Step 6: List migration history
                 print("\nStep 6: Check migration history")
                 result = await session.call_tool("list_migrations", {})
-                migrations = json.loads(result.content[0].text) if result.content else []
+                migrations = (
+                    json.loads(result.content[0].text) if result.content else []
+                )
                 print(f"  ✅ Total migrations: {len(migrations)}")
 
                 print("\n🎉 Multi-Schema Deployment Workflow Complete!")
@@ -335,8 +352,12 @@ async def test_context_management_workflow():
 
                 # Step 1: List existing contexts
                 print("Step 1: List existing contexts")
-                result = await session.call_tool("list_contexts", {"registry": "primary"})
-                initial_contexts = json.loads(result.content[0].text) if result.content else []
+                result = await session.call_tool(
+                    "list_contexts", {"registry": "primary"}
+                )
+                initial_contexts = (
+                    json.loads(result.content[0].text) if result.content else []
+                )
                 print(f"  ✅ Initial contexts: {initial_contexts}")
 
                 # Step 2: Create new contexts
@@ -375,7 +396,9 @@ async def test_context_management_workflow():
                     result = await session.call_tool(
                         "list_subjects", {"context": context, "registry": "primary"}
                     )
-                    subjects = json.loads(result.content[0].text) if result.content else []
+                    subjects = (
+                        json.loads(result.content[0].text) if result.content else []
+                    )
                     print(f"  ✅ {context} context: {len(subjects)} subjects")
 
                 # Step 5: Get and update configurations per context
@@ -392,7 +415,11 @@ async def test_context_management_workflow():
                     # Update config
                     result = await session.call_tool(
                         "update_global_config",
-                        {"compatibility": "FORWARD", "context": context, "registry": "primary"},
+                        {
+                            "compatibility": "FORWARD",
+                            "context": context,
+                            "registry": "primary",
+                        },
                     )
                     print(f"  ✅ Updated config for {context}")
 
@@ -442,16 +469,23 @@ async def test_configuration_management_workflow():
 
                 # Step 1: Get initial global configuration
                 print("Step 1: Get initial global configuration")
-                result = await session.call_tool("get_global_config", {"registry": "config_test"})
-                initial_config = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Initial compatibility: {initial_config.get('compatibility', 'N/A')}")
+                result = await session.call_tool(
+                    "get_global_config", {"registry": "config_test"}
+                )
+                initial_config = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
+                print(
+                    f"  ✅ Initial compatibility: {initial_config.get('compatibility', 'N/A')}"
+                )
 
                 # Step 2: Test different compatibility levels
                 print("\nStep 2: Test different compatibility levels")
                 compatibility_levels = ["BACKWARD", "FORWARD", "FULL", "NONE"]
                 for level in compatibility_levels:
                     result = await session.call_tool(
-                        "update_global_config", {"compatibility": level, "registry": "config_test"}
+                        "update_global_config",
+                        {"compatibility": level, "registry": "config_test"},
                     )
                     print(f"  ✅ Set compatibility to {level}")
 
@@ -459,7 +493,9 @@ async def test_configuration_management_workflow():
                     result = await session.call_tool(
                         "get_global_config", {"registry": "config_test"}
                     )
-                    current_config = json.loads(result.content[0].text) if result.content else {}
+                    current_config = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
                     current_level = current_config.get("compatibility", "N/A")
                     print(f"  ✅ Verified: {current_level}")
 
@@ -497,8 +533,12 @@ async def test_configuration_management_workflow():
 
                 # Step 5: Test mode management
                 print("\nStep 5: Test mode management")
-                result = await session.call_tool("get_mode", {"registry": "config_test"})
-                initial_mode = json.loads(result.content[0].text) if result.content else {}
+                result = await session.call_tool(
+                    "get_mode", {"registry": "config_test"}
+                )
+                initial_mode = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
                 print(f"  ✅ Initial mode: {initial_mode.get('mode', 'N/A')}")
 
                 # Test different modes

@@ -512,7 +512,11 @@ def get_prompt_summary():
         "categories": {
             "getting_started": ["schema-getting-started"],
             "basic_operations": ["schema-registration", "context-management"],
-            "advanced_features": ["schema-export", "multi-registry", "schema-compatibility"],
+            "advanced_features": [
+                "schema-export",
+                "multi-registry",
+                "schema-compatibility",
+            ],
             "support": ["troubleshooting", "advanced-workflows"],
         },
     }

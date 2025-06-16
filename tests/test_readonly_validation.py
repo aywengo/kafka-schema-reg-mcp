@@ -52,7 +52,9 @@ def test_test_readonly_validation():
         )
 
         # Check that we have both registries
-        registry_names = [r.get("name") for r in registries if isinstance(r, dict) and "name" in r]
+        registry_names = [
+            r.get("name") for r in registries if isinstance(r, dict) and "name" in r
+        ]
         if "development" not in registry_names or "production" not in registry_names:
             print(
                 f"   ❌ Expected both 'development' and 'production' registries, got: {registry_names}"
@@ -66,14 +68,18 @@ def test_test_readonly_validation():
 
         # Test DEV registry read operations (should work)
         try:
-            dev_subjects = kafka_schema_registry_unified_mcp.list_subjects(registry="development")
+            dev_subjects = kafka_schema_registry_unified_mcp.list_subjects(
+                registry="development"
+            )
             print(f"   ✅ DEV read operations: Working")
         except Exception as e:
             print(f"   ⚠️  DEV read failed (connection issue): {e}")
 
         # Test PROD registry read operations (should work)
         try:
-            prod_subjects = kafka_schema_registry_unified_mcp.list_subjects(registry="production")
+            prod_subjects = kafka_schema_registry_unified_mcp.list_subjects(
+                registry="production"
+            )
             print(f"   ✅ PROD read operations: Working")
         except Exception as e:
             print(f"   ⚠️  PROD read failed (connection issue): {e}")
@@ -84,12 +90,17 @@ def test_test_readonly_validation():
         test_schema = {
             "type": "record",
             "name": "ReadOnlyTestSchema",
-            "fields": [{"name": "id", "type": "int"}, {"name": "message", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "message", "type": "string"},
+            ],
         }
 
         # Try to register schema in DEV (should succeed or fail due to connection, not readonly)
         dev_result = kafka_schema_registry_unified_mcp.register_schema(
-            subject="readonly-test-value", schema_definition=test_schema, registry="development"
+            subject="readonly-test-value",
+            schema_definition=test_schema,
+            registry="development",
         )
 
         if isinstance(dev_result, dict) and dev_result.get("readonly_mode"):
@@ -103,7 +114,9 @@ def test_test_readonly_validation():
 
         # Try to register schema in PROD (should be blocked by readonly mode)
         prod_result = kafka_schema_registry_unified_mcp.register_schema(
-            subject="readonly-test-value", schema_definition=test_schema, registry="production"
+            subject="readonly-test-value",
+            schema_definition=test_schema,
+            registry="production",
         )
 
         if isinstance(prod_result, dict) and prod_result.get("readonly_mode"):
@@ -111,7 +124,9 @@ def test_test_readonly_validation():
                 f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}"
             )
         else:
-            print(f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}")
+            print(
+                f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}"
+            )
             return False
 
         # Test 5: Test other modification operations on PROD
@@ -155,7 +170,9 @@ def test_test_readonly_validation():
             compatibility="BACKWARD", registry="development"
         )
 
-        if isinstance(dev_config_result, dict) and dev_config_result.get("readonly_mode"):
+        if isinstance(dev_config_result, dict) and dev_config_result.get(
+            "readonly_mode"
+        ):
             print(f"   ❌ DEV config update incorrectly blocked: {dev_config_result}")
             return False
         else:
@@ -181,13 +198,19 @@ def test_test_readonly_validation():
         print("\n🔍 Testing per-registry read-only configuration...")
 
         # Test the check_readonly_mode function directly
-        dev_readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode("development")
-        prod_readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode("production")
+        dev_readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode(
+            "development"
+        )
+        prod_readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode(
+            "production"
+        )
 
         if dev_readonly_check is None:
             print(f"   ✅ DEV registry readonly check: Not in readonly mode")
         else:
-            print(f"   ❌ DEV registry incorrectly in readonly mode: {dev_readonly_check}")
+            print(
+                f"   ❌ DEV registry incorrectly in readonly mode: {dev_readonly_check}"
+            )
             return False
 
         if prod_readonly_check is not None and prod_readonly_check.get("readonly_mode"):

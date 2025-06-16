@@ -30,7 +30,9 @@ class OAuthDiscoveryTest:
     def __init__(self):
         self.test_results = []
         self.server_process = None
-        self.server_url = "http://localhost:8899"  # Use different port to avoid conflicts
+        self.server_url = (
+            "http://localhost:8899"  # Use different port to avoid conflicts
+        )
 
     def run_test(self, test_name: str, test_func):
         """Run a single test and track results."""
@@ -75,7 +77,9 @@ class OAuthDiscoveryTest:
             # Start the remote server
             cmd = [
                 sys.executable,
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), "remote-mcp-server.py"),
+                os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), "remote-mcp-server.py"
+                ),
             ]
 
             self.server_process = subprocess.Popen(
@@ -88,7 +92,9 @@ class OAuthDiscoveryTest:
                 # Try the intended port first
                 for test_port in [8899, 8000]:  # Try both ports
                     try:
-                        response = requests.get(f"http://localhost:{test_port}/health", timeout=2)
+                        response = requests.get(
+                            f"http://localhost:{test_port}/health", timeout=2
+                        )
                         if response.status_code in [
                             200,
                             503,
@@ -255,7 +261,11 @@ class OAuthDiscoveryTest:
                 print(f"   ✅ Found required field: {field}")
 
             # Check MCP-specific fields
-            mcp_fields = ["mcp_server_info", "scope_descriptions", "protected_endpoints"]
+            mcp_fields = [
+                "mcp_server_info",
+                "scope_descriptions",
+                "protected_endpoints",
+            ]
             for field in mcp_fields:
                 if field in data:
                     print(f"   ✅ Found MCP extension: {field}")
@@ -268,7 +278,9 @@ class OAuthDiscoveryTest:
                 info_fields = ["name", "version", "transport", "tools_count"]
                 for field in info_fields:
                     if field in server_info:
-                        print(f"   ✅ Server info contains: {field}: {server_info[field]}")
+                        print(
+                            f"   ✅ Server info contains: {field}: {server_info[field]}"
+                        )
                     else:
                         print(f"   ⚠️  Server info missing: {field}")
 
@@ -278,7 +290,9 @@ class OAuthDiscoveryTest:
                 expected_scopes = ["read", "write", "admin"]
                 for scope in expected_scopes:
                     if scope in scope_desc:
-                        print(f"   ✅ Scope description for '{scope}': {scope_desc[scope][:50]}...")
+                        print(
+                            f"   ✅ Scope description for '{scope}': {scope_desc[scope][:50]}..."
+                        )
                     else:
                         print(f"   ⚠️  Missing scope description: {scope}")
 
@@ -311,7 +325,9 @@ class OAuthDiscoveryTest:
         print("🔑 Testing JWKS discovery endpoint...")
 
         try:
-            response = requests.get(f"{self.server_url}/.well-known/jwks.json", timeout=10)
+            response = requests.get(
+                f"{self.server_url}/.well-known/jwks.json", timeout=10
+            )
 
             print(f"   Status Code: {response.status_code}")
             print(f"   Content-Type: {response.headers.get('Content-Type', 'N/A')}")
@@ -387,8 +403,13 @@ class OAuthDiscoveryTest:
                 )
                 # This might be OK in some cases, so we continue
 
-            if auth_server_resp.status_code != 200 or protected_resource_resp.status_code != 200:
-                print("   ℹ️  One or both endpoints returned non-200, skipping consistency check")
+            if (
+                auth_server_resp.status_code != 200
+                or protected_resource_resp.status_code != 200
+            ):
+                print(
+                    "   ℹ️  One or both endpoints returned non-200, skipping consistency check"
+                )
                 return True
 
             auth_data = auth_server_resp.json()
@@ -453,7 +474,9 @@ class OAuthDiscoveryTest:
                 return True
 
             if auth_server_resp.status_code != 200:
-                print(f"   ❌ Authorization server endpoint failed: {auth_server_resp.status_code}")
+                print(
+                    f"   ❌ Authorization server endpoint failed: {auth_server_resp.status_code}"
+                )
                 return False
 
             auth_data = auth_server_resp.json()
@@ -464,7 +487,9 @@ class OAuthDiscoveryTest:
             )
 
             if protected_resp.status_code != 200:
-                print(f"   ❌ Protected resource endpoint failed: {protected_resp.status_code}")
+                print(
+                    f"   ❌ Protected resource endpoint failed: {protected_resp.status_code}"
+                )
                 return False
 
             protected_data = protected_resp.json()
@@ -489,8 +514,12 @@ class OAuthDiscoveryTest:
             if auth_data.get("require_pkce") is True:
                 print("   ✅ require_pkce set to true")
             else:
-                print("   ⚠️  require_pkce not set in authorization server (FastMCP limitation)")
-                print("   ℹ️  Will verify PKCE requirements in protected resource endpoint")
+                print(
+                    "   ⚠️  require_pkce not set in authorization server (FastMCP limitation)"
+                )
+                print(
+                    "   ℹ️  Will verify PKCE requirements in protected resource endpoint"
+                )
 
             # PKCE validation for protected resource
             print("   🔍 Validating PKCE in protected resource metadata...")
@@ -501,9 +530,13 @@ class OAuthDiscoveryTest:
             print("   ✅ require_pkce set in protected resource")
 
             # Check PKCE methods in protected resource
-            resource_pkce_methods = protected_data.get("pkce_code_challenge_methods", [])
+            resource_pkce_methods = protected_data.get(
+                "pkce_code_challenge_methods", []
+            )
             if "S256" not in resource_pkce_methods:
-                print("   ❌ S256 not in protected resource pkce_code_challenge_methods")
+                print(
+                    "   ❌ S256 not in protected resource pkce_code_challenge_methods"
+                )
                 return False
             print("   ✅ S256 method in protected resource")
 
@@ -531,10 +564,14 @@ class OAuthDiscoveryTest:
 
             if pkce_compliant:
                 print("   ✅ PKCE mandatory requirements validation passed")
-                print("   ℹ️  Protected resource endpoint properly advertises PKCE requirements")
+                print(
+                    "   ℹ️  Protected resource endpoint properly advertises PKCE requirements"
+                )
                 return True
             else:
-                print("   ❌ PKCE requirements not properly advertised in protected resource")
+                print(
+                    "   ❌ PKCE requirements not properly advertised in protected resource"
+                )
                 return False
 
         except requests.exceptions.RequestException as e:
@@ -599,7 +636,9 @@ class OAuthDiscoveryTest:
                 if response.status_code == 404:
                     print(f"   ✅ Invalid endpoint '{endpoint}' correctly returns 404")
                 else:
-                    print(f"   ⚠️  Invalid endpoint '{endpoint}' returned {response.status_code}")
+                    print(
+                        f"   ⚠️  Invalid endpoint '{endpoint}' returned {response.status_code}"
+                    )
             except requests.exceptions.RequestException as e:
                 print(f"   ⚠️  Request to invalid endpoint '{endpoint}' failed: {e}")
 
@@ -623,11 +662,17 @@ class OAuthDiscoveryTest:
                     "OAuth Authorization Server Endpoint",
                     self.test_oauth_authorization_server_endpoint,
                 ),
-                ("OAuth Protected Resource Endpoint", self.test_oauth_protected_resource_endpoint),
+                (
+                    "OAuth Protected Resource Endpoint",
+                    self.test_oauth_protected_resource_endpoint,
+                ),
                 ("JWKS Endpoint", self.test_jwks_endpoint),
                 ("PKCE Mandatory Requirements", self.test_pkce_mandatory_requirements),
                 ("Discovery Consistency", self.test_discovery_consistency),
-                ("Different OAuth Providers", self.test_discovery_with_different_providers),
+                (
+                    "Different OAuth Providers",
+                    self.test_discovery_with_different_providers,
+                ),
                 ("Error Handling", self.test_discovery_error_handling),
             ]
 
@@ -689,7 +734,9 @@ class OAuthDiscoveryTest:
                 if not passed:
                     print(f"   - {test_name}: {error}")
 
-        print(f"\n{'🎉 All tests passed!' if failed_tests == 0 else '⚠️  Some tests failed'}")
+        print(
+            f"\n{'🎉 All tests passed!' if failed_tests == 0 else '⚠️  Some tests failed'}"
+        )
 
 
 def main():

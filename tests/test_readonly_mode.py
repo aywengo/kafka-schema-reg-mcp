@@ -73,7 +73,9 @@ async def test_readonly_mode():
         ),
         (
             "delete_subject",
-            lambda: asyncio.run(kafka_schema_registry_unified_mcp.delete_subject("test-subject")),
+            lambda: asyncio.run(
+                kafka_schema_registry_unified_mcp.delete_subject("test-subject")
+            ),
         ),
         (
             "update_global_config",
@@ -85,7 +87,10 @@ async def test_readonly_mode():
                 "test-subject", "BACKWARD"
             ),
         ),
-        ("update_mode", lambda: kafka_schema_registry_unified_mcp.update_mode("READONLY")),
+        (
+            "update_mode",
+            lambda: kafka_schema_registry_unified_mcp.update_mode("READONLY"),
+        ),
         (
             "update_subject_mode",
             lambda: kafka_schema_registry_unified_mcp.update_subject_mode(
@@ -110,7 +115,10 @@ async def test_readonly_mode():
     allowed_functions = [
         ("list_contexts", lambda: kafka_schema_registry_unified_mcp.list_contexts()),
         ("list_subjects", lambda: kafka_schema_registry_unified_mcp.list_subjects()),
-        ("get_global_config", lambda: kafka_schema_registry_unified_mcp.get_global_config()),
+        (
+            "get_global_config",
+            lambda: kafka_schema_registry_unified_mcp.get_global_config(),
+        ),
         ("get_mode", lambda: kafka_schema_registry_unified_mcp.get_mode()),
     ]
 
@@ -118,7 +126,9 @@ async def test_readonly_mode():
         try:
             result = func()
             if isinstance(result, dict) and "readonly_mode" in result:
-                print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result}")
+                print(
+                    f"❌ {func_name}: Should NOT be blocked but was! Result: {result}"
+                )
             else:
                 print(f"✅ {func_name}: Correctly allowed in READONLY mode")
         except Exception as e:
@@ -126,13 +136,18 @@ async def test_readonly_mode():
             if "readonly" in str(e).lower():
                 print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
             else:
-                print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+                print(
+                    f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
+                )
 
     # Test export functions (should also be allowed)
     print("\n🧪 Testing export operations in READONLY mode...")
 
     export_functions = [
-        ("export_schema", lambda: kafka_schema_registry_unified_mcp.export_schema("test-subject")),
+        (
+            "export_schema",
+            lambda: kafka_schema_registry_unified_mcp.export_schema("test-subject"),
+        ),
         (
             "export_subject",
             lambda: kafka_schema_registry_unified_mcp.export_subject("test-subject"),
@@ -148,14 +163,18 @@ async def test_readonly_mode():
         try:
             result = func()
             if isinstance(result, dict) and "readonly_mode" in result:
-                print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result}")
+                print(
+                    f"❌ {func_name}: Should NOT be blocked but was! Result: {result}"
+                )
             else:
                 print(f"✅ {func_name}: Correctly allowed in READONLY mode")
         except Exception as e:
             if "readonly" in str(e).lower():
                 print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
             else:
-                print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+                print(
+                    f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
+                )
 
     # Test check_compatibility (should be allowed since it doesn't modify anything)
     print("\n🧪 Testing compatibility check in READONLY mode...")
@@ -171,7 +190,9 @@ async def test_readonly_mode():
         if "readonly" in str(e).lower():
             print(f"❌ check_compatibility: Incorrectly blocked by readonly mode")
         else:
-            print(f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)")
+            print(
+                f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
+            )
 
     print("\n" + "=" * 50)
     print("🎉 READONLY mode test completed!")

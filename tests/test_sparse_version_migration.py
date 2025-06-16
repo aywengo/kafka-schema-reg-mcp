@@ -76,7 +76,10 @@ class SparseVersionMigrationTest:
         base_schema = {
             "type": "record",
             "name": "SparseTestRecord",
-            "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "name", "type": "string"},
+            ],
         }
 
         # Create 5 versions first
@@ -96,7 +99,9 @@ class SparseVersionMigrationTest:
                 registry="dev",
             )
             if "error" in result:
-                raise Exception(f"Failed to register schema version {i+1}: {result['error']}")
+                raise Exception(
+                    f"Failed to register schema version {i+1}: {result['error']}"
+                )
             print(f"✓ Registered schema version {i+1}")
 
         # Verify we have 5 versions
@@ -118,7 +123,9 @@ class SparseVersionMigrationTest:
             url1 = dev_client.build_context_url(
                 f"/subjects/{subject}/versions/1", self.source_context
             )
-            response1 = requests.delete(url1, auth=dev_client.auth, headers=dev_client.headers)
+            response1 = requests.delete(
+                url1, auth=dev_client.auth, headers=dev_client.headers
+            )
             if response1.status_code == 200:
                 print("✓ Deleted version 1")
             else:
@@ -133,7 +140,9 @@ class SparseVersionMigrationTest:
             url2 = dev_client.build_context_url(
                 f"/subjects/{subject}/versions/2", self.source_context
             )
-            response2 = requests.delete(url2, auth=dev_client.auth, headers=dev_client.headers)
+            response2 = requests.delete(
+                url2, auth=dev_client.auth, headers=dev_client.headers
+            )
             if response2.status_code == 200:
                 print("✓ Deleted version 2")
             else:
@@ -162,13 +171,17 @@ class SparseVersionMigrationTest:
         print(f"✓ Successfully created sparse version set: {sorted(final_versions)}")
         return final_versions
 
-    async def verify_sparse_versions_preserved(self, subject: str, expected_versions: list):
+    async def verify_sparse_versions_preserved(
+        self, subject: str, expected_versions: list
+    ):
         """Verify that the target registry has the exact same version numbers as source."""
         target_versions = mcp_server.get_schema_versions(
             subject, context=self.target_context, registry="prod"
         )
         if isinstance(target_versions, dict) and "error" in target_versions:
-            raise Exception(f"Error getting target versions: {target_versions['error']}")
+            raise Exception(
+                f"Error getting target versions: {target_versions['error']}"
+            )
 
         sorted_target = sorted(target_versions)
         sorted_expected = sorted(expected_versions)
@@ -246,7 +259,9 @@ class SparseVersionMigrationTest:
                 task_status = mcp_server.get_task_progress(result["task_id"])
 
                 if "error" in task_status:
-                    raise Exception(f"Failed to get task status: {task_status['error']}")
+                    raise Exception(
+                        f"Failed to get task status: {task_status['error']}"
+                    )
 
                 status = task_status.get("status", "")
                 progress = task_status.get("progress_percent", 0)
@@ -276,7 +291,9 @@ class SparseVersionMigrationTest:
         print(
             "    This test verifies that the migration system attempts to preserve version numbers"
         )
-        print("    and achieves the best possible preservation given Schema Registry constraints.")
+        print(
+            "    and achieves the best possible preservation given Schema Registry constraints."
+        )
         return True
 
     async def cleanup_test_contexts(self):
@@ -301,7 +318,9 @@ class SparseVersionMigrationTest:
                 except Exception as e:
                     # It's ok if subject doesn't exist
                     if "not found" not in str(e).lower():
-                        print(f"Warning: Failed to delete {subject} from {registry}: {str(e)}")
+                        print(
+                            f"Warning: Failed to delete {subject} from {registry}: {str(e)}"
+                        )
 
         return True
 
@@ -325,7 +344,9 @@ class SparseVersionMigrationTest:
                 return False
             else:
                 print("\n📋 Test completed with Schema Registry limitations noted.")
-                print("Sparse version preservation is an enterprise feature with constraints:")
+                print(
+                    "Sparse version preservation is an enterprise feature with constraints:"
+                )
                 print("• Requires specific Schema Registry versions and configurations")
                 print("• Works best with empty target registries")
                 print("• May require sequential schema ID assignment")

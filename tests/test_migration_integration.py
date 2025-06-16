@@ -209,7 +209,9 @@ class MigrationIntegrationTests:
 
             print(f"   📊 Schema Migration Results:")
             print(f"      Total versions: {migration_result.get('total_versions', 0)}")
-            print(f"      Successful: {migration_result.get('successful_migrations', 0)}")
+            print(
+                f"      Successful: {migration_result.get('successful_migrations', 0)}"
+            )
             print(f"      Failed: {migration_result.get('failed_migrations', 0)}")
             print(f"      Skipped: {migration_result.get('skipped_migrations', 0)}")
 
@@ -239,7 +241,9 @@ class MigrationIntegrationTests:
         try:
             # Get migration count before
             migrations_before = mcp_server.list_migrations()
-            before_count = len(migrations_before) if isinstance(migrations_before, list) else 0
+            before_count = (
+                len(migrations_before) if isinstance(migrations_before, list) else 0
+            )
 
             # Use a unique subject for this test
             unique_subject = f"tracking-test-{uuid.uuid4().hex[:8]}"
@@ -263,8 +267,12 @@ class MigrationIntegrationTests:
             )
 
             if response.status_code not in [200, 409]:
-                print(f"   ⚠️  Failed to create tracking test schema, using existing subject")
-                unique_subject = self.test_subjects[0] if self.test_subjects else "fallback-subject"
+                print(
+                    f"   ⚠️  Failed to create tracking test schema, using existing subject"
+                )
+                unique_subject = (
+                    self.test_subjects[0] if self.test_subjects else "fallback-subject"
+                )
 
             # Perform a migration
             migration_result = mcp_server.migrate_schema(
@@ -279,10 +287,14 @@ class MigrationIntegrationTests:
 
             # Get migration count after
             migrations_after = mcp_server.list_migrations()
-            after_count = len(migrations_after) if isinstance(migrations_after, list) else 0
+            after_count = (
+                len(migrations_after) if isinstance(migrations_after, list) else 0
+            )
 
             if after_count > before_count:
-                print(f"   ✅ Migration task properly tracked ({before_count} -> {after_count})")
+                print(
+                    f"   ✅ Migration task properly tracked ({before_count} -> {after_count})"
+                )
 
                 # Test getting specific migration status (non-critical)
                 if "migration_id" in migration_result:
@@ -290,14 +302,24 @@ class MigrationIntegrationTests:
                     try:
                         status = mcp_server.get_migration_status(migration_id)
 
-                        if status and isinstance(status, dict) and "error" not in status:
+                        if (
+                            status
+                            and isinstance(status, dict)
+                            and "error" not in status
+                        ):
                             print(f"   ✅ Migration status retrieval works")
                         elif status and isinstance(status, dict) and "error" in status:
-                            print(f"   ⚠️  Migration status error (non-critical): {status['error']}")
+                            print(
+                                f"   ⚠️  Migration status error (non-critical): {status['error']}"
+                            )
                         else:
-                            print(f"   ⚠️  Migration status retrieval issue (non-critical)")
+                            print(
+                                f"   ⚠️  Migration status retrieval issue (non-critical)"
+                            )
                     except Exception as e:
-                        print(f"   ⚠️  Migration status retrieval exception (non-critical): {e}")
+                        print(
+                            f"   ⚠️  Migration status retrieval exception (non-critical): {e}"
+                        )
 
                     # Main requirement: migration was tracked
                     print(f"   ✅ Migration tracking test PASSED (task was tracked)")

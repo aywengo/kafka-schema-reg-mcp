@@ -42,21 +42,27 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
         """Test that remote-mcp-server.py can be imported."""
         # Get the path to remote-mcp-server.py
         remote_script_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remote-mcp-server.py"
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "remote-mcp-server.py",
         )
 
         # Check file exists
-        self.assertTrue(os.path.exists(remote_script_path), "remote-mcp-server.py should exist")
+        self.assertTrue(
+            os.path.exists(remote_script_path), "remote-mcp-server.py should exist"
+        )
 
         try:
             # Import the module using importlib
-            spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
+            spec = importlib.util.spec_from_file_location(
+                "remote_mcp_server", remote_script_path
+            )
             remote_mcp_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(remote_mcp_server)
 
             # Test that main function exists
             self.assertTrue(
-                hasattr(remote_mcp_server, "main"), "remote-mcp-server.py should have main function"
+                hasattr(remote_mcp_server, "main"),
+                "remote-mcp-server.py should have main function",
             )
 
             self.assertTrue(True, "Remote MCP server module imported successfully")
@@ -71,7 +77,11 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
                 "expected_transport": "streamable-http",
                 "expected_path": "/mcp",
             },
-            {"env": {"MCP_TRANSPORT": "sse"}, "expected_transport": "sse", "expected_path": "/sse"},
+            {
+                "env": {"MCP_TRANSPORT": "sse"},
+                "expected_transport": "sse",
+                "expected_path": "/sse",
+            },
             {
                 "env": {},  # No transport specified
                 "expected_transport": "streamable-http",  # Default
@@ -87,7 +97,9 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
 
                 # Test configuration values
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
-                path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
+                path = os.getenv(
+                    "MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse"
+                )
 
                 self.assertEqual(transport, case["expected_transport"])
                 self.assertEqual(path, case["expected_path"])
@@ -130,12 +142,17 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
     def test_streamable_http_startup(self):
         """Test server startup with streamable-http transport."""
         os.environ.update(
-            {"MCP_TRANSPORT": "streamable-http", "MCP_HOST": "0.0.0.0", "MCP_PORT": "8000"}
+            {
+                "MCP_TRANSPORT": "streamable-http",
+                "MCP_HOST": "0.0.0.0",
+                "MCP_PORT": "8000",
+            }
         )
 
         # Import remote server module
         remote_script_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remote-mcp-server.py"
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "remote-mcp-server.py",
         )
 
         with patch("kafka_schema_registry_unified_mcp.mcp") as mock_mcp:
@@ -167,7 +184,8 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
 
         # Import remote server module
         remote_script_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "remote-mcp-server.py"
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "remote-mcp-server.py",
         )
 
         with patch("kafka_schema_registry_unified_mcp.mcp") as mock_mcp:
@@ -222,7 +240,9 @@ class TestRemoteMCPDocumentation(unittest.TestCase):
             "remote-mcp-deployment.md",
         )
 
-        self.assertTrue(os.path.exists(docs_path), "Remote MCP deployment guide should exist")
+        self.assertTrue(
+            os.path.exists(docs_path), "Remote MCP deployment guide should exist"
+        )
 
 
 def run_remote_mcp_tests():

@@ -60,13 +60,18 @@ def register_schema_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
+            payload = {
+                "schema": json.dumps(schema_definition),
+                "schemaType": schema_type,
+            }
 
             url = build_context_url_legacy(
                 f"/subjects/{subject}/versions", schema_registry_url, context
             )
 
-            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
+            response = requests.post(
+                url, data=json.dumps(payload), auth=auth, headers=headers
+            )
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -75,9 +80,15 @@ def register_schema_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
-            payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
+            payload = {
+                "schema": json.dumps(schema_definition),
+                "schemaType": schema_type,
+            }
 
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
 
@@ -132,9 +143,14 @@ def get_schema_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
-            url = client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
+            url = client.build_context_url(
+                f"/subjects/{subject}/versions/{version}", context
+            )
 
             response = requests.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
@@ -271,10 +287,14 @@ def check_compatibility_tool(
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy(
-                f"/compatibility/subjects/{subject}/versions/latest", schema_registry_url, context
+                f"/compatibility/subjects/{subject}/versions/latest",
+                schema_registry_url,
+                context,
             )
 
-            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
+            response = requests.post(
+                url, data=json.dumps(payload), auth=auth, headers=headers
+            )
             response.raise_for_status()
             result = response.json()
             result["registry_mode"] = "single"
@@ -283,7 +303,10 @@ def check_compatibility_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url(
                 f"/compatibility/subjects/{subject}/versions/latest", context
@@ -337,7 +360,10 @@ def get_global_config_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url("/config", context)
 
@@ -397,7 +423,10 @@ def update_global_config_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url("/config", context)
 
@@ -440,7 +469,9 @@ def get_subject_config_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
+            url = build_context_url_legacy(
+                f"/config/{subject}", schema_registry_url, context
+            )
 
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
@@ -451,7 +482,10 @@ def get_subject_config_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url(f"/config/{subject}", context)
 
@@ -500,7 +534,9 @@ def update_subject_config_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
+            url = build_context_url_legacy(
+                f"/config/{subject}", schema_registry_url, context
+            )
 
             response = requests.put(
                 url, data=json.dumps(payload), auth=auth, headers=standard_headers
@@ -513,7 +549,10 @@ def update_subject_config_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url(f"/config/{subject}", context)
 
@@ -568,7 +607,10 @@ def get_mode_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url("/mode", context)
 
@@ -628,7 +670,10 @@ def update_mode_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url("/mode", context)
 
@@ -671,7 +716,9 @@ def get_subject_mode_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
+            url = build_context_url_legacy(
+                f"/mode/{subject}", schema_registry_url, context
+            )
 
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
@@ -682,7 +729,10 @@ def get_subject_mode_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url(f"/mode/{subject}", context)
 
@@ -731,7 +781,9 @@ def update_subject_mode_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
+            url = build_context_url_legacy(
+                f"/mode/{subject}", schema_registry_url, context
+            )
 
             response = requests.put(
                 url, data=json.dumps(payload), auth=auth, headers=standard_headers
@@ -744,7 +796,10 @@ def update_subject_mode_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             url = client.build_context_url(f"/mode/{subject}", context)
 
@@ -786,7 +841,9 @@ def list_contexts_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            response = requests.get(f"{schema_registry_url}/contexts", auth=auth, headers=headers)
+            response = requests.get(
+                f"{schema_registry_url}/contexts", auth=auth, headers=headers
+            )
             response.raise_for_status()
             return response.json()
         else:
@@ -839,10 +896,15 @@ def create_context_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             response = requests.post(
-                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers,
             )
             response.raise_for_status()
             return {
@@ -893,10 +955,15 @@ def delete_context_tool(
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found", "registry_mode": "multi"}
+                return {
+                    "error": f"Registry '{registry}' not found",
+                    "registry_mode": "multi",
+                }
 
             response = requests.delete(
-                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers,
             )
             response.raise_for_status()
             return {
@@ -937,7 +1004,9 @@ async def delete_subject_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}", schema_registry_url, context)
+            url = build_context_url_legacy(
+                f"/subjects/{subject}", schema_registry_url, context
+            )
 
             response = requests.delete(url, auth=auth, headers=headers)
             response.raise_for_status()

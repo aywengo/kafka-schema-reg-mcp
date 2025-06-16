@@ -91,11 +91,15 @@ async def test_invalid_registry_configuration():
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Expected failure: {response.get('status', 'unknown')}")
-                assert response.get("status") == "error", "Expected connection test to fail"
+                assert (
+                    response.get("status") == "error"
+                ), "Expected connection test to fail"
 
                 # Test 2: List subjects should handle connection failure
                 print("\nTest 2: List subjects with invalid registry")
-                result = await session.call_tool("list_subjects", {"registry": "invalid_registry"})
+                result = await session.call_tool(
+                    "list_subjects", {"registry": "invalid_registry"}
+                )
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Error handled: {response.get('error', 'No error field')}")
 
@@ -105,7 +109,9 @@ async def test_invalid_registry_configuration():
                     "get_registry_info", {"registry_name": "invalid_registry"}
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Connection status: {response.get('connection_status', 'unknown')}")
+                print(
+                    f"  ✅ Connection status: {response.get('connection_status', 'unknown')}"
+                )
 
                 print("\n🎉 Invalid Registry Configuration Tests Complete!")
 
@@ -154,9 +160,18 @@ async def test_readonly_mode_enforcement():
                             "registry": "readonly_test",
                         },
                     ),
-                    ("create_context", {"context": "test-context", "registry": "readonly_test"}),
-                    ("delete_context", {"context": "default", "registry": "readonly_test"}),
-                    ("delete_subject", {"subject": "test-subject", "registry": "readonly_test"}),
+                    (
+                        "create_context",
+                        {"context": "test-context", "registry": "readonly_test"},
+                    ),
+                    (
+                        "delete_context",
+                        {"context": "default", "registry": "readonly_test"},
+                    ),
+                    (
+                        "delete_subject",
+                        {"subject": "test-subject", "registry": "readonly_test"},
+                    ),
                     (
                         "update_global_config",
                         {"compatibility": "BACKWARD", "registry": "readonly_test"},
@@ -167,15 +182,21 @@ async def test_readonly_mode_enforcement():
                 for operation_name, params in readonly_operations:
                     print(f"Test: {operation_name} should be blocked")
                     result = await session.call_tool(operation_name, params)
-                    response = json.loads(result.content[0].text) if result.content else {}
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
 
                     # Check if operation was properly blocked
                     if "readonly" in response.get("error", "").lower() or response.get(
                         "readonly_mode"
                     ):
-                        print(f"  ✅ {operation_name} properly blocked by readonly mode")
+                        print(
+                            f"  ✅ {operation_name} properly blocked by readonly mode"
+                        )
                     else:
-                        print(f"  ⚠️ {operation_name} may not be properly blocked: {response}")
+                        print(
+                            f"  ⚠️ {operation_name} may not be properly blocked: {response}"
+                        )
 
                 # Test read operations that should still work
                 read_operations = [
@@ -188,12 +209,16 @@ async def test_readonly_mode_enforcement():
                 print("\nTesting read operations (should work):")
                 for operation_name, params in read_operations:
                     result = await session.call_tool(operation_name, params)
-                    response = json.loads(result.content[0].text) if result.content else {}
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
 
                     if not response.get("error"):
                         print(f"  ✅ {operation_name} works in readonly mode")
                     else:
-                        print(f"  ⚠️ {operation_name} failed unexpectedly: {response.get('error')}")
+                        print(
+                            f"  ⚠️ {operation_name} failed unexpectedly: {response.get('error')}"
+                        )
 
                 print("\n🎉 READONLY Mode Enforcement Tests Complete!")
 
@@ -237,7 +262,9 @@ async def test_invalid_parameters():
                     "list_subjects", {"registry": "nonexistent_registry"}
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Non-existent registry error: {response.get('error', 'No error')}")
+                print(
+                    f"  ✅ Non-existent registry error: {response.get('error', 'No error')}"
+                )
 
                 # Test 2: Invalid schema definitions
                 print("\nTest 2: Invalid schema definitions")
@@ -252,9 +279,13 @@ async def test_invalid_parameters():
                                 "registry": "param_test",
                             },
                         )
-                        response = json.loads(result.content[0].text) if result.content else {}
+                        response = (
+                            json.loads(result.content[0].text) if result.content else {}
+                        )
                         if response.get("error"):
-                            print(f"    ✅ Properly rejected: {response['error'][:50]}...")
+                            print(
+                                f"    ✅ Properly rejected: {response['error'][:50]}..."
+                            )
                         else:
                             print(f"    ⚠️ Unexpectedly accepted invalid schema")
                     except Exception as e:
@@ -265,10 +296,15 @@ async def test_invalid_parameters():
                 invalid_compatibility_levels = ["INVALID", "UNKNOWN", "", "123"]
                 for level in invalid_compatibility_levels:
                     result = await session.call_tool(
-                        "update_global_config", {"compatibility": level, "registry": "param_test"}
+                        "update_global_config",
+                        {"compatibility": level, "registry": "param_test"},
                     )
-                    response = json.loads(result.content[0].text) if result.content else {}
-                    print(f"  Testing '{level}': {response.get('error', 'Accepted')[:50]}")
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
+                    print(
+                        f"  Testing '{level}': {response.get('error', 'Accepted')[:50]}"
+                    )
 
                 # Test 4: Invalid modes
                 print("\nTest 4: Invalid modes")
@@ -277,8 +313,12 @@ async def test_invalid_parameters():
                     result = await session.call_tool(
                         "update_mode", {"mode": mode, "registry": "param_test"}
                     )
-                    response = json.loads(result.content[0].text) if result.content else {}
-                    print(f"  Testing '{mode}': {response.get('error', 'Accepted')[:50]}")
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
+                    print(
+                        f"  Testing '{mode}': {response.get('error', 'Accepted')[:50]}"
+                    )
 
                 # Test 5: Empty and special character subjects
                 print("\nTest 5: Edge case subject names")
@@ -292,8 +332,12 @@ async def test_invalid_parameters():
                     result = await session.call_tool(
                         "get_schema", {"subject": subject, "registry": "param_test"}
                     )
-                    response = json.loads(result.content[0].text) if result.content else {}
-                    print(f"  Subject '{subject}': {response.get('error', 'No error')[:50]}")
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
+                    print(
+                        f"  Subject '{subject}': {response.get('error', 'No error')[:50]}"
+                    )
 
                 print("\n🎉 Invalid Parameters and Edge Cases Tests Complete!")
 
@@ -344,7 +388,10 @@ async def test_cross_registry_error_scenarios():
                 print("Test 1: Compare valid with invalid registry")
                 result = await session.call_tool(
                     "compare_registries",
-                    {"source_registry": "valid_registry", "target_registry": "invalid_registry"},
+                    {
+                        "source_registry": "valid_registry",
+                        "target_registry": "invalid_registry",
+                    },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Comparison result: {response.get('error', 'Success')}")
@@ -375,16 +422,23 @@ async def test_cross_registry_error_scenarios():
                     },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Readonly migration result: {response.get('error', 'Success')}")
+                print(
+                    f"  ✅ Readonly migration result: {response.get('error', 'Success')}"
+                )
 
                 # Test 4: Find missing schemas with connection issues
                 print("\nTest 4: Find missing schemas with connection issues")
                 result = await session.call_tool(
                     "find_missing_schemas",
-                    {"source_registry": "valid_registry", "target_registry": "invalid_registry"},
+                    {
+                        "source_registry": "valid_registry",
+                        "target_registry": "invalid_registry",
+                    },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Missing schemas result: {response.get('error', 'Success')}")
+                print(
+                    f"  ✅ Missing schemas result: {response.get('error', 'Success')}"
+                )
 
                 # Test 5: Sync operations with mixed registry states
                 print("\nTest 5: Sync operations with mixed registry states")
@@ -442,7 +496,8 @@ async def test_resource_limits_and_timeouts():
                     "type": "record",
                     "name": "LargeRecord",
                     "fields": [
-                        {"name": f"field_{i}", "type": "string"} for i in range(100)  # 100 fields
+                        {"name": f"field_{i}", "type": "string"}
+                        for i in range(100)  # 100 fields
                     ],
                 }
 
@@ -461,9 +516,15 @@ async def test_resource_limits_and_timeouts():
                 print("\nTest 2: Rapid sequential operations")
                 rapid_test_results = []
                 for i in range(10):
-                    result = await session.call_tool("list_subjects", {"registry": "timeout_test"})
-                    response = json.loads(result.content[0].text) if result.content else {}
-                    rapid_test_results.append("success" if not response.get("error") else "error")
+                    result = await session.call_tool(
+                        "list_subjects", {"registry": "timeout_test"}
+                    )
+                    response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
+                    rapid_test_results.append(
+                        "success" if not response.get("error") else "error"
+                    )
 
                 success_count = rapid_test_results.count("success")
                 print(f"  ✅ Rapid operations: {success_count}/10 successful")
@@ -472,7 +533,9 @@ async def test_resource_limits_and_timeouts():
                 print("\nTest 3: Test all registries simultaneously")
                 result = await session.call_tool("test_all_registries", {})
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Multi-registry test: {response.get('connected', 0)} connected")
+                print(
+                    f"  ✅ Multi-registry test: {response.get('connected', 0)} connected"
+                )
 
                 print("\n🎉 Resource Limits and Timeouts Tests Complete!")
 
@@ -523,9 +586,15 @@ async def test_authentication_errors():
 
                 # Test 2: List subjects with auth issues
                 print("\nTest 2: List subjects with invalid credentials")
-                result = await session.call_tool("list_subjects", {"registry": "auth_test"})
+                result = await session.call_tool(
+                    "list_subjects", {"registry": "auth_test"}
+                )
                 response = json.loads(result.content[0].text) if result.content else {}
-                if response.get("error") or isinstance(response, list) and len(response) == 0:
+                if (
+                    response.get("error")
+                    or isinstance(response, list)
+                    and len(response) == 0
+                ):
                     print("  ✅ Auth error properly handled")
                 else:
                     print(f"  ⚠️ Unexpected response: {response}")
@@ -541,7 +610,9 @@ async def test_authentication_errors():
                     },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(f"  ✅ Auth registration result: {response.get('error', 'Success')}")
+                print(
+                    f"  ✅ Auth registration result: {response.get('error', 'Success')}"
+                )
 
                 print("\n🎉 Authentication Error Handling Tests Complete!")
 

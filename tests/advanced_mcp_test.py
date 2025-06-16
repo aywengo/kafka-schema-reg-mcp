@@ -46,7 +46,9 @@ async def test_advanced_mcp_features():
                 # Test 1: Create production context
                 print("\n🏗️ Creating production context...")
                 try:
-                    result = await session.call_tool("create_context", {"context": "production"})
+                    result = await session.call_tool(
+                        "create_context", {"context": "production"}
+                    )
                     print(f"Context creation: {result.content[0].text}")
                 except Exception as e:
                     print(f"⚠️ Context creation (may already exist): {e}")
@@ -70,7 +72,11 @@ async def test_advanced_mcp_features():
                         {"name": "id", "type": "long", "doc": "User ID"},
                         {"name": "username", "type": "string", "doc": "Username"},
                         {"name": "email", "type": "string", "doc": "Email address"},
-                        {"name": "created_at", "type": "long", "doc": "Creation timestamp"},
+                        {
+                            "name": "created_at",
+                            "type": "long",
+                            "doc": "Creation timestamp",
+                        },
                         {
                             "name": "metadata",
                             "type": ["null", {"type": "map", "values": "string"}],
@@ -118,27 +124,36 @@ async def test_advanced_mcp_features():
                 if result.content:
                     print(f"Order schema registration: {result.content[0].text}")
                 else:
-                    print(f"❌ No content returned for order schema registration: {result}")
+                    print(
+                        f"❌ No content returned for order schema registration: {result}"
+                    )
 
                 # Test 5: List subjects in different contexts
                 print("\n📄 Listing subjects in production context...")
-                result = await session.call_tool("list_subjects", {"context": "production"})
+                result = await session.call_tool(
+                    "list_subjects", {"context": "production"}
+                )
                 if result.content:
                     print(f"Production subjects: {result.content[0].text}")
                 else:
-                    print(f"❌ No content returned for list_subjects (production): {result}")
+                    print(
+                        f"❌ No content returned for list_subjects (production): {result}"
+                    )
 
                 print("\n📄 Listing subjects in default context...")
                 result = await session.call_tool("list_subjects", {})
                 if result.content:
                     print(f"Default subjects: {result.content[0].text}")
                 else:
-                    print(f"❌ No content returned for list_subjects (default): {result}")
+                    print(
+                        f"❌ No content returned for list_subjects (default): {result}"
+                    )
 
                 # Test 6: Get schema versions
                 print("\n🔢 Getting schema versions...")
                 result = await session.call_tool(
-                    "get_schema_versions", {"subject": "user-events-value", "context": "production"}
+                    "get_schema_versions",
+                    {"subject": "user-events-value", "context": "production"},
                 )
                 if result.content:
                     print(f"User schema versions: {result.content[0].text}")
@@ -195,12 +210,15 @@ async def test_advanced_mcp_features():
                 print("\n🔒 Setting production to FULL compatibility...")
                 try:
                     result = await session.call_tool(
-                        "update_global_config", {"compatibility": "FULL", "context": "production"}
+                        "update_global_config",
+                        {"compatibility": "FULL", "context": "production"},
                     )
                     if result.content:
                         print(f"Config update: {result.content[0].text}")
                     else:
-                        print(f"❌ No content returned for update_global_config: {result}")
+                        print(
+                            f"❌ No content returned for update_global_config: {result}"
+                        )
                 except Exception as e:
                     print(f"⚠️ Config update: {e}")
 
@@ -208,7 +226,11 @@ async def test_advanced_mcp_features():
                 print("\n📤 Exporting user schema as Avro IDL...")
                 result = await session.call_tool(
                     "export_schema",
-                    {"subject": "user-events-value", "context": "production", "format": "avro_idl"},
+                    {
+                        "subject": "user-events-value",
+                        "context": "production",
+                        "format": "avro_idl",
+                    },
                 )
                 if result.content:
                     print(f"Avro IDL Export:\n{result.content[0].text}")

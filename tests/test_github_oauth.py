@@ -32,7 +32,9 @@ def test_github_provider_config():
         assert github_config["name"] == "GitHub OAuth"
         assert github_config["issuer_url"] == "https://api.github.com"
         assert github_config["auth_url"] == "https://github.com/login/oauth/authorize"
-        assert github_config["token_url"] == "https://github.com/login/oauth/access_token"
+        assert (
+            github_config["token_url"] == "https://github.com/login/oauth/access_token"
+        )
         assert "read:user" in github_config["scopes"]
         assert "user:email" in github_config["scopes"]
         assert "read:org" in github_config["scopes"]
@@ -63,8 +65,7 @@ def test_github_environment_variables():
     print("🌍 Testing GitHub Environment Variables...")
 
     try:
-        from oauth_provider import (AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_ORG,
-                                    AUTH_PROVIDER)
+        from oauth_provider import AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_ORG, AUTH_PROVIDER
 
         # Test environment variables are available
         assert AUTH_GITHUB_CLIENT_ID is not None, "AUTH_GITHUB_CLIENT_ID not available"
@@ -91,9 +92,16 @@ def test_github_scope_extraction():
         import oauth_provider
 
         # Check if OAuth provider class is available (depends on auth being enabled and MCP modules)
-        if not hasattr(oauth_provider, "oauth_provider") or oauth_provider.oauth_provider is None:
-            print("   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)")
-            print("   ℹ️  GitHub scope extraction logic is implemented but cannot be tested")
+        if (
+            not hasattr(oauth_provider, "oauth_provider")
+            or oauth_provider.oauth_provider is None
+        ):
+            print(
+                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
+            )
+            print(
+                "   ℹ️  GitHub scope extraction logic is implemented but cannot be tested"
+            )
             return True
 
         from oauth_provider import KafkaSchemaRegistryOAuthProvider
@@ -132,9 +140,16 @@ def test_github_provider_detection():
         import oauth_provider
 
         # Check if OAuth provider class is available
-        if not hasattr(oauth_provider, "oauth_provider") or oauth_provider.oauth_provider is None:
-            print("   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)")
-            print("   ℹ️  GitHub provider detection logic is implemented but cannot be tested")
+        if (
+            not hasattr(oauth_provider, "oauth_provider")
+            or oauth_provider.oauth_provider is None
+        ):
+            print(
+                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
+            )
+            print(
+                "   ℹ️  GitHub provider detection logic is implemented but cannot be tested"
+            )
             return True
 
         from oauth_provider import KafkaSchemaRegistryOAuthProvider
@@ -142,10 +157,16 @@ def test_github_provider_detection():
         provider = KafkaSchemaRegistryOAuthProvider()
 
         # Test GitHub JWT token detection
-        github_jwt_payload = {"iss": "https://api.github.com", "sub": "12345", "login": "testuser"}
+        github_jwt_payload = {
+            "iss": "https://api.github.com",
+            "sub": "12345",
+            "login": "testuser",
+        }
 
         detected_provider = provider.detect_provider_from_token(github_jwt_payload)
-        assert detected_provider == "github", f"Expected 'github', got '{detected_provider}'"
+        assert (
+            detected_provider == "github"
+        ), f"Expected 'github', got '{detected_provider}'"
 
         # Test GitHub access token format detection
         github_api_payload = {
@@ -155,7 +176,9 @@ def test_github_provider_detection():
         }
 
         detected_provider = provider.detect_provider_from_token(github_api_payload)
-        assert detected_provider == "github", f"Expected 'github', got '{detected_provider}'"
+        assert (
+            detected_provider == "github"
+        ), f"Expected 'github', got '{detected_provider}'"
 
         print("   ✅ GitHub provider detection is working")
         return True
@@ -173,9 +196,16 @@ async def test_github_token_validation():
         import oauth_provider
 
         # Check if OAuth provider class is available
-        if not hasattr(oauth_provider, "oauth_provider") or oauth_provider.oauth_provider is None:
-            print("   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)")
-            print("   ℹ️  GitHub token validation logic is implemented but cannot be tested")
+        if (
+            not hasattr(oauth_provider, "oauth_provider")
+            or oauth_provider.oauth_provider is None
+        ):
+            print(
+                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
+            )
+            print(
+                "   ℹ️  GitHub token validation logic is implemented but cannot be tested"
+            )
             return True
 
         from oauth_provider import KafkaSchemaRegistryOAuthProvider
@@ -211,13 +241,17 @@ def test_github_oauth_exports():
         assert hasattr(
             oauth_provider, "AUTH_GITHUB_CLIENT_ID"
         ), "AUTH_GITHUB_CLIENT_ID not exported"
-        assert hasattr(oauth_provider, "AUTH_GITHUB_ORG"), "AUTH_GITHUB_ORG not exported"
+        assert hasattr(
+            oauth_provider, "AUTH_GITHUB_ORG"
+        ), "AUTH_GITHUB_ORG not exported"
 
         # Check GitHub is in __all__
         assert (
             "AUTH_GITHUB_CLIENT_ID" in oauth_provider.__all__
         ), "AUTH_GITHUB_CLIENT_ID not in __all__"
-        assert "AUTH_GITHUB_ORG" in oauth_provider.__all__, "AUTH_GITHUB_ORG not in __all__"
+        assert (
+            "AUTH_GITHUB_ORG" in oauth_provider.__all__
+        ), "AUTH_GITHUB_ORG not in __all__"
 
         print("   ✅ GitHub OAuth components are properly exported")
         return True

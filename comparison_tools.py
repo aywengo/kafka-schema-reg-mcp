@@ -173,8 +173,12 @@ async def compare_contexts_across_registries_tool(
         # Compare schemas for common subjects
         schema_differences = []
         for subject in source_subjects & target_subjects:
-            source_versions = source_client.get_schema_versions(subject, source_context) or []
-            target_versions = target_client.get_schema_versions(subject, target_context) or []
+            source_versions = (
+                source_client.get_schema_versions(subject, source_context) or []
+            )
+            target_versions = (
+                target_client.get_schema_versions(subject, target_context) or []
+            )
 
             if source_versions != target_versions:
                 schema_differences.append(
@@ -253,7 +257,9 @@ async def find_missing_schemas_tool(
             latest_schema = None
 
             if versions:
-                latest_schema = source_client.get_schema(subject, str(versions[-1]), context)
+                latest_schema = source_client.get_schema(
+                    subject, str(versions[-1]), context
+                )
 
             result["details"].append(
                 {

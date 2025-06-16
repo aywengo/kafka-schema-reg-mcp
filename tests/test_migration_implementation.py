@@ -81,7 +81,9 @@ def test_implemented_migration_files():
         else:
             print(f"❌ {test_file}: Missing")
 
-    print(f"\n📊 Implementation status: {valid_files}/{len(implemented_files)} files implemented")
+    print(
+        f"\n📊 Implementation status: {valid_files}/{len(implemented_files)} files implemented"
+    )
     return valid_files == len(implemented_files)
 
 
@@ -96,7 +98,10 @@ def test_quick_migration_functionality():
         test_schema = {
             "type": "record",
             "name": "TestEvent",
-            "fields": [{"name": "id", "type": "string"}, {"name": "timestamp", "type": "long"}],
+            "fields": [
+                {"name": "id", "type": "string"},
+                {"name": "timestamp", "type": "long"},
+            ],
         }
 
         payload = {"schema": json.dumps(test_schema)}
@@ -113,12 +118,15 @@ def test_quick_migration_functionality():
 
             # Test retrieval
             get_response = requests.get(
-                f"{dev_url}/subjects/migration-validation-test-value/versions/latest", timeout=5
+                f"{dev_url}/subjects/migration-validation-test-value/versions/latest",
+                timeout=5,
             )
 
             if get_response.status_code == 200:
                 schema_data = get_response.json()
-                print(f"✅ Schema retrieval successful (version {schema_data.get('version')})")
+                print(
+                    f"✅ Schema retrieval successful (version {schema_data.get('version')})"
+                )
                 return True
             else:
                 print(f"⚠️  Schema retrieval failed: {get_response.status_code}")

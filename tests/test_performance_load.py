@@ -219,7 +219,10 @@ async def test_schema_registration_performance():
                 print("\nTest 2: List subjects with many schemas")
                 for i in range(10):
                     await timed_operation(
-                        session, "list_subjects_perf", "list_subjects", {"registry": "perf_test"}
+                        session,
+                        "list_subjects_perf",
+                        "list_subjects",
+                        {"registry": "perf_test"},
                     )
 
                 list_stats = metrics.get_stats("list_subjects_perf")
@@ -276,7 +279,9 @@ async def test_concurrent_operations():
                 print("Test 1: Concurrent schema registration (20 concurrent)")
 
                 async def register_concurrent_schema(index: int):
-                    schema = generate_test_schema(f"ConcurrentTest{index}", field_count=3)
+                    schema = generate_test_schema(
+                        f"ConcurrentTest{index}", field_count=3
+                    )
                     return await timed_operation(
                         session,
                         "register_concurrent",
@@ -304,7 +309,10 @@ async def test_concurrent_operations():
                 async def mixed_operation(index: int):
                     if index % 3 == 0:
                         return await timed_operation(
-                            session, "mixed_list", "list_subjects", {"registry": "concurrent_test"}
+                            session,
+                            "mixed_list",
+                            "list_subjects",
+                            {"registry": "concurrent_test"},
                         )
                     elif index % 3 == 1:
                         return await timed_operation(
@@ -331,7 +339,9 @@ async def test_concurrent_operations():
 
                 # Run 30 mixed concurrent operations
                 mixed_tasks = [mixed_operation(i) for i in range(30)]
-                mixed_results = await asyncio.gather(*mixed_tasks, return_exceptions=True)
+                mixed_results = await asyncio.gather(
+                    *mixed_tasks, return_exceptions=True
+                )
 
                 mixed_success = sum(1 for r in mixed_results if r is True)
                 print(f"  ✅ Mixed operations: {mixed_success}/30 successful")
@@ -373,7 +383,9 @@ async def test_multi_registry_performance():
                 # Test 1: Registry listing performance
                 print("Test 1: Registry operations performance")
                 for i in range(10):
-                    await timed_operation(session, "list_registries_perf", "list_registries", {})
+                    await timed_operation(
+                        session, "list_registries_perf", "list_registries", {}
+                    )
 
                 # Test 2: Cross-registry connection testing
                 print("\nTest 2: Cross-registry connection testing")
@@ -407,7 +419,10 @@ async def test_multi_registry_performance():
                         session,
                         "compare_registries_perf",
                         "compare_registries",
-                        {"source_registry": "registry_1", "target_registry": "registry_2"},
+                        {
+                            "source_registry": "registry_1",
+                            "target_registry": "registry_2",
+                        },
                     )
 
                 # Test 5: Registry info retrieval
@@ -429,7 +444,9 @@ async def test_multi_registry_performance():
 
                 print(f"\n  ✅ Performance Results:")
                 print(f"     List registries: {list_reg_stats['avg_time_ms']:.2f}ms")
-                print(f"     Test all registries: {test_all_stats['avg_time_ms']:.2f}ms")
+                print(
+                    f"     Test all registries: {test_all_stats['avg_time_ms']:.2f}ms"
+                )
                 print(f"     Compare registries: {compare_stats['avg_time_ms']:.2f}ms")
                 print(f"     Registry info: {info_stats['avg_time_ms']:.2f}ms")
 
@@ -514,11 +531,15 @@ async def test_large_schema_performance():
                     )
 
                     stats = metrics.get_stats(f"get_large_{field_count}")
-                    print(f"  ✅ Get {field_count} fields: {stats['avg_time_ms']:.2f}ms")
+                    print(
+                        f"  ✅ Get {field_count} fields: {stats['avg_time_ms']:.2f}ms"
+                    )
 
                 # Test 4: Compatibility checking with large schemas
                 print("\nTest 4: Compatibility checking performance")
-                modified_schema = generate_test_schema("LargeSchema50Fields", 51)  # Add one field
+                modified_schema = generate_test_schema(
+                    "LargeSchema50Fields", 51
+                )  # Add one field
                 await timed_operation(
                     session,
                     "check_compatibility_large",
@@ -570,7 +591,9 @@ async def test_memory_and_resource_usage():
                             "register_schema",
                             {
                                 "subject": f"sustained-test-{i}",
-                                "schema_definition": generate_test_schema(f"SustainedTest{i}"),
+                                "schema_definition": generate_test_schema(
+                                    f"SustainedTest{i}"
+                                ),
                                 "registry": "resource_test",
                             },
                         )
@@ -624,7 +647,9 @@ async def test_memory_and_resource_usage():
                     batch_tasks = []
                     for i in range(batch_size):
                         schema_index = batch * batch_size + i
-                        schema = generate_test_schema(f"MemoryStress{schema_index}", field_count=20)
+                        schema = generate_test_schema(
+                            f"MemoryStress{schema_index}", field_count=20
+                        )
                         task = timed_operation(
                             session,
                             "memory_stress",
@@ -679,18 +704,26 @@ async def main():
         # Find fastest and slowest operations
         op_stats = summary["operation_stats"]
         if op_stats:
-            fastest = min(op_stats.items(), key=lambda x: x[1].get("avg_time_ms", float("inf")))
+            fastest = min(
+                op_stats.items(), key=lambda x: x[1].get("avg_time_ms", float("inf"))
+            )
             slowest = max(op_stats.items(), key=lambda x: x[1].get("avg_time_ms", 0))
 
-            print(f"• Fastest operation: {fastest[0]} ({fastest[1]['avg_time_ms']:.2f}ms avg)")
-            print(f"• Slowest operation: {slowest[0]} ({slowest[1]['avg_time_ms']:.2f}ms avg)")
+            print(
+                f"• Fastest operation: {fastest[0]} ({fastest[1]['avg_time_ms']:.2f}ms avg)"
+            )
+            print(
+                f"• Slowest operation: {slowest[0]} ({slowest[1]['avg_time_ms']:.2f}ms avg)"
+            )
 
             # Calculate overall success rate
             total_success = sum(
                 stats["count"] * stats["success_rate"] for stats in op_stats.values()
             )
             total_operations = sum(stats["count"] for stats in op_stats.values())
-            overall_success_rate = total_success / total_operations if total_operations > 0 else 0
+            overall_success_rate = (
+                total_success / total_operations if total_operations > 0 else 0
+            )
 
             print(f"• Overall success rate: {overall_success_rate:.2%}")
             print(f"• Total operations executed: {total_operations}")

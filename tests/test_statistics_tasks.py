@@ -52,7 +52,11 @@ class TestStatisticsTaskQueue:
         """Test that task manager can create statistics tasks"""
         task = task_manager.create_task(
             TaskType.STATISTICS,
-            metadata={"operation": "count_schemas", "context": None, "registry": "test-registry"},
+            metadata={
+                "operation": "count_schemas",
+                "context": None,
+                "registry": "test-registry",
+            },
         )
 
         assert task is not None
@@ -60,7 +64,9 @@ class TestStatisticsTaskQueue:
         assert task.status == TaskStatus.PENDING
         assert task.metadata["operation"] == "count_schemas"
 
-    def test_count_schemas_task_queue_tool(self, mock_registry_client, mock_registry_manager):
+    def test_count_schemas_task_queue_tool(
+        self, mock_registry_client, mock_registry_manager
+    ):
         """Test count_schemas_task_queue_tool functionality"""
         try:
             from statistics_tools import count_schemas_task_queue_tool
@@ -92,8 +98,7 @@ class TestStatisticsTaskQueue:
     ):
         """Test get_registry_statistics_task_queue_tool functionality"""
         try:
-            from statistics_tools import \
-                get_registry_statistics_task_queue_tool
+            from statistics_tools import get_registry_statistics_task_queue_tool
 
             mock_registry_manager.get_registry.return_value = mock_registry_client
 
@@ -106,7 +111,10 @@ class TestStatisticsTaskQueue:
 
             assert "task_id" in result
             assert "message" in result
-            assert "Registry statistics analysis started as async task" in result["message"]
+            assert (
+                "Registry statistics analysis started as async task"
+                in result["message"]
+            )
             assert result["operation_info"]["operation"] == "get_registry_statistics"
             assert result["operation_info"]["expected_duration"] == "long"
             assert result["operation_info"]["async_pattern"] == "task_queue"
@@ -137,7 +145,10 @@ class TestAsyncStatisticsFunctions:
             mock_registry_manager.get_registry.return_value = mock_registry_client
 
             result = await _count_schemas_async(
-                mock_registry_manager, "multi", context="test-context", registry="test-registry"
+                mock_registry_manager,
+                "multi",
+                context="test-context",
+                registry="test-registry",
             )
 
             assert result["registry"] == "test-registry"
@@ -157,8 +168,13 @@ class TestAsyncStatisticsFunctions:
             subjects = ["subject1", "subject2"]
             mock_registry_client.get_subjects.return_value = subjects
 
-            with patch("kafka_schema_registry_unified_mcp.get_schema_versions") as mock_versions:
-                mock_versions.side_effect = [[1, 2], [1, 2, 3]]  # 2 and 3 versions respectively
+            with patch(
+                "kafka_schema_registry_unified_mcp.get_schema_versions"
+            ) as mock_versions:
+                mock_versions.side_effect = [
+                    [1, 2],
+                    [1, 2, 3],
+                ]  # 2 and 3 versions respectively
 
                 result = _analyze_context_parallel(
                     mock_registry_client, "test-context", "test-registry"
@@ -227,8 +243,11 @@ class TestMCPToolIntegration:
         """Test that statistics tools can be imported from main module"""
         try:
             from kafka_schema_registry_unified_mcp import (
-                count_schemas, get_registry_statistics,
-                get_statistics_task_progress, list_statistics_tasks)
+                count_schemas,
+                get_registry_statistics,
+                get_statistics_task_progress,
+                list_statistics_tasks,
+            )
 
             # Verify functions exist
             assert callable(count_schemas)
@@ -242,10 +261,12 @@ class TestMCPToolIntegration:
     def test_task_management_tools_available(self):
         """Test that task management tools are available"""
         try:
-            from kafka_schema_registry_unified_mcp import (cancel_task,
-                                                           get_task_progress,
-                                                           get_task_status,
-                                                           list_active_tasks)
+            from kafka_schema_registry_unified_mcp import (
+                cancel_task,
+                get_task_progress,
+                get_task_status,
+                list_active_tasks,
+            )
 
             # Verify functions exist
             assert callable(get_task_status)
@@ -284,12 +305,16 @@ def test_performance_characteristics():
     print("   • get_registry_statistics: LONG (task queue)")
 
     print("\n📝 Usage pattern:")
-    print("   result = get_registry_statistics()     # Returns immediately with task_id")
+    print(
+        "   result = get_registry_statistics()     # Returns immediately with task_id"
+    )
     print("   task_id = result['task_id']")
     print(
         "   get_statistics_task_progress(task_id)  # Monitor progress: 'Analyzing contexts' (45%)"
     )
-    print("   get_task_status(task_id)               # Check completion and get results")
+    print(
+        "   get_task_status(task_id)               # Check completion and get results"
+    )
 
 
 def test_statistics_task_workflow():

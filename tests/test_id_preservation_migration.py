@@ -27,9 +27,7 @@ class IDPreservationTest:
         self.dev_url = DEV_REGISTRY_URL
         self.prod_url = PROD_REGISTRY_URL
         self.test_context = "test-id-preservation"  # Simplified context name
-        self.target_context = (
-            f"target-id-preservation-{uuid.uuid4().hex[:8]}"  # Unique target context for each run
-        )
+        self.target_context = f"target-id-preservation-{uuid.uuid4().hex[:8]}"  # Unique target context for each run
         self.test_subjects = []
         self.import_mode_supported = False
         self.contexts_supported = False
@@ -65,13 +63,17 @@ class IDPreservationTest:
                     response = requests.put(
                         f"{self.dev_url}/mode",
                         json={"mode": "READWRITE"},
-                        headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+                        headers={
+                            "Content-Type": "application/vnd.schemaregistry.v1+json"
+                        },
                     )
                     if response.status_code == 200:
                         print("   ✅ Restored registry to READWRITE mode")
                 else:
                     print("   ⚠️ IMPORT mode is not supported")
-                    print("   ℹ️  This is expected in some Schema Registry configurations")
+                    print(
+                        "   ℹ️  This is expected in some Schema Registry configurations"
+                    )
                     print("   ℹ️  ID preservation requires IMPORT mode support")
                     print(
                         "   ℹ️  Consider using a Schema Registry version that supports IMPORT mode"
@@ -136,7 +138,10 @@ class IDPreservationTest:
             schema = {
                 "type": "record",
                 "name": "TestUser",
-                "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+                "fields": [
+                    {"name": "id", "type": "int"},
+                    {"name": "name", "type": "string"},
+                ],
             }
 
             # Create schema with or without context based on support
@@ -179,7 +184,9 @@ class IDPreservationTest:
         target_subject_name = "test-user"  # Always use simple name for target
 
         # Get source schema ID
-        response = requests.get(f"{self.dev_url}/subjects/{subject_name}/versions/latest")
+        response = requests.get(
+            f"{self.dev_url}/subjects/{subject_name}/versions/latest"
+        )
         if response.status_code == 200:
             source_id = response.json().get("id")
             print(f"   📋 Source schema ID: {source_id}")
@@ -207,12 +214,16 @@ class IDPreservationTest:
             return False
 
         # Verify ID was not preserved
-        response = requests.get(f"{self.prod_url}/subjects/{target_subject_name}/versions/latest")
+        response = requests.get(
+            f"{self.prod_url}/subjects/{target_subject_name}/versions/latest"
+        )
         if response.status_code == 200:
             target_id = response.json().get("id")
             print(f"   📋 Target schema ID: {target_id}")
             if target_id == source_id:
-                print("   ℹ️ ID was preserved (this can happen if the schema already existed)")
+                print(
+                    "   ℹ️ ID was preserved (this can happen if the schema already existed)"
+                )
                 # Check if schema already existed
                 try:
                     check_response = requests.get(
@@ -244,11 +255,15 @@ class IDPreservationTest:
         # Use the appropriate subject name based on context support
         subject_name = self.test_subjects[0] if self.test_subjects else "test-user"
         target_subject_name = (
-            f":.{self.target_context}:test-user" if self.contexts_supported else "test-user"
+            f":.{self.target_context}:test-user"
+            if self.contexts_supported
+            else "test-user"
         )
 
         # Get source schema ID
-        response = requests.get(f"{self.dev_url}/subjects/{subject_name}/versions/latest")
+        response = requests.get(
+            f"{self.dev_url}/subjects/{subject_name}/versions/latest"
+        )
         if response.status_code == 200:
             source_id = response.json().get("id")
             print(f"   📋 Source schema ID: {source_id}")
@@ -276,7 +291,9 @@ class IDPreservationTest:
             return False
 
         # Verify ID was preserved
-        response = requests.get(f"{self.prod_url}/subjects/{target_subject_name}/versions/latest")
+        response = requests.get(
+            f"{self.prod_url}/subjects/{target_subject_name}/versions/latest"
+        )
         if response.status_code == 200:
             target_id = response.json().get("id")
             print(f"   📋 Target schema ID: {target_id}")
@@ -288,13 +305,17 @@ class IDPreservationTest:
                         response = requests.put(
                             f"{self.prod_url}/contexts/{self.target_context}/mode/test-user",
                             json={"mode": "READWRITE"},
-                            headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+                            headers={
+                                "Content-Type": "application/vnd.schemaregistry.v1+json"
+                            },
                         )
                     else:
                         response = requests.put(
                             f"{self.prod_url}/mode/test-user",
                             json={"mode": "READWRITE"},
-                            headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+                            headers={
+                                "Content-Type": "application/vnd.schemaregistry.v1+json"
+                            },
                         )
                     if response.status_code == 200:
                         print("   ✅ Restored subject to READWRITE mode")
@@ -332,7 +353,9 @@ class IDPreservationTest:
             if response.status_code == 200:
                 print(f"   ✅ Deleted {subject_name} from prod")
             elif response.status_code != 404:  # 404 is OK - subject doesn't exist
-                print(f"   ⚠️ Failed to delete {subject_name} from prod: {response.text}")
+                print(
+                    f"   ⚠️ Failed to delete {subject_name} from prod: {response.text}"
+                )
         except Exception as e:
             print(f"   ⚠️ Error cleaning up prod subject: {e}")
 

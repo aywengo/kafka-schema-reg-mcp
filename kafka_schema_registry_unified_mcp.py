@@ -35,8 +35,12 @@ from mcp.server.fastmcp import FastMCP
 load_dotenv()
 
 # Import OAuth functionality
-from oauth_provider import (ENABLE_AUTH, get_fastmcp_config,
-                            get_oauth_scopes_info, require_scopes)
+from oauth_provider import (
+    ENABLE_AUTH,
+    get_fastmcp_config,
+    get_oauth_scopes_info,
+    require_scopes,
+)
 
 # Initialize FastMCP with OAuth configuration
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
@@ -48,38 +52,72 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from batch_operations import (clear_context_batch_tool,
-                              clear_multiple_contexts_batch_tool)
-from comparison_tools import (compare_contexts_across_registries_tool,
-                              compare_registries_tool,
-                              find_missing_schemas_tool)
-from core_registry_tools import (check_compatibility_tool, create_context_tool,
-                                 delete_context_tool, delete_subject_tool,
-                                 get_global_config_tool, get_mode_tool,
-                                 get_schema_tool, get_schema_versions_tool,
-                                 get_subject_config_tool,
-                                 get_subject_mode_tool, list_contexts_tool,
-                                 list_subjects_tool, register_schema_tool,
-                                 update_global_config_tool, update_mode_tool,
-                                 update_subject_config_tool,
-                                 update_subject_mode_tool)
-from export_tools import (export_context_tool, export_global_tool,
-                          export_schema_tool, export_subject_tool)
-from migration_tools import (get_migration_status_tool, list_migrations_tool,
-                             migrate_context_tool, migrate_schema_tool)
+from batch_operations import (
+    clear_context_batch_tool,
+    clear_multiple_contexts_batch_tool,
+)
+from comparison_tools import (
+    compare_contexts_across_registries_tool,
+    compare_registries_tool,
+    find_missing_schemas_tool,
+)
+from core_registry_tools import (
+    check_compatibility_tool,
+    create_context_tool,
+    delete_context_tool,
+    delete_subject_tool,
+    get_global_config_tool,
+    get_mode_tool,
+    get_schema_tool,
+    get_schema_versions_tool,
+    get_subject_config_tool,
+    get_subject_mode_tool,
+    list_contexts_tool,
+    list_subjects_tool,
+    register_schema_tool,
+    update_global_config_tool,
+    update_mode_tool,
+    update_subject_config_tool,
+    update_subject_mode_tool,
+)
+from export_tools import (
+    export_context_tool,
+    export_global_tool,
+    export_schema_tool,
+    export_subject_tool,
+)
+from migration_tools import (
+    get_migration_status_tool,
+    list_migrations_tool,
+    migrate_context_tool,
+    migrate_schema_tool,
+)
+
 # Import common library functionality
-from schema_registry_common import (SINGLE_READONLY, SINGLE_REGISTRY_PASSWORD,
-                                    SINGLE_REGISTRY_URL, SINGLE_REGISTRY_USER,
-                                    LegacyRegistryManager,
-                                    MultiRegistryManager, RegistryClient,
-                                    RegistryConfig, build_context_url)
+from schema_registry_common import (
+    SINGLE_READONLY,
+    SINGLE_REGISTRY_PASSWORD,
+    SINGLE_REGISTRY_URL,
+    SINGLE_REGISTRY_USER,
+    LegacyRegistryManager,
+    MultiRegistryManager,
+    RegistryClient,
+    RegistryConfig,
+    build_context_url,
+)
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
-from schema_registry_common import get_default_client
-from statistics_tools import (count_contexts_tool, count_schema_versions_tool,
-                              count_schemas_task_queue_tool,
-                              count_schemas_tool,
-                              get_registry_statistics_task_queue_tool,
-                              get_registry_statistics_tool)
+from schema_registry_common import (
+    get_default_client,
+)
+from statistics_tools import (
+    count_contexts_tool,
+    count_schema_versions_tool,
+    count_schemas_task_queue_tool,
+    count_schemas_tool,
+    get_registry_statistics_task_queue_tool,
+    get_registry_statistics_tool,
+)
+
 # Import specialized modules
 from task_management import get_operation_info, task_manager
 
@@ -271,7 +309,10 @@ async def compare_registries(
 @mcp.tool()
 @require_scopes("read")
 async def compare_contexts_across_registries(
-    source_registry: str, target_registry: str, source_context: str, target_context: str = None
+    source_registry: str,
+    target_registry: str,
+    source_context: str,
+    target_context: str = None,
 ):
     """Compare contexts across two registries."""
     return await compare_contexts_across_registries_tool(
@@ -286,7 +327,9 @@ async def compare_contexts_across_registries(
 
 @mcp.tool()
 @require_scopes("read")
-async def find_missing_schemas(source_registry: str, target_registry: str, context: str = None):
+async def find_missing_schemas(
+    source_registry: str, target_registry: str, context: str = None
+):
     """Find schemas that exist in source registry but not in target registry."""
     return await find_missing_schemas_tool(
         source_registry, target_registry, registry_manager, REGISTRY_MODE, context
@@ -322,7 +365,9 @@ def register_schema(
 
 @mcp.tool()
 @require_scopes("read")
-def get_schema(subject: str, version: str = "latest", context: str = None, registry: str = None):
+def get_schema(
+    subject: str, version: str = "latest", context: str = None, registry: str = None
+):
     """Get a specific version of a schema."""
     return get_schema_tool(
         subject,
@@ -358,7 +403,13 @@ def get_schema_versions(subject: str, context: str = None, registry: str = None)
 def list_subjects(context: str = None, registry: str = None):
     """List all subjects, optionally filtered by context."""
     return list_subjects_tool(
-        registry_manager, REGISTRY_MODE, context, registry, auth, headers, SCHEMA_REGISTRY_URL
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
     )
 
 
@@ -507,7 +558,9 @@ def get_subject_mode(subject: str, context: str = None, registry: str = None):
 
 @mcp.tool()
 @require_scopes("write")
-def update_subject_mode(subject: str, mode: str, context: str = None, registry: str = None):
+def update_subject_mode(
+    subject: str, mode: str, context: str = None, registry: str = None
+):
     """Update the mode for a specific subject."""
     return update_subject_mode_tool(
         subject,
@@ -539,7 +592,13 @@ def list_contexts(registry: str = None):
 def create_context(context: str, registry: str = None):
     """Create a new schema context."""
     return create_context_tool(
-        context, registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
     )
 
 
@@ -548,7 +607,13 @@ def create_context(context: str, registry: str = None):
 def delete_context(context: str, registry: str = None):
     """Delete a schema context."""
     return delete_context_tool(
-        context, registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
     )
 
 
@@ -726,22 +791,38 @@ async def migrate_context(
 @mcp.tool()
 @require_scopes("admin")
 def clear_context_batch(
-    context: str, registry: str = None, delete_context_after: bool = True, dry_run: bool = True
+    context: str,
+    registry: str = None,
+    delete_context_after: bool = True,
+    dry_run: bool = True,
 ):
     """Clear all subjects in a context using batch operations."""
     return clear_context_batch_tool(
-        context, registry_manager, REGISTRY_MODE, registry, delete_context_after, dry_run
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        delete_context_after,
+        dry_run,
     )
 
 
 @mcp.tool()
 @require_scopes("admin")
 def clear_multiple_contexts_batch(
-    contexts: list, registry: str = None, delete_contexts_after: bool = True, dry_run: bool = True
+    contexts: list,
+    registry: str = None,
+    delete_contexts_after: bool = True,
+    dry_run: bool = True,
 ):
     """Clear multiple contexts in a registry in batch mode."""
     return clear_multiple_contexts_batch_tool(
-        contexts, registry_manager, REGISTRY_MODE, registry, delete_contexts_after, dry_run
+        contexts,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        delete_contexts_after,
+        dry_run,
     )
 
 
@@ -762,7 +843,9 @@ def count_schemas(context: str = None, registry: str = None):
     # Use task queue version for better performance when counting across multiple contexts
     if context is None:
         # Multiple contexts - use optimized async version
-        return count_schemas_task_queue_tool(registry_manager, REGISTRY_MODE, context, registry)
+        return count_schemas_task_queue_tool(
+            registry_manager, REGISTRY_MODE, context, registry
+        )
     else:
         # Single context - use direct version
         return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
@@ -772,7 +855,9 @@ def count_schemas(context: str = None, registry: str = None):
 @require_scopes("read")
 def count_schema_versions(subject: str, context: str = None, registry: str = None):
     """Count the number of versions for a specific schema."""
-    return count_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry)
+    return count_schema_versions_tool(
+        subject, registry_manager, REGISTRY_MODE, context, registry
+    )
 
 
 @mcp.tool()
@@ -828,7 +913,9 @@ def list_active_tasks():
         return {
             "tasks": [task.to_dict() for task in tasks],
             "total_tasks": len(tasks),
-            "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
+            "active_tasks": len(
+                [t for t in tasks if t.status.value in ["pending", "running"]]
+            ),
         }
     except Exception as e:
         return {"error": str(e)}
@@ -843,7 +930,9 @@ async def cancel_task(task_id: str):
         if cancelled:
             return {"message": f"Task '{task_id}' cancelled successfully"}
         else:
-            return {"error": f"Could not cancel task '{task_id}' (may already be completed)"}
+            return {
+                "error": f"Could not cancel task '{task_id}' (may already be completed)"
+            }
     except Exception as e:
         return {"error": str(e)}
 
@@ -859,7 +948,9 @@ def list_statistics_tasks():
         return {
             "statistics_tasks": [task.to_dict() for task in tasks],
             "total_tasks": len(tasks),
-            "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
+            "active_tasks": len(
+                [t for t in tasks if t.status.value in ["pending", "running"]]
+            ),
             "registry_mode": REGISTRY_MODE,
         }
     except Exception as e:
@@ -943,7 +1034,10 @@ def set_default_registry(registry_name: str):
                 "registry_mode": "multi",
             }
         else:
-            return {"error": f"Registry '{registry_name}' not found", "registry_mode": "multi"}
+            return {
+                "error": f"Registry '{registry_name}' not found",
+                "registry_mode": "multi",
+            }
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
 
@@ -962,7 +1056,9 @@ def get_default_registry():
             return {
                 "default_registry": default,
                 "registry_mode": "single",
-                "info": registry_manager.get_registry_info(default) if default else None,
+                "info": (
+                    registry_manager.get_registry_info(default) if default else None
+                ),
             }
         else:
             default = registry_manager.get_default_registry()
@@ -973,7 +1069,10 @@ def get_default_registry():
                     "info": registry_manager.get_registry_info(default),
                 }
             else:
-                return {"error": "No default registry configured", "registry_mode": "multi"}
+                return {
+                    "error": "No default registry configured",
+                    "registry_mode": "multi",
+                }
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
 
@@ -1037,7 +1136,8 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
             endpoint_result = {
                 "url": endpoint_url,
                 "status_code": response.status_code,
-                "success": response.status_code in [200, 404],  # 404 is OK if OAuth disabled
+                "success": response.status_code
+                in [200, 404],  # 404 is OK if OAuth disabled
                 "headers": dict(response.headers),
                 "response_time_ms": response.elapsed.total_seconds() * 1000,
             }
@@ -1048,9 +1148,18 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
                 endpoint_result["data"] = response_data
 
                 # Validate expected fields based on endpoint
-                if endpoint_name == "oauth_authorization_server" and response.status_code == 200:
-                    required_fields = ["issuer", "scopes_supported", "mcp_server_version"]
-                    missing_fields = [f for f in required_fields if f not in response_data]
+                if (
+                    endpoint_name == "oauth_authorization_server"
+                    and response.status_code == 200
+                ):
+                    required_fields = [
+                        "issuer",
+                        "scopes_supported",
+                        "mcp_server_version",
+                    ]
+                    missing_fields = [
+                        f for f in required_fields if f not in response_data
+                    ]
                     if missing_fields:
                         endpoint_result["warnings"] = (
                             f"Missing recommended fields: {missing_fields}"
@@ -1059,34 +1168,53 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
                     # Check MCP-specific extensions
                     if "mcp_endpoints" not in response_data:
                         endpoint_result["warnings"] = (
-                            endpoint_result.get("warnings", "") + " Missing MCP endpoints"
+                            endpoint_result.get("warnings", "")
+                            + " Missing MCP endpoints"
                         )
 
-                elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
-                    required_fields = ["resource", "authorization_servers", "scopes_supported"]
-                    missing_fields = [f for f in required_fields if f not in response_data]
+                elif (
+                    endpoint_name == "oauth_protected_resource"
+                    and response.status_code == 200
+                ):
+                    required_fields = [
+                        "resource",
+                        "authorization_servers",
+                        "scopes_supported",
+                    ]
+                    missing_fields = [
+                        f for f in required_fields if f not in response_data
+                    ]
                     if missing_fields:
-                        endpoint_result["warnings"] = f"Missing required fields: {missing_fields}"
+                        endpoint_result["warnings"] = (
+                            f"Missing required fields: {missing_fields}"
+                        )
 
                     # Check MCP-specific fields
                     if "mcp_server_info" not in response_data:
                         endpoint_result["warnings"] = (
-                            endpoint_result.get("warnings", "") + " Missing MCP server info"
+                            endpoint_result.get("warnings", "")
+                            + " Missing MCP server info"
                         )
 
                 elif endpoint_name == "jwks" and response.status_code == 200:
                     if "keys" not in response_data:
-                        endpoint_result["warnings"] = "Missing 'keys' field in JWKS response"
+                        endpoint_result["warnings"] = (
+                            "Missing 'keys' field in JWKS response"
+                        )
 
             except json.JSONDecodeError:
-                endpoint_result["data"] = response.text[:500]  # First 500 chars if not JSON
+                endpoint_result["data"] = response.text[
+                    :500
+                ]  # First 500 chars if not JSON
                 endpoint_result["warnings"] = "Response is not valid JSON"
 
             # Additional validations
             if response.status_code == 404 and not results["oauth_enabled"]:
                 endpoint_result["note"] = "404 expected when OAuth is disabled"
             elif response.status_code == 200 and not results["oauth_enabled"]:
-                endpoint_result["warnings"] = "Endpoint returns 200 but OAuth appears disabled"
+                endpoint_result["warnings"] = (
+                    "Endpoint returns 200 but OAuth appears disabled"
+                )
             elif response.status_code != 200 and results["oauth_enabled"]:
                 endpoint_result["warnings"] = (
                     f"Expected 200 status when OAuth enabled, got {response.status_code}"
@@ -1153,11 +1281,15 @@ def get_operation_info_tool(operation_name: str = None):
                 all_ops[op_name] = get_operation_info(op_name, REGISTRY_MODE)
 
             # Add summary statistics
-            quick_ops = sum(1 for info in all_ops.values() if info["expected_duration"] == "quick")
+            quick_ops = sum(
+                1 for info in all_ops.values() if info["expected_duration"] == "quick"
+            )
             medium_ops = sum(
                 1 for info in all_ops.values() if info["expected_duration"] == "medium"
             )
-            long_ops = sum(1 for info in all_ops.values() if info["expected_duration"] == "long")
+            long_ops = sum(
+                1 for info in all_ops.values() if info["expected_duration"] == "long"
+            )
             task_queue_ops = sum(
                 1 for info in all_ops.values() if info["async_pattern"] == "task_queue"
             )
@@ -1331,8 +1463,12 @@ if __name__ == "__main__":
     )
 
     # Log startup information
-    logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture)")
-    logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
+    logger.info(
+        f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture)"
+    )
+    logger.info(
+        f"Detected {len(registry_manager.list_registries())} registry configurations"
+    )
     logger.info(
         "Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows"
     )

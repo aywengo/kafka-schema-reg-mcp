@@ -41,7 +41,9 @@ def count_contexts_tool(
             return contexts
 
         return {
-            "registry": client.config.name if hasattr(client.config, "name") else "default",
+            "registry": (
+                client.config.name if hasattr(client.config, "name") else "default"
+            ),
             "total_contexts": len(contexts),
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
@@ -79,7 +81,9 @@ def count_schemas_tool(
             return subjects
 
         return {
-            "registry": client.config.name if hasattr(client.config, "name") else "default",
+            "registry": (
+                client.config.name if hasattr(client.config, "name") else "default"
+            ),
             "context": context or "default",
             "total_schemas": len(subjects),
             "schemas": subjects,
@@ -123,7 +127,9 @@ def count_schema_versions_tool(
             return versions
 
         return {
-            "registry": client.config.name if hasattr(client.config, "name") else "default",
+            "registry": (
+                client.config.name if hasattr(client.config, "name") else "default"
+            ),
             "context": context or "default",
             "subject": subject,
             "total_versions": len(versions),
@@ -190,7 +196,11 @@ def get_registry_statistics_tool(
 
             if include_context_details:
                 context_stats.append(
-                    {"context": context, "schemas": context_schemas, "versions": context_versions}
+                    {
+                        "context": context,
+                        "schemas": context_schemas,
+                        "versions": context_versions,
+                    }
                 )
 
         # Get default context stats
@@ -209,15 +219,23 @@ def get_registry_statistics_tool(
 
             if include_context_details:
                 context_stats.append(
-                    {"context": "default", "schemas": default_schemas, "versions": default_versions}
+                    {
+                        "context": "default",
+                        "schemas": default_schemas,
+                        "versions": default_versions,
+                    }
                 )
 
         return {
-            "registry": client.config.name if hasattr(client.config, "name") else "default",
+            "registry": (
+                client.config.name if hasattr(client.config, "name") else "default"
+            ),
             "total_contexts": len(contexts),
             "total_schemas": total_schemas,
             "total_versions": total_versions,
-            "average_versions_per_schema": round(total_versions / max(total_schemas, 1), 2),
+            "average_versions_per_schema": round(
+                total_versions / max(total_schemas, 1), 2
+            ),
             "contexts": context_stats if include_context_details else None,
             "counted_at": datetime.now().isoformat(),
         }
@@ -253,7 +271,9 @@ async def _count_schemas_async(
                 return subjects
 
             return {
-                "registry": client.config.name if hasattr(client.config, "name") else "default",
+                "registry": (
+                    client.config.name if hasattr(client.config, "name") else "default"
+                ),
                 "context": context,
                 "total_schemas": len(subjects),
                 "schemas": subjects,
@@ -275,7 +295,9 @@ async def _count_schemas_async(
                 }
 
                 # Add default context
-                future_to_context[executor.submit(client.get_subjects, None)] = "default"
+                future_to_context[executor.submit(client.get_subjects, None)] = (
+                    "default"
+                )
 
                 for future in as_completed(future_to_context):
                     ctx = future_to_context[future]
@@ -288,7 +310,9 @@ async def _count_schemas_async(
                         all_schemas[ctx] = {"error": str(e)}
 
             return {
-                "registry": client.config.name if hasattr(client.config, "name") else "default",
+                "registry": (
+                    client.config.name if hasattr(client.config, "name") else "default"
+                ),
                 "total_schemas": total_schemas,
                 "schemas_by_context": all_schemas,
                 "contexts_analyzed": len(all_schemas),
@@ -312,7 +336,11 @@ def count_schemas_task_queue_tool(
         # Create async task
         task = task_manager.create_task(
             TaskType.STATISTICS,
-            metadata={"operation": "count_schemas", "context": context, "registry": registry},
+            metadata={
+                "operation": "count_schemas",
+                "context": context,
+                "registry": registry,
+            },
         )
 
         # Start async execution
@@ -403,7 +431,9 @@ async def _get_registry_statistics_async(
 
             # Add all contexts
             for context in contexts:
-                future = executor.submit(_analyze_context_parallel, client, context, registry)
+                future = executor.submit(
+                    _analyze_context_parallel, client, context, registry
+                )
                 future_to_context[future] = context
 
             # Add default context
@@ -419,7 +449,10 @@ async def _get_registry_statistics_async(
                 try:
                     context_result = future.result()
 
-                    if not isinstance(context_result, dict) or "error" not in context_result:
+                    if (
+                        not isinstance(context_result, dict)
+                        or "error" not in context_result
+                    ):
                         total_schemas += context_result.get("schemas", 0)
                         total_versions += context_result.get("versions", 0)
 
@@ -447,11 +480,15 @@ async def _get_registry_statistics_async(
             task_manager.update_progress(task_id, 95.0)
 
         result = {
-            "registry": client.config.name if hasattr(client.config, "name") else "default",
+            "registry": (
+                client.config.name if hasattr(client.config, "name") else "default"
+            ),
             "total_contexts": len(contexts),
             "total_schemas": total_schemas,
             "total_versions": total_versions,
-            "average_versions_per_schema": round(total_versions / max(total_schemas, 1), 2),
+            "average_versions_per_schema": round(
+                total_versions / max(total_schemas, 1), 2
+            ),
             "contexts": context_stats if include_context_details else None,
             "counted_at": datetime.now().isoformat(),
         }

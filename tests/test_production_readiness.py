@@ -123,7 +123,9 @@ async def test_high_availability_scenarios():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging
@@ -152,7 +154,9 @@ async def _test_high_availability_with_client(server_params):
             connected = health_data.get("connected", 0)
             failed = health_data.get("failed", 0)
 
-            print(f"  ✅ Cluster health: {connected}/{total_registries} clusters healthy")
+            print(
+                f"  ✅ Cluster health: {connected}/{total_registries} clusters healthy"
+            )
             print(f"     Failed clusters: {failed}")
 
             # Test 2: Primary cluster operations
@@ -172,7 +176,9 @@ async def _test_high_availability_with_client(server_params):
                 if not response.get("error"):
                     print(f"  ✅ Registered {schema_name} in primary cluster")
                 else:
-                    print(f"  ❌ Failed to register {schema_name}: {response.get('error')}")
+                    print(
+                        f"  ❌ Failed to register {schema_name}: {response.get('error')}"
+                    )
 
             # Test 3: DR cluster replication check
             print("\nTest 3: Disaster recovery cluster validation")
@@ -219,12 +225,16 @@ async def _test_high_availability_with_client(server_params):
                     "dry_run": True,
                 },
             )
-            migration_result = json.loads(result.content[0].text) if result.content else {}
+            migration_result = (
+                json.loads(result.content[0].text) if result.content else {}
+            )
 
             if not migration_result.get("error"):
                 print("  ✅ Cross-cluster migration capability validated")
             else:
-                print(f"  ❌ Migration capability issue: {migration_result.get('error')}")
+                print(
+                    f"  ❌ Migration capability issue: {migration_result.get('error')}"
+                )
 
             print("\n🎉 High Availability Scenarios Tests Complete!")
 
@@ -253,11 +263,15 @@ async def test_security_and_compliance():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging
-        await asyncio.wait_for(_test_security_compliance_with_client(server_params), timeout=60.0)
+        await asyncio.wait_for(
+            _test_security_compliance_with_client(server_params), timeout=60.0
+        )
     except asyncio.TimeoutError:
         print("❌ Security and compliance test timed out after 60 seconds")
     except Exception as e:
@@ -281,12 +295,18 @@ async def _test_security_compliance_with_client(server_params):
                         "registry": "production_secure",
                     },
                 ),
-                ("delete_subject", {"subject": "any.subject", "registry": "production_secure"}),
+                (
+                    "delete_subject",
+                    {"subject": "any.subject", "registry": "production_secure"},
+                ),
                 (
                     "update_global_config",
                     {"compatibility": "NONE", "registry": "production_secure"},
                 ),
-                ("create_context", {"context": "unauthorized", "registry": "production_secure"}),
+                (
+                    "create_context",
+                    {"context": "unauthorized", "registry": "production_secure"},
+                ),
             ]
 
             protected_operations = 0
@@ -321,9 +341,12 @@ async def _test_security_compliance_with_client(server_params):
 
                 # Verify audit schema structure
                 result = await session.call_tool(
-                    "get_schema", {"subject": "compliance.audit_log", "registry": "development"}
+                    "get_schema",
+                    {"subject": "compliance.audit_log", "registry": "development"},
                 )
-                schema_data = json.loads(result.content[0].text) if result.content else {}
+                schema_data = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
 
                 if "user_id" in str(schema_data) and "action" in str(schema_data):
                     print("  ✅ Audit schema contains required compliance fields")
@@ -373,18 +396,24 @@ async def _test_security_compliance_with_client(server_params):
 
             # Test 5: Configuration security validation
             print("\nTest 5: Configuration security validation")
-            result = await session.call_tool("get_global_config", {"registry": "production_secure"})
+            result = await session.call_tool(
+                "get_global_config", {"registry": "production_secure"}
+            )
             config_data = json.loads(result.content[0].text) if result.content else {}
 
             if config_data.get("compatibility"):
-                print(f"  ✅ Production config accessible: {config_data.get('compatibility')}")
+                print(
+                    f"  ✅ Production config accessible: {config_data.get('compatibility')}"
+                )
 
                 # Check for secure compatibility settings
                 compat = config_data.get("compatibility", "")
                 if compat in ["BACKWARD", "FULL"]:
                     print("  ✅ Production using secure compatibility mode")
                 else:
-                    print(f"  ⚠️ Production compatibility mode may be insecure: {compat}")
+                    print(
+                        f"  ⚠️ Production compatibility mode may be insecure: {compat}"
+                    )
 
             print("\n🎉 Security and Compliance Tests Complete!")
 
@@ -416,11 +445,15 @@ async def test_enterprise_operations():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging
-        await asyncio.wait_for(_test_enterprise_operations_with_client(server_params), timeout=60.0)
+        await asyncio.wait_for(
+            _test_enterprise_operations_with_client(server_params), timeout=60.0
+        )
     except asyncio.TimeoutError:
         print("❌ Enterprise operations test timed out after 60 seconds")
     except Exception as e:
@@ -445,13 +478,17 @@ async def _test_enterprise_operations_with_client(server_params):
                 "production": {"readonly": "true"},
             }
 
-            env_count = len([r for r in registries if r.get("name") in environments.keys()])
+            env_count = len(
+                [r for r in registries if r.get("name") in environments.keys()]
+            )
             print(f"  ✅ Enterprise environments configured: {env_count}/4")
 
             for registry in registries:
                 env_name = registry.get("name")
                 readonly = registry.get("readonly", False)
-                expected_readonly = environments.get(env_name, {}).get("readonly") == "true"
+                expected_readonly = (
+                    environments.get(env_name, {}).get("readonly") == "true"
+                )
 
                 if readonly == expected_readonly:
                     print(f"  ✅ {env_name}: correct readonly mode ({readonly})")
@@ -487,7 +524,9 @@ async def _test_enterprise_operations_with_client(server_params):
                         "dry_run": False,
                     },
                 )
-                qa_response = json.loads(result.content[0].text) if result.content else {}
+                qa_response = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
 
                 if not qa_response.get("error"):
                     print("  ✅ Schema promoted to QA")
@@ -502,26 +541,39 @@ async def _test_enterprise_operations_with_client(server_params):
                             "dry_run": False,
                         },
                     )
-                    staging_response = json.loads(result.content[0].text) if result.content else {}
+                    staging_response = (
+                        json.loads(result.content[0].text) if result.content else {}
+                    )
 
                     if not staging_response.get("error"):
                         print("  ✅ Schema promoted to staging")
                     else:
-                        print(f"  ❌ Staging promotion failed: {staging_response.get('error')}")
+                        print(
+                            f"  ❌ Staging promotion failed: {staging_response.get('error')}"
+                        )
                 else:
                     print(f"  ❌ QA promotion failed: {qa_response.get('error')}")
             else:
-                print(f"  ❌ Development registration failed: {dev_response.get('error')}")
+                print(
+                    f"  ❌ Development registration failed: {dev_response.get('error')}"
+                )
 
             # Test 3: Cross-environment comparison
             print("\nTest 3: Cross-environment schema drift detection")
-            comparison_pairs = [("development", "qa"), ("qa", "staging"), ("staging", "production")]
+            comparison_pairs = [
+                ("development", "qa"),
+                ("qa", "staging"),
+                ("staging", "production"),
+            ]
 
             for source, target in comparison_pairs:
                 result = await session.call_tool(
-                    "compare_registries", {"source_registry": source, "target_registry": target}
+                    "compare_registries",
+                    {"source_registry": source, "target_registry": target},
                 )
-                comparison = json.loads(result.content[0].text) if result.content else {}
+                comparison = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
 
                 source_only = len(comparison.get("subjects", {}).get("source_only", []))
                 target_only = len(comparison.get("subjects", {}).get("target_only", []))
@@ -535,7 +587,10 @@ async def _test_enterprise_operations_with_client(server_params):
             print("\nTest 4: Bulk operations for enterprise deployment")
             bulk_schemas = [
                 ("enterprise.user_events", PRODUCTION_SCHEMAS["user_pii"]),
-                ("enterprise.payment_events", PRODUCTION_SCHEMAS["financial_transaction"]),
+                (
+                    "enterprise.payment_events",
+                    PRODUCTION_SCHEMAS["financial_transaction"],
+                ),
                 ("enterprise.audit_events", PRODUCTION_SCHEMAS["audit_log"]),
             ]
 
@@ -543,14 +598,20 @@ async def _test_enterprise_operations_with_client(server_params):
             for subject, schema in bulk_schemas:
                 result = await session.call_tool(
                     "register_schema",
-                    {"subject": subject, "schema_definition": schema, "registry": "development"},
+                    {
+                        "subject": subject,
+                        "schema_definition": schema,
+                        "registry": "development",
+                    },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
 
                 if not response.get("error"):
                     successful_registrations += 1
 
-            print(f"  ✅ Bulk registration: {successful_registrations}/{len(bulk_schemas)} schemas")
+            print(
+                f"  ✅ Bulk registration: {successful_registrations}/{len(bulk_schemas)} schemas"
+            )
 
             # Test 5: Production deployment validation
             print("\nTest 5: Production deployment readiness")
@@ -561,7 +622,9 @@ async def _test_enterprise_operations_with_client(server_params):
             missing_data = json.loads(result.content[0].text) if result.content else {}
 
             missing_count = missing_data.get("missing_count", 0)
-            print(f"  ✅ Production readiness: {missing_count} schemas awaiting deployment")
+            print(
+                f"  ✅ Production readiness: {missing_count} schemas awaiting deployment"
+            )
 
             if missing_count > 0:
                 missing_schemas = missing_data.get("missing_schemas", [])
@@ -590,7 +653,9 @@ async def test_monitoring_and_observability():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging
@@ -656,10 +721,14 @@ async def _test_monitoring_observability_with_client(server_params):
 
             # Test 3: Registry inventory monitoring
             print("\nTest 3: Registry inventory monitoring")
-            result = await session.call_tool("list_subjects", {"registry": "monitoring_test"})
+            result = await session.call_tool(
+                "list_subjects", {"registry": "monitoring_test"}
+            )
             subjects = json.loads(result.content[0].text) if result.content else []
 
-            result = await session.call_tool("list_contexts", {"registry": "monitoring_test"})
+            result = await session.call_tool(
+                "list_contexts", {"registry": "monitoring_test"}
+            )
             contexts = json.loads(result.content[0].text) if result.content else []
 
             print(f"  ✅ Inventory metrics:")
@@ -668,14 +737,20 @@ async def _test_monitoring_observability_with_client(server_params):
 
             # Test 4: Configuration monitoring
             print("\nTest 4: Configuration monitoring")
-            result = await session.call_tool("get_global_config", {"registry": "monitoring_test"})
+            result = await session.call_tool(
+                "get_global_config", {"registry": "monitoring_test"}
+            )
             config_data = json.loads(result.content[0].text) if result.content else {}
 
-            result = await session.call_tool("get_mode", {"registry": "monitoring_test"})
+            result = await session.call_tool(
+                "get_mode", {"registry": "monitoring_test"}
+            )
             mode_data = json.loads(result.content[0].text) if result.content else {}
 
             print(f"  ✅ Configuration status:")
-            print(f"     Compatibility level: {config_data.get('compatibility', 'unknown')}")
+            print(
+                f"     Compatibility level: {config_data.get('compatibility', 'unknown')}"
+            )
             print(f"     Registry mode: {mode_data.get('mode', 'unknown')}")
             print(f"     Registry: {config_data.get('registry', 'unknown')}")
 
@@ -733,11 +808,15 @@ async def test_disaster_recovery():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging
-        await asyncio.wait_for(_test_disaster_recovery_with_client(server_params), timeout=60.0)
+        await asyncio.wait_for(
+            _test_disaster_recovery_with_client(server_params), timeout=60.0
+        )
     except asyncio.TimeoutError:
         print("❌ Disaster recovery test timed out after 60 seconds")
     except Exception as e:
@@ -763,7 +842,11 @@ async def _test_disaster_recovery_with_client(server_params):
             for subject, schema in critical_schemas:
                 result = await session.call_tool(
                     "register_schema",
-                    {"subject": subject, "schema_definition": schema, "registry": "primary_site"},
+                    {
+                        "subject": subject,
+                        "schema_definition": schema,
+                        "registry": "primary_site",
+                    },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
 
@@ -784,7 +867,9 @@ async def _test_disaster_recovery_with_client(server_params):
                         "dry_run": False,
                     },
                 )
-                migration_result = json.loads(result.content[0].text) if result.content else {}
+                migration_result = (
+                    json.loads(result.content[0].text) if result.content else {}
+                )
 
                 if not migration_result.get("error"):
                     print(f"  ✅ Synchronized to backup: {subject}")
@@ -813,7 +898,9 @@ async def _test_disaster_recovery_with_client(server_params):
             print(f"     Primary only: {primary_only}")
             print(f"     Backup only: {backup_only}")
 
-            integrity_score = common / (common + primary_only) if (common + primary_only) > 0 else 0
+            integrity_score = (
+                common / (common + primary_only) if (common + primary_only) > 0 else 0
+            )
             print(f"     Integrity score: {integrity_score:.2%}")
 
             # Test 4: Recovery point objective (RPO) simulation
@@ -860,8 +947,12 @@ async def _test_disaster_recovery_with_client(server_params):
             )
             backup_health = json.loads(result.content[0].text) if result.content else {}
 
-            result = await session.call_tool("list_subjects", {"registry": "backup_site"})
-            backup_subjects = json.loads(result.content[0].text) if result.content else []
+            result = await session.call_tool(
+                "list_subjects", {"registry": "backup_site"}
+            )
+            backup_subjects = (
+                json.loads(result.content[0].text) if result.content else []
+            )
 
             recovery_time = time.time() - start_time
 

@@ -8,10 +8,12 @@ import pytest
 # Add the parent directory to sys.path so we can import oauth_provider
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from kafka_schema_registry_unified_mcp import (count_contexts,
-                                               count_schema_versions,
-                                               count_schemas,
-                                               get_registry_statistics)
+from kafka_schema_registry_unified_mcp import (
+    count_contexts,
+    count_schema_versions,
+    count_schemas,
+    get_registry_statistics,
+)
 
 
 @pytest.fixture
@@ -33,7 +35,9 @@ def test_count_contexts_success(mock_registry_client, mock_registry_manager):
     mock_registry_client.get_contexts.return_value = contexts
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
-    with patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager):
+    with patch(
+        "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+    ):
         result = count_contexts("test-registry")
 
         assert result["registry"] == "test-registry"
@@ -45,7 +49,9 @@ def test_count_contexts_success(mock_registry_client, mock_registry_manager):
 def test_count_contexts_registry_not_found(mock_registry_manager):
     mock_registry_manager.get_registry.return_value = None
 
-    with patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager):
+    with patch(
+        "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+    ):
         result = count_contexts("non-existent")
 
         assert "error" in result
@@ -58,7 +64,9 @@ def test_count_schemas_success(mock_registry_client, mock_registry_manager):
     mock_registry_client.get_subjects.return_value = subjects
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
-    with patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager):
+    with patch(
+        "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+    ):
         result = count_schemas(context="test-context", registry="test-registry")
 
         assert result["registry"] == "test-registry"
@@ -74,8 +82,13 @@ def test_count_schema_versions_success(mock_registry_client, mock_registry_manag
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
     with (
-        patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager),
-        patch("kafka_schema_registry_unified_mcp.get_schema_versions", return_value=versions),
+        patch(
+            "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+        ),
+        patch(
+            "kafka_schema_registry_unified_mcp.get_schema_versions",
+            return_value=versions,
+        ),
     ):
         result = count_schema_versions(
             subject="test-subject", context="test-context", registry="test-registry"
@@ -107,7 +120,9 @@ def test_get_registry_statistics_success(mock_registry_client, mock_registry_man
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
     with (
-        patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager),
+        patch(
+            "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+        ),
         patch(
             "kafka_schema_registry_unified_mcp.get_schema_versions",
             side_effect=[
@@ -128,7 +143,9 @@ def test_get_registry_statistics_success(mock_registry_client, mock_registry_man
         assert "counted_at" in result
 
 
-def test_get_registry_statistics_without_details(mock_registry_client, mock_registry_manager):
+def test_get_registry_statistics_without_details(
+    mock_registry_client, mock_registry_manager
+):
     # Setup
     contexts = ["context1", "context2"]
     subjects_context1 = ["subject1"]
@@ -143,10 +160,16 @@ def test_get_registry_statistics_without_details(mock_registry_client, mock_regi
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
     with (
-        patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager),
-        patch("kafka_schema_registry_unified_mcp.get_schema_versions", return_value=[1]),
+        patch(
+            "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+        ),
+        patch(
+            "kafka_schema_registry_unified_mcp.get_schema_versions", return_value=[1]
+        ),
     ):
-        result = get_registry_statistics(registry="test-registry", include_context_details=False)
+        result = get_registry_statistics(
+            registry="test-registry", include_context_details=False
+        )
 
         assert result["registry"] == "test-registry"
         assert result["total_contexts"] == 2
@@ -161,7 +184,9 @@ def test_error_handling(mock_registry_client, mock_registry_manager):
     mock_registry_client.get_contexts.side_effect = Exception("Test error")
     mock_registry_manager.get_registry.return_value = mock_registry_client
 
-    with patch("kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager):
+    with patch(
+        "kafka_schema_registry_unified_mcp.registry_manager", mock_registry_manager
+    ):
         result = count_contexts("test-registry")
 
         assert "error" in result

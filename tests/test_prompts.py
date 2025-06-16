@@ -14,6 +14,7 @@ import asyncio
 import json
 import os
 import re
+
 # Import the unified MCP server and prompts
 import sys
 import tempfile
@@ -25,29 +26,46 @@ import pytest
 import pytest_asyncio
 
 sys.path.append("..")
-from kafka_schema_registry_unified_mcp import (REGISTRY_MODE,
-                                               check_compatibility,
-                                               create_context, export_context,
-                                               export_schema, export_subject,
-                                               get_global_config,
-                                               get_registry_info, get_schema,
-                                               get_schema_versions,
-                                               list_contexts, list_registries,
-                                               list_subjects, mcp,
-                                               register_schema,
-                                               registry_manager)
-from kafka_schema_registry_unified_mcp import \
-    test_registry_connection as _test_registry_connection
-from kafka_schema_registry_unified_mcp import update_global_config
+from kafka_schema_registry_unified_mcp import (
+    REGISTRY_MODE,
+    check_compatibility,
+    create_context,
+    export_context,
+    export_schema,
+    export_subject,
+    get_global_config,
+    get_registry_info,
+    get_schema,
+    get_schema_versions,
+    list_contexts,
+    list_registries,
+    list_subjects,
+    mcp,
+    register_schema,
+    registry_manager,
+)
+from kafka_schema_registry_unified_mcp import (
+    test_registry_connection as _test_registry_connection,
+)
+from kafka_schema_registry_unified_mcp import (
+    update_global_config,
+)
+
 # Import prompts module
-from mcp_prompts import (PROMPT_REGISTRY, get_advanced_workflows_prompt,
-                         get_all_prompt_names, get_context_management_prompt,
-                         get_multi_registry_prompt, get_prompt_content,
-                         get_prompt_summary, get_schema_compatibility_prompt,
-                         get_schema_export_prompt,
-                         get_schema_getting_started_prompt,
-                         get_schema_registration_prompt,
-                         get_troubleshooting_prompt)
+from mcp_prompts import (
+    PROMPT_REGISTRY,
+    get_advanced_workflows_prompt,
+    get_all_prompt_names,
+    get_context_management_prompt,
+    get_multi_registry_prompt,
+    get_prompt_content,
+    get_prompt_summary,
+    get_schema_compatibility_prompt,
+    get_schema_export_prompt,
+    get_schema_getting_started_prompt,
+    get_schema_registration_prompt,
+    get_troubleshooting_prompt,
+)
 
 
 class PromptTestScenarios:
@@ -181,11 +199,15 @@ class TestBasicPromptScenarios:
             pytest.skip(f"Registry not available: {e}")
 
     @pytest.mark.asyncio
-    async def test_register_user_schema_prompt(self, unique_subject, sample_user_schema):
+    async def test_register_user_schema_prompt(
+        self, unique_subject, sample_user_schema
+    ):
         """Test: 'Register a user schema with id, name, and email fields'"""
         try:
             result = register_schema(
-                subject=unique_subject, schema_definition=sample_user_schema, schema_type="AVRO"
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                schema_type="AVRO",
             )
 
             assert isinstance(result, dict)
@@ -201,7 +223,9 @@ class TestBasicPromptScenarios:
         try:
             # First register a schema
             register_result = register_schema(
-                subject=unique_subject, schema_definition=sample_user_schema, schema_type="AVRO"
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                schema_type="AVRO",
             )
 
             if "error" in register_result:
@@ -290,7 +314,9 @@ class TestContextManagementPrompts:
             # Create context and register a schema
             create_context(context=dev_context)
             register_schema(
-                subject=unique_subject, schema_definition=sample_user_schema, context=dev_context
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                context=dev_context,
             )
 
             # List subjects in context
@@ -327,7 +353,9 @@ class TestConfigurationManagementPrompts:
 
             assert isinstance(result, dict)
             # Should either succeed or indicate readonly mode
-            assert "error" not in result or "readonly" in result.get("error", "").lower()
+            assert (
+                "error" not in result or "readonly" in result.get("error", "").lower()
+            )
             print(f"✅ Updated global compatibility to BACKWARD")
 
         except Exception as e:
@@ -338,7 +366,9 @@ class TestExportAndDocumentationPrompts:
     """Test export and documentation prompt scenarios."""
 
     @pytest.mark.asyncio
-    async def test_export_schema_as_json_prompt(self, unique_subject, sample_user_schema):
+    async def test_export_schema_as_json_prompt(
+        self, unique_subject, sample_user_schema
+    ):
         """Test: 'Export the user schema as JSON for documentation'"""
         try:
             # Register schema first
@@ -360,7 +390,9 @@ class TestExportAndDocumentationPrompts:
             pytest.skip(f"Registry not available: {e}")
 
     @pytest.mark.asyncio
-    async def test_export_schema_as_avro_idl_prompt(self, unique_subject, sample_user_schema):
+    async def test_export_schema_as_avro_idl_prompt(
+        self, unique_subject, sample_user_schema
+    ):
         """Test: 'Export the user schema as Avro IDL for the development team'"""
         try:
             # Register schema first
@@ -392,14 +424,18 @@ class TestExportAndDocumentationPrompts:
             # Create context and register schema
             create_context(context=dev_context)
             register_schema(
-                subject=unique_subject, schema_definition=sample_user_schema, context=dev_context
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                context=dev_context,
             )
 
             # Export context
             result = export_context(context=dev_context)
 
             assert isinstance(result, dict)
-            assert "export_data" in result or "schemas" in result or "subjects" in result
+            assert (
+                "export_data" in result or "schemas" in result or "subjects" in result
+            )
             print(f"✅ Exported all schemas from context '{dev_context}'")
 
         except Exception as e:
@@ -435,8 +471,7 @@ class TestMultiRegistryPrompts:
                 result = _test_registry_connection()
             else:
                 # Test all registries
-                from kafka_schema_registry_unified_mcp import \
-                    test_all_registries
+                from kafka_schema_registry_unified_mcp import test_all_registries
 
                 result = await test_all_registries()
 
@@ -465,7 +500,9 @@ class TestComplexWorkflowPrompts:
 
             # Register schema in development
             register_result = register_schema(
-                subject=unique_subject, schema_definition=sample_user_schema, context=dev_context
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                context=dev_context,
             )
 
             if "error" in register_result:
@@ -473,7 +510,9 @@ class TestComplexWorkflowPrompts:
 
             # Check compatibility before promoting to production
             compat_result = check_compatibility(
-                subject=unique_subject, schema_definition=sample_user_schema, context=prod_context
+                subject=unique_subject,
+                schema_definition=sample_user_schema,
+                context=prod_context,
             )
 
             # Export from development context
@@ -486,7 +525,9 @@ class TestComplexWorkflowPrompts:
             pytest.skip(f"Registry not available: {e}")
 
     @pytest.mark.asyncio
-    async def test_schema_documentation_generation_prompt(self, unique_subject, sample_user_schema):
+    async def test_schema_documentation_generation_prompt(
+        self, unique_subject, sample_user_schema
+    ):
         """Test: 'Generate comprehensive documentation for all our schemas'"""
         try:
             # Register schema
@@ -503,7 +544,9 @@ class TestComplexWorkflowPrompts:
             )
 
             assert isinstance(result, dict)
-            assert "export_data" in result or "metadata" in result or "schemas" in result
+            assert (
+                "export_data" in result or "metadata" in result or "schemas" in result
+            )
             print(f"✅ Generated documentation for schema '{unique_subject}'")
 
         except Exception as e:
@@ -530,7 +573,9 @@ class TestPromptPerformance:
 
             # Verify all completed successfully
             successful = sum(1 for r in results if not isinstance(r, Exception))
-            print(f"✅ {successful}/{len(tasks)} rapid-fire prompts completed successfully")
+            print(
+                f"✅ {successful}/{len(tasks)} rapid-fire prompts completed successfully"
+            )
 
         except Exception as e:
             pytest.skip(f"Registry not available: {e}")
@@ -645,7 +690,11 @@ class TestIndividualPromptContent:
         content = get_context_management_prompt()
         assert "Schema Context Management" in content
         assert "Common Context Patterns" in content
-        assert "development" in content and "staging" in content and "production" in content
+        assert (
+            "development" in content
+            and "staging" in content
+            and "production" in content
+        )
         assert "Schema Promotion Workflow" in content
         print("✅ Context management prompt has expected structure")
 
@@ -704,15 +753,21 @@ class TestPromptContentQuality:
             content = get_prompt_content(prompt_name)
 
             # Should have main header
-            assert content.startswith("# "), f"Prompt {prompt_name} should start with main header"
+            assert content.startswith(
+                "# "
+            ), f"Prompt {prompt_name} should start with main header"
 
             # Should have secondary headers
-            assert "## " in content, f"Prompt {prompt_name} should have secondary headers"
+            assert (
+                "## " in content
+            ), f"Prompt {prompt_name} should have secondary headers"
 
             # Should have proper structure
             lines = content.split("\n")
             first_line = lines[0]
-            assert first_line.startswith("# "), f"First line should be main header in {prompt_name}"
+            assert first_line.startswith(
+                "# "
+            ), f"First line should be main header in {prompt_name}"
 
         print("✅ All prompts have proper markdown structure")
 
@@ -724,7 +779,9 @@ class TestPromptContentQuality:
             # Should have quoted examples (commands in quotes)
             quote_pattern = r'"[^"]*"'
             quotes = re.findall(quote_pattern, content)
-            assert len(quotes) >= 3, f"Prompt {prompt_name} should have at least 3 quoted examples"
+            assert (
+                len(quotes) >= 3
+            ), f"Prompt {prompt_name} should have at least 3 quoted examples"
 
             # Should have action words
             action_words = [
@@ -808,10 +865,14 @@ class TestPromptIntegration:
             context_related = any("context" in cmd.lower() for cmd in commands)
 
             if prompt_name in ["schema-registration", "schema-getting-started"]:
-                assert schema_related, f"Prompt {prompt_name} should have schema-related commands"
+                assert (
+                    schema_related
+                ), f"Prompt {prompt_name} should have schema-related commands"
 
             if prompt_name in ["context-management", "schema-getting-started"]:
-                assert context_related, f"Prompt {prompt_name} should have context-related commands"
+                assert (
+                    context_related
+                ), f"Prompt {prompt_name} should have context-related commands"
 
         print("✅ Prompt commands align with available tools")
 
@@ -891,7 +952,9 @@ class TestPromptPerformanceAndReliability:
 
         # Verify results
         assert len(errors) == 0, f"Errors in concurrent access: {errors}"
-        assert len(results) == len(get_all_prompt_names()), "All prompts should complete"
+        assert len(results) == len(
+            get_all_prompt_names()
+        ), "All prompts should complete"
 
         print(f"✅ Successfully accessed {len(results)} prompts concurrently")
 
@@ -940,19 +1003,27 @@ class TestPromptAccessibility:
 
         for prompt_name in get_all_prompt_names():
             content = get_prompt_content(prompt_name)
-            first_paragraph = content.split("\n\n")[0] if "\n\n" in content else content[:200]
+            first_paragraph = (
+                content.split("\n\n")[0] if "\n\n" in content else content[:200]
+            )
 
             has_clear_purpose = any(
                 indicator in first_paragraph.lower() for indicator in purpose_indicators
             )
-            assert has_clear_purpose, f"Prompt {prompt_name} should clearly state its purpose"
+            assert (
+                has_clear_purpose
+            ), f"Prompt {prompt_name} should clearly state its purpose"
 
         print("✅ All prompts have clear purposes")
 
     def test_prompts_progressive_complexity(self):
         """Test that prompts progress from basic to advanced concepts."""
         basic_prompts = ["schema-getting-started", "schema-registration"]
-        intermediate_prompts = ["context-management", "schema-export", "schema-compatibility"]
+        intermediate_prompts = [
+            "context-management",
+            "schema-export",
+            "schema-compatibility",
+        ]
         advanced_prompts = ["multi-registry", "troubleshooting", "advanced-workflows"]
 
         # Basic prompts should have simpler language
@@ -961,17 +1032,31 @@ class TestPromptAccessibility:
 
             # Should mention "basic" or "simple" or "quick"
             simplicity_words = ["basic", "simple", "quick", "easy", "getting started"]
-            has_simple_language = any(word in content.lower() for word in simplicity_words)
-            assert has_simple_language, f"Basic prompt {prompt_name} should use simple language"
+            has_simple_language = any(
+                word in content.lower() for word in simplicity_words
+            )
+            assert (
+                has_simple_language
+            ), f"Basic prompt {prompt_name} should use simple language"
 
         # Advanced prompts should mention complexity
         for prompt_name in advanced_prompts:
             content = get_prompt_content(prompt_name)
 
             # Should mention advanced concepts
-            complexity_words = ["advanced", "complex", "sophisticated", "enterprise", "workflow"]
-            has_complex_language = any(word in content.lower() for word in complexity_words)
-            assert has_complex_language, f"Advanced prompt {prompt_name} should mention complexity"
+            complexity_words = [
+                "advanced",
+                "complex",
+                "sophisticated",
+                "enterprise",
+                "workflow",
+            ]
+            has_complex_language = any(
+                word in content.lower() for word in complexity_words
+            )
+            assert (
+                has_complex_language
+            ), f"Advanced prompt {prompt_name} should mention complexity"
 
         print("✅ Prompts show progressive complexity")
 

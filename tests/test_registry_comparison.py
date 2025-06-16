@@ -53,10 +53,14 @@ def test_test_registry_comparison():
         print(f"   PROD-only subjects: {len(prod_only)}")
 
         if dev_only:
-            print(f"   📋 DEV-only: {list(dev_only)[:5]}{'...' if len(dev_only) > 5 else ''}")
+            print(
+                f"   📋 DEV-only: {list(dev_only)[:5]}{'...' if len(dev_only) > 5 else ''}"
+            )
 
         if prod_only:
-            print(f"   📋 PROD-only: {list(prod_only)[:5]}{'...' if len(prod_only) > 5 else ''}")
+            print(
+                f"   📋 PROD-only: {list(prod_only)[:5]}{'...' if len(prod_only) > 5 else ''}"
+            )
 
         # Compare common subjects in detail
         schema_differences = []
@@ -74,7 +78,10 @@ def test_test_registry_comparison():
                     f"{prod_url}/subjects/{subject}/versions", timeout=5
                 )
 
-                if dev_versions_resp.status_code == 200 and prod_versions_resp.status_code == 200:
+                if (
+                    dev_versions_resp.status_code == 200
+                    and prod_versions_resp.status_code == 200
+                ):
                     dev_versions = dev_versions_resp.json()
                     prod_versions = prod_versions_resp.json()
 
@@ -98,7 +105,10 @@ def test_test_registry_comparison():
                         f"{prod_url}/subjects/{subject}/versions/latest", timeout=5
                     )
 
-                    if dev_latest_resp.status_code == 200 and prod_latest_resp.status_code == 200:
+                    if (
+                        dev_latest_resp.status_code == 200
+                        and prod_latest_resp.status_code == 200
+                    ):
                         dev_latest = dev_latest_resp.json()
                         prod_latest = prod_latest_resp.json()
 
@@ -116,7 +126,9 @@ def test_test_registry_comparison():
                                 f"   ⚠️  Schema differs: DEV v{dev_latest.get('version')} vs PROD v{prod_latest.get('version')}"
                             )
                         else:
-                            print(f"   ✅ Schema identical: v{dev_latest.get('version')}")
+                            print(
+                                f"   ✅ Schema identical: v{dev_latest.get('version')}"
+                            )
 
             except Exception as e:
                 print(f"   ❌ Failed to compare {subject}: {e}")
@@ -148,7 +160,10 @@ def test_test_registry_comparison():
             dev_config_resp = requests.get(f"{dev_url}/config", timeout=5)
             prod_config_resp = requests.get(f"{prod_url}/config", timeout=5)
 
-            if dev_config_resp.status_code == 200 and prod_config_resp.status_code == 200:
+            if (
+                dev_config_resp.status_code == 200
+                and prod_config_resp.status_code == 200
+            ):
                 dev_config = dev_config_resp.json()
                 prod_config = prod_config_resp.json()
 

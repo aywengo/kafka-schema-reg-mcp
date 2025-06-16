@@ -18,8 +18,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import requests
 
-from task_management import (TaskStatus, TaskType, get_operation_info,
-                             task_manager)
+from task_management import TaskStatus, TaskType, get_operation_info, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -151,7 +150,10 @@ def migrate_schema_tool(
             return migration_result
 
         except Exception as e:
-            return {"error": f"Migration setup failed: {str(e)}", "registry_mode": "multi"}
+            return {
+                "error": f"Migration setup failed: {str(e)}",
+                "registry_mode": "multi",
+            }
 
     except Exception as e:
         return {"error": str(e), "registry_mode": registry_mode}
@@ -187,7 +189,9 @@ def _execute_schema_migration(
     """
     try:
         logger.info(f"Starting schema migration for subject '{subject}'")
-        logger.info(f"Source: {source_client.config.name}, Target: {target_client.config.name}")
+        logger.info(
+            f"Source: {source_client.config.name}, Target: {target_client.config.name}"
+        )
         logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}")
 
         # For source operations, use the subject as-is
@@ -213,7 +217,9 @@ def _execute_schema_migration(
             if source_context and source_context != ".":
                 source_versions_url = f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions"
             else:
-                source_versions_url = f"{source_client.config.url}/subjects/{subject}/versions"
+                source_versions_url = (
+                    f"{source_client.config.url}/subjects/{subject}/versions"
+                )
 
             response = requests.get(
                 source_versions_url,
@@ -260,7 +266,9 @@ def _execute_schema_migration(
             versions_to_migrate = available_versions
         else:
             # Migrate only latest version
-            versions_to_migrate = [max(available_versions)] if available_versions else []
+            versions_to_migrate = (
+                [max(available_versions)] if available_versions else []
+            )
 
         if not versions_to_migrate:
             return {
@@ -286,9 +294,7 @@ def _execute_schema_migration(
                 if target_context and target_context != ".":
                     target_versions_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
                 else:
-                    target_versions_url = (
-                        f"{target_client.config.url}/subjects/{target_subject_name}/versions"
-                    )
+                    target_versions_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
 
                 target_versions_response = requests.get(
                     target_versions_url,
@@ -306,7 +312,9 @@ def _execute_schema_migration(
                     if target_context and target_context != ".":
                         delete_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}"
                     else:
-                        delete_url = f"{target_client.config.url}/subjects/{target_subject_name}"
+                        delete_url = (
+                            f"{target_client.config.url}/subjects/{target_subject_name}"
+                        )
 
                     delete_response = requests.delete(
                         delete_url,
@@ -335,7 +343,9 @@ def _execute_schema_migration(
                 else:
                     mode_url = f"{target_client.config.url}/mode/{target_subject_name}"
 
-                logger.info(f"Setting IMPORT mode on target subject '{target_subject_name}'")
+                logger.info(
+                    f"Setting IMPORT mode on target subject '{target_subject_name}'"
+                )
                 mode_response = requests.put(
                     mode_url,
                     auth=target_client.auth,
@@ -430,9 +440,7 @@ def _execute_schema_migration(
                 if source_context and source_context != ".":
                     source_schema_url = f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions/{version}"
                 else:
-                    source_schema_url = (
-                        f"{source_client.config.url}/subjects/{subject}/versions/{version}"
-                    )
+                    source_schema_url = f"{source_client.config.url}/subjects/{subject}/versions/{version}"
 
                 schema_response = requests.get(
                     source_schema_url,
@@ -496,9 +504,7 @@ def _execute_schema_migration(
                 if target_context and target_context != ".":
                     target_register_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
                 else:
-                    target_register_url = (
-                        f"{target_client.config.url}/subjects/{target_subject_name}/versions"
-                    )
+                    target_register_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
 
                 logger.info(f"Registering schema version {version} in target registry")
                 register_response = requests.post(
@@ -522,7 +528,8 @@ def _execute_schema_migration(
                             "status": "migrated",
                             "source_id": schema_data.get("id"),
                             "target_id": result.get("id"),
-                            "preserved_version": preserve_ids and actual_version == version,
+                            "preserved_version": preserve_ids
+                            and actual_version == version,
                         }
                     )
                 else:
@@ -701,7 +708,9 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
             if task.progress > 5:  # Only estimate if we have meaningful progress
                 estimated_total = elapsed / (task.progress / 100)
                 estimated_remaining = max(0, estimated_total - elapsed)
-                migration_status["estimated_remaining_seconds"] = round(estimated_remaining, 1)
+                migration_status["estimated_remaining_seconds"] = round(
+                    estimated_remaining, 1
+                )
 
         return migration_status
 

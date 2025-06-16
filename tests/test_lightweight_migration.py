@@ -65,7 +65,11 @@ async def test_env():
 
     # Clear any other registry configurations
     for i in range(3, 9):
-        for var in [f"SCHEMA_REGISTRY_NAME_{i}", f"SCHEMA_REGISTRY_URL_{i}", f"READONLY_{i}"]:
+        for var in [
+            f"SCHEMA_REGISTRY_NAME_{i}",
+            f"SCHEMA_REGISTRY_URL_{i}",
+            f"READONLY_{i}",
+        ]:
             if var in os.environ:
                 del os.environ[var]
 
@@ -272,15 +276,23 @@ async def test_migration_tools_availability(test_env):
             if "error" not in context_comparison:
                 # Wait for task completion if it's an async task
                 if "task_id" in context_comparison:
-                    task_completed = await wait_for_task_completion(context_comparison["task_id"])
+                    task_completed = await wait_for_task_completion(
+                        context_comparison["task_id"]
+                    )
                     if not task_completed:
-                        print(f"   ❌ compare_contexts_across_registries task did not complete")
+                        print(
+                            f"   ❌ compare_contexts_across_registries task did not complete"
+                        )
                         return False
 
                     # Get the final result
-                    task = mcp_server.task_manager.get_task(context_comparison["task_id"])
+                    task = mcp_server.task_manager.get_task(
+                        context_comparison["task_id"]
+                    )
                     if not task or not task.result:
-                        print(f"   ❌ No result from compare_contexts_across_registries task")
+                        print(
+                            f"   ❌ No result from compare_contexts_across_registries task"
+                        )
                         return False
 
                     context_comparison = task.result
@@ -292,7 +304,9 @@ async def test_migration_tools_availability(test_env):
                         f"      Default context - DEV: {subjects_info.get('source_total', 0)}, PROD: {subjects_info.get('target_total', 0)}"
                     )
             else:
-                print(f"   ⚠️  compare_contexts_across_registries: {context_comparison['error']}")
+                print(
+                    f"   ⚠️  compare_contexts_across_registries: {context_comparison['error']}"
+                )
         except Exception as e:
             print(f"   ⚠️  compare_contexts_across_registries error: {e}")
 

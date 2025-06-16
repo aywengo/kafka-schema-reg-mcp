@@ -136,7 +136,10 @@ def test_test_schema_drift():
                     f"{prod_url}/subjects/{subject}/versions", timeout=5
                 )
 
-                if dev_versions_resp.status_code == 200 and prod_versions_resp.status_code == 200:
+                if (
+                    dev_versions_resp.status_code == 200
+                    and prod_versions_resp.status_code == 200
+                ):
                     dev_versions = dev_versions_resp.json()
                     prod_versions = prod_versions_resp.json()
 
@@ -147,7 +150,9 @@ def test_test_schema_drift():
                                 "subject": subject,
                                 "dev_versions": len(dev_versions),
                                 "prod_versions": len(prod_versions),
-                                "drift_magnitude": abs(len(dev_versions) - len(prod_versions)),
+                                "drift_magnitude": abs(
+                                    len(dev_versions) - len(prod_versions)
+                                ),
                             }
                         )
                         print(
@@ -162,7 +167,10 @@ def test_test_schema_drift():
                         f"{prod_url}/subjects/{subject}/versions/latest", timeout=5
                     )
 
-                    if dev_latest_resp.status_code == 200 and prod_latest_resp.status_code == 200:
+                    if (
+                        dev_latest_resp.status_code == 200
+                        and prod_latest_resp.status_code == 200
+                    ):
                         dev_latest = dev_latest_resp.json()
                         prod_latest = prod_latest_resp.json()
 
@@ -179,8 +187,12 @@ def test_test_schema_drift():
                                 dev_schema.get("type") == "record"
                                 and prod_schema.get("type") == "record"
                             ):
-                                dev_fields = {f["name"] for f in dev_schema.get("fields", [])}
-                                prod_fields = {f["name"] for f in prod_schema.get("fields", [])}
+                                dev_fields = {
+                                    f["name"] for f in dev_schema.get("fields", [])
+                                }
+                                prod_fields = {
+                                    f["name"] for f in prod_schema.get("fields", [])
+                                }
 
                             new_fields = dev_fields - prod_fields
                             removed_fields = prod_fields - dev_fields
@@ -192,7 +204,8 @@ def test_test_schema_drift():
                                     "prod_version": prod_latest.get("version"),
                                     "new_fields": list(new_fields),
                                     "removed_fields": list(removed_fields),
-                                    "field_drift_count": len(new_fields) + len(removed_fields),
+                                    "field_drift_count": len(new_fields)
+                                    + len(removed_fields),
                                 }
                             )
 
@@ -200,7 +213,9 @@ def test_test_schema_drift():
                             if new_fields:
                                 print(f"      New fields in DEV: {list(new_fields)}")
                             if removed_fields:
-                                print(f"      Removed fields from DEV: {list(removed_fields)}")
+                                print(
+                                    f"      Removed fields from DEV: {list(removed_fields)}"
+                                )
                         else:
                             drift_analysis["identical_subjects"].append(subject)
                             print(f"   ✅ Schemas identical")
@@ -250,7 +265,9 @@ def test_test_schema_drift():
         if drift_analysis["schema_drifts"]:
             print(f"\n📋 Schema Content Drifts (first 3):")
             for drift in drift_analysis["schema_drifts"][:3]:
-                print(f"   • {drift['subject']}: {drift['field_drift_count']} field changes")
+                print(
+                    f"   • {drift['subject']}: {drift['field_drift_count']} field changes"
+                )
                 if drift["new_fields"]:
                     print(f"     + New: {drift['new_fields']}")
                 if drift["removed_fields"]:

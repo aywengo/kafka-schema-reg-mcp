@@ -36,7 +36,10 @@ for dep in dependencies:
         print(f"3. ❌ {dep} not available: {e}")
 
 # Test 4: Check if MCP server files exist
-server_files = ["kafka_schema_registry_unified_mcp.py", "kafka_schema_registry_unified_mcp.py"]
+server_files = [
+    "kafka_schema_registry_unified_mcp.py",
+    "kafka_schema_registry_unified_mcp.py",
+]
 
 for file in server_files:
     if os.path.exists(file):

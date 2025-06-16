@@ -90,7 +90,11 @@ async def test_env():
 
     # Clear any other registry configurations
     for i in range(3, 9):
-        for var in [f"SCHEMA_REGISTRY_NAME_{i}", f"SCHEMA_REGISTRY_URL_{i}", f"READONLY_{i}"]:
+        for var in [
+            f"SCHEMA_REGISTRY_NAME_{i}",
+            f"SCHEMA_REGISTRY_URL_{i}",
+            f"READONLY_{i}",
+        ]:
             if var in os.environ:
                 del os.environ[var]
 
@@ -109,7 +113,9 @@ async def test_env():
         for registry in ["dev", "prod"]:
             subjects = mcp_server.get_subjects(context=test_context, registry=registry)
             for subject in subjects:
-                mcp_server.delete_subject(subject, context=test_context, registry=registry)
+                mcp_server.delete_subject(
+                    subject, context=test_context, registry=registry
+                )
     except Exception as e:
         logger.warning(f"Cleanup error: {e}")
 
@@ -124,7 +130,10 @@ async def create_test_schema(context: str) -> Optional[str]:
         schema = {
             "type": "record",
             "name": "TestRecord",
-            "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "name", "type": "string"},
+            ],
         }
 
         # Register the schema
@@ -165,7 +174,9 @@ async def test_end_to_end_migration(test_env):
 
         # Verify schemas exist in DEV
         for subject in test_subjects:
-            versions = mcp_server.get_schema_versions(subject, context=".", registry="dev")
+            versions = mcp_server.get_schema_versions(
+                subject, context=".", registry="dev"
+            )
             assert versions, f"Subject {subject} not found in DEV registry"
 
         # Set compatibility to NONE for test subjects in destination registry only
@@ -182,22 +193,34 @@ async def test_end_to_end_migration(test_env):
         logger.info("Performing dry run migration...")
         for subject in test_subjects:
             result = await mcp_server.migrate_schema(
-                subject=subject, source_registry="dev", target_registry="prod", dry_run=True
+                subject=subject,
+                source_registry="dev",
+                target_registry="prod",
+                dry_run=True,
             )
-            assert "error" not in result, f"Dry run failed for {subject}: {result['error']}"
+            assert (
+                "error" not in result
+            ), f"Dry run failed for {subject}: {result['error']}"
 
         # Execute actual migration
         logger.info("Executing actual migration...")
         for subject in test_subjects:
             result = await mcp_server.migrate_schema(
-                subject=subject, source_registry="dev", target_registry="prod", dry_run=False
+                subject=subject,
+                source_registry="dev",
+                target_registry="prod",
+                dry_run=False,
             )
-            assert "error" not in result, f"Migration failed for {subject}: {result['error']}"
+            assert (
+                "error" not in result
+            ), f"Migration failed for {subject}: {result['error']}"
 
             # Verify schema content in PROD
             dev_schema = mcp_server.get_schema(subject, context=".", registry="dev")
             prod_schema = mcp_server.get_schema(subject, context=".", registry="prod")
-            assert dev_schema["schema"] == prod_schema["schema"], "Schema content mismatch"
+            assert (
+                dev_schema["schema"] == prod_schema["schema"]
+            ), "Schema content mismatch"
 
         # Clean up test subjects
         for subject in test_subjects:
@@ -217,13 +240,17 @@ async def test_migration_error_handling(test_env):
     try:
         # Try to migrate non-existent subject
         result = await mcp_server.migrate_schema(
-            subject="non-existent-subject", source_registry="dev", target_registry="prod"
+            subject="non-existent-subject",
+            source_registry="dev",
+            target_registry="prod",
         )
         assert "error" in result, "Expected error for non-existent subject"
 
         # Try to migrate to non-existent registry
         result = await mcp_server.migrate_schema(
-            subject="test-subject", source_registry="dev", target_registry="non-existent-registry"
+            subject="test-subject",
+            source_registry="dev",
+            target_registry="non-existent-registry",
         )
         assert "error" in result, "Expected error for non-existent registry"
 
@@ -280,8 +307,12 @@ async def test_registry_comparison_integration(test_env):
         assert subject is not None, "Failed to create test schema"
 
         # Compare registries
-        result = await mcp_server.compare_registries(source_registry="dev", target_registry="prod")
-        assert "error" not in result, f"Registry comparison failed: {result.get('error')}"
+        result = await mcp_server.compare_registries(
+            source_registry="dev", target_registry="prod"
+        )
+        assert (
+            "error" not in result
+        ), f"Registry comparison failed: {result.get('error')}"
 
         # Verify comparison results
         assert "subjects" in result, "No subjects in comparison results"
@@ -330,7 +361,10 @@ async def test_clean_destination_migration(test_env):
 
         # Migrate with clean destination
         result = await mcp_server.migrate_schema(
-            subject=subject, source_registry="dev", target_registry="prod", clean_destination=True
+            subject=subject,
+            source_registry="dev",
+            target_registry="prod",
+            clean_destination=True,
         )
         assert "error" not in result, f"Migration failed: {result.get('error')}"
 
@@ -368,7 +402,9 @@ async def test_dry_run_migration(test_env):
         assert result.get("dry_run") is True, "Dry run flag not set in result"
 
         # Verify schema was not actually migrated
-        prod_versions = mcp_server.get_schema_versions(subject, context=".", registry="prod")
+        prod_versions = mcp_server.get_schema_versions(
+            subject, context=".", registry="prod"
+        )
         assert not prod_versions, "Schema was migrated despite dry run"
 
         # Clean up
@@ -396,7 +432,10 @@ async def test_id_preservation_migration(test_env):
 
         # Migrate with ID preservation
         result = await mcp_server.migrate_schema(
-            subject=subject, source_registry="dev", target_registry="prod", preserve_ids=True
+            subject=subject,
+            source_registry="dev",
+            target_registry="prod",
+            preserve_ids=True,
         )
         assert "error" not in result, f"Migration failed: {result.get('error')}"
 

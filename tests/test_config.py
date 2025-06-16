@@ -14,7 +14,9 @@ class TestConfig:
     """Configuration class for integration tests"""
 
     def __init__(self):
-        self.schema_registry_url = os.getenv("TEST_SCHEMA_REGISTRY_URL", "http://localhost:38081")
+        self.schema_registry_url = os.getenv(
+            "TEST_SCHEMA_REGISTRY_URL", "http://localhost:38081"
+        )
         self.schema_registry_user = os.getenv("TEST_SCHEMA_REGISTRY_USER", "")
         self.schema_registry_password = os.getenv("TEST_SCHEMA_REGISTRY_PASSWORD", "")
 

@@ -53,7 +53,9 @@ except ImportError:
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
 AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
 AUTH_VALID_SCOPES = [
-    s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",") if s.strip()
+    s.strip()
+    for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",")
+    if s.strip()
 ]
 AUTH_DEFAULT_SCOPES = [
     s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "read").split(",") if s.strip()
@@ -83,7 +85,9 @@ AUTH_AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
 AUTH_KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "")
 AUTH_OKTA_DOMAIN = os.getenv("OKTA_DOMAIN", "")
 AUTH_GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
-AUTH_GITHUB_ORG = os.getenv("GITHUB_ORG", "")  # Optional: restrict to organization members
+AUTH_GITHUB_ORG = os.getenv(
+    "GITHUB_ORG", ""
+)  # Optional: restrict to organization members
 
 # JWKS cache configuration
 JWKS_CACHE_TTL = int(os.getenv("JWKS_CACHE_TTL", "3600"))  # 1 hour default
@@ -116,7 +120,12 @@ SCOPE_DEFINITIONS = {
     },
     "admin": {
         "description": "Can delete subjects, manage registries (includes write and read permissions)",
-        "includes": ["delete_subject", "clear_context_batch", "migrate_schema", "migrate_context"],
+        "includes": [
+            "delete_subject",
+            "clear_context_batch",
+            "migrate_schema",
+            "migrate_context",
+        ],
         "requires": ["write", "read"],
         "level": 3,
     },
@@ -125,9 +134,11 @@ SCOPE_DEFINITIONS = {
 if ENABLE_AUTH:
     try:
         from mcp.server.auth.provider import OAuthAuthorizationServerProvider
-        from mcp.server.auth.settings import (AuthSettings,
-                                              ClientRegistrationOptions,
-                                              RevocationOptions)
+        from mcp.server.auth.settings import (
+            AuthSettings,
+            ClientRegistrationOptions,
+            RevocationOptions,
+        )
 
         class KafkaSchemaRegistryOAuthProvider(OAuthAuthorizationServerProvider):
             """
@@ -144,10 +155,14 @@ if ENABLE_AUTH:
                 self.required_scopes = set(AUTH_REQUIRED_SCOPES)
                 self.jwks_cache = {}
                 self.jwks_cache_timestamps = {}
-                logger.info(f"OAuth Provider initialized with scopes: {self.valid_scopes}")
+                logger.info(
+                    f"OAuth Provider initialized with scopes: {self.valid_scopes}"
+                )
                 logger.info(f"JWT validation available: {JWT_AVAILABLE}")
                 if JWT_AVAILABLE:
-                    logger.info(f"OAuth provider: {AUTH_PROVIDER}, Issuer: {AUTH_ISSUER_URL}")
+                    logger.info(
+                        f"OAuth provider: {AUTH_PROVIDER}, Issuer: {AUTH_ISSUER_URL}"
+                    )
 
             async def validate_token(self, token: str) -> Optional[Dict[str, Any]]:
                 """
@@ -195,7 +210,9 @@ if ENABLE_AUTH:
                     logger.error(f"Token validation error: {e}")
                     return None
 
-            def extract_scopes_from_jwt(self, jwt_payload: Dict[str, Any]) -> Dict[str, Any]:
+            def extract_scopes_from_jwt(
+                self, jwt_payload: Dict[str, Any]
+            ) -> Dict[str, Any]:
                 """
                 Extract MCP scopes from different OAuth provider JWT token formats.
 
@@ -212,13 +229,17 @@ if ENABLE_AUTH:
                     scope_str = jwt_payload["scope"]
                     if isinstance(scope_str, str):
                         potential_scopes = scope_str.split()
-                        user_scopes.extend([s for s in potential_scopes if s in self.valid_scopes])
+                        user_scopes.extend(
+                            [s for s in potential_scopes if s in self.valid_scopes]
+                        )
 
                 # Method 2: Scope array claim
                 if "scp" in jwt_payload:
                     scp_array = jwt_payload["scp"]
                     if isinstance(scp_array, list):
-                        user_scopes.extend([s for s in scp_array if s in self.valid_scopes])
+                        user_scopes.extend(
+                            [s for s in scp_array if s in self.valid_scopes]
+                        )
 
                 # Method 3: Azure AD roles
                 if "roles" in jwt_payload:
@@ -227,7 +248,10 @@ if ENABLE_AUTH:
                         user_scopes.extend([r for r in roles if r in self.valid_scopes])
 
                 # Method 4: Keycloak realm roles
-                if "realm_access" in jwt_payload and "roles" in jwt_payload["realm_access"]:
+                if (
+                    "realm_access" in jwt_payload
+                    and "roles" in jwt_payload["realm_access"]
+                ):
                     realm_roles = jwt_payload["realm_access"]["roles"]
                     if isinstance(realm_roles, list):
                         # Map realm roles to MCP scopes
@@ -260,7 +284,9 @@ if ENABLE_AUTH:
                 if "mcp_scopes" in jwt_payload:
                     custom_scopes = jwt_payload["mcp_scopes"]
                     if isinstance(custom_scopes, list):
-                        user_scopes.extend([s for s in custom_scopes if s in self.valid_scopes])
+                        user_scopes.extend(
+                            [s for s in custom_scopes if s in self.valid_scopes]
+                        )
                     elif isinstance(custom_scopes, str):
                         user_scopes.extend(
                             [
@@ -271,7 +297,10 @@ if ENABLE_AUTH:
                         )
 
                 # Method 7: GitHub scopes mapping
-                if "github_scopes" in jwt_payload or "github_permissions" in jwt_payload:
+                if (
+                    "github_scopes" in jwt_payload
+                    or "github_permissions" in jwt_payload
+                ):
                     github_scopes = jwt_payload.get(
                         "github_scopes", jwt_payload.get("github_permissions", [])
                     )
@@ -355,7 +384,9 @@ if ENABLE_AUTH:
                     # Try JWT validation for all providers including GitHub Apps
                     # Decode token without verification to get header and payload
                     unverified_header = jwt.get_unverified_header(token)
-                    unverified_payload = jwt.decode(token, options={"verify_signature": False})
+                    unverified_payload = jwt.decode(
+                        token, options={"verify_signature": False}
+                    )
 
                     # Detect provider if set to auto
                     provider = AUTH_PROVIDER
@@ -376,7 +407,10 @@ if ENABLE_AUTH:
                         return None
 
                     # Skip JWKS validation for GitHub API tokens
-                    if provider == "github" and config.get("validation_type") == "hybrid":
+                    if (
+                        provider == "github"
+                        and config.get("validation_type") == "hybrid"
+                    ):
                         logger.info("GitHub API token validation already attempted")
                         return None
 
@@ -420,7 +454,9 @@ if ENABLE_AUTH:
                     logger.error(f"JWT validation error: {e}")
                     return None
 
-            async def validate_github_token(self, token: str) -> Optional[Dict[str, Any]]:
+            async def validate_github_token(
+                self, token: str
+            ) -> Optional[Dict[str, Any]]:
                 """
                 Validate GitHub access token by calling GitHub API.
 
@@ -451,7 +487,9 @@ if ENABLE_AUTH:
                         if AUTH_GITHUB_ORG:
                             try:
                                 async with session.get(
-                                    "https://api.github.com/user/orgs", headers=headers, timeout=10
+                                    "https://api.github.com/user/orgs",
+                                    headers=headers,
+                                    timeout=10,
                                 ) as org_response:
                                     if org_response.status == 200:
                                         orgs_data = await org_response.json()
@@ -472,7 +510,8 @@ if ENABLE_AUTH:
                         scopes = []
                         if "X-OAuth-Scopes" in response.headers:
                             scopes = [
-                                s.strip() for s in response.headers["X-OAuth-Scopes"].split(",")
+                                s.strip()
+                                for s in response.headers["X-OAuth-Scopes"].split(",")
                             ]
 
                     # Create JWT-like payload for consistency
@@ -480,7 +519,8 @@ if ENABLE_AUTH:
                         "iss": "https://api.github.com",
                         "sub": str(user_data["id"]),
                         "aud": AUTH_AUDIENCE or AUTH_GITHUB_CLIENT_ID,
-                        "exp": int(time.time()) + 3600,  # GitHub tokens don't expire quickly
+                        "exp": int(time.time())
+                        + 3600,  # GitHub tokens don't expire quickly
                         "iat": int(time.time()),
                         "login": user_data["login"],
                         "email": user_data.get("email"),
@@ -526,7 +566,9 @@ if ENABLE_AUTH:
                     # GitHub access token response format detection
                     return "github"
                 else:
-                    logger.warning(f"Could not auto-detect provider from issuer: {issuer}")
+                    logger.warning(
+                        f"Could not auto-detect provider from issuer: {issuer}"
+                    )
                     return "unknown"
 
             def get_provider_config(self, provider: str) -> Optional[Dict[str, Any]]:
@@ -587,7 +629,9 @@ if ENABLE_AUTH:
 
                 return config
 
-            async def get_public_key_from_jwks(self, jwks_url: str, kid: str) -> Optional[str]:
+            async def get_public_key_from_jwks(
+                self, jwks_url: str, kid: str
+            ) -> Optional[str]:
                 """Fetch public key from JWKS endpoint with caching."""
                 cache_key = f"{jwks_url}:{kid}"
 
@@ -603,7 +647,9 @@ if ENABLE_AUTH:
                     async with aiohttp.ClientSession() as session:
                         async with session.get(jwks_url, timeout=10) as response:
                             if response.status != 200:
-                                logger.error(f"Failed to fetch JWKS: HTTP {response.status}")
+                                logger.error(
+                                    f"Failed to fetch JWKS: HTTP {response.status}"
+                                )
                                 return None
 
                             jwks_data = await response.json()
@@ -641,7 +687,9 @@ if ENABLE_AUTH:
                     logger.error(f"Error fetching JWKS: {e}")
                     return None
 
-            def check_scopes(self, user_scopes: Set[str], required_scopes: Set[str]) -> bool:
+            def check_scopes(
+                self, user_scopes: Set[str], required_scopes: Set[str]
+            ) -> bool:
                 """Check if user has all required scopes."""
                 return required_scopes.issubset(user_scopes)
 
@@ -655,7 +703,11 @@ if ENABLE_AUTH:
 
             def has_admin_access(self, user_scopes: Set[str]) -> bool:
                 """Check if user has admin access (implies write and read)."""
-                return "admin" in user_scopes and "write" in user_scopes and "read" in user_scopes
+                return (
+                    "admin" in user_scopes
+                    and "write" in user_scopes
+                    and "read" in user_scopes
+                )
 
         # Initialize OAuth provider
         oauth_provider = KafkaSchemaRegistryOAuthProvider()
@@ -705,7 +757,9 @@ if ENABLE_AUTH:
             return decorator
 
     except ImportError:
-        logger.warning("MCP auth modules not available. OAuth functionality will be disabled.")
+        logger.warning(
+            "MCP auth modules not available. OAuth functionality will be disabled."
+        )
         oauth_provider = None
         oauth_settings = None
 
@@ -782,12 +836,21 @@ def get_oauth_provider_configs():
             "auth_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/authorize",
             "token_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token",
             "jwks_url": "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys",
-            "scopes": ["openid", "email", "profile", "https://graph.microsoft.com/User.Read"],
+            "scopes": [
+                "openid",
+                "email",
+                "profile",
+                "https://graph.microsoft.com/User.Read",
+            ],
             "client_id_env": "AZURE_CLIENT_ID",
             "client_secret_env": "AZURE_CLIENT_SECRET",
             "tenant_id_env": "AZURE_TENANT_ID",
             "jwt_validation": {
-                "required_env": ["AUTH_PROVIDER=azure", "AZURE_TENANT_ID", "AUTH_AUDIENCE"],
+                "required_env": [
+                    "AUTH_PROVIDER=azure",
+                    "AZURE_TENANT_ID",
+                    "AUTH_AUDIENCE",
+                ],
                 "algorithms": ["RS256"],
                 "claims": {
                     "iss": "Issuer validation",
@@ -829,7 +892,11 @@ def get_oauth_provider_configs():
             "keycloak_server_env": "KEYCLOAK_SERVER_URL",
             "keycloak_realm_env": "KEYCLOAK_REALM",
             "jwt_validation": {
-                "required_env": ["AUTH_PROVIDER=keycloak", "AUTH_ISSUER_URL", "AUTH_AUDIENCE"],
+                "required_env": [
+                    "AUTH_PROVIDER=keycloak",
+                    "AUTH_ISSUER_URL",
+                    "AUTH_AUDIENCE",
+                ],
                 "algorithms": ["RS256"],
                 "claims": {
                     "iss": "Realm issuer URL",
@@ -906,7 +973,11 @@ def get_fastmcp_config(server_name: str):
         Dictionary containing FastMCP initialization parameters
     """
     if ENABLE_AUTH and oauth_provider and oauth_settings:
-        return {"name": server_name, "auth_server_provider": oauth_provider, "auth": oauth_settings}
+        return {
+            "name": server_name,
+            "auth_server_provider": oauth_provider,
+            "auth": oauth_settings,
+        }
     else:
         return {"name": server_name}
 

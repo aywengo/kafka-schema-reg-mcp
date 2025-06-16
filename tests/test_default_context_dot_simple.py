@@ -83,7 +83,9 @@ def test_default_context_subject_listing():
 
         # Check that the actual subjects are the same
         if set(subjects_none) != set(subjects_dot):
-            print(f"   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!")
+            print(
+                f"   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!"
+            )
             diff_none_only = set(subjects_none) - set(subjects_dot)
             diff_dot_only = set(subjects_dot) - set(subjects_none)
             if diff_none_only:

@@ -74,7 +74,9 @@ async def test_mcp_server():
                     if result.content:
                         print(f"📋 Response: {result.content[0].text[:200]}...")
                 except Exception as e:
-                    print(f"⚠️ Tool call failed (might be expected if no schema registry): {e}")
+                    print(
+                        f"⚠️ Tool call failed (might be expected if no schema registry): {e}"
+                    )
 
                 print("\n✅ MCP Server basic connectivity test completed!")
 

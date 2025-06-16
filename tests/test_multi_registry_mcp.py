@@ -50,11 +50,15 @@ async def test_unified_mcp_server_multi_registry_mode():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     try:
         # Add timeout to prevent hanging indefinitely
-        await asyncio.wait_for(_run_mcp_tests(server_params), timeout=30.0)  # 30 second timeout
+        await asyncio.wait_for(
+            _run_mcp_tests(server_params), timeout=30.0
+        )  # 30 second timeout
     except asyncio.TimeoutError:
         print("❌ Test timed out after 30 seconds - likely hanging on MCP connection")
         return
@@ -199,7 +203,9 @@ async def _run_mcp_tests(server_params):
                     migration = json.loads(content)
 
                     if "error" in migration:
-                        print(f"⚠️  Migration test failed (expected): {migration['error']}")
+                        print(
+                            f"⚠️  Migration test failed (expected): {migration['error']}"
+                        )
                     else:
                         print(f"✅ Migration dry run completed:")
                         print(f"   Subject: {migration.get('subject')}")
@@ -227,7 +233,9 @@ async def _run_mcp_tests(server_params):
                     response = json.loads(content)
 
                     if "error" in response:
-                        print(f"⚠️  Schema registration failed (expected): {response['error']}")
+                        print(
+                            f"⚠️  Schema registration failed (expected): {response['error']}"
+                        )
                     else:
                         print(f"✅ Schema registration works with registry parameter")
                         print(f"   Registry: {response.get('registry')}")
@@ -245,9 +253,13 @@ async def _run_mcp_tests(server_params):
                     migrations = json.loads(content)
 
                     if isinstance(migrations, list):
-                        print(f"✅ Migration history available: {len(migrations)} migrations")
+                        print(
+                            f"✅ Migration history available: {len(migrations)} migrations"
+                        )
                         for migration in migrations[:3]:  # Show first 3
-                            print(f"   • {migration.get('scope')} ({migration.get('status')})")
+                            print(
+                                f"   • {migration.get('scope')} ({migration.get('status')})"
+                            )
                     else:
                         print(f"❌ Unexpected migration format: {type(migrations)}")
 
@@ -272,8 +284,12 @@ async def _run_mcp_tests(server_params):
                                 f"   Multi-registry support: {info.get('multi_registry_support')}"
                             )
                             print(f"   Total tools: {info.get('total_tools')}")
-                            print(f"   Total registries: {info.get('total_registries')}")
-                            print(f"   Default registry: {info.get('default_registry')}")
+                            print(
+                                f"   Total registries: {info.get('total_registries')}"
+                            )
+                            print(
+                                f"   Default registry: {info.get('default_registry')}"
+                            )
                             print(f"   READONLY mode: {info.get('readonly_mode')}")
                         break
 

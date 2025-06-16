@@ -54,38 +54,104 @@ class AsyncPattern(Enum):
 # Operation metadata for MCP client guidance
 OPERATION_METADATA = {
     # Registry management operations
-    "list_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_registry_info": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "list_registries": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "get_registry_info": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     "test_registry_connection": {
         "duration": OperationDuration.QUICK,
         "pattern": AsyncPattern.DIRECT,
     },
-    "test_all_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "compare_registries": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "set_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_default_registry": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "check_readonly_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "test_all_registries": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "compare_registries": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "set_default_registry": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "get_default_registry": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "check_readonly_mode": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     # Subject and schema operations (all are quick)
-    "get_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "list_subjects": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_subjects": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "list_subjects": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     "get_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_schema_versions": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "register_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "check_compatibility": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "delete_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_schema_versions": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "register_schema": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "check_compatibility": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "delete_subject": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     # Configuration operations (all are quick)
-    "get_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "update_global_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "update_subject_config": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "get_global_config": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "update_global_config": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "get_subject_config": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "update_subject_config": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     # Mode operations (all are quick)
     "get_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "update_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "get_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "update_subject_mode": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "update_mode": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "get_subject_mode": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "update_subject_mode": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     # Long-running operations using task queue
-    "migrate_context": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "migrate_schema": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
+    "migrate_context": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "migrate_schema": {
+        "duration": OperationDuration.MEDIUM,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
     "clear_context_batch": {
         "duration": OperationDuration.MEDIUM,
         "pattern": AsyncPattern.TASK_QUEUE,
@@ -103,14 +169,35 @@ OPERATION_METADATA = {
         "pattern": AsyncPattern.TASK_QUEUE,
     },
     # Export operations
-    "export_schema": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "export_subject": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "export_context": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
-    "export_global": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.DIRECT},
+    "export_schema": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "export_subject": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "export_context": {
+        "duration": OperationDuration.MEDIUM,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "export_global": {
+        "duration": OperationDuration.MEDIUM,
+        "pattern": AsyncPattern.DIRECT,
+    },
     # Statistics operations (can be slow due to multiple API calls)
-    "count_contexts": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
-    "count_schemas": {"duration": OperationDuration.MEDIUM, "pattern": AsyncPattern.TASK_QUEUE},
-    "count_schema_versions": {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
+    "count_contexts": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
+    "count_schemas": {
+        "duration": OperationDuration.MEDIUM,
+        "pattern": AsyncPattern.TASK_QUEUE,
+    },
+    "count_schema_versions": {
+        "duration": OperationDuration.QUICK,
+        "pattern": AsyncPattern.DIRECT,
+    },
     "get_registry_statistics": {
         "duration": OperationDuration.LONG,
         "pattern": AsyncPattern.TASK_QUEUE,
@@ -121,7 +208,8 @@ OPERATION_METADATA = {
 def get_operation_info(operation_name: str, registry_mode: str) -> Dict[str, Any]:
     """Get operation metadata for MCP client guidance."""
     metadata = OPERATION_METADATA.get(
-        operation_name, {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT}
+        operation_name,
+        {"duration": OperationDuration.QUICK, "pattern": AsyncPattern.DIRECT},
     )
     return {
         "operation": operation_name,
@@ -203,7 +291,9 @@ class AsyncTaskManager:
 
         return task
 
-    async def execute_task(self, task: AsyncTask, func: Callable, *args, **kwargs) -> None:
+    async def execute_task(
+        self, task: AsyncTask, func: Callable, *args, **kwargs
+    ) -> None:
         """Execute a task asynchronously."""
         if self._shutdown:
             task.status = TaskStatus.CANCELLED

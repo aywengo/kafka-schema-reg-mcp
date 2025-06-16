@@ -30,7 +30,14 @@ class MCPContainerClient:
     def _verify_container_running(self):
         """Verify the MCP container is running."""
         result = subprocess.run(
-            ["docker", "ps", "--filter", f"name={self.container_name}", "--format", "{{.Names}}"],
+            [
+                "docker",
+                "ps",
+                "--filter",
+                f"name={self.container_name}",
+                "--format",
+                "{{.Names}}",
+            ],
             capture_output=True,
             text=True,
         )
@@ -68,7 +75,9 @@ class MCPContainerClient:
                         return response
             raise ValueError("No valid response found")
         except json.JSONDecodeError as e:
-            raise RuntimeError(f"Failed to parse MCP response: {e}\nOutput: {result.stdout}")
+            raise RuntimeError(
+                f"Failed to parse MCP response: {e}\nOutput: {result.stdout}"
+            )
 
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Call an MCP tool and return the result."""
@@ -180,7 +189,10 @@ class TestMCPContainerIntegration:
         schema = {
             "type": "record",
             "name": "TestRecord",
-            "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "name", "type": "string"},
+            ],
         }
 
         # Register schema
@@ -192,7 +204,9 @@ class TestMCPContainerIntegration:
         assert any("id" in str(item) for item in result)
 
         # Retrieve the schema
-        result = mcp_client.call_tool("get_schema", {"subject": subject, "version": "latest"})
+        result = mcp_client.call_tool(
+            "get_schema", {"subject": subject, "version": "latest"}
+        )
 
         # Verify schema content
         assert any("TestRecord" in str(item) for item in result)
@@ -216,7 +230,10 @@ class TestMCPContainerIntegration:
         base_schema = {
             "type": "record",
             "name": "User",
-            "fields": [{"name": "id", "type": "int"}, {"name": "name", "type": "string"}],
+            "fields": [
+                {"name": "id", "type": "int"},
+                {"name": "name", "type": "string"},
+            ],
         }
 
         # Modified schema (added field)
@@ -232,11 +249,13 @@ class TestMCPContainerIntegration:
 
         # Register both schemas
         mcp_client.call_tool(
-            "register_schema", {"subject": base_subject, "schema": json.dumps(base_schema)}
+            "register_schema",
+            {"subject": base_subject, "schema": json.dumps(base_schema)},
         )
 
         mcp_client.call_tool(
-            "register_schema", {"subject": new_subject, "schema": json.dumps(new_schema)}
+            "register_schema",
+            {"subject": new_subject, "schema": json.dumps(new_schema)},
         )
 
         # Compare schemas
@@ -272,7 +291,8 @@ class TestMCPContainerIntegration:
         # Try invalid schema
         with pytest.raises(RuntimeError) as exc_info:
             mcp_client.call_tool(
-                "register_schema", {"subject": "test-invalid", "schema": "not-valid-json"}
+                "register_schema",
+                {"subject": "test-invalid", "schema": "not-valid-json"},
             )
 
         assert "error" in str(exc_info.value).lower()
@@ -317,7 +337,9 @@ class TestMCPContainerIntegration:
         subject = f"test-restart-{int(time.time())}"
         schema = {"type": "string"}
 
-        client.call_tool("register_schema", {"subject": subject, "schema": json.dumps(schema)})
+        client.call_tool(
+            "register_schema", {"subject": subject, "schema": json.dumps(schema)}
+        )
 
         # Restart the container
         subprocess.run(["docker", "restart", "mcp-server"], check=True)
@@ -326,7 +348,13 @@ class TestMCPContainerIntegration:
         max_attempts = 30
         for i in range(max_attempts):
             result = subprocess.run(
-                ["docker", "inspect", "--format", "{{.State.Health.Status}}", "mcp-server"],
+                [
+                    "docker",
+                    "inspect",
+                    "--format",
+                    "{{.State.Health.Status}}",
+                    "mcp-server",
+                ],
                 capture_output=True,
                 text=True,
             )
@@ -338,7 +366,9 @@ class TestMCPContainerIntegration:
 
         # Create new client and verify we can still access the schema
         new_client = MCPContainerClient()
-        result = new_client.call_tool("get_schema", {"subject": subject, "version": "latest"})
+        result = new_client.call_tool(
+            "get_schema", {"subject": subject, "version": "latest"}
+        )
 
         assert any("string" in str(item) for item in result)
 

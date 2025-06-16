@@ -59,7 +59,12 @@ EXPECTED_TOOLS = {
         "compare_contexts_across_registries",
         "find_missing_schemas",
     ],
-    "migration": ["migrate_schema", "migrate_context", "list_migrations", "get_migration_status"],
+    "migration": [
+        "migrate_schema",
+        "migrate_context",
+        "list_migrations",
+        "get_migration_status",
+    ],
     "synchronization": ["sync_schema"],
     "context_management": ["list_contexts", "create_context", "delete_context"],
     "subject_management": ["list_subjects", "delete_subject"],
@@ -69,7 +74,12 @@ EXPECTED_TOOLS = {
         "get_subject_config",
         "update_subject_config",
     ],
-    "mode_management": ["get_mode", "update_mode", "get_subject_mode", "update_subject_mode"],
+    "mode_management": [
+        "get_mode",
+        "update_mode",
+        "get_subject_mode",
+        "update_subject_mode",
+    ],
     "enhanced_schema": ["get_schema_versions", "check_compatibility"],
     "original_schema_enhanced": ["register_schema", "get_schema"],
 }
@@ -189,7 +199,9 @@ async def test_all_tools_comprehensive():
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
 
-    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
+    server_params = StdioServerParameters(
+        command="python", args=[server_script], env=env
+    )
 
     validator = ToolValidator()
 
@@ -297,7 +309,9 @@ async def _test_all_tools_with_client(server_params, validator):
                     )
                 elif tool_name == "migrate_context":
                     # NOTE: migrate_context now generates Docker configuration
-                    print(f"      ℹ️  {tool_name} now generates Docker configuration files")
+                    print(
+                        f"      ℹ️  {tool_name} now generates Docker configuration files"
+                    )
                     result = await validator.validate_tool(
                         tool_name,
                         {
@@ -332,12 +346,18 @@ async def _test_all_tools_with_client(server_params, validator):
                 elif tool_name == "create_context":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"context": "validation-test-context", "registry": "validation_primary"},
+                        {
+                            "context": "validation-test-context",
+                            "registry": "validation_primary",
+                        },
                     )
                 elif tool_name == "delete_context":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"context": "validation-test-context", "registry": "validation_primary"},
+                        {
+                            "context": "validation-test-context",
+                            "registry": "validation_primary",
+                        },
                     )
 
                 validator.results.append(result)
@@ -358,7 +378,10 @@ async def _test_all_tools_with_client(server_params, validator):
                 elif tool_name == "delete_subject":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"subject": "validation-test-subject", "registry": "validation_primary"},
+                        {
+                            "subject": "validation-test-subject",
+                            "registry": "validation_primary",
+                        },
                     )
 
                 validator.results.append(result)
@@ -378,12 +401,16 @@ async def _test_all_tools_with_client(server_params, validator):
                     )
                 elif tool_name == "update_global_config":
                     result = await validator.validate_tool(
-                        tool_name, {"compatibility": "BACKWARD", "registry": "validation_primary"}
+                        tool_name,
+                        {"compatibility": "BACKWARD", "registry": "validation_primary"},
                     )
                 elif tool_name == "get_subject_config":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"subject": "validation-test-subject", "registry": "validation_primary"},
+                        {
+                            "subject": "validation-test-subject",
+                            "registry": "validation_primary",
+                        },
                     )
                 elif tool_name == "update_subject_config":
                     result = await validator.validate_tool(
@@ -412,12 +439,16 @@ async def _test_all_tools_with_client(server_params, validator):
                     )
                 elif tool_name == "update_mode":
                     result = await validator.validate_tool(
-                        tool_name, {"mode": "READWRITE", "registry": "validation_primary"}
+                        tool_name,
+                        {"mode": "READWRITE", "registry": "validation_primary"},
                     )
                 elif tool_name == "get_subject_mode":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"subject": "validation-test-subject", "registry": "validation_primary"},
+                        {
+                            "subject": "validation-test-subject",
+                            "registry": "validation_primary",
+                        },
                     )
                 elif tool_name == "update_subject_mode":
                     result = await validator.validate_tool(
@@ -443,7 +474,10 @@ async def _test_all_tools_with_client(server_params, validator):
                 if tool_name == "get_schema_versions":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"subject": "validation-test-subject", "registry": "validation_primary"},
+                        {
+                            "subject": "validation-test-subject",
+                            "registry": "validation_primary",
+                        },
                     )
                 elif tool_name == "check_compatibility":
                     result = await validator.validate_tool(
@@ -478,7 +512,10 @@ async def _test_all_tools_with_client(server_params, validator):
                 elif tool_name == "get_schema":
                     result = await validator.validate_tool(
                         tool_name,
-                        {"subject": "validation-test-schema", "registry": "validation_primary"},
+                        {
+                            "subject": "validation-test-schema",
+                            "registry": "validation_primary",
+                        },
                     )
 
                 validator.results.append(result)
@@ -560,9 +597,9 @@ async def _test_all_tools_with_client(server_params, validator):
             # Summary statistics
             successful_tools = sum(1 for r in validator.results if r.success)
             total_tools = len(validator.results)
-            avg_response_time = sum(r.response_time_ms for r in validator.results) / len(
-                validator.results
-            )
+            avg_response_time = sum(
+                r.response_time_ms for r in validator.results
+            ) / len(validator.results)
 
             print(f"\n📊 **Validation Summary:**")
             print(f"• Total tools tested: {total_tools}")
@@ -588,13 +625,19 @@ async def _test_all_tools_with_client(server_params, validator):
             # Category breakdown
             print(f"\n📋 **Tool Categories Validated:**")
             for category, tools in EXPECTED_TOOLS.items():
-                category_results = [r for r in validator.results if r.tool_name in tools]
+                category_results = [
+                    r for r in validator.results if r.tool_name in tools
+                ]
                 category_success = sum(1 for r in category_results if r.success)
-                print(f"• {category.replace('_', ' ').title()}: {category_success}/{len(tools)}")
+                print(
+                    f"• {category.replace('_', ' ').title()}: {category_success}/{len(tools)}"
+                )
 
             if successful_tools == total_tools:
                 print(f"\n✅ **All tools validated successfully!**")
-                print(f"🚀 **unified server in multi-registry mode is fully functional**")
+                print(
+                    f"🚀 **unified server in multi-registry mode is fully functional**"
+                )
             else:
                 failed_tools = [r.tool_name for r in validator.results if not r.success]
                 print(f"\n⚠️ **Some tools failed validation:**")
