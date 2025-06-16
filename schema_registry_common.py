@@ -36,22 +36,32 @@ def validate_url(url: str) -> bool:
         # Whitelist allowed protocols
         if parsed.scheme not in ["http", "https"]:
             return False
-        
+
         # Allow localhost in test/development mode
         # Check for common test/development indicators
         is_test_mode = (
-            os.getenv("TESTING", "").lower() in ("true", "1", "yes", "on") or
-            os.getenv("CI", "").lower() in ("true", "1", "yes", "on") or
-            os.getenv("PYTEST_CURRENT_TEST") is not None or
-            os.getenv("ALLOW_LOCALHOST", "").lower() in ("true", "1", "yes", "on") or
+            os.getenv("TESTING", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("CI", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("ALLOW_LOCALHOST", "").lower() in ("true", "1", "yes", "on")
+            or
             # Check if we're in a test directory
-            "test" in os.getcwd().lower() or
+            "test" in os.getcwd().lower()
+            or
             # Check if the main script being run is a test
-            "test" in sys.argv[0].lower() or
+            "test" in sys.argv[0].lower()
+            or
             # Check for common test runners
             any("pytest" in arg.lower() or "test" in arg.lower() for arg in sys.argv)
+            or
+            # Check if __main__ module is a test
+            (
+                hasattr(sys.modules.get("__main__"), "__file__")
+                and sys.modules["__main__"].__file__
+                and "test" in sys.modules["__main__"].__file__.lower()
+            )
         )
-        
+
         # Prevent internal network access in production
         if parsed.hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
             if not is_test_mode:

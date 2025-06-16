@@ -26,19 +26,28 @@ async def test_single_registry_batch_cleanup_helper():
         # Create a clean environment with only the variables we need
         env = {}
         # Copy only essential system variables
-        for key in ["PATH", "PYTHONPATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "VIRTUAL_ENV"]:
+        for key in [
+            "PATH",
+            "PYTHONPATH",
+            "HOME",
+            "USER",
+            "SHELL",
+            "LANG",
+            "LC_ALL",
+            "VIRTUAL_ENV",
+        ]:
             if key in os.environ:
                 env[key] = os.environ[key]
-                
+
         # Add our registry configuration
         env["SCHEMA_REGISTRY_NAME_1"] = "dev"
         env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
         env["SCHEMA_REGISTRY_NAME_2"] = "prod"
         env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
-        
+
         # Force test mode to allow localhost
         env["TESTING"] = "true"
-        
+
         print(f"🔍 Environment variables being passed to subprocess:")
         for k, v in sorted(env.items()):
             if "SCHEMA" in k or "TESTING" in k:
@@ -206,16 +215,25 @@ async def test_multi_registry_batch_cleanup_helper():
         # Create a clean environment with only the variables we need
         env = {}
         # Copy only essential system variables
-        for key in ["PATH", "PYTHONPATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "VIRTUAL_ENV"]:
+        for key in [
+            "PATH",
+            "PYTHONPATH",
+            "HOME",
+            "USER",
+            "SHELL",
+            "LANG",
+            "LC_ALL",
+            "VIRTUAL_ENV",
+        ]:
             if key in os.environ:
                 env[key] = os.environ[key]
-                
+
         # Add our registry configuration
         env["SCHEMA_REGISTRY_NAME_1"] = "dev"
         env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
         env["SCHEMA_REGISTRY_NAME_2"] = "prod"
         env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
-        
+
         # Force test mode to allow localhost
         env["TESTING"] = "true"
 
