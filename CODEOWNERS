@@ -1,0 +1,33 @@
+# CODEOWNERS file for kafka-schema-reg-mcp
+# This file defines who is responsible for code in this repository.
+# These owners will be requested for review when someone opens a pull request.
+# For more info see: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owners - these users will be requested for review on all changes
+* @aywengo
+
+# Python source files
+*.py @aywengo
+/src/ @aywengo
+
+# Configuration and setup files
+pyproject.toml @aywengo
+requirements*.txt @aywengo
+setup.py @aywengo
+setup.cfg @aywengo
+
+# Documentation
+*.md @aywengo
+/docs/ @aywengo
+README.md @aywengo
+
+# GitHub specific files
+/.github/ @aywengo
+
+# Docker files
+Dockerfile* @aywengo
+docker-compose*.yml @aywengo
+.dockerignore @aywengo
+
+# CI/CD and automation
+/.github/workflows/ @aywengo
