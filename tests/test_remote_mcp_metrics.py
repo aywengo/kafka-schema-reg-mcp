@@ -28,7 +28,9 @@ def import_remote_mcp_server():
     remote_script_path = os.path.join(
         os.path.dirname(__file__), "..", "remote-mcp-server.py"
     )
-    spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
+    spec = importlib.util.spec_from_file_location(
+        "remote_mcp_server", remote_script_path
+    )
     module = importlib.util.module_from_spec(spec)
 
     # Mock the dependencies
@@ -36,7 +38,9 @@ def import_remote_mcp_server():
         "sys.modules",
         {
             "kafka_schema_registry_unified_mcp": MagicMock(
-                mcp=MagicMock(), registry_manager=MagicMock(), REGISTRY_MODE="single"
+                mcp=MagicMock(),
+                registry_manager=MagicMock(),
+                REGISTRY_MODE="single",
             )
         },
     ):
@@ -171,10 +175,14 @@ class TestRemoteMCPMetrics(unittest.TestCase):
 
         # Patch the global registry_manager
         with patch.object(
-            remote_mcp_server.registry_manager, "list_registries", return_value=["production"]
+            remote_mcp_server.registry_manager,
+            "list_registries",
+            return_value=["production"],
         ):
             with patch.object(
-                remote_mcp_server.registry_manager, "get_registry", return_value=mock_client
+                remote_mcp_server.registry_manager,
+                "get_registry",
+                return_value=mock_client,
             ):
                 stats = self.metrics.get_registry_stats()
 
@@ -193,10 +201,14 @@ class TestRemoteMCPMetrics(unittest.TestCase):
 
         # Patch the global registry_manager
         with patch.object(
-            remote_mcp_server.registry_manager, "list_registries", return_value=["production"]
+            remote_mcp_server.registry_manager,
+            "list_registries",
+            return_value=["production"],
         ):
             with patch.object(
-                remote_mcp_server.registry_manager, "get_registry", return_value=mock_client
+                remote_mcp_server.registry_manager,
+                "get_registry",
+                return_value=mock_client,
             ):
                 # First call should hit the API
                 stats1 = self.metrics.get_registry_stats()
@@ -267,7 +279,9 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
             return_value="test-registry",
         ):
             with patch.object(
-                remote_mcp_server.registry_manager, "get_registry", return_value=mock_client
+                remote_mcp_server.registry_manager,
+                "get_registry",
+                return_value=mock_client,
             ):
                 with patch("builtins.globals", return_value={"REGISTRY_MODE": "single"}):
                     # Since we can't easily test async functions in unittest, we'll skip the async test
