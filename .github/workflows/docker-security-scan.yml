@@ -1,0 +1,115 @@
+name: Docker Security Scan
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - '.github/workflows/docker-security-scan.yml'
+
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t kafka-schema-registry-mcp:security-scan .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'kafka-schema-registry-mcp:security-scan'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: false
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: github.event_name != 'pull_request'
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy in table format
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:latest image \
+            --format table \
+            --severity CRITICAL,HIGH,MEDIUM \
+            kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
+
+      - name: Create issue from vulnerabilities
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const trivyOutput = fs.readFileSync('trivy-table.txt', 'utf8');
+            
+            // Check if there are any vulnerabilities
+            if (trivyOutput.includes('Total: 0')) {
+              console.log('No vulnerabilities found');
+              return;
+            }
+            
+            // Create issue body
+            const issueBody = `## 🔒 Security Scan Results
+            
+            The scheduled security scan found vulnerabilities in the Docker image.
+            
+            ### Scan Details
+            - **Date**: ${new Date().toISOString()}
+            - **Image**: kafka-schema-registry-mcp
+            - **Scanner**: Trivy
+            
+            ### Vulnerabilities Found
+            
+            \`\`\`
+            ${trivyOutput}
+            \`\`\`
+            
+            ### Recommended Actions
+            1. Review the vulnerabilities listed above
+            2. Update base images if newer versions are available
+            3. Update dependencies in requirements.txt
+            4. Apply security patches where possible
+            
+            ### Resources
+            - [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+            - [Docker Security Best Practices](https://docs.docker.com/develop/security-best-practices/)
+            `;
+            
+            // Create the issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔒 Security Scan Alert - ${new Date().toLocaleDateString()}`,
+              body: issueBody,
+              labels: ['security', 'docker', 'automated']
+            });
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-results
+          path: |
+            trivy-results.sarif
+            trivy-table.txt
+          retention-days: 90 
