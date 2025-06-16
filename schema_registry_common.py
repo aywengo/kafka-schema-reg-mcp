@@ -1139,4 +1139,4 @@ def clear_context_batch(
         return result
 
     except Exception as e:
-        return {"error": f"Batch cleanup failed: {str(e)"}
+        return {"error": f"Batch cleanup failed: {str(e)}"}
