@@ -1,24 +1,27 @@
-name: Test PR
+name: Test Suite
 
 on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
-      test_type:
-        description: 'Type of tests to run'
+      test_mode:
+        description: 'Test execution mode'
         required: false
-        default: 'all'
+        default: 'quick'
         type: choice
         options:
-          - 'all'
+          - 'quick'
+          - 'full'
           - 'lint-only'
-          - 'quick-test-only'
-          - 'integration-only'
           - 'docker-only'
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'lint-only' }}
+    if: ${{ github.event.inputs.test_mode != 'docker-only' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,117 +33,303 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black
+          pip install flake8 black isort mypy
 
       - name: Lint with flake8
         run: |
+          # Stop the build if there are Python syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
 
-      - name: Check code formatting
+      - name: Check code formatting with black
         run: |
-          black --check --diff .
+          black --check --diff *.py tests/*.py
 
-  quick-test:
+      - name: Check import sorting with isort
+        run: |
+          isort --check-only --diff *.py tests/*.py
+
+  docker-build:
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'quick-test-only' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio
-
-      - name: Run unit tests
-        run: |
-          python -m pytest tests/test_unit.py -v
-
-      - name: Run configuration tests
-        run: |
-          python tests/test_simple_config.py
-
-  integration-test:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration-only' }}
-    services:
-      kafka:
-        image: confluentinc/cp-kafka:latest
-        env:
-          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-        ports:
-          - 9092:9092
-      
-      zookeeper:
-        image: confluentinc/cp-zookeeper:latest
-        env:
-          ZOOKEEPER_CLIENT_PORT: 2181
-          ZOOKEEPER_TICK_TIME: 2000
-        ports:
-          - 2181:2181
-          
-      schema-registry:
-        image: confluentinc/cp-schema-registry:latest
-        env:
-          SCHEMA_REGISTRY_HOST_NAME: schema-registry
-          SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
-        ports:
-          - 8081:8081
-        
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Wait for services
-        run: |
-          echo "Waiting for Schema Registry..."
-          timeout 60 bash -c 'until curl -f http://localhost:8081/; do sleep 2; done'
-
-      - name: Run MCP server tests
-        run: |
-          python tests/test_mcp_server.py
-
-      - name: Run numbered configuration tests
-        run: |
-          python tests/test_numbered_config.py
-
-      - name: Run advanced MCP test
-        run: |
-          python tests/advanced_mcp_test.py
-
-  docker-test:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'docker-only' }}
-    steps:
-      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         run: |
-          docker build -t test-image .
-
+          docker build -t kafka-schema-registry-mcp:test .
+          
       - name: Test Docker image
         run: |
-          docker run -d --name test-container -p 8000:8000 test-image
-          sleep 10
-          timeout 30 bash -c 'until curl -f http://localhost:8000/; do sleep 1; done'
-          response=$(curl -s http://localhost:8000/)
-          echo "Response: $response"
-          docker stop test-container
-          docker rm test-container 
+          # Test that the image can start and the Python module can be imported
+          docker run --rm kafka-schema-registry-mcp:test python -c "import kafka_schema_registry_unified_mcp; print('MCP server module loaded successfully')"
+
+      - name: Security scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'kafka-schema-registry-mcp:test'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  test-quick:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_mode == 'quick' || (github.event.inputs.test_mode != 'full' && github.event.inputs.test_mode != 'lint-only' && github.event.inputs.test_mode != 'docker-only') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout
+
+      - name: Start test environment
+        run: |
+          cd tests
+          ./start_test_environment.sh multi
+          
+          # Wait for services to be healthy
+          echo "Waiting for services to be ready..."
+          timeout 120 bash -c '
+            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
+                  curl -sf http://localhost:38082/subjects >/dev/null 2>&1; do
+              echo "Waiting for Schema Registry services..."
+              sleep 5
+            done
+          '
+          
+          # Verify MCP container is healthy
+          if docker ps --filter "name=mcp-server" --format "{{.Names}}" | grep -q "mcp-server"; then
+            echo "Waiting for MCP server to be healthy..."
+            timeout 60 bash -c '
+              until docker inspect --format="{{.State.Health.Status}}" mcp-server 2>/dev/null | grep -q "healthy"; do
+                echo "Waiting for MCP server health..."
+                sleep 2
+              done
+            '
+          fi
+
+      - name: Run quick tests
+        run: |
+          cd tests
+          ./run_all_tests.sh --quick --no-cleanup
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-test-results
+          path: tests/results/
+
+      - name: Stop test environment
+        if: always()
+        run: |
+          cd tests
+          ./stop_test_environment.sh clean
+
+  test-full:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_mode == 'full' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout pytest-cov
+
+      - name: Start test environment
+        run: |
+          cd tests
+          ./start_test_environment.sh multi
+          
+          # Wait for all services
+          echo "Waiting for services to be ready..."
+          timeout 120 bash -c '
+            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
+                  curl -sf http://localhost:38082/subjects >/dev/null 2>&1 && 
+                  curl -sf http://localhost:38080/api/health >/dev/null 2>&1; do
+              echo "Waiting for all services..."
+              sleep 5
+            done
+          '
+          
+          # Verify MCP container
+          if docker ps --filter "name=mcp-server" --format "{{.Names}}" | grep -q "mcp-server"; then
+            timeout 60 bash -c '
+              until docker inspect --format="{{.State.Health.Status}}" mcp-server 2>/dev/null | grep -q "healthy"; do
+                sleep 2
+              done
+            '
+          fi
+
+      - name: Run full test suite
+        run: |
+          cd tests
+          ./run_all_tests.sh --no-cleanup
+
+      - name: Run MCP container tests separately
+        run: |
+          cd tests
+          python -m pytest test_mcp_container_integration.py -v --tb=short
+
+      - name: Generate coverage report
+        run: |
+          cd tests
+          python -m pytest --cov=.. --cov-report=xml --cov-report=html -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./tests/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-test-results
+          path: |
+            tests/results/
+            tests/htmlcov/
+
+      - name: Stop test environment
+        if: always()
+        run: |
+          cd tests
+          ./stop_test_environment.sh clean
+
+  test-mcp-container:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.test_mode != 'lint-only' }}
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-timeout
+
+      - name: Start MCP test environment
+        run: |
+          cd tests
+          docker-compose up -d
+          
+          # Wait for all services to be healthy
+          echo "Waiting for services..."
+          timeout 120 bash -c '
+            until docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "schema-registry-dev" &&
+                  docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "schema-registry-prod" &&
+                  docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "mcp-server"; do
+              echo "Waiting for services to be healthy..."
+              docker ps --format "table {{.Names}}\t{{.Status}}"
+              sleep 5
+            done
+          '
+
+      - name: Test MCP container communication
+        run: |
+          cd tests
+          ./test_mcp_container.sh
+
+      - name: Run Python MCP container tests
+        run: |
+          cd tests
+          python -m pytest test_mcp_container_integration.py -v -s
+
+      - name: Test MCP protocol directly
+        run: |
+          # Test listing tools
+          echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":1}' | \
+            docker exec -i mcp-server python kafka_schema_registry_unified_mcp.py | \
+            grep -q '"result"' && echo "✓ MCP tools/list works" || exit 1
+          
+          # Test calling a tool
+          echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_subjects","arguments":{}},"id":2}' | \
+            docker exec -i mcp-server python kafka_schema_registry_unified_mcp.py | \
+            grep -q '"result"' && echo "✓ MCP tools/call works" || exit 1
+
+      - name: Collect container logs
+        if: failure()
+        run: |
+          docker logs mcp-server > mcp-server.log
+          docker logs schema-registry-dev > schema-registry-dev.log
+          docker logs schema-registry-prod > schema-registry-prod.log
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: container-logs
+          path: |
+            *.log
+
+      - name: Stop test environment
+        if: always()
+        run: |
+          cd tests
+          docker-compose down -v
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [lint, docker-build, test-quick, test-mcp-container]
+    if: always()
+    steps:
+      - name: Test Summary
+        run: |
+          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.lint.result }}" == "success" ]]; then
+            echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Linting failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.docker-build.result }}" == "success" ]]; then
+            echo "✅ Docker build passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Docker build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.test-quick.result }}" == "success" ]]; then
+            echo "✅ Quick tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Quick tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.test-mcp-container.result }}" == "success" ]]; then
+            echo "✅ MCP container tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ MCP container tests failed" >> $GITHUB_STEP_SUMMARY
+          fi 
