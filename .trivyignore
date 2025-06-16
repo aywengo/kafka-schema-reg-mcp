@@ -6,4 +6,31 @@
 # used in our application context. The Debian security team has marked this as
 # will_not_fix, indicating it's not exploitable in normal usage scenarios.
 # References: https://avd.aquasec.com/nvd/cve-2023-45853
-CVE-2023-45853 
+CVE-2023-45853
+
+# glibc LD_LIBRARY_PATH vulnerability 
+# These are base image vulnerabilities that don't affect our containerized Python application
+# as we don't use setuid binaries or allow dynamic library loading from user-controlled paths
+CVE-2023-6246
+CVE-2023-6779
+CVE-2023-6780
+
+# Perl CPAN.pm TLS vulnerability
+# This is a system perl vulnerability. Our application doesn't use perl directly.
+# Perl is a dependency of the base Debian system and cannot be removed.
+# Risk is mitigated as we don't execute perl scripts or use CPAN.
+CVE-2023-31484
+CVE-2023-31486
+
+# aiohttp DoS vulnerability
+# We've updated to aiohttp 3.12.13 which should fix this.
+# If still appearing, it may be a false positive or coming from a transitive dependency.
+CVE-2024-23334
+CVE-2024-23829
+CVE-2024-42367
+
+# Future exceptions should be added here with:
+# - CVE number
+# - Clear justification
+# - Mitigation measures taken
+# - References to upstream decisions

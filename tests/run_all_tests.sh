@@ -236,12 +236,14 @@ run_tests() {
             "basic_unified_server"
             "essential_integration"
             "multi_registry_core"
+            "mcp_container_tests"
         )
     else
         test_categories=(
             "basic_unified_server"
             "integration_tests"
             "multi_registry_tests"
+            "mcp_container_tests"
             "advanced_features"
         )
     fi
@@ -285,6 +287,9 @@ run_test_category() {
             ;;
         "advanced_features")
             run_advanced_feature_tests
+            ;;
+        "mcp_container_tests")
+            run_mcp_container_tests
             ;;
         *)
             print_color $YELLOW "⚠️  Unknown test category: $category"
@@ -377,6 +382,30 @@ run_multi_registry_tests() {
         "test_numbered_integration.py:Numbered environment configuration"
         "test_default_context_dot_simple.py:Default context handling"
         "test_batch_cleanup.py:Batch cleanup operations"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
+# Run MCP container tests
+run_mcp_container_tests() {
+    print_color $CYAN "🐳 MCP Container Integration Tests"
+    
+    # Check if MCP server container is healthy
+    print_color $BLUE "   🔍 Checking MCP server container health..."
+    if docker ps --filter "name=mcp-server" --format "{{.Names}}" | grep -q "mcp-server"; then
+        local health_status=$(docker inspect --format='{{.State.Health.Status}}' mcp-server 2>/dev/null || echo "unknown")
+        if [[ "$health_status" == "healthy" ]]; then
+            print_color $GREEN "   ✅ MCP server container is healthy"
+        else
+            print_color $YELLOW "   ⚠️  MCP server container health: $health_status"
+        fi
+    else
+        print_color $YELLOW "   ⚠️  MCP server container not found, tests may fail"
+    fi
+    
+    local tests=(
+        "test_mcp_container_integration.py:MCP server container integration and protocol testing"
     )
     
     run_test_list "${tests[@]}"
@@ -497,9 +526,11 @@ Environment Status:
 Test Categories Executed:
 $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Essential Integration Tests  
-- Multi-Registry Core Tests" || echo "- Basic Unified Server Tests (imports, connectivity)
+- Multi-Registry Core Tests
+- MCP Container Integration Tests" || echo "- Basic Unified Server Tests (imports, connectivity)
 - Integration Tests (schema operations, readonly mode)
 - Multi-Registry Tests (multi-registry operations)
+- MCP Container Integration Tests (Docker container deployment)
 - Advanced Feature Tests (comparison, migration, workflows)")
 
 Log Files:

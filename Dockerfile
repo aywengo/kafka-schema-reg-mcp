@@ -52,17 +52,15 @@ LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
       org.opencontainers.image.url="https://github.com/aywengo/kafka-schema-reg-mcp" \
       org.opencontainers.image.documentation="https://github.com/aywengo/kafka-schema-reg-mcp#readme"
 
-# Critical security updates - explicitly update vulnerable packages
-RUN apt-get update && apt-get upgrade -y && \
-    # Specifically update zlib and related packages to patch CVEs
-    apt-get install -y --only-upgrade \
-    zlib1g \
-    zlib1g-dev \
-    libaom3 \
-    libaom-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
-    && find /var/log -type f -exec truncate -s 0 {} \;
+# Critical security updates - update all packages to get latest patches
+# This ensures we have the latest security fixes for glibc, perl, and other system packages
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get dist-upgrade -y && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    find /var/log -type f -exec truncate -s 0 {} \;
 
 # Create non-root user for security (before copying files)
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /bin/bash mcp
