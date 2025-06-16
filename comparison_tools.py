@@ -2,12 +2,13 @@
 """
 Comparison Tools Module
 
-Handles comparison operations between registries and contexts.
+Handles registry comparison operations.
 Provides registry comparison, context comparison, and missing schema detection.
 """
 
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
+
 
 async def compare_registries_tool(
     source_registry: str,
@@ -15,41 +16,95 @@ async def compare_registries_tool(
     registry_manager,
     registry_mode: str,
     include_contexts: bool = True,
-    include_configs: bool = True
+    include_configs: bool = True,
 ) -> Dict[str, Any]:
     """
     Compare two Schema Registry instances and show differences.
     Only available in multi-registry mode.
-    
+
     Args:
         source_registry: Source registry name
         target_registry: Target registry name
         include_contexts: Include context comparison
         include_configs: Include configuration comparison
-    
+
     Returns:
         Comparison results or error if in single-registry mode
     """
+    if registry_mode == "single":
+        return {
+            "error": "Registry comparison is only available in multi-registry mode",
+            "suggestion": "Set REGISTRY_MODE=multi to enable registry comparison"
+        }
+    
     try:
-        if registry_mode == "single":
-            return {
-                "error": "Cross-registry comparison not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry mode with numbered environment variables"
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+        
+        if not source_client:
+            return {"error": f"Source registry '{source_registry}' not found"}
+        if not target_client:
+            return {"error": f"Target registry '{target_registry}' not found"}
+        
+        comparison = {
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "timestamp": datetime.now().isoformat(),
+            "differences": {}
+        }
+        
+        # Compare subjects
+        source_subjects = set(source_client.list_subjects() or [])
+        target_subjects = set(target_client.list_subjects() or [])
+        
+        comparison["differences"]["subjects"] = {
+            "only_in_source": list(source_subjects - target_subjects),
+            "only_in_target": list(target_subjects - source_subjects),
+            "in_both": list(source_subjects & target_subjects)
+        }
+        
+        # Compare schemas for common subjects
+        schema_differences = []
+        for subject in source_subjects & target_subjects:
+            source_versions = source_client.get_schema_versions(subject) or []
+            target_versions = target_client.get_schema_versions(subject) or []
+            
+            if source_versions != target_versions:
+                schema_differences.append({
+                    "subject": subject,
+                    "source_versions": source_versions,
+                    "target_versions": target_versions
+                })
+        
+        comparison["differences"]["schemas"] = schema_differences
+        
+        # Compare contexts if requested
+        if include_contexts:
+            source_contexts = set(source_client.list_contexts() or [])
+            target_contexts = set(target_client.list_contexts() or [])
+            
+            comparison["differences"]["contexts"] = {
+                "only_in_source": list(source_contexts - target_contexts),
+                "only_in_target": list(target_contexts - source_contexts),
+                "in_both": list(source_contexts & target_contexts)
             }
         
-        result = await registry_manager.compare_registries_async(source_registry, target_registry)
-        result["registry_mode"] = "multi"
-        return result
+        # Compare configurations if requested
+        if include_configs:
+            source_config = source_client.get_global_config()
+            target_config = target_client.get_global_config()
+            
+            comparison["differences"]["global_config"] = {
+                "source": source_config,
+                "target": target_config,
+                "match": source_config == target_config
+            }
+        
+        return comparison
+        
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return {"error": str(e)}
 
-def normalize_subject(subject, context):
-    """Remove context prefix if present from subject name."""
-    prefix = f":.{context}:"
-    if subject.startswith(prefix):
-        return subject[len(prefix):]
-    return subject
 
 async def compare_contexts_across_registries_tool(
     source_registry: str,
@@ -60,85 +115,79 @@ async def compare_contexts_across_registries_tool(
     target_context: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Compare contexts across two registries (can be different contexts).
+    Compare contexts across two registries.
     Only available in multi-registry mode.
     
     Args:
         source_registry: Source registry name
         target_registry: Target registry name
-        source_context: Context name in source registry
-        target_context: Context name in target registry (defaults to source_context if not provided)
+        source_context: Source context name
+        target_context: Target context name (defaults to source_context)
     
     Returns:
         Context comparison results
     """
+    if registry_mode == "single":
+        return {
+            "error": "Context comparison across registries is only available in multi-registry mode",
+            "suggestion": "Set REGISTRY_MODE=multi to enable this feature"
+        }
+    
     try:
-        if registry_mode == "single":
-            return {
-                "error": "Context comparison across registries not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable cross-registry comparison"
-            }
-        
-        # If target_context not provided, use source_context (backward compatibility)
-        if target_context is None:
-            target_context = source_context
-        
-        # Get registry clients
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
         
         if not source_client:
-            return {"error": f"Source registry '{source_registry}' not found", "registry_mode": "multi"}
+            return {"error": f"Source registry '{source_registry}' not found"}
         if not target_client:
-            return {"error": f"Target registry '{target_registry}' not found", "registry_mode": "multi"}
+            return {"error": f"Target registry '{target_registry}' not found"}
         
-        # Get subjects from both registries for their respective contexts
-        source_subjects = source_client.get_subjects(source_context)
-        target_subjects = target_client.get_subjects(target_context)
+        # Use source context for target if not specified
+        if target_context is None:
+            target_context = source_context
         
-        # Handle error cases
-        if isinstance(source_subjects, dict) and "error" in source_subjects:
-            source_subjects = []
-        if isinstance(target_subjects, dict) and "error" in target_subjects:
-            target_subjects = []
+        # Get subjects in each context
+        source_subjects = set(source_client.get_subjects(source_context) or [])
+        target_subjects = set(target_client.get_subjects(target_context) or [])
         
-        # Normalize subject names for comparison
-        normalized_source_subjects = {normalize_subject(s, source_context) for s in source_subjects}
-        normalized_target_subjects = {normalize_subject(s, target_context) for s in target_subjects}
-        
-        # Compare contexts using normalized names
-        common = list(normalized_source_subjects & normalized_target_subjects)
-        source_only = list(normalized_source_subjects - normalized_target_subjects)
-        target_only = list(normalized_target_subjects - normalized_source_subjects)
-        
-        result = {
-            "source_registry": source_registry,
-            "target_registry": target_registry,
-            "source_context": source_context,
-            "target_context": target_context,
-            "compared_at": datetime.now().isoformat(),
-            "registry_mode": "multi",
-            "summary": {
-                "source_only_subjects": len(source_only),
-                "target_only_subjects": len(target_only),
-                "common_subjects": len(common),
-                "total_source_subjects": len(source_subjects),
-                "total_target_subjects": len(target_subjects)
+        comparison = {
+            "source": {
+                "registry": source_registry,
+                "context": source_context,
+                "subject_count": len(source_subjects)
             },
-            "subjects": {
-                "source_only": source_only,
-                "target_only": target_only,
-                "common": common,
-                "source_total": len(source_subjects),
-                "target_total": len(target_subjects)
+            "target": {
+                "registry": target_registry,
+                "context": target_context,
+                "subject_count": len(target_subjects)
+            },
+            "differences": {
+                "only_in_source": list(source_subjects - target_subjects),
+                "only_in_target": list(target_subjects - source_subjects),
+                "in_both": list(source_subjects & target_subjects)
             }
         }
         
-        return result
+        # Compare schemas for common subjects
+        schema_differences = []
+        for subject in source_subjects & target_subjects:
+            source_versions = source_client.get_schema_versions(subject, source_context) or []
+            target_versions = target_client.get_schema_versions(subject, target_context) or []
+            
+            if source_versions != target_versions:
+                schema_differences.append({
+                    "subject": subject,
+                    "source_versions": source_versions,
+                    "target_versions": target_versions
+                })
+        
+        comparison["schema_differences"] = schema_differences
+        
+        return comparison
         
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return {"error": str(e)}
+
 
 async def find_missing_schemas_tool(
     source_registry: str,
@@ -154,58 +203,62 @@ async def find_missing_schemas_tool(
     Args:
         source_registry: Source registry name
         target_registry: Target registry name
-        context: Optional context to search within
+        context: Optional context to limit the search
     
     Returns:
-        Dictionary containing missing schemas information
+        List of missing schemas
     """
+    if registry_mode == "single":
+        return {
+            "error": "Finding missing schemas across registries is only available in multi-registry mode",
+            "suggestion": "Set REGISTRY_MODE=multi to enable this feature"
+        }
+    
     try:
-        if registry_mode == "single":
-            return {
-                "error": "Finding missing schemas across registries not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable cross-registry analysis"
-            }
-        
-        # Get registry clients
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
         
         if not source_client:
-            return {"error": f"Source registry '{source_registry}' not found", "registry_mode": "multi"}
+            return {"error": f"Source registry '{source_registry}' not found"}
         if not target_client:
-            return {"error": f"Target registry '{target_registry}' not found", "registry_mode": "multi"}
+            return {"error": f"Target registry '{target_registry}' not found"}
         
-        try:
-            # Get subjects from both registries
-            source_subjects = source_client.get_subjects(context)
-            target_subjects = target_client.get_subjects(context)
+        # Get subjects based on context
+        if context:
+            source_subjects = set(source_client.get_subjects(context) or [])
+            target_subjects = set(target_client.get_subjects(context) or [])
+        else:
+            source_subjects = set(source_client.list_subjects() or [])
+            target_subjects = set(target_client.list_subjects() or [])
+        
+        # Find missing subjects
+        missing_subjects = source_subjects - target_subjects
+        
+        result = {
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "context": context,
+            "missing_subjects": list(missing_subjects),
+            "missing_count": len(missing_subjects),
+            "details": []
+        }
+        
+        # Get details for each missing subject
+        for subject in missing_subjects:
+            versions = source_client.get_schema_versions(subject, context) or []
+            latest_schema = None
             
-            # Handle error cases
-            if isinstance(source_subjects, dict) and "error" in source_subjects:
-                source_subjects = []
-            if isinstance(target_subjects, dict) and "error" in target_subjects:
-                target_subjects = []
+            if versions:
+                latest_schema = source_client.get_schema(subject, str(versions[-1]), context)
             
-            # Find missing schemas (in source but not in target)
-            missing_schemas = list(set(source_subjects) - set(target_subjects))
-            
-            result = {
-                "source_registry": source_registry,
-                "target_registry": target_registry,
-                "context": context,
-                "analyzed_at": datetime.now().isoformat(),
-                "registry_mode": "multi",
-                "missing_schemas": missing_schemas,
-                "missing_count": len(missing_schemas),
-                "source_total": len(source_subjects),
-                "target_total": len(target_subjects)
-            }
-            
-            return result
-            
-        except Exception as e:
-            return {"error": f"Schema analysis failed: {str(e)}", "registry_mode": "multi"}
+            result["details"].append({
+                "subject": subject,
+                "versions": versions,
+                "version_count": len(versions),
+                "latest_schema": latest_schema
+            })
+        
+        return result
         
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode} 
+        return {"error": str(e)}
