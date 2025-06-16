@@ -21,8 +21,12 @@ async def test_readonly_with_mcp_client():
     env["READONLY"] = "true"
     env["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
 
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+    
     server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
+        command="python", args=[server_script], env=env
     )
 
     async with stdio_client(server_params) as (read, write):

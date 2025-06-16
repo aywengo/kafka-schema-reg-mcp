@@ -160,6 +160,9 @@ export READONLY_2="true"                      # Production safety
 | `SCHEMA_REGISTRY_USER_X` | Username (X=1-8) | *(empty)* | `prod-user` |
 | `SCHEMA_REGISTRY_PASSWORD_X` | Password (X=1-8) | *(empty)* | `prod-password` |
 | `READONLY_X` | Per-registry readonly (X=1-8) | `false` | `true` |
+| **Security Settings** | | | |
+| `ALLOW_LOCALHOST` | Allow localhost URLs (dev/test only) | `false` | `true` |
+| `TESTING` | Enable test mode | `false` | `true` |
 
 #### 🔒 READONLY Mode (Production Safety Feature)
 
@@ -724,6 +727,41 @@ def validate_pkce(code_verifier, stored_challenge):
 4. **Development Tokens**: Only use `dev-token-*` formats in development environments
 5. **Token Rotation**: Implement regular token rotation in production
 6. **Discovery Endpoint Security**: OAuth discovery endpoints use proper CORS and caching headers
+
+### **🔒 URL Security & SSRF Protection**
+
+The MCP server implements strict URL validation to prevent Server-Side Request Forgery (SSRF) attacks:
+
+#### **URL Restrictions**
+- **Allowed Protocols**: Only `http` and `https` protocols are permitted
+- **Blocked Addresses**: 
+  - Localhost addresses (`localhost`, `127.0.0.1`, `0.0.0.0`) are blocked in production
+  - Private IP ranges (e.g., `10.x.x.x`, `172.16.x.x`, `192.168.x.x`) are blocked in production
+- **Context Injection Protection**: Context parameters in URLs are properly encoded to prevent injection attacks
+
+#### **Development & Testing**
+For development and testing environments, localhost URLs can be allowed by setting one of:
+- `TESTING=true` - Enable test mode
+- `ALLOW_LOCALHOST=true` - Explicitly allow localhost URLs
+- `CI=true` - For CI/CD pipelines
+- Running tests with pytest (automatically detected)
+- Working directory containing "test" (automatically detected)
+
+**Example:**
+```bash
+# Development with localhost Schema Registry
+export ALLOW_LOCALHOST=true
+export SCHEMA_REGISTRY_URL="http://localhost:8081"
+
+# Production (localhost blocked by default)
+export SCHEMA_REGISTRY_URL="https://schema-registry.example.com:8081"
+```
+
+#### **Error Handling**
+If an invalid or unsafe URL is configured:
+- The registry will fail to load with error: `"Invalid or unsafe registry URL"`
+- The error is logged but the server continues with other valid registries
+- Multi-registry setups will skip invalid registries and continue with valid ones
 
 ### **🚨 Security Vulnerability Management**
 

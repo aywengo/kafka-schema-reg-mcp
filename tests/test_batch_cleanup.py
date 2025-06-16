@@ -23,12 +23,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 async def test_single_registry_batch_cleanup_helper():
     """Helper function to test batch cleanup with MCP client and timeout protection"""
     try:
-        # Set up environment with multi-registry configuration
-        env = os.environ.copy()
+        # Create a clean environment with only the variables we need
+        env = {}
+        # Copy only essential system variables
+        for key in ["PATH", "PYTHONPATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "VIRTUAL_ENV"]:
+            if key in os.environ:
+                env[key] = os.environ[key]
+                
+        # Add our registry configuration
         env["SCHEMA_REGISTRY_NAME_1"] = "dev"
         env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
         env["SCHEMA_REGISTRY_NAME_2"] = "prod"
         env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
+        
+        # Force test mode to allow localhost
+        env["TESTING"] = "true"
+        
+        print(f"🔍 Environment variables being passed to subprocess:")
+        for k, v in sorted(env.items()):
+            if "SCHEMA" in k or "TESTING" in k:
+                print(f"   {k}={v}")
 
         # Get absolute path to server script
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -189,12 +203,21 @@ async def test_single_registry_batch_cleanup():
 async def test_multi_registry_batch_cleanup_helper():
     """Helper function to test multi-registry batch cleanup with MCP client and timeout protection"""
     try:
-        # Set up environment with multi-registry configuration
-        env = os.environ.copy()
+        # Create a clean environment with only the variables we need
+        env = {}
+        # Copy only essential system variables
+        for key in ["PATH", "PYTHONPATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "VIRTUAL_ENV"]:
+            if key in os.environ:
+                env[key] = os.environ[key]
+                
+        # Add our registry configuration
         env["SCHEMA_REGISTRY_NAME_1"] = "dev"
         env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
         env["SCHEMA_REGISTRY_NAME_2"] = "prod"
         env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38082"
+        
+        # Force test mode to allow localhost
+        env["TESTING"] = "true"
 
         # Get absolute path to server script
         script_dir = os.path.dirname(os.path.abspath(__file__))
