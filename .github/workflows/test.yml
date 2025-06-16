@@ -293,7 +293,8 @@ jobs:
       - name: Start MCP test environment
         run: |
           cd tests
-          docker-compose up -d
+          # GitHub Actions uses 'docker compose' (with space)
+          docker compose up -d
           
           # Wait for all services to be healthy
           echo "Waiting for services..."
@@ -348,7 +349,7 @@ jobs:
         if: always()
         run: |
           cd tests
-          docker-compose down -v
+          docker compose down -v
 
   summary:
     runs-on: ubuntu-latest
