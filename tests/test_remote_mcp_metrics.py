@@ -15,19 +15,40 @@ import sys
 import os
 import time
 import json
+import importlib.util
 from unittest.mock import Mock, patch, MagicMock
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Import the remote MCP server module properly
+def import_remote_mcp_server():
+    """Import remote-mcp-server.py and return the module."""
+    remote_script_path = os.path.join(os.path.dirname(__file__), '..', 'remote-mcp-server.py')
+    spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
+    module = importlib.util.module_from_spec(spec)
+    
+    # Mock the dependencies
+    with patch.dict('sys.modules', {
+        'kafka_schema_registry_unified_mcp': MagicMock(
+            mcp=MagicMock(),
+            registry_manager=MagicMock(),
+            REGISTRY_MODE='single'
+        )
+    }):
+        spec.loader.exec_module(module)
+    
+    return module
+
+# Import the module
+remote_mcp_server = import_remote_mcp_server()
+RemoteMCPMetrics = remote_mcp_server.RemoteMCPMetrics
 
 class TestRemoteMCPMetrics(unittest.TestCase):
     """Test RemoteMCPMetrics class functionality."""
     
     def setUp(self):
         """Set up test environment."""
-        # Import and create metrics instance
-        remote_script_path = os.path.join(os.path.dirname(__file__), '..', 'remote-mcp-server.py')
-        exec(open(remote_script_path).read().split('if __name__')[0], globals())
         self.metrics = RemoteMCPMetrics()
     
     def test_metrics_initialization(self):
@@ -137,8 +158,8 @@ class TestRemoteMCPMetrics(unittest.TestCase):
         mock_client.list_contexts.return_value = [".", "production"]
         
         # Patch the global registry_manager
-        with patch.object(globals().get('registry_manager', Mock()), 'list_registries', return_value=["production"]):
-            with patch.object(globals().get('registry_manager', Mock()), 'get_registry', return_value=mock_client):
+        with patch.object(remote_mcp_server.registry_manager, 'list_registries', return_value=["production"]):
+            with patch.object(remote_mcp_server.registry_manager, 'get_registry', return_value=mock_client):
                 stats = self.metrics.get_registry_stats()
                 
                 self.assertIn("production", stats)
@@ -155,8 +176,8 @@ class TestRemoteMCPMetrics(unittest.TestCase):
         mock_client.list_contexts.return_value = ["."]
         
         # Patch the global registry_manager
-        with patch.object(globals().get('registry_manager', Mock()), 'list_registries', return_value=["production"]):
-            with patch.object(globals().get('registry_manager', Mock()), 'get_registry', return_value=mock_client):
+        with patch.object(remote_mcp_server.registry_manager, 'list_registries', return_value=["production"]):
+            with patch.object(remote_mcp_server.registry_manager, 'get_registry', return_value=mock_client):
                 # First call should hit the API
                 stats1 = self.metrics.get_registry_stats()
                 
@@ -204,12 +225,9 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
     
     def setUp(self):
         """Set up test environment."""
-        # Import the remote MCP server module
-        remote_script_path = os.path.join(os.path.dirname(__file__), '..', 'remote-mcp-server.py')
-        exec(open(remote_script_path).read().split('if __name__')[0], globals())
         self.metrics = RemoteMCPMetrics()
         # Replace global metrics with our test instance
-        globals()['metrics'] = self.metrics
+        remote_mcp_server.metrics = self.metrics
     
     def test_health_check_endpoint(self):
         """Test health check endpoint functionality."""
@@ -221,8 +239,8 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
         mock_request = Mock()
         
         # Mock the registry manager and mode
-        with patch.object(globals().get('registry_manager', Mock()), 'get_default_registry', return_value="test-registry"):
-            with patch.object(globals().get('registry_manager', Mock()), 'get_registry', return_value=mock_client):
+        with patch.object(remote_mcp_server.registry_manager, 'get_default_registry', return_value="test-registry"):
+            with patch.object(remote_mcp_server.registry_manager, 'get_registry', return_value=mock_client):
                 with patch('builtins.globals', return_value={'REGISTRY_MODE': 'single'}):
                     # Since we can't easily test async functions in unittest, we'll skip the async test
                     # This test validates the mocking setup works
@@ -235,7 +253,7 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
         self.metrics.record_schema_operation("register_schema", "production", 0.1, True)
         
         # Test that the metrics endpoint function exists and metrics are generated
-        self.assertTrue('prometheus_metrics' in globals())
+        self.assertTrue('prometheus_metrics' in dir(remote_mcp_server))
         
         # Test metrics content directly
         output = self.metrics.get_prometheus_metrics()
@@ -246,7 +264,7 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
     def test_readiness_endpoint(self):
         """Test readiness check endpoint functionality."""
         # Test that the readiness endpoint function exists
-        self.assertTrue('readiness_check' in globals())
+        self.assertTrue('readiness_check' in dir(remote_mcp_server))
         
         # Test basic functionality - endpoint should be available
         self.assertTrue(True)
@@ -257,20 +275,14 @@ class TestMetricsIntegration(unittest.TestCase):
     
     def test_metrics_import_and_initialization(self):
         """Test that metrics can be imported and initialized."""
-        # This tests the basic import and setup
-        remote_script_path = os.path.join(os.path.dirname(__file__), '..', 'remote-mcp-server.py')
-        exec(open(remote_script_path).read().split('if __name__')[0], globals())
-        
         # Verify key components exist
-        self.assertTrue('RemoteMCPMetrics' in globals())
-        self.assertTrue('metrics' in globals())
-        self.assertTrue('health_check' in globals())
-        self.assertTrue('prometheus_metrics' in globals())
+        self.assertTrue(hasattr(remote_mcp_server, 'RemoteMCPMetrics'))
+        self.assertTrue(hasattr(remote_mcp_server, 'metrics'))
+        self.assertTrue(hasattr(remote_mcp_server, 'health_check'))
+        self.assertTrue(hasattr(remote_mcp_server, 'prometheus_metrics'))
     
     def test_prometheus_output_format(self):
         """Test that Prometheus output follows correct format."""
-        remote_script_path = os.path.join(os.path.dirname(__file__), '..', 'remote-mcp-server.py')
-        exec(open(remote_script_path).read().split('if __name__')[0], globals())
         test_metrics = RemoteMCPMetrics()
         
         # Add some test data
@@ -332,4 +344,4 @@ if __name__ == "__main__":
             
     except Exception as e:
         print(f"❌ Error running tests: {e}")
-        sys.exit(1) 
+        sys.exit(1)
