@@ -15,6 +15,16 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
+# Docker Compose command detection
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "Error: Neither 'docker-compose' nor 'docker compose' command found"
+    exit 1
+fi
+
 # Function to print colored output
 print_color() {
     local color=$1
@@ -50,9 +60,9 @@ cd "$SCRIPT_DIR"
 print_color $BLUE "Stopping containers..."
 if [ -f "docker-compose.yml" ]; then
     if [ "$CLEANUP_LEVEL" = "soft" ]; then
-        docker-compose stop
+        $DOCKER_COMPOSE stop
     else
-        docker-compose down --remove-orphans
+        $DOCKER_COMPOSE down --remove-orphans
     fi
 else
     print_color $YELLOW "⚠️  docker-compose.yml not found, stopping containers manually..."

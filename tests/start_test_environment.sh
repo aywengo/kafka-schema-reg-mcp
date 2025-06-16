@@ -19,6 +19,16 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
+# Docker Compose command detection
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "Error: Neither 'docker-compose' nor 'docker compose' command found"
+    exit 1
+fi
+
 # Function to print colored output
 print_color() {
     local color=$1
@@ -98,7 +108,7 @@ print_color $GREEN "✅ All required ports are available"
 
 # Complete cleanup first
 print_color $YELLOW "🧹 Performing complete cleanup..."
-docker-compose -f "$SCRIPT_DIR/docker-compose.yml" down --remove-orphans 2>/dev/null || true
+$DOCKER_COMPOSE -f "$SCRIPT_DIR/docker-compose.yml" down --remove-orphans 2>/dev/null || true
 docker stop kafka-dev kafka-prod schema-registry-dev schema-registry-prod akhq-ui 2>/dev/null || true
 docker rm kafka-dev kafka-prod schema-registry-dev schema-registry-prod akhq-ui 2>/dev/null || true
 docker network rm kafka-test-network 2>/dev/null || true
@@ -111,10 +121,10 @@ cd "$SCRIPT_DIR"
 # Start services based on mode
 if [ "$FULL_STACK" = true ]; then
     print_color $WHITE "   Starting: 2 Kafka clusters, 2 Schema Registries, AKHQ UI"
-    docker-compose up -d
+    $DOCKER_COMPOSE up -d
 else
     print_color $WHITE "   Starting: 1 Kafka cluster (DEV), 1 Schema Registry (DEV)"
-    docker-compose up -d $SERVICES
+    $DOCKER_COMPOSE up -d $SERVICES
 fi
 
 # Wait a moment for containers to initialize
@@ -282,8 +292,8 @@ print_color $WHITE ""
 print_color $BLUE "▶️  Usage:"
 print_color $WHITE "  • Run all tests:        ./run_all_tests.sh"
 print_color $WHITE "  • Run specific test:    python test_specific.py"
-print_color $WHITE "  • Check status:         docker-compose ps"
-print_color $WHITE "  • View logs:            docker-compose logs -f"
+print_color $WHITE "  • Check status:         $DOCKER_COMPOSE ps"
+print_color $WHITE "  • View logs:            $DOCKER_COMPOSE logs -f"
 print_color $WHITE "  • Stop environment:     ./stop_test_environment.sh"
 print_color $WHITE ""
 print_color $BLUE "🔄 Restart modes:"

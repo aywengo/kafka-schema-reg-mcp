@@ -10,14 +10,24 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Docker Compose command detection
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo "Error: Neither 'docker-compose' nor 'docker compose' command found"
+    exit 1
+fi
+
 echo -e "${BLUE}Starting MCP Container Integration Test${NC}"
 echo "========================================"
 
-# Check if docker-compose is running
+# Check if MCP server is running
 if ! docker ps | grep -q "mcp-server"; then
     echo -e "${YELLOW}MCP server container not found. Starting test environment...${NC}"
     cd "$(dirname "$0")"
-    docker-compose up -d --build mcp-server
+    $DOCKER_COMPOSE up -d --build mcp-server
     
     # Wait for container to be healthy
     echo -e "${BLUE}Waiting for MCP server to be healthy...${NC}"

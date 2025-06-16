@@ -106,7 +106,7 @@ jobs:
           
           # Wait for services to be healthy
           echo "Waiting for services to be ready..."
-          timeout 120 bash -c '
+          timeout 120s bash -c '
             until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
                   curl -sf http://localhost:38082/subjects >/dev/null 2>&1; do
               echo "Waiting for Schema Registry services..."
@@ -117,7 +117,7 @@ jobs:
           # Verify MCP container is healthy
           if docker ps --filter "name=mcp-server" --format "{{.Names}}" | grep -q "mcp-server"; then
             echo "Waiting for MCP server to be healthy..."
-            timeout 60 bash -c '
+            timeout 60s bash -c '
               until docker inspect --format="{{.State.Health.Status}}" mcp-server 2>/dev/null | grep -q "healthy"; do
                 echo "Waiting for MCP server health..."
                 sleep 2
@@ -167,7 +167,7 @@ jobs:
           
           # Wait for all services
           echo "Waiting for services to be ready..."
-          timeout 120 bash -c '
+          timeout 120s bash -c '
             until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
                   curl -sf http://localhost:38082/subjects >/dev/null 2>&1 && 
                   curl -sf http://localhost:38080/api/health >/dev/null 2>&1; do
@@ -178,7 +178,7 @@ jobs:
           
           # Verify MCP container
           if docker ps --filter "name=mcp-server" --format "{{.Names}}" | grep -q "mcp-server"; then
-            timeout 60 bash -c '
+            timeout 60s bash -c '
               until docker inspect --format="{{.State.Health.Status}}" mcp-server 2>/dev/null | grep -q "healthy"; do
                 sleep 2
               done
@@ -247,7 +247,7 @@ jobs:
           
           # Wait for all services to be healthy
           echo "Waiting for services..."
-          timeout 120 bash -c '
+          timeout 120s bash -c '
             until docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "schema-registry-dev" &&
                   docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "schema-registry-prod" &&
                   docker ps --filter "health=healthy" --format "{{.Names}}" | grep -q "mcp-server"; do
