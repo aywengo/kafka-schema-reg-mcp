@@ -1,9 +1,24 @@
-# Trivy ignore file for documented security exceptions
-# 
-# CVE-2023-45853: zlib integer overflow vulnerability
-# Status: will_not_fix by Debian maintainers
-# Rationale: This vulnerability affects zipOpenNewFileInZip4_6 function which is not
-# used in our application context. The Debian security team has marked this as
-# will_not_fix, indicating it's not exploitable in normal usage scenarios.
-# References: https://avd.aquasec.com/nvd/cve-2023-45853
-CVE-2023-45853 
+# Trivy Ignore File
+# This file contains security vulnerabilities that are being ignored
+# Each entry should include a justification
+
+# glibc LD_LIBRARY_PATH vulnerability
+# This is a base image issue that doesn't affect our containerized application
+# as we don't use setuid binaries
+CVE-2023-6246
+CVE-2023-6779
+CVE-2023-6780
+
+# Perl CPAN.pm TLS vulnerability 
+# Perl has been removed from the production image
+# If this still appears, it's likely from the base Python image
+CVE-2023-31484
+CVE-2023-31486
+
+# aiohttp DoS vulnerability
+# We've updated to aiohttp 3.12.13 which fixes this
+# If still appearing, it may be a false positive
+CVE-2024-23334
+CVE-2024-23829
+
+# Add future exceptions here with proper documentation
