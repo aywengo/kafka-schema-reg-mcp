@@ -1,5 +1,5 @@
 # Use a more recent base image with latest security patches
-FROM python:3.13-slim-bookworm as builder
+FROM python:3.13-slim-bookworm AS builder
 
 # Build arguments for metadata and multi-platform support
 ARG BUILDPLATFORM
@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Production stage with minimal attack surface
-FROM python:3.13-slim-bookworm as production
+FROM python:3.13-slim-bookworm AS production
 
 # Build arguments for metadata and multi-platform support
 ARG BUILDPLATFORM

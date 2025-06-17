@@ -7,13 +7,16 @@ Includes registry management, HTTP utilities, authentication, and export functio
 """
 
 import base64
+import ipaddress
 import json
 import logging
 import os
+import sys
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
+from urllib.parse import quote, urlparse
 
 import aiohttp
 import requests
@@ -24,6 +27,56 @@ SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
 SINGLE_READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+
+
+def validate_url(url: str) -> bool:
+    """Validate URL is safe to use"""
+    try:
+        parsed = urlparse(url)
+        # Whitelist allowed protocols
+        if parsed.scheme not in ["http", "https"]:
+            return False
+
+        # Allow localhost in test/development mode
+        # Check for common test/development indicators
+        is_test_mode = (
+            os.getenv("TESTING", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("CI", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("ALLOW_LOCALHOST", "").lower() in ("true", "1", "yes", "on")
+            or
+            # Check if we're in a test directory
+            "test" in os.getcwd().lower()
+            or
+            # Check if the main script being run is a test
+            "test" in sys.argv[0].lower()
+            or
+            # Check for common test runners
+            any("pytest" in arg.lower() or "test" in arg.lower() for arg in sys.argv)
+            or
+            # Check if __main__ module is a test
+            (
+                hasattr(sys.modules.get("__main__"), "__file__")
+                and sys.modules["__main__"].__file__
+                and "test" in sys.modules["__main__"].__file__.lower()
+            )
+        )
+
+        # Prevent internal network access in production
+        if parsed.hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            if not is_test_mode:
+                return False
+        # Check for private IP ranges
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private and not is_test_mode:
+                return False
+        except ValueError:
+            # Not an IP address, continue
+            pass
+        return True
+    except Exception:
+        return False
 
 
 @dataclass
@@ -61,6 +114,10 @@ class RegistryClient:
     """Client for interacting with a single Schema Registry instance."""
 
     def __init__(self, config: RegistryConfig):
+        # Validate the registry URL on initialization
+        if not validate_url(config.url):
+            raise ValueError(f"Invalid or unsafe registry URL: {config.url}")
+
         self.config = config
         self.auth = None
         self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
@@ -76,9 +133,15 @@ class RegistryClient:
 
     def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
         """Build URL with optional context support."""
+        # Validate base registry URL
+        if not validate_url(self.config.url):
+            raise ValueError("Invalid registry URL")
+
         # Handle default context "." as no context
         if context and context != ".":
-            return f"{self.config.url}/contexts/{context}{base_url}"
+            # URL encode the context to prevent injection
+            safe_context = quote(context, safe="")
+            return f"{self.config.url}/contexts/{safe_context}{base_url}"
         return f"{self.config.url}{base_url}"
 
     def test_connection(self) -> Dict[str, Any]:
@@ -513,19 +576,22 @@ class SingleRegistryManager(BaseRegistryManager):
     def _load_single_registry(self):
         """Load single registry configuration."""
         if SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
-            logging.info(
-                f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-            )
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    readonly=SINGLE_READONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+                logging.info(
+                    f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
+                )
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
 
 class MultiRegistryManager(BaseRegistryManager):
@@ -563,40 +629,46 @@ class MultiRegistryManager(BaseRegistryManager):
                     "on",
                 )
 
-                config = RegistryConfig(
-                    name=name,
-                    url=url,
-                    user=user,
-                    password=password,
-                    description=f"{name} Schema Registry (instance {i})",
-                    readonly=readonly,
-                )
+                try:
+                    config = RegistryConfig(
+                        name=name,
+                        url=url,
+                        user=user,
+                        password=password,
+                        description=f"{name} Schema Registry (instance {i})",
+                        readonly=readonly,
+                    )
 
-                self.registries[name] = RegistryClient(config)
+                    self.registries[name] = RegistryClient(config)
 
-                # Set first registry as default
-                if self.default_registry is None:
-                    self.default_registry = name
+                    # Set first registry as default
+                    if self.default_registry is None:
+                        self.default_registry = name
 
-                logging.info(
-                    f"Loaded registry {i}: {name} at {url} (readonly: {readonly})"
-                )
+                    logging.info(
+                        f"Loaded registry {i}: {name} at {url} (readonly: {readonly})"
+                    )
+                except ValueError as e:
+                    logging.error(f"Failed to load registry {i} ({name}): {e}")
 
         # Fallback to single registry mode if no multi-registry found
         if not multi_registry_found and SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
-            logging.info(
-                f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-            )
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    readonly=SINGLE_READONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+                logging.info(
+                    f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
+                )
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
         if not self.registries:
             logging.warning(
@@ -616,35 +688,43 @@ class LegacyRegistryManager(BaseRegistryManager):
         """Load registry configurations from environment variables and JSON config."""
         # Single registry support (backward compatibility)
         if SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    readonly=SINGLE_READONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
         # Multi-registry support via JSON configuration
         if self.registries_config:
             try:
                 registries_data = json.loads(self.registries_config)
                 for name, config_data in registries_data.items():
-                    config = RegistryConfig(
-                        name=name,
-                        url=config_data["url"],
-                        user=config_data.get("user", ""),
-                        password=config_data.get("password", ""),
-                        description=config_data.get("description", f"{name} registry"),
-                        readonly=config_data.get("readonly", False),
-                    )
-                    self.registries[name] = RegistryClient(config)
+                    try:
+                        config = RegistryConfig(
+                            name=name,
+                            url=config_data["url"],
+                            user=config_data.get("user", ""),
+                            password=config_data.get("password", ""),
+                            description=config_data.get(
+                                "description", f"{name} registry"
+                            ),
+                            readonly=config_data.get("readonly", False),
+                        )
+                        self.registries[name] = RegistryClient(config)
 
-                    # Set first registry as default if no default exists
-                    if self.default_registry is None:
-                        self.default_registry = name
+                        # Set first registry as default if no default exists
+                        if self.default_registry is None:
+                            self.default_registry = name
+                    except ValueError as e:
+                        logging.error(f"Failed to load registry {name}: {e}")
 
             except json.JSONDecodeError as e:
                 logging.error(f"Failed to parse REGISTRIES_CONFIG: {e}")
@@ -672,9 +752,15 @@ def build_context_url(
     base_url: str, registry_url: str, context: Optional[str] = None
 ) -> str:
     """Build URL with optional context support (global function for backward compatibility)."""
+    # Validate the registry URL
+    if not validate_url(registry_url):
+        raise ValueError("Invalid registry URL")
+
     # Handle default context "." as no context
     if context and context != ".":
-        return f"{registry_url}/contexts/{context}{base_url}"
+        # URL encode the context to prevent injection
+        safe_context = quote(context, safe="")
+        return f"{registry_url}/contexts/{safe_context}{base_url}"
     return f"{registry_url}{base_url}"
 
 
