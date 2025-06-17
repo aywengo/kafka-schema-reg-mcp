@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/aywengo-kafka-schema-reg-mcp-badge.png)](https://mseep.ai/app/aywengo-kafka-schema-reg-mcp)
+
 # Kafka Schema Registry MCP Server
 
 A comprehensive **Message Control Protocol (MCP) server** that provide
