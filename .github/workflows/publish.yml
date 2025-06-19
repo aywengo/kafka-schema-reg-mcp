@@ -92,13 +92,14 @@ jobs:
       - name: Wait for Docker Hub to sync image
         run: sleep 120
 
-      - name: Run Trivy vulnerability scanner with robust retry
-        run: |
-          for i in {1..5}; do
-            trivy image --timeout 10m --format sarif -o trivy-results.sarif aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} && break
-            echo "Trivy scan failed, retrying in 60s... ($i/5)"
-            sleep 60
-          done
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          timeout: '10m0s'
+        continue-on-error: true  # Don't fail the workflow if Trivy scan fails
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
