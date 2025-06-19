@@ -250,18 +250,18 @@ def test_registry_connection(registry_name: str = None):
                 "error": f"Registry '{registry_name}' not found",
                 "registry_mode": REGISTRY_MODE,
             }
-        
+
         # Get connection test result
         result = client.test_connection()
         result["registry_mode"] = REGISTRY_MODE
-        
+
         # Add comprehensive metadata
         try:
             metadata = client.get_server_metadata()
             result.update(metadata)
         except Exception as e:
             result["metadata_error"] = str(e)
-        
+
         return result
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
@@ -278,14 +278,14 @@ async def test_all_registries():
                 client = registry_manager.get_registry(default_registry)
                 if client:
                     result = client.test_connection()
-                    
+
                     # Add metadata to the test result
                     try:
                         metadata = client.get_server_metadata()
                         result.update(metadata)
                     except Exception as e:
                         result["metadata_error"] = str(e)
-                    
+
                     return {
                         "registry_tests": {default_registry: result},
                         "total_registries": 1,
@@ -297,7 +297,7 @@ async def test_all_registries():
         else:
             result = await registry_manager.test_all_registries_async()
             result["registry_mode"] = "multi"
-            
+
             # Add metadata to each registry test result
             if "registry_tests" in result:
                 for registry_name, test_result in result["registry_tests"].items():
@@ -309,7 +309,7 @@ async def test_all_registries():
                                 test_result.update(metadata)
                         except Exception as e:
                             test_result["metadata_error"] = str(e)
-            
+
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
@@ -1302,7 +1302,7 @@ def get_operation_info_tool(operation_name: str = None):
     """Get detailed information about MCP operations and their metadata."""
     try:
         from task_management import OPERATION_METADATA
-        
+
         if operation_name:
             # Get specific operation info
             if operation_name in OPERATION_METADATA:
@@ -1326,15 +1326,6 @@ def get_operation_info_tool(operation_name: str = None):
             }
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
-
-
-
-
-
-
-
-
-
 
 
 # ===== RESOURCES =====

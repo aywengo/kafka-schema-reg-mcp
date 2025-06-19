@@ -396,7 +396,9 @@ class RegistryClient:
                 "schema": json.dumps(schema_definition),
                 "schemaType": schema_type,
             }
-            url = self.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
+            url = self.build_context_url(
+                f"/compatibility/subjects/{subject}/versions/latest", context
+            )
             response = requests.post(
                 url, data=json.dumps(payload), auth=self.auth, headers=self.headers
             )
@@ -442,25 +444,33 @@ class RegistryClient:
     def get_server_metadata(self) -> Dict[str, Any]:
         """Get comprehensive server metadata including ID and version information."""
         metadata = {}
-        
+
         # Get metadata ID information
         metadata_id = self.get_metadata_id()
         if "error" not in metadata_id:
-            metadata.update({
-                "scope": metadata_id.get("scope", {}),
-                "kafka_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("kafka-cluster"),
-                "schema_registry_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("schema-registry-cluster"),
-            })
+            metadata.update(
+                {
+                    "scope": metadata_id.get("scope", {}),
+                    "kafka_cluster_id": metadata_id.get("scope", {})
+                    .get("clusters", {})
+                    .get("kafka-cluster"),
+                    "schema_registry_cluster_id": metadata_id.get("scope", {})
+                    .get("clusters", {})
+                    .get("schema-registry-cluster"),
+                }
+            )
         else:
             metadata["metadata_id_error"] = metadata_id["error"]
 
         # Get version information
         metadata_version = self.get_metadata_version()
         if "error" not in metadata_version:
-            metadata.update({
-                "version": metadata_version.get("version"),
-                "commit_id": metadata_version.get("commitId"),
-            })
+            metadata.update(
+                {
+                    "version": metadata_version.get("version"),
+                    "commit_id": metadata_version.get("commitId"),
+                }
+            )
         else:
             metadata["metadata_version_error"] = metadata_version["error"]
 

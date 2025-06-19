@@ -7,7 +7,7 @@ for Azure AD, Google, Keycloak, and Okta providers.
 
 Usage:
     python examples/test-jwt-validation.py [provider] [token]
-    
+
 Examples:
     python examples/test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
     python examples/test-jwt-validation.py google "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."
@@ -16,75 +16,91 @@ Examples:
 
 import asyncio
 import json
-import sys
 import os
+import sys
 
 # Add parent directory to path to import oauth_provider
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Set environment variables for testing
-os.environ['ENABLE_AUTH'] = 'true'
+os.environ["ENABLE_AUTH"] = "true"
+
 
 def setup_azure_config():
     """Configure environment for Azure AD JWT validation."""
-    os.environ.update({
-        'AUTH_PROVIDER': 'azure',
-        'AUTH_ISSUER_URL': 'https://login.microsoftonline.com/your-tenant-id/v2.0',
-        'AZURE_TENANT_ID': 'your-tenant-id',
-        'AUTH_AUDIENCE': 'api://your-app-id',
-        'AUTH_VALID_SCOPES': 'read,write,admin'
-    })
+    os.environ.update(
+        {
+            "AUTH_PROVIDER": "azure",
+            "AUTH_ISSUER_URL": "https://login.microsoftonline.com/your-tenant-id/v2.0",
+            "AZURE_TENANT_ID": "your-tenant-id",
+            "AUTH_AUDIENCE": "api://your-app-id",
+            "AUTH_VALID_SCOPES": "read,write,admin",
+        }
+    )
+
 
 def setup_google_config():
     """Configure environment for Google OAuth JWT validation."""
-    os.environ.update({
-        'AUTH_PROVIDER': 'google',
-        'AUTH_ISSUER_URL': 'https://accounts.google.com',
-        'AUTH_AUDIENCE': 'your-client-id.apps.googleusercontent.com',
-        'AUTH_VALID_SCOPES': 'read,write,admin'
-    })
+    os.environ.update(
+        {
+            "AUTH_PROVIDER": "google",
+            "AUTH_ISSUER_URL": "https://accounts.google.com",
+            "AUTH_AUDIENCE": "your-client-id.apps.googleusercontent.com",
+            "AUTH_VALID_SCOPES": "read,write,admin",
+        }
+    )
+
 
 def setup_keycloak_config():
     """Configure environment for Keycloak JWT validation."""
-    os.environ.update({
-        'AUTH_PROVIDER': 'keycloak',
-        'AUTH_ISSUER_URL': 'https://keycloak.company.com/realms/production',
-        'KEYCLOAK_REALM': 'production',
-        'AUTH_AUDIENCE': 'mcp-client',
-        'AUTH_VALID_SCOPES': 'read,write,admin'
-    })
+    os.environ.update(
+        {
+            "AUTH_PROVIDER": "keycloak",
+            "AUTH_ISSUER_URL": "https://keycloak.company.com/realms/production",
+            "KEYCLOAK_REALM": "production",
+            "AUTH_AUDIENCE": "mcp-client",
+            "AUTH_VALID_SCOPES": "read,write,admin",
+        }
+    )
+
 
 def setup_okta_config():
     """Configure environment for Okta JWT validation."""
-    os.environ.update({
-        'AUTH_PROVIDER': 'okta',
-        'AUTH_ISSUER_URL': 'https://your-domain.okta.com/oauth2/default',
-        'OKTA_DOMAIN': 'your-domain.okta.com',
-        'AUTH_AUDIENCE': 'api://mcp-schema-registry',
-        'AUTH_VALID_SCOPES': 'read,write,admin'
-    })
+    os.environ.update(
+        {
+            "AUTH_PROVIDER": "okta",
+            "AUTH_ISSUER_URL": "https://your-domain.okta.com/oauth2/default",
+            "OKTA_DOMAIN": "your-domain.okta.com",
+            "AUTH_AUDIENCE": "api://mcp-schema-registry",
+            "AUTH_VALID_SCOPES": "read,write,admin",
+        }
+    )
+
 
 def setup_auto_config():
     """Configure environment for automatic provider detection."""
-    os.environ.update({
-        'AUTH_PROVIDER': 'auto',
-        'AUTH_VALID_SCOPES': 'read,write,admin',
-        'JWKS_CACHE_TTL': '300'  # 5 minutes for testing
-    })
+    os.environ.update(
+        {
+            "AUTH_PROVIDER": "auto",
+            "AUTH_VALID_SCOPES": "read,write,admin",
+            "JWKS_CACHE_TTL": "300",  # 5 minutes for testing
+        }
+    )
+
 
 async def test_jwt_validation(provider: str, token: str):
     """Test JWT validation for a specific provider."""
     print(f"🔐 Testing JWT Validation for {provider.upper()}")
     print("=" * 60)
-    
+
     try:
-        from oauth_provider import KafkaSchemaRegistryOAuthProvider, JWT_AVAILABLE
-        
+        from oauth_provider import JWT_AVAILABLE, KafkaSchemaRegistryOAuthProvider
+
         if not JWT_AVAILABLE:
             print("❌ JWT validation libraries not available")
             print("Install with: pip install PyJWT aiohttp cryptography")
             return False
-        
+
         # Setup provider-specific configuration
         if provider == "azure":
             setup_azure_config()
@@ -99,20 +115,20 @@ async def test_jwt_validation(provider: str, token: str):
         else:
             print(f"❌ Unknown provider: {provider}")
             return False
-        
+
         # Initialize OAuth provider
         oauth_provider = KafkaSchemaRegistryOAuthProvider()
-        
+
         # Test JWT validation
         print(f"📝 Token (first 50 chars): {token[:50]}...")
         print(f"🔧 Provider: {os.getenv('AUTH_PROVIDER')}")
         print(f"🌐 Issuer: {os.getenv('AUTH_ISSUER_URL')}")
         print(f"👥 Audience: {os.getenv('AUTH_AUDIENCE')}")
         print()
-        
+
         # Validate the token
         result = await oauth_provider.validate_token(token)
-        
+
         if result:
             print("✅ JWT validation successful!")
             print(f"👤 User: {result.get('sub', 'unknown')}")
@@ -121,15 +137,21 @@ async def test_jwt_validation(provider: str, token: str):
             print(f"🔑 Scopes: {result.get('scopes', [])}")
             print(f"🏢 Issuer: {result.get('iss', 'unknown')}")
             print(f"⏰ Expires: {result.get('exp', 'unknown')}")
-            
+
             # Test scope access levels
-            user_scopes = set(result.get('scopes', []))
+            user_scopes = set(result.get("scopes", []))
             print()
             print("🔒 Access Level Check:")
-            print(f"   Read Access: {'✅' if oauth_provider.has_read_access(user_scopes) else '❌'}")
-            print(f"   Write Access: {'✅' if oauth_provider.has_write_access(user_scopes) else '❌'}")
-            print(f"   Admin Access: {'✅' if oauth_provider.has_admin_access(user_scopes) else '❌'}")
-            
+            print(
+                f"   Read Access: {'✅' if oauth_provider.has_read_access(user_scopes) else '❌'}"
+            )
+            print(
+                f"   Write Access: {'✅' if oauth_provider.has_write_access(user_scopes) else '❌'}"
+            )
+            print(
+                f"   Admin Access: {'✅' if oauth_provider.has_admin_access(user_scopes) else '❌'}"
+            )
+
             return True
         else:
             print("❌ JWT validation failed")
@@ -140,7 +162,7 @@ async def test_jwt_validation(provider: str, token: str):
             print("   • Malformed token")
             print("   • Network error fetching JWKS")
             return False
-            
+
     except ImportError:
         print("❌ OAuth provider not available (missing MCP auth modules)")
         return False
@@ -148,53 +170,56 @@ async def test_jwt_validation(provider: str, token: str):
         print(f"❌ Error during JWT validation: {e}")
         return False
 
+
 def print_configuration_examples():
     """Print configuration examples for each provider."""
     print("🔧 JWT Validation Configuration Examples")
     print("=" * 60)
-    
+
     examples = {
         "Azure AD": {
             "AUTH_PROVIDER": "azure",
-            "AZURE_TENANT_ID": "your-tenant-id", 
+            "AZURE_TENANT_ID": "your-tenant-id",
             "AUTH_ISSUER_URL": "https://login.microsoftonline.com/your-tenant-id/v2.0",
             "AUTH_AUDIENCE": "api://your-app-id",
-            "AUTH_VALID_SCOPES": "read,write,admin"
+            "AUTH_VALID_SCOPES": "read,write,admin",
         },
         "Google OAuth": {
             "AUTH_PROVIDER": "google",
             "AUTH_ISSUER_URL": "https://accounts.google.com",
             "AUTH_AUDIENCE": "your-client-id.apps.googleusercontent.com",
-            "AUTH_VALID_SCOPES": "read,write,admin"
+            "AUTH_VALID_SCOPES": "read,write,admin",
         },
         "Keycloak": {
             "AUTH_PROVIDER": "keycloak",
             "AUTH_ISSUER_URL": "https://keycloak.company.com/realms/production",
             "KEYCLOAK_REALM": "production",
             "AUTH_AUDIENCE": "mcp-client",
-            "AUTH_VALID_SCOPES": "read,write,admin"
+            "AUTH_VALID_SCOPES": "read,write,admin",
         },
         "Okta": {
             "AUTH_PROVIDER": "okta",
             "OKTA_DOMAIN": "your-domain.okta.com",
             "AUTH_ISSUER_URL": "https://your-domain.okta.com/oauth2/default",
             "AUTH_AUDIENCE": "api://mcp-schema-registry",
-            "AUTH_VALID_SCOPES": "read,write,admin"
-        }
+            "AUTH_VALID_SCOPES": "read,write,admin",
+        },
     }
-    
+
     for provider, config in examples.items():
         print(f"\n🔵 {provider} Configuration:")
         for key, value in config.items():
             print(f"   export {key}={value}")
 
+
 def print_production_deployment():
     """Print production deployment examples."""
     print("\n🚀 Production Deployment Examples")
     print("=" * 60)
-    
+
     print("\n📦 Docker Deployment:")
-    print("""
+    print(
+        """
 docker run -d \\
   -e ENABLE_AUTH=true \\
   -e AUTH_PROVIDER=azure \\
@@ -203,10 +228,12 @@ docker run -d \\
   -e AUTH_VALID_SCOPES=read,write,admin \\
   -p 8000:8000 \\
   aywengo/kafka-schema-reg-mcp:stable
-""")
-    
+"""
+    )
+
     print("\n☸️  Kubernetes Deployment:")
-    print("""
+    print(
+        """
 # Create secret with OAuth configuration
 kubectl create secret generic mcp-oauth-config \\
   --from-literal=AUTH_PROVIDER=azure \\
@@ -218,14 +245,17 @@ helm upgrade --install mcp-server ./helm \\
   --set oauth.enabled=true \\
   --set oauth.provider=azure \\
   --set-string oauth.configSecret=mcp-oauth-config
-""")
+"""
+    )
+
 
 def print_testing_guide():
     """Print testing guide for JWT validation."""
     print("\n🧪 Testing Guide")
     print("=" * 60)
-    
-    print("""
+
+    print(
+        """
 1. **Get a real JWT token from your OAuth provider:**
    
    Azure AD:
@@ -258,7 +288,9 @@ def print_testing_guide():
    - Verify issuer and audience match configuration
    - Ensure JWKS endpoint is accessible
    - Check network connectivity and firewalls
-""")
+"""
+    )
+
 
 async def main():
     """Main function to run JWT validation tests."""
@@ -270,27 +302,31 @@ async def main():
         print("Providers: azure, google, keycloak, okta, auto")
         print()
         print("Examples:")
-        print('   python test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."')
-        print('   python test-jwt-validation.py auto "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."')
+        print(
+            '   python test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."'
+        )
+        print(
+            '   python test-jwt-validation.py auto "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."'
+        )
         print()
-        
+
         print_configuration_examples()
         print_production_deployment()
         print_testing_guide()
         return
-    
+
     provider = sys.argv[1].lower()
-    
+
     if len(sys.argv) < 3:
         print(f"❌ Missing JWT token for {provider} provider")
-        print(f"Usage: python test-jwt-validation.py {provider} \"YOUR_JWT_TOKEN\"")
+        print(f'Usage: python test-jwt-validation.py {provider} "YOUR_JWT_TOKEN"')
         return
-    
+
     token = sys.argv[2]
-    
+
     # Test JWT validation
     success = await test_jwt_validation(provider, token)
-    
+
     if success:
         print("\n🎉 JWT validation test completed successfully!")
         print("Ready for production deployment with real JWT tokens.")
@@ -298,5 +334,6 @@ async def main():
         print("\n❌ JWT validation test failed.")
         print("Check configuration and token validity.")
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
