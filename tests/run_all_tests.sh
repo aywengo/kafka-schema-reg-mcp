@@ -434,6 +434,7 @@ run_advanced_feature_tests() {
         "test_end_to_end_workflows.py:End-to-end workflow testing"
         "test_error_handling.py:Error handling and recovery"
         "test_all_tools_validation.py:All MCP tools validation"
+        "test_metadata_integration.py:Consolidated metadata integration testing"
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
     )

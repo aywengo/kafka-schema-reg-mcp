@@ -307,6 +307,7 @@ The MCP server provides **20 comprehensive tools** and **2 resources** for all S
 - **Configuration Management**: `get_global_config`, `update_global_config`, `get_subject_config`, `update_subject_config`
 - **Mode Control**: `get_mode`, `update_mode`, `get_subject_mode`, `update_subject_mode`
 - **Schema Export**: `export_schema`, `export_subject`, `export_context`, `export_global`
+- **Registry Metadata**: `get_registry_metadata`, `get_registry_version_info`, `get_registry_cluster_info` *(NEW)*
 
 ### **📦 Available Resources**
 - **`registry://status`**: Real-time Schema Registry connection status
@@ -322,6 +323,61 @@ With the MCP server connected to Claude Desktop, you can use natural language:
 "Export all schemas from the staging context in Avro IDL format"
 "Check if my updated schema is compatible with the latest version"
 "Get the current configuration for the user-events subject"
+```
+
+### **🔍 Registry Metadata Integration**
+The MCP server now automatically includes comprehensive Schema Registry metadata in existing methods using the `/v1/metadata/*` endpoints:
+
+- **`get_registry_info`**: Primary method for complete registry information with metadata
+- **Enhanced existing methods**: All test, statistics, and info methods now include metadata automatically
+- **Seamless integration**: No breaking changes - metadata is added to existing responses
+
+**Example Usage:**
+```
+"Get registry information" # Now includes comprehensive metadata
+"Test the registry connection and show metadata"
+"Count all schemas and include registry version information"
+```
+
+**Example Metadata Response:**
+```json
+{
+  "version": "7.6.0",
+  "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+  "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
+  "schema_registry_cluster_id": "schema-registry"
+}
+```
+
+### **🧪 Enhanced Existing Methods with Metadata**
+All existing test and statistics methods now automatically include registry metadata:
+
+- **`test_registry_connection`**: Now includes version, commit ID, and cluster information
+- **`test_all_registries`**: Enhanced with metadata for each registry tested
+- **`count_schemas`, `count_contexts`, `count_schema_versions`**: All statistics include registry context
+- **`get_registry_statistics`**: Comprehensive stats with full metadata
+- **`get_registry_info`**: Enhanced with server metadata automatically
+
+**Example Usage:**
+```
+"Test the registry connection" # Now includes metadata automatically
+"Count all schemas" # Now includes registry version and cluster info
+"Get registry statistics" # Now includes comprehensive metadata
+```
+
+**Enhanced Statistics Response:**
+```json
+{
+  "registry": "default",
+  "total_contexts": 3,
+  "total_schemas": 15,
+  "total_versions": 42,
+  "counted_at": "2024-01-15T10:30:00Z",
+  "version": "7.6.0",
+  "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+  "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
+  "schema_registry_cluster_id": "schema-registry"
+}
 ```
 
 **📖 Complete Tool Documentation**: [API Reference](docs/api-reference.md)
@@ -531,6 +587,9 @@ All MCP tools are protected by scopes:
 - `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics`
 - `get_task_status`, `get_task_progress`, `list_active_tasks`, `list_statistics_tasks`, `get_statistics_task_progress`
 - `get_default_registry`, `check_readonly_mode`, `get_oauth_scopes_info`, `get_operation_info_tool`
+- `get_registry_metadata`, `get_registry_version_info`, `get_registry_cluster_info`
+- `test_registry_connection_with_metadata`, `test_schema_operations_with_metadata`, `validate_registry_health_with_metadata`
+- `benchmark_registry_performance_with_metadata`, `generate_registry_report_with_metadata` *(NEW)*
 
 #### Write Scope (`write`) — Modification Operations
 - `register_schema`

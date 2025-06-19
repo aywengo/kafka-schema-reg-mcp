@@ -240,7 +240,7 @@ def get_registry_info(registry_name: str = None):
 @mcp.tool()
 @require_scopes("read")
 def test_registry_connection(registry_name: str = None):
-    """Test connection to a specific registry."""
+    """Test connection to a specific registry and return comprehensive information including metadata."""
     try:
         if REGISTRY_MODE == "single" and not registry_name:
             registry_name = registry_manager.get_default_registry()
@@ -250,8 +250,18 @@ def test_registry_connection(registry_name: str = None):
                 "error": f"Registry '{registry_name}' not found",
                 "registry_mode": REGISTRY_MODE,
             }
+        
+        # Get connection test result
         result = client.test_connection()
         result["registry_mode"] = REGISTRY_MODE
+        
+        # Add comprehensive metadata
+        try:
+            metadata = client.get_server_metadata()
+            result.update(metadata)
+        except Exception as e:
+            result["metadata_error"] = str(e)
+        
         return result
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
@@ -260,7 +270,7 @@ def test_registry_connection(registry_name: str = None):
 @mcp.tool()
 @require_scopes("read")
 async def test_all_registries():
-    """Test connections to all configured registries."""
+    """Test connections to all configured registries with comprehensive metadata."""
     try:
         if REGISTRY_MODE == "single":
             default_registry = registry_manager.get_default_registry()
@@ -268,6 +278,14 @@ async def test_all_registries():
                 client = registry_manager.get_registry(default_registry)
                 if client:
                     result = client.test_connection()
+                    
+                    # Add metadata to the test result
+                    try:
+                        metadata = client.get_server_metadata()
+                        result.update(metadata)
+                    except Exception as e:
+                        result["metadata_error"] = str(e)
+                    
                     return {
                         "registry_tests": {default_registry: result},
                         "total_registries": 1,
@@ -279,6 +297,19 @@ async def test_all_registries():
         else:
             result = await registry_manager.test_all_registries_async()
             result["registry_mode"] = "multi"
+            
+            # Add metadata to each registry test result
+            if "registry_tests" in result:
+                for registry_name, test_result in result["registry_tests"].items():
+                    if isinstance(test_result, dict) and "error" not in test_result:
+                        try:
+                            client = registry_manager.get_registry(registry_name)
+                            if client:
+                                metadata = client.get_server_metadata()
+                                test_result.update(metadata)
+                        except Exception as e:
+                            test_result["metadata_error"] = str(e)
+            
             return result
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
@@ -1268,51 +1299,42 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
 @mcp.tool()
 @require_scopes("read")
 def get_operation_info_tool(operation_name: str = None):
-    """Get information about MCP operations."""
+    """Get detailed information about MCP operations and their metadata."""
     try:
+        from task_management import OPERATION_METADATA
+        
         if operation_name:
-            return get_operation_info(operation_name, REGISTRY_MODE)
+            # Get specific operation info
+            if operation_name in OPERATION_METADATA:
+                return {
+                    "operation": operation_name,
+                    "metadata": OPERATION_METADATA[operation_name],
+                    "registry_mode": REGISTRY_MODE,
+                }
+            else:
+                return {
+                    "error": f"Operation '{operation_name}' not found",
+                    "available_operations": list(OPERATION_METADATA.keys()),
+                    "registry_mode": REGISTRY_MODE,
+                }
         else:
-            # Return all operation metadata
-            from task_management import OPERATION_METADATA
-
-            all_ops = {}
-            for op_name in OPERATION_METADATA.keys():
-                all_ops[op_name] = get_operation_info(op_name, REGISTRY_MODE)
-
-            # Add summary statistics
-            quick_ops = sum(
-                1 for info in all_ops.values() if info["expected_duration"] == "quick"
-            )
-            medium_ops = sum(
-                1 for info in all_ops.values() if info["expected_duration"] == "medium"
-            )
-            long_ops = sum(
-                1 for info in all_ops.values() if info["expected_duration"] == "long"
-            )
-            task_queue_ops = sum(
-                1 for info in all_ops.values() if info["async_pattern"] == "task_queue"
-            )
-
+            # Return all operations
             return {
-                "operations": all_ops,
+                "operations": OPERATION_METADATA,
+                "total_operations": len(OPERATION_METADATA),
                 "registry_mode": REGISTRY_MODE,
-                "summary": {
-                    "total_operations": len(all_ops),
-                    "quick_operations": quick_ops,
-                    "medium_operations": medium_ops,
-                    "long_operations": long_ops,
-                    "task_queue_operations": task_queue_ops,
-                    "direct_operations": len(all_ops) - task_queue_ops,
-                },
-                "guidance": {
-                    "task_queue_pattern": "Operations that return task_id require polling with get_task_status()",
-                    "direct_pattern": "Operations that return results immediately",
-                    "timeout_recommendation": "Set MCP client timeouts to at least 60 seconds for medium/long operations",
-                },
             }
     except Exception as e:
         return {"error": str(e), "registry_mode": REGISTRY_MODE}
+
+
+
+
+
+
+
+
+
 
 
 # ===== RESOURCES =====

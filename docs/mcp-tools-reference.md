@@ -2,6 +2,23 @@
 
 This document provides a complete reference for the Kafka Schema Registry MCP Server v1.7.0 **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
 
+## 🔍 Registry Metadata Integration
+
+**All test and statistics methods now automatically include comprehensive Schema Registry metadata** using the `/v1/metadata/*` endpoints. This provides enhanced traceability and debugging capabilities without requiring separate calls.
+
+**Metadata Included:**
+- **Version**: Schema Registry version (e.g., "7.6.0")
+- **Commit ID**: Git commit hash of the registry build
+- **Kafka Cluster ID**: Unique identifier for the Kafka cluster
+- **Schema Registry Cluster ID**: Registry cluster identifier
+
+**Enhanced Methods:**
+- `get_registry_info` - **Primary method for complete registry information with metadata**
+- `test_registry_connection` - Connection testing with metadata
+- `test_all_registries` - Multi-registry testing with metadata
+- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context
+- `get_registry_statistics` - Comprehensive stats with metadata
+
 ## 🤖 MCP Integration Overview
 
 The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients, now with advanced async operations and multi-registry support.
@@ -791,145 +808,117 @@ Claude: I'll list all configured registries with their status.
 
 ### 23. get_registry_info
 
-Get detailed information about a specific registry.
+**Scope Required:** `read`
 
-**Purpose**: View registry configuration, health status, and capabilities.
+Get detailed information about a specific registry including connection status, configuration, and server metadata.
 
 **Parameters:**
-- `registry_name` (string): Name of the registry
+- `registry_name` (optional): Registry name (uses default if not specified in single-registry mode)
 
-**Claude Desktop Usage:**
+**Response:**
+```json
+{
+    "name": "default",
+    "url": "http://localhost:8081",
+    "user": "",
+    "password": "",
+    "description": "Default Schema Registry",
+    "readonly": false,
+    "is_default": true,
+    "connection_status": "connected",
+    "response_time_ms": 45.2,
+    "version": "7.6.0",
+    "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+    "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
+    "schema_registry_cluster_id": "schema-registry",
+    "scope": {
+        "path": [],
+        "clusters": {
+            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
+            "schema-registry-cluster": "schema-registry"
+        }
+    },
+    "registry_mode": "single"
+}
 ```
-Human: "Give me details about the production registry"
 
-Claude: I'll get detailed information about the production registry.
-
+**Example Usage:**
+```bash
 [Uses get_registry_info MCP tool]
-📊 Production Registry Details:
-   Name: production
-   URL: https://prod.schema-registry.com
-   Status: Connected ✅
-   Response Time: 120ms
-   Is Default: No
-   Authentication: Configured (user: schema-admin)
-   Description: Production Schema Registry for critical services
 ```
 
 ---
 
 ### 24. test_registry_connection
 
-Test connection to a specific registry.
+**Scope Required:** `read`
 
-**Purpose**: Verify registry availability, check network connectivity, validate credentials.
+Test connection to a specific registry and return comprehensive information including metadata.
 
 **Parameters:**
-- `registry_name` (string): Name of the registry to test
+- `registry_name` (optional): Registry name (uses default if not specified in single-registry mode)
 
-**Claude Desktop Usage:**
+**Response:**
+```json
+{
+    "status": "connected",
+    "url": "http://localhost:8081",
+    "response_time_ms": 45.2,
+    "registry_mode": "single",
+    "version": "7.6.0",
+    "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+    "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
+    "schema_registry_cluster_id": "schema-registry",
+    "scope": {
+        "path": [],
+        "clusters": {
+            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
+            "schema-registry-cluster": "schema-registry"
+        }
+    }
+}
 ```
-Human: "Test if we can connect to the staging registry"
 
-Claude: I'll test the connection to the staging registry.
-
+**Example Usage:**
+```bash
 [Uses test_registry_connection MCP tool]
-✅ Staging Registry Connection Test:
-   Status: Connected
-   URL: https://staging.schema-registry.com
-   Response Time: 85ms
-   Authentication: Valid
-   Available Subjects: 42
 ```
 
 ---
 
 ### 25. test_all_registries
 
-Test connections to all configured registries.
+**Scope Required:** `read`
 
-**Purpose**: Health check all registries, identify connectivity issues.
+Test connections to all configured registries with comprehensive metadata.
 
-**Parameters:** None
+**Parameters:**
+None
 
-**Claude Desktop Usage:**
+**Response:**
+```json
+{
+    "registry_tests": {
+        "default": {
+            "status": "connected",
+            "url": "http://localhost:8081",
+            "response_time_ms": 45.2,
+            "version": "7.6.0",
+            "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+            "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
+            "schema_registry_cluster_id": "schema-registry"
+        }
+    },
+    "total_registries": 1,
+    "connected": 1,
+    "failed": 0,
+    "registry_mode": "single"
+}
 ```
-Human: "Run a health check on all our schema registries"
 
-Claude: I'll test connections to all configured registries.
-
+**Example Usage:**
+```bash
 [Uses test_all_registries MCP tool]
-🏥 Registry Health Check:
-   ✅ default: Connected (45ms)
-   ✅ production: Connected (120ms)
-   ✅ staging: Connected (85ms)
-   ❌ development: Connection failed - timeout after 10s
-   
-   Summary: 3/4 registries healthy (75% availability)
-   Action needed: Check development registry configuration
-```
-
----
-
-### 26. compare_registries
-
-Compare two Schema Registry instances and show differences.
-
-**Purpose**: Environment comparison, migration planning, sync verification.
-
-**Parameters:**
-- `source_registry` (string): Source registry name
-- `target_registry` (string): Target registry name
-- `include_contexts` (boolean, optional): Include context comparison
-- `include_configs` (boolean, optional): Include configuration comparison
-
-**Claude Desktop Usage:**
-```
-Human: "Compare staging and production registries to see what's different"
-
-Claude: I'll compare the staging and production registries.
-
-[Uses compare_registries MCP tool]
-📊 Registry Comparison: staging vs production
-   
-   Schemas:
-   • In staging only: user-preferences-v2, order-tracking-beta
-   • In production only: legacy-user-events
-   • Different versions: payment-events (v5 in staging, v4 in prod)
-   
-   Configuration:
-   • Global compatibility: Both BACKWARD
-   • Subject overrides: 3 in staging, 5 in production
-   
-   Summary: 4 differences found, review before promotion
-```
-
----
-
-### 27. compare_contexts_across_registries
-
-Compare a specific context across two registries. Returns task ID for async operation.
-
-**Purpose**: Context-specific comparison, targeted migration planning.
-
-**Parameters:**
-- `source_registry` (string): Source registry name
-- `target_registry` (string): Target registry name
-- `context` (string): Context name to compare
-
-**Claude Desktop Usage:**
-```
-Human: "Compare the 'customer' context between staging and production"
-
-Claude: I'll start comparing the customer context across registries.
-
-[Uses compare_contexts_across_registries MCP tool]
-🔄 Context comparison started:
-   Task ID: comp-456-customer
-   Source: staging/customer
-   Target: production/customer
-   Status: Running (15% complete)
-   
-Use get_comparison_progress('comp-456-customer') to monitor progress.
 ```
 
 ---

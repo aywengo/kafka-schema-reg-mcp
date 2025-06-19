@@ -390,15 +390,13 @@ class RegistryClient:
         schema_type: str = "AVRO",
         context: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Check if a schema is compatible with the specified subject."""
+        """Check if a schema is compatible with the latest version of a subject."""
         try:
             payload = {
                 "schema": json.dumps(schema_definition),
                 "schemaType": schema_type,
             }
-            url = self.build_context_url(
-                f"/compatibility/subjects/{subject}/versions/latest", context
-            )
+            url = self.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
             response = requests.post(
                 url, data=json.dumps(payload), auth=self.auth, headers=self.headers
             )
@@ -408,6 +406,65 @@ class RegistryClient:
             return result
         except Exception as e:
             return {"error": str(e)}
+
+    def get_metadata_id(self) -> Dict[str, Any]:
+        """Get metadata ID information from the registry."""
+        try:
+            response = requests.get(
+                f"{self.config.url}/v1/metadata/id",
+                auth=self.auth,
+                headers=self.headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            result["registry"] = self.config.name
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_metadata_version(self) -> Dict[str, Any]:
+        """Get version and commit information from the registry."""
+        try:
+            response = requests.get(
+                f"{self.config.url}/v1/metadata/version",
+                auth=self.auth,
+                headers=self.headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            result["registry"] = self.config.name
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_server_metadata(self) -> Dict[str, Any]:
+        """Get comprehensive server metadata including ID and version information."""
+        metadata = {}
+        
+        # Get metadata ID information
+        metadata_id = self.get_metadata_id()
+        if "error" not in metadata_id:
+            metadata.update({
+                "scope": metadata_id.get("scope", {}),
+                "kafka_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("kafka-cluster"),
+                "schema_registry_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("schema-registry-cluster"),
+            })
+        else:
+            metadata["metadata_id_error"] = metadata_id["error"]
+
+        # Get version information
+        metadata_version = self.get_metadata_version()
+        if "error" not in metadata_version:
+            metadata.update({
+                "version": metadata_version.get("version"),
+                "commit_id": metadata_version.get("commitId"),
+            })
+        else:
+            metadata["metadata_version_error"] = metadata_version["error"]
+
+        return metadata
 
 
 class BaseRegistryManager:
@@ -444,6 +501,10 @@ class BaseRegistryManager:
             info["response_time_ms"] = connection_test["response_time_ms"]
         if "error" in connection_test:
             info["connection_error"] = connection_test["error"]
+
+        # Get server metadata
+        server_metadata = client.get_server_metadata()
+        info.update(server_metadata)
 
         return info
 

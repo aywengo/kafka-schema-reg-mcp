@@ -26,7 +26,7 @@ def count_contexts_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing context count and details
+        Dictionary containing context count and details with registry metadata
     """
     try:
         if registry_mode == "single":
@@ -40,7 +40,10 @@ def count_contexts_tool(
         if isinstance(contexts, dict) and "error" in contexts:
             return contexts
 
-        return {
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
+        result = {
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
@@ -48,6 +51,11 @@ def count_contexts_tool(
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
         }
+
+        # Add metadata information
+        result.update(metadata)
+
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -66,7 +74,7 @@ def count_schemas_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing schema count and details
+        Dictionary containing schema count and details with registry metadata
     """
     try:
         if registry_mode == "single":
@@ -80,7 +88,10 @@ def count_schemas_tool(
         if isinstance(subjects, dict) and "error" in subjects:
             return subjects
 
-        return {
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
+        result = {
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
@@ -89,6 +100,11 @@ def count_schemas_tool(
             "schemas": subjects,
             "counted_at": datetime.now().isoformat(),
         }
+
+        # Add metadata information
+        result.update(metadata)
+
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -109,7 +125,7 @@ def count_schema_versions_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing version count and details
+        Dictionary containing version count and details with registry metadata
     """
     try:
         if registry_mode == "single":
@@ -126,7 +142,10 @@ def count_schema_versions_tool(
         if isinstance(versions, dict) and "error" in versions:
             return versions
 
-        return {
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
+        result = {
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
@@ -136,6 +155,11 @@ def count_schema_versions_tool(
             "versions": versions,
             "counted_at": datetime.now().isoformat(),
         }
+
+        # Add metadata information
+        result.update(metadata)
+
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -154,7 +178,7 @@ def get_registry_statistics_tool(
         include_context_details: Whether to include detailed context statistics
 
     Returns:
-        Dictionary containing registry statistics
+        Dictionary containing registry statistics with metadata
     """
     try:
         if registry_mode == "single":
@@ -226,7 +250,10 @@ def get_registry_statistics_tool(
                     }
                 )
 
-        return {
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
+        result = {
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
@@ -239,6 +266,11 @@ def get_registry_statistics_tool(
             "contexts": context_stats if include_context_details else None,
             "counted_at": datetime.now().isoformat(),
         }
+
+        # Add metadata information
+        result.update(metadata)
+
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -255,6 +287,7 @@ async def _count_schemas_async(
     """
     Async version of count_schemas_tool with better performance.
     Uses parallel API calls when counting multiple contexts.
+    Includes registry metadata information.
     """
     try:
         if registry_mode == "single":
@@ -264,13 +297,16 @@ async def _count_schemas_async(
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
 
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
         if context:
             # Single context - direct call
             subjects = client.get_subjects(context)
             if isinstance(subjects, dict) and "error" in subjects:
                 return subjects
 
-            return {
+            result = {
                 "registry": (
                     client.config.name if hasattr(client.config, "name") else "default"
                 ),
@@ -279,6 +315,10 @@ async def _count_schemas_async(
                 "schemas": subjects,
                 "counted_at": datetime.now().isoformat(),
             }
+
+            # Add metadata information
+            result.update(metadata)
+            return result
         else:
             # All contexts - parallel execution
             contexts = client.get_contexts()
@@ -309,7 +349,7 @@ async def _count_schemas_async(
                     except Exception as e:
                         all_schemas[ctx] = {"error": str(e)}
 
-            return {
+            result = {
                 "registry": (
                     client.config.name if hasattr(client.config, "name") else "default"
                 ),
@@ -318,6 +358,10 @@ async def _count_schemas_async(
                 "contexts_analyzed": len(all_schemas),
                 "counted_at": datetime.now().isoformat(),
             }
+
+            # Add metadata information
+            result.update(metadata)
+            return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -479,6 +523,9 @@ async def _get_registry_statistics_async(
         if task_id:
             task_manager.update_progress(task_id, 95.0)
 
+        # Get registry metadata
+        metadata = client.get_server_metadata()
+
         result = {
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
@@ -492,6 +539,9 @@ async def _get_registry_statistics_async(
             "contexts": context_stats if include_context_details else None,
             "counted_at": datetime.now().isoformat(),
         }
+
+        # Add metadata information
+        result.update(metadata)
 
         if task_id:
             task_manager.update_progress(task_id, 100.0)
