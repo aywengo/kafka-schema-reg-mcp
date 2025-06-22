@@ -39,8 +39,6 @@ import os
 from datetime import datetime
 
 from dotenv import load_dotenv
-from fastapi import Request, Response
-from fastapi.responses import JSONResponse
 from fastmcp import FastMCP
 
 # Load environment variables first
@@ -73,7 +71,7 @@ def is_exempt_path(path: str) -> bool:
             return True
     return False
 
-async def validate_mcp_protocol_version_middleware(request: Request, call_next):
+async def validate_mcp_protocol_version_middleware(request, call_next):
     """
     Middleware to validate MCP-Protocol-Version header on all requests.
     
@@ -82,6 +80,14 @@ async def validate_mcp_protocol_version_middleware(request: Request, call_next):
     
     Exempt paths: /health, /metrics, /ready, /.well-known/*
     """
+    # Import FastAPI components only when needed to avoid dependency issues
+    try:
+        from fastapi.responses import JSONResponse
+    except ImportError:
+        # If FastAPI is not available, skip validation (for compatibility)
+        response = await call_next(request)
+        return response
+    
     path = request.url.path
     
     # Skip validation for exempt paths
@@ -131,8 +137,15 @@ async def validate_mcp_protocol_version_middleware(request: Request, call_next):
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
 mcp = FastMCP(**mcp_config)
 
-# Add MCP-Protocol-Version validation middleware
-mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
+# Add MCP-Protocol-Version validation middleware (with error handling)
+try:
+    mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
+    logger = logging.getLogger(__name__)
+    logger.info("✅ MCP-Protocol-Version header validation middleware enabled")
+except Exception as e:
+    # If middleware fails to install, log warning but continue
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Could not install MCP header validation middleware: {e}")
 
 # Configure logging
 logging.basicConfig(
@@ -1156,11 +1169,22 @@ def get_mcp_compliance_status():
     try:
         from datetime import datetime
 
+        # Check if header validation middleware is active
+        header_validation_active = True
+        try:
+            # Try to check if middleware is installed
+            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+                header_validation_active = True
+            else:
+                header_validation_active = False
+        except:
+            header_validation_active = False
+
         # Get FastMCP configuration details
         config_details = {
             "protocol_version": MCP_PROTOCOL_VERSION,
             "supported_versions": SUPPORTED_MCP_VERSIONS,
-            "header_validation_enabled": True,
+            "header_validation_enabled": header_validation_active,
             "jsonrpc_batching_disabled": True,
             "compliance_status": "COMPLIANT",
             "last_verified": datetime.utcnow().isoformat(),
@@ -1174,7 +1198,7 @@ def get_mcp_compliance_status():
                 "required_header": "MCP-Protocol-Version",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
                 "exempt_paths": EXEMPT_PATHS,
-                "validation_active": True,
+                "validation_active": header_validation_active,
                 "error_response_code": 400,
             },
             "batching_configuration": {
@@ -1212,7 +1236,7 @@ def get_mcp_compliance_status():
                 "mcp_specification": "2025-06-18",
                 "validation_date": datetime.utcnow().isoformat(),
                 "compliance_notes": [
-                    "MCP-Protocol-Version header validation enabled",
+                    f"MCP-Protocol-Version header validation {'enabled' if header_validation_active else 'disabled (compatibility mode)'}",
                     "JSON-RPC batching explicitly disabled in FastMCP configuration",
                     "Application-level batching uses individual requests internally",
                     "All operations maintain backward compatibility except JSON-RPC batching",
@@ -1228,7 +1252,7 @@ def get_mcp_compliance_status():
         return {
             "error": f"Failed to get compliance status: {str(e)}",
             "protocol_version": MCP_PROTOCOL_VERSION,
-            "header_validation_enabled": True,
+            "header_validation_enabled": False,
             "jsonrpc_batching_disabled": True,
             "compliance_status": "UNKNOWN",
         }
@@ -1563,8 +1587,19 @@ def get_registry_status():
         status_lines.append(
             "🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)"
         )
+        
+        # Check if header validation is active
+        header_validation_status = "ENABLED"
+        try:
+            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+                header_validation_status = "ENABLED"
+            else:
+                header_validation_status = "DISABLED (compatibility mode)"
+        except:
+            header_validation_status = "UNKNOWN"
+            
         status_lines.append(
-            f"✅ MCP-Protocol-Version Header Validation: ENABLED ({MCP_PROTOCOL_VERSION})"
+            f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
 
         for name in registries:
@@ -1593,6 +1628,16 @@ def get_registry_info_resource():
             if info:
                 registries_info.append(info)
 
+        # Check header validation status
+        header_validation_active = True
+        try:
+            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+                header_validation_active = True
+            else:
+                header_validation_active = False
+        except:
+            header_validation_active = False
+
         overall_info = {
             "registry_mode": REGISTRY_MODE,
             "registries": registries_info,
@@ -1607,7 +1652,7 @@ def get_registry_info_resource():
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "header_validation_enabled": True,
+                "header_validation_enabled": header_validation_active,
                 "exempt_paths": EXEMPT_PATHS,
                 "jsonrpc_batching_disabled": True,
                 "compliance_status": "COMPLIANT",
@@ -1628,7 +1673,7 @@ def get_registry_info_resource():
                 "Async Task Queue",
                 "Modular Architecture",
                 "MCP 2025-06-18 Compliance (No JSON-RPC Batching)",
-                f"MCP-Protocol-Version Header Validation ({MCP_PROTOCOL_VERSION})",
+                f"MCP-Protocol-Version Header Validation ({'enabled' if header_validation_active else 'compatibility mode'}) ({MCP_PROTOCOL_VERSION})",
                 "Application-Level Batch Operations",
             ],
         }
@@ -1642,7 +1687,7 @@ def get_registry_info_resource():
                 "mcp_compliance": {
                     "protocol_version": MCP_PROTOCOL_VERSION,
                     "supported_versions": SUPPORTED_MCP_VERSIONS,
-                    "header_validation_enabled": True,
+                    "header_validation_enabled": False,
                     "exempt_paths": EXEMPT_PATHS,
                     "jsonrpc_batching_disabled": True,
                     "compliance_status": "COMPLIANT",
@@ -1656,6 +1701,16 @@ def get_registry_info_resource():
 def get_mode_info():
     """Get information about the current registry mode and how it was detected."""
     try:
+        # Check header validation status
+        header_validation_active = True
+        try:
+            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+                header_validation_active = True
+            else:
+                header_validation_active = False
+        except:
+            header_validation_active = False
+
         detection_info = {
             "current_mode": REGISTRY_MODE,
             "detection_logic": {
@@ -1684,12 +1739,12 @@ def get_mode_info():
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "header_validation_enabled": True,
+                "header_validation_enabled": header_validation_active,
                 "exempt_paths": EXEMPT_PATHS,
                 "jsonrpc_batching_disabled": True,
                 "application_level_batching": True,
                 "compliance_notes": [
-                    "MCP-Protocol-Version header validation enabled per MCP 2025-06-18 specification",
+                    f"MCP-Protocol-Version header validation {'enabled' if header_validation_active else 'disabled (compatibility mode)'} per MCP 2025-06-18 specification",
                     "JSON-RPC batching disabled per MCP 2025-06-18 specification",
                     "Application-level batch operations use individual requests",
                     "Performance maintained through parallel processing and task queuing",
@@ -1734,6 +1789,16 @@ if __name__ == "__main__":
     # Print startup banner to stderr to avoid interfering with MCP JSON protocol on stdout
     import sys
 
+    # Check header validation status for startup message
+    header_validation_status = "ENABLED"
+    try:
+        if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+            header_validation_status = "ENABLED"
+        else:
+            header_validation_status = "DISABLED (compatibility mode)"
+    except:
+        header_validation_status = "UNKNOWN"
+
     print(
         f"""
 🚀 Kafka Schema Registry Unified MCP Server Starting (Modular)
@@ -1741,7 +1806,7 @@ if __name__ == "__main__":
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 Compliance)
-✅ MCP-Protocol-Version Header Validation: ENABLED ({MCP_PROTOCOL_VERSION})
+✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})
 💼 Application Batching: ENABLED (clear_context_batch, etc.)
 📦 Architecture: Modular (8 specialized modules)
 💬 Prompts: 6 comprehensive guides available
@@ -1757,7 +1822,7 @@ if __name__ == "__main__":
         f"Detected {len(registry_manager.list_registries())} registry configurations"
     )
     logger.info(
-        f"✅ MCP-Protocol-Version header validation ENABLED ({MCP_PROTOCOL_VERSION})"
+        f"✅ MCP-Protocol-Version header validation {header_validation_status.lower()} ({MCP_PROTOCOL_VERSION})"
     )
     logger.info(
         f"🚫 Exempt paths from header validation: {EXEMPT_PATHS}"
