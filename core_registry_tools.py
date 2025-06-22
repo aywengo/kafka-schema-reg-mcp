@@ -1009,7 +1009,7 @@ async def delete_subject_tool(
             url = build_context_url_legacy(
                 f"/subjects/{subject}", schema_registry_url, context
             )
-            
+
             # Add permanent parameter if specified
             if permanent:
                 url += "?permanent=true"
@@ -1024,7 +1024,7 @@ async def delete_subject_tool(
                 return {"error": f"Registry '{registry}' not found"}
 
             url = client.build_context_url(f"/subjects/{subject}", context)
-            
+
             # Add permanent parameter if specified
             if permanent:
                 url += "?permanent=true"

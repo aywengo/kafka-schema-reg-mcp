@@ -23,28 +23,36 @@ def test_provider_configs():
 
     # Basic structure test
     assert isinstance(configs, dict), "Should return a dictionary"
-    
+
     # The function should return provider configurations for multiple providers
     expected_providers = ["azure", "google", "keycloak", "okta", "github"]
-    
+
     for provider in expected_providers:
         assert provider in configs, f"Missing provider: {provider}"
-        
+
         provider_config = configs[provider]
-        assert isinstance(provider_config, dict), f"Provider {provider} config should be a dict"
-        
+        assert isinstance(
+            provider_config, dict
+        ), f"Provider {provider} config should be a dict"
+
         # Check required keys for each provider
         required_keys = ["name", "issuer_url", "auth_url", "token_url", "scopes"]
         for key in required_keys:
-            assert key in provider_config, f"Missing key '{key}' in provider '{provider}'"
-        
+            assert (
+                key in provider_config
+            ), f"Missing key '{key}' in provider '{provider}'"
+
         # Check that scopes is a list
-        assert isinstance(provider_config["scopes"], list), f"Scopes for {provider} should be a list"
-        assert len(provider_config["scopes"]) > 0, f"Scopes for {provider} should not be empty"
+        assert isinstance(
+            provider_config["scopes"], list
+        ), f"Scopes for {provider} should be a list"
+        assert (
+            len(provider_config["scopes"]) > 0
+        ), f"Scopes for {provider} should not be empty"
 
     print("✅ Provider configuration structure test passed!")
     print(f"   Found {len(configs)} provider configurations")
-    
+
     # Test OAuth status using get_oauth_scopes_info
     oauth_info = get_oauth_scopes_info()
     print(f"   OAuth enabled: {oauth_info.get('oauth_enabled', False)}")
@@ -64,7 +72,7 @@ def main():
     configs = get_oauth_provider_configs()
     for provider_name, config in configs.items():
         print(f"  • {provider_name}: {config.get('name', 'N/A')}")
-        
+
     # Show current OAuth status
     oauth_info = get_oauth_scopes_info()
     print(f"\nCurrent OAuth Status:")

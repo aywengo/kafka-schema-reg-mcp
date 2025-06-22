@@ -134,7 +134,7 @@ SCOPE_DEFINITIONS = {
 if ENABLE_AUTH:
     try:
         from fastmcp.server.auth import BearerAuthProvider
-        from fastmcp.server.dependencies import get_access_token, AccessToken
+        from fastmcp.server.dependencies import AccessToken, get_access_token
 
         class KafkaSchemaRegistryBearerAuthProvider(BearerAuthProvider):
             """
@@ -149,14 +149,14 @@ if ENABLE_AUTH:
             def __init__(self, **kwargs):
                 # Set up JWKS URI or public key based on provider configuration
                 provider_config = self.get_provider_config(AUTH_PROVIDER)
-                
+
                 if provider_config and "jwks_uri" in provider_config:
                     super().__init__(
                         jwks_uri=provider_config["jwks_uri"],
                         issuer=AUTH_ISSUER_URL,
                         audience=AUTH_AUDIENCE,
                         required_scopes=AUTH_REQUIRED_SCOPES,
-                        **kwargs
+                        **kwargs,
                     )
                 else:
                     # Fallback to basic configuration
@@ -164,7 +164,7 @@ if ENABLE_AUTH:
                         issuer=AUTH_ISSUER_URL,
                         audience=AUTH_AUDIENCE,
                         required_scopes=AUTH_REQUIRED_SCOPES,
-                        **kwargs
+                        **kwargs,
                     )
 
                 self.valid_scopes = set(AUTH_VALID_SCOPES)
@@ -227,7 +227,10 @@ if ENABLE_AUTH:
                     # Auto-detect based on issuer URL
                     if "microsoftonline.com" in AUTH_ISSUER_URL:
                         return provider_configs["azure"]
-                    elif "googleapis.com" in AUTH_ISSUER_URL or "accounts.google.com" in AUTH_ISSUER_URL:
+                    elif (
+                        "googleapis.com" in AUTH_ISSUER_URL
+                        or "accounts.google.com" in AUTH_ISSUER_URL
+                    ):
                         return provider_configs["google"]
                     elif AUTH_OKTA_DOMAIN and AUTH_OKTA_DOMAIN in AUTH_ISSUER_URL:
                         return provider_configs["okta"]
@@ -288,37 +291,51 @@ if ENABLE_AUTH:
             Decorator to require specific OAuth scopes for FastMCP 2.8+ tools.
             Uses FastMCP's dependency injection system to access token information.
             """
+
             def decorator(func):
                 async def wrapper(*args, **kwargs):
                     try:
                         # Access token information using FastMCP's dependency system
                         access_token: AccessToken = get_access_token()
-                        user_scopes = set(access_token.scopes) if access_token.scopes else set()
-                        
-                        if oauth_provider and not oauth_provider.check_scopes(user_scopes, set(required_scopes)):
+                        user_scopes = (
+                            set(access_token.scopes) if access_token.scopes else set()
+                        )
+
+                        if oauth_provider and not oauth_provider.check_scopes(
+                            user_scopes, set(required_scopes)
+                        ):
                             return {
                                 "error": "Insufficient permissions",
                                 "required_scopes": list(required_scopes),
-                                "user_scopes": list(user_scopes)
+                                "user_scopes": list(user_scopes),
                             }
-                        
-                        return await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+
+                        return (
+                            await func(*args, **kwargs)
+                            if asyncio.iscoroutinefunction(func)
+                            else func(*args, **kwargs)
+                        )
                     except Exception as e:
                         if ENABLE_AUTH:
                             logger.warning(f"Authentication check failed: {e}")
                             return {
                                 "error": "Authentication required",
-                                "required_scopes": list(required_scopes)
+                                "required_scopes": list(required_scopes),
                             }
                         else:
                             # If auth is disabled, just proceed
-                            return await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+                            return (
+                                await func(*args, **kwargs)
+                                if asyncio.iscoroutinefunction(func)
+                                else func(*args, **kwargs)
+                            )
 
                 # Preserve function metadata
                 wrapper.__name__ = func.__name__
                 wrapper.__doc__ = func.__doc__
                 wrapper.__annotations__ = func.__annotations__
                 return wrapper
+
             return decorator
 
     except ImportError as e:
@@ -328,17 +345,23 @@ if ENABLE_AUTH:
 
         def require_scopes(*required_scopes: str):
             """Fallback decorator when FastMCP auth is not available."""
+
             def decorator(func):
                 return func
+
             return decorator
+
 else:
     oauth_provider = None
 
     def require_scopes(*required_scopes: str):
         """Decorator when authentication is disabled."""
+
         def decorator(func):
             return func
+
         return decorator
+
 
 def get_oauth_scopes_info() -> Dict[str, Any]:
     """Get information about available OAuth scopes and their definitions."""
@@ -357,6 +380,7 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
         "jwt_available": JWT_AVAILABLE,
     }
 
+
 def get_oauth_provider_configs():
     """Get OAuth provider configuration examples for all supported providers."""
     # Return comprehensive provider configurations for testing and documentation
@@ -367,11 +391,16 @@ def get_oauth_provider_configs():
             "auth_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/authorize",
             "token_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token",
             "jwks_uri": "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys",
-            "scopes": ["openid", "email", "profile", "https://graph.microsoft.com/User.Read"],
+            "scopes": [
+                "openid",
+                "email",
+                "profile",
+                "https://graph.microsoft.com/User.Read",
+            ],
             "client_id_env": "AZURE_CLIENT_ID",
-            "client_secret_env": "AZURE_CLIENT_SECRET", 
+            "client_secret_env": "AZURE_CLIENT_SECRET",
             "tenant_id_env": "AZURE_TENANT_ID",
-            "setup_docs": "https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app"
+            "setup_docs": "https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app",
         },
         "google": {
             "name": "Google OAuth 2.0",
@@ -382,7 +411,7 @@ def get_oauth_provider_configs():
             "scopes": ["openid", "email", "profile"],
             "client_id_env": "GOOGLE_CLIENT_ID",
             "client_secret_env": "GOOGLE_CLIENT_SECRET",
-            "setup_docs": "https://developers.google.com/identity/protocols/oauth2"
+            "setup_docs": "https://developers.google.com/identity/protocols/oauth2",
         },
         "keycloak": {
             "name": "Keycloak",
@@ -395,7 +424,7 @@ def get_oauth_provider_configs():
             "client_secret_env": "KEYCLOAK_CLIENT_SECRET",
             "keycloak_server_env": "KEYCLOAK_SERVER_URL",
             "keycloak_realm_env": "KEYCLOAK_REALM",
-            "setup_docs": "https://www.keycloak.org/docs/latest/securing_apps/#_oidc"
+            "setup_docs": "https://www.keycloak.org/docs/latest/securing_apps/#_oidc",
         },
         "okta": {
             "name": "Okta",
@@ -407,7 +436,7 @@ def get_oauth_provider_configs():
             "client_id_env": "OKTA_CLIENT_ID",
             "client_secret_env": "OKTA_CLIENT_SECRET",
             "okta_domain_env": "OKTA_DOMAIN",
-            "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/"
+            "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/main/",
         },
         "github": {
             "name": "GitHub OAuth",
@@ -428,11 +457,12 @@ def get_oauth_provider_configs():
                     "read:user": "read",
                     "user:email": "read",
                     "repo": "write",
-                    "admin:org": "admin"
-                }
-            }
-        }
+                    "admin:org": "admin",
+                },
+            },
+        },
     }
+
 
 def get_fastmcp_config(server_name: str):
     """Get FastMCP configuration with optional OAuth authentication."""
@@ -447,6 +477,7 @@ def get_fastmcp_config(server_name: str):
         logger.info("FastMCP configured without authentication")
 
     return config
+
 
 # Export main components
 __all__ = [

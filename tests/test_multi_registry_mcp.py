@@ -21,11 +21,13 @@ async def test_multi_registry_mcp():
 
     try:
         # Set environment variables
-        os.environ["MULTI_REGISTRY_CONFIG"] = json.dumps({
-            "dev": {"url": "http://localhost:38081"},
-            "prod": {"url": "http://localhost:38082"}
-        })
-        
+        os.environ["MULTI_REGISTRY_CONFIG"] = json.dumps(
+            {
+                "dev": {"url": "http://localhost:38081"},
+                "prod": {"url": "http://localhost:38082"},
+            }
+        )
+
         client = Client(server_script)
 
         async with client:
@@ -62,13 +64,15 @@ async def test_multi_registry_mcp():
             # Test 4: Cross-registry comparison
             print("\n🔍 Testing cross-registry comparison...")
             try:
-                result = await client.call_tool("compare_registries", {
-                    "source_registry": "dev",
-                    "target_registry": "prod"
-                })
+                result = await client.call_tool(
+                    "compare_registries",
+                    {"source_registry": "dev", "target_registry": "prod"},
+                )
                 print(f"Registry comparison: {result}")
             except Exception as e:
-                print(f"⚠️ Registry comparison (expected if registries not running): {e}")
+                print(
+                    f"⚠️ Registry comparison (expected if registries not running): {e}"
+                )
 
             print("\n🎉 Multi-registry MCP server test completed successfully!")
 

@@ -183,9 +183,9 @@ async def test_schema_registration_performance():
     env = {
         "SCHEMA_REGISTRY_NAME_1": "perf_test",
         "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
-        "READONLY_1": "false"
+        "READONLY_1": "false",
     }
-    
+
     for key, value in env.items():
         os.environ[key] = value
 
@@ -193,7 +193,7 @@ async def test_schema_registration_performance():
 
     try:
         client = Client(server_script)
-        
+
         async with client:
             # Test 1: Sequential schema registration
             print("Test 1: Sequential schema registration (50 schemas)")
@@ -256,10 +256,8 @@ async def test_concurrent_operations():
     print("-" * 50)
 
     # Set up environment
-    env = {
-        "SCHEMA_REGISTRY_URL": "http://localhost:38081"
-    }
-    
+    env = {"SCHEMA_REGISTRY_URL": "http://localhost:38081"}
+
     for key, value in env.items():
         os.environ[key] = value
 
@@ -267,8 +265,9 @@ async def test_concurrent_operations():
 
     try:
         client = Client(server_script)
-        
+
         async with client:
+
             async def register_concurrent_schema(index: int):
                 """Register a schema concurrently."""
                 schema = generate_test_schema(f"Concurrent{index}")
@@ -289,7 +288,7 @@ async def test_concurrent_operations():
                     ("get_global_config", {}),
                     ("list_contexts", {}),
                 ]
-                
+
                 op_name, params = operations[index % len(operations)]
                 return await timed_operation(
                     client, f"concurrent_{op_name}", op_name, params
@@ -297,17 +296,17 @@ async def test_concurrent_operations():
 
             # Run concurrent operations
             tasks = []
-            
+
             # Add schema registration tasks
             for i in range(5):
                 tasks.append(register_concurrent_schema(i))
-            
-            # Add mixed operation tasks  
+
+            # Add mixed operation tasks
             for i in range(10):
                 tasks.append(mixed_operation(i))
 
             await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             print("✅ Concurrent operations test completed")
 
     except Exception as e:
@@ -339,7 +338,7 @@ async def main():
                 print(f"  Min time: {stats.get('min_time_ms', 0):.1f}ms")
                 print(f"  Max time: {stats.get('max_time_ms', 0):.1f}ms")
                 print(f"  P95 time: {stats.get('p95_time_ms', 0):.1f}ms")
-                if stats.get('total_errors', 0) > 0:
+                if stats.get("total_errors", 0) > 0:
                     print(f"  Errors: {stats['total_errors']}")
 
         print("\n✅ All performance tests completed!")
@@ -347,6 +346,7 @@ async def main():
     except Exception as e:
         print(f"❌ Performance testing failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

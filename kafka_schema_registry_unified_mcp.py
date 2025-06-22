@@ -650,9 +650,11 @@ def delete_context(context: str, registry: str = None):
 
 @mcp.tool()
 @require_scopes("admin")
-async def delete_subject(subject: str, context: str = None, registry: str = None, permanent: bool = False):
+async def delete_subject(
+    subject: str, context: str = None, registry: str = None, permanent: bool = False
+):
     """Delete a subject and all its versions.
-    
+
     Args:
         subject: The subject name to delete
         context: Optional schema context
@@ -1450,17 +1452,20 @@ def get_mode_info():
 # Import prompts from external module
 from mcp_prompts import PROMPT_REGISTRY
 
+
 # Register all prompts with the MCP server
 def register_prompt(name, func):
     """Helper function to register a prompt with proper closure."""
+
     @mcp.prompt(name)
     def prompt_handler():
         return func()
-    
+
     # Set the proper function name and docstring
     prompt_handler.__name__ = name.replace("-", "_")
     prompt_handler.__doc__ = func.__doc__
     return prompt_handler
+
 
 # Register all prompts
 for prompt_name, prompt_function in PROMPT_REGISTRY.items():

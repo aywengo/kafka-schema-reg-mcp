@@ -11,8 +11,8 @@ import os
 import sys
 
 from fastmcp import Client
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 from fastmcp.client.session import ClientSession
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # Add parent directory to Python path to find the main modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,49 +33,72 @@ async def test_readonly_mode():
 
     # Get absolute path to server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
 
     # Create server parameters for stdio connection
     server_params = StdioServerParameters(
-        command="python", 
-        args=[server_script], 
-        env=dict(os.environ)
+        command="python", args=[server_script], env=dict(os.environ)
     )
-    
+
     try:
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 print("✅ MCP connection established")
-                
+
                 # Test the check_readonly_mode tool
                 readonly_check = await session.call_tool("check_readonly_mode", {})
-                if readonly_check and readonly_check.content and "readonly_mode" in readonly_check.content[0].text:
+                if (
+                    readonly_check
+                    and readonly_check.content
+                    and "readonly_mode" in readonly_check.content[0].text
+                ):
                     print("✅ READONLY check working: read-only mode is active")
                 else:
-                    print("❌ READONLY check failed - should return error in readonly mode")
+                    print(
+                        "❌ READONLY check failed - should return error in readonly mode"
+                    )
 
                 # Test individual functions that should be blocked
                 print("\n🧪 Testing blocked operations in READONLY mode...")
 
                 blocked_operations = [
-                    ("register_schema", {"subject": "test-subject", "schema_definition": {"type": "string"}}),
+                    (
+                        "register_schema",
+                        {
+                            "subject": "test-subject",
+                            "schema_definition": {"type": "string"},
+                        },
+                    ),
                     ("create_context", {"context": "test-context"}),
                     ("delete_context", {"context": "test-context"}),
                     ("update_global_config", {"compatibility": "BACKWARD"}),
-                    ("update_subject_config", {"subject": "test-subject", "compatibility": "BACKWARD"}),
+                    (
+                        "update_subject_config",
+                        {"subject": "test-subject", "compatibility": "BACKWARD"},
+                    ),
                     ("update_mode", {"mode": "READONLY"}),
-                    ("update_subject_mode", {"subject": "test-subject", "mode": "READONLY"}),
+                    (
+                        "update_subject_mode",
+                        {"subject": "test-subject", "mode": "READONLY"},
+                    ),
                 ]
 
                 for func_name, args in blocked_operations:
                     try:
                         result = await session.call_tool(func_name, args)
                         result_text = result.content[0].text if result.content else ""
-                        if "readonly_mode" in result_text.lower() or "read-only" in result_text.lower():
+                        if (
+                            "readonly_mode" in result_text.lower()
+                            or "read-only" in result_text.lower()
+                        ):
                             print(f"✅ {func_name}: Correctly blocked in READONLY mode")
                         else:
-                            print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}")
+                            print(
+                                f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}"
+                            )
                     except Exception as e:
                         if "readonly" in str(e).lower():
                             print(f"✅ {func_name}: Correctly blocked by readonly mode")
@@ -97,15 +120,21 @@ async def test_readonly_mode():
                         result = await session.call_tool(func_name, args)
                         result_text = result.content[0].text if result.content else ""
                         if "readonly_mode" in result_text.lower():
-                            print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
+                            print(
+                                f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}"
+                            )
                         else:
                             print(f"✅ {func_name}: Correctly allowed in READONLY mode")
                     except Exception as e:
                         # These might fail due to connection issues, but shouldn't be blocked by readonly mode
                         if "readonly" in str(e).lower():
-                            print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
+                            print(
+                                f"❌ {func_name}: Incorrectly blocked by readonly mode"
+                            )
                         else:
-                            print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+                            print(
+                                f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
+                            )
 
                 # Test export functions (should also be allowed)
                 print("\n🧪 Testing export operations in READONLY mode...")
@@ -122,36 +151,52 @@ async def test_readonly_mode():
                         result = await session.call_tool(func_name, args)
                         result_text = result.content[0].text if result.content else ""
                         if "readonly_mode" in result_text.lower():
-                            print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
+                            print(
+                                f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}"
+                            )
                         else:
                             print(f"✅ {func_name}: Correctly allowed in READONLY mode")
                     except Exception as e:
                         if "readonly" in str(e).lower():
-                            print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
+                            print(
+                                f"❌ {func_name}: Incorrectly blocked by readonly mode"
+                            )
                         else:
-                            print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+                            print(
+                                f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
+                            )
 
                 # Test check_compatibility (should be allowed since it doesn't modify anything)
                 print("\n🧪 Testing compatibility check in READONLY mode...")
                 try:
-                    result = await session.call_tool("check_compatibility", {
-                        "subject": "test-subject", 
-                        "schema_definition": {"type": "string"}
-                    })
+                    result = await session.call_tool(
+                        "check_compatibility",
+                        {
+                            "subject": "test-subject",
+                            "schema_definition": {"type": "string"},
+                        },
+                    )
                     result_text = result.content[0].text if result.content else ""
                     if "readonly_mode" in result_text.lower():
                         print(f"❌ check_compatibility: Should NOT be blocked but was!")
                     else:
-                        print(f"✅ check_compatibility: Correctly allowed in READONLY mode")
+                        print(
+                            f"✅ check_compatibility: Correctly allowed in READONLY mode"
+                        )
                 except Exception as e:
                     if "readonly" in str(e).lower():
-                        print(f"❌ check_compatibility: Incorrectly blocked by readonly mode")
+                        print(
+                            f"❌ check_compatibility: Incorrectly blocked by readonly mode"
+                        )
                     else:
-                        print(f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)")
+                        print(
+                            f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
+                        )
 
     except Exception as e:
         print(f"❌ Error during test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

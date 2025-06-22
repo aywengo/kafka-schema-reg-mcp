@@ -26,8 +26,8 @@ from typing import Any, Dict, List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastmcp import Client
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 from fastmcp.client.session import ClientSession
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # Production-grade test schemas
 PRODUCTION_SCHEMAS = {

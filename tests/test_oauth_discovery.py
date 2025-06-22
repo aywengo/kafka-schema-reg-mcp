@@ -654,13 +654,15 @@ class OAuthDiscoveryTest:
         if not self.setup_test_server(enable_auth=False):
             print("❌ Failed to setup basic test server")
             return False
-        
+
         self.teardown_test_server()
-        
+
         # Now test with OAuth enabled
         oauth_enabled = self.setup_test_server(enable_auth=True)
         if not oauth_enabled:
-            print("⚠️  Failed to setup test server with OAuth enabled - running basic tests only")
+            print(
+                "⚠️  Failed to setup test server with OAuth enabled - running basic tests only"
+            )
             if not self.setup_test_server(enable_auth=False):
                 print("❌ Failed to setup even basic test server")
                 return False
@@ -679,7 +681,10 @@ class OAuthDiscoveryTest:
                         self.test_oauth_protected_resource_endpoint,
                     ),
                     ("JWKS Endpoint", self.test_jwks_endpoint),
-                    ("PKCE Mandatory Requirements", self.test_pkce_mandatory_requirements),
+                    (
+                        "PKCE Mandatory Requirements",
+                        self.test_pkce_mandatory_requirements,
+                    ),
                     ("Discovery Consistency", self.test_discovery_consistency),
                     (
                         "Different OAuth Providers",

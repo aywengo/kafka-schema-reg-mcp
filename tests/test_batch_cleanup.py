@@ -15,8 +15,8 @@ import uuid
 
 import requests
 from fastmcp import Client
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 from fastmcp.client.session import ClientSession
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -391,11 +391,13 @@ async def test_batch_cleanup_mcp():
             server_script,
             env={
                 "SCHEMA_REGISTRY_URL": "http://localhost:38081",
-                "MULTI_REGISTRY_CONFIG": json.dumps({
-                    "dev": {"url": "http://localhost:38081"},
-                    "prod": {"url": "http://localhost:38082"}
-                })
-            }
+                "MULTI_REGISTRY_CONFIG": json.dumps(
+                    {
+                        "dev": {"url": "http://localhost:38081"},
+                        "prod": {"url": "http://localhost:38082"},
+                    }
+                ),
+            },
         )
 
         async with client:
@@ -403,11 +405,11 @@ async def test_batch_cleanup_mcp():
 
             # Generate unique test prefix
             test_prefix = f"batch-cleanup-test-{uuid.uuid4().hex[:8]}"
-            
+
             # Test 1: Create some test schemas
             print(f"\n📝 Creating test schemas with prefix: {test_prefix}")
             test_schemas = []
-            
+
             for i in range(3):
                 subject = f"{test_prefix}-schema-{i}"
                 schema = {
@@ -415,17 +417,20 @@ async def test_batch_cleanup_mcp():
                     "name": f"TestRecord{i}",
                     "fields": [
                         {"name": "id", "type": "int"},
-                        {"name": "data", "type": "string"}
-                    ]
+                        {"name": "data", "type": "string"},
+                    ],
                 }
-                
+
                 try:
-                    result = await client.call_tool("register_schema", {
-                        "subject": subject,
-                        "schema_definition": schema,
-                        "schema_type": "AVRO",
-                        "registry": "dev"
-                    })
+                    result = await client.call_tool(
+                        "register_schema",
+                        {
+                            "subject": subject,
+                            "schema_definition": schema,
+                            "schema_type": "AVRO",
+                            "registry": "dev",
+                        },
+                    )
                     if result:
                         print(f"   Created: {subject}")
                         test_schemas.append(subject)
@@ -450,13 +455,14 @@ async def test_batch_cleanup_mcp():
             # Test 3: Test batch cleanup
             print(f"\n🧹 Testing batch cleanup for prefix: {test_prefix}")
             try:
-                result = await client.call_tool("batch_cleanup_subjects", {
-                    "pattern": f"{test_prefix}*",
-                    "registry": "dev",
-                    "dry_run": False
-                })
+                result = await client.call_tool(
+                    "batch_cleanup_subjects",
+                    {"pattern": f"{test_prefix}*", "registry": "dev", "dry_run": False},
+                )
                 if result:
-                    cleanup_result = json.loads(result) if isinstance(result, str) else result
+                    cleanup_result = (
+                        json.loads(result) if isinstance(result, str) else result
+                    )
                     print(f"   Cleanup result: {cleanup_result}")
                 else:
                     print("   No cleanup result returned")

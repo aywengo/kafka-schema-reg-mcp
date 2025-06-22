@@ -145,7 +145,9 @@ async def test_readonly_with_mcp_client():
                                 f"✅ Server info shows readonly_mode: {readonly_status}"
                             )
                         except json.JSONDecodeError:
-                            print(f"✅ Server info resource available: {result[:100]}...")
+                            print(
+                                f"✅ Server info resource available: {result[:100]}..."
+                            )
                     break
 
         except Exception as e:

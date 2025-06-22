@@ -22,8 +22,8 @@ import time
 
 import requests
 from fastmcp import Client
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 from fastmcp.client.session import ClientSession
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # Configuration for simulated registries using contexts
 SCHEMA_REGISTRY_BASE_URL = "http://localhost:38081"
@@ -557,7 +557,6 @@ async def test_numbered_integration():
         "SCHEMA_REGISTRY_USER_1": "",
         "SCHEMA_REGISTRY_PASSWORD_1": "",
         "READONLY_1": "false",
-        
         # Registry 2 (PROD)
         "SCHEMA_REGISTRY_NAME_2": "prod",
         "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
@@ -586,10 +585,14 @@ async def test_numbered_integration():
             try:
                 result = await client.call_tool("list_registries", {})
                 if result:
-                    registries = json.loads(result) if isinstance(result, str) else result
+                    registries = (
+                        json.loads(result) if isinstance(result, str) else result
+                    )
                     print(f"Available registries: {registries}")
                     if isinstance(registries, list):
-                        print(f"Found {len(registries)} registries from numbered config")
+                        print(
+                            f"Found {len(registries)} registries from numbered config"
+                        )
                 else:
                     print("❌ No registries found")
             except Exception as e:
@@ -613,23 +616,32 @@ async def test_numbered_integration():
             # Test 4: Test READONLY enforcement on prod
             print("\n🔒 Testing READONLY enforcement on prod registry...")
             try:
-                result = await client.call_tool("register_schema", {
-                    "subject": "test-readonly-subject",
-                    "schema_definition": {"type": "string"},
-                    "schema_type": "AVRO",
-                    "registry": "prod"
-                })
+                result = await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-readonly-subject",
+                        "schema_definition": {"type": "string"},
+                        "schema_type": "AVRO",
+                        "registry": "prod",
+                    },
+                )
                 if result:
                     try:
-                        response = json.loads(result) if isinstance(result, str) else result
+                        response = (
+                            json.loads(result) if isinstance(result, str) else result
+                        )
                         if "readonly" in str(response).lower() or "error" in response:
-                            print("✅ READONLY mode correctly enforced on prod registry")
+                            print(
+                                "✅ READONLY mode correctly enforced on prod registry"
+                            )
                         else:
                             print("❌ READONLY mode not enforced on prod registry")
                             print(f"   Response: {response}")
                     except:
                         if "readonly" in result.lower():
-                            print("✅ READONLY mode correctly enforced on prod registry")
+                            print(
+                                "✅ READONLY mode correctly enforced on prod registry"
+                            )
                         else:
                             print("❌ READONLY mode may not be enforced")
                             print(f"   Response: {result}")

@@ -18,8 +18,13 @@ import requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import kafka_schema_registry_unified_mcp as mcp_server
-from migration_tools import migrate_schema_tool, get_migration_status_tool
-from core_registry_tools import register_schema_tool, get_schema_tool, get_schema_versions_tool, delete_subject_tool
+from core_registry_tools import (
+    delete_subject_tool,
+    get_schema_tool,
+    get_schema_versions_tool,
+    register_schema_tool,
+)
+from migration_tools import get_migration_status_tool, migrate_schema_tool
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"
@@ -30,7 +35,7 @@ class IDPreservationTest:
     def __init__(self):
         self.dev_url = DEV_REGISTRY_URL
         self.prod_url = PROD_REGISTRY_URL
-        self.test_context = "test-id-preservation" 
+        self.test_context = "test-id-preservation"
         self.target_context = f"target-id-preservation-{uuid.uuid4().hex[:8]}"
         self.test_subjects = []
         self.import_mode_supported = False
@@ -61,7 +66,7 @@ class IDPreservationTest:
 
         # Force reload the registry manager with new configuration
         mcp_server.registry_manager._load_multi_registries()
-        
+
     def check_import_mode_support(self):
         """Check if IMPORT mode is supported by the Schema Registry."""
         print("\n🔍 Checking IMPORT mode support...")
@@ -93,9 +98,13 @@ class IDPreservationTest:
                         print("   ✅ Restored registry to READWRITE mode")
                 else:
                     print("   ⚠️ IMPORT mode is not supported")
-                    print("   ℹ️  This is expected in some Schema Registry configurations")
+                    print(
+                        "   ℹ️  This is expected in some Schema Registry configurations"
+                    )
                     print("   ℹ️  ID preservation requires IMPORT mode support")
-                    print("   ℹ️  Consider using a Schema Registry version that supports IMPORT mode")
+                    print(
+                        "   ℹ️  Consider using a Schema Registry version that supports IMPORT mode"
+                    )
                     self.import_mode_supported = False
             else:
                 print(f"   ⚠️ Could not check mode: {response.text}")
@@ -158,16 +167,16 @@ class IDPreservationTest:
                 context=context,
                 registry="dev",
                 registry_manager=mcp_server.registry_manager,
-                registry_mode=mcp_server.REGISTRY_MODE
+                registry_mode=mcp_server.REGISTRY_MODE,
             )
-            
+
             if "error" in result:
                 print(f"   ❌ Failed to create test schema: {result['error']}")
                 return False
-            
+
             schema_id = result.get("id")
             print(f"   ✅ Created schema with ID {schema_id}")
-            
+
             # Store the subject name
             if self.contexts_supported:
                 self.test_subjects.append(f":.{self.test_context}:test-user")
@@ -194,13 +203,13 @@ class IDPreservationTest:
             registry="dev",
             context=context,
             registry_manager=mcp_server.registry_manager,
-            registry_mode=mcp_server.REGISTRY_MODE
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
-        
+
         if "error" in source_data:
             print(f"   ❌ Could not get source schema: {source_data['error']}")
             return False
-            
+
         source_id = source_data.get("id")
         print(f"   📋 Source schema ID: {source_id}")
 
@@ -214,7 +223,7 @@ class IDPreservationTest:
             source_context=context,
             target_context=context,
             preserve_ids=False,
-            dry_run=False
+            dry_run=False,
         )
 
         if "error" in migration_result:
@@ -225,10 +234,14 @@ class IDPreservationTest:
 
         # Check for task tracking
         if "migration_id" in migration_result:
-            print(f"   📋 Migration started with task ID: {migration_result['migration_id']}")
+            print(
+                f"   📋 Migration started with task ID: {migration_result['migration_id']}"
+            )
 
             # Check task status
-            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
+            status = get_migration_status_tool(
+                migration_result["migration_id"], mcp_server.REGISTRY_MODE
+            )
             if status and "error" not in status:
                 print(f"   📋 Migration task status: {status.get('status', 'unknown')}")
 
@@ -239,9 +252,9 @@ class IDPreservationTest:
             registry="prod",
             context=context,
             registry_manager=mcp_server.registry_manager,
-            registry_mode=mcp_server.REGISTRY_MODE
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
-        
+
         if "error" in target_data:
             print(f"   ❌ Could not get target schema: {target_data['error']}")
             return False
@@ -251,9 +264,13 @@ class IDPreservationTest:
 
         # Without ID preservation, IDs should be different
         if source_id == target_id:
-            print(f"   ⚠️ IDs are the same ({source_id}) - unexpected without ID preservation")
+            print(
+                f"   ⚠️ IDs are the same ({source_id}) - unexpected without ID preservation"
+            )
         else:
-            print(f"   ✅ IDs are different: source={source_id}, target={target_id} (expected)")
+            print(
+                f"   ✅ IDs are different: source={source_id}, target={target_id} (expected)"
+            )
 
         return True
 
@@ -265,7 +282,9 @@ class IDPreservationTest:
         self.check_import_mode_support()
         if not self.import_mode_supported:
             print("   ⚠️ Skipping ID preservation test - IMPORT mode not supported")
-            print("   💡 This test requires a Schema Registry that supports IMPORT mode")
+            print(
+                "   💡 This test requires a Schema Registry that supports IMPORT mode"
+            )
             return True  # Skip test but don't fail
 
         # Use the appropriate subject name and context
@@ -279,13 +298,13 @@ class IDPreservationTest:
             registry="dev",
             context=context,
             registry_manager=mcp_server.registry_manager,
-            registry_mode=mcp_server.REGISTRY_MODE
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
-        
+
         if "error" in source_data:
             print(f"   ❌ Could not get source schema: {source_data['error']}")
             return False
-            
+
         source_id = source_data.get("id")
         print(f"   📋 Source schema ID: {source_id}")
 
@@ -303,23 +322,31 @@ class IDPreservationTest:
                 source_context=context,
                 target_context=context,
                 preserve_ids=True,  # This is the key difference
-                dry_run=False
+                dry_run=False,
             )
 
             if "error" in migration_result:
-                print(f"   ❌ Migration with ID preservation failed: {migration_result['error']}")
+                print(
+                    f"   ❌ Migration with ID preservation failed: {migration_result['error']}"
+                )
                 return False
 
             print(f"   ✅ Migration completed: {migration_result}")
 
             # Check for task tracking
             if "migration_id" in migration_result:
-                print(f"   📋 Migration started with task ID: {migration_result['migration_id']}")
+                print(
+                    f"   📋 Migration started with task ID: {migration_result['migration_id']}"
+                )
 
                 # Check task status
-                status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
+                status = get_migration_status_tool(
+                    migration_result["migration_id"], mcp_server.REGISTRY_MODE
+                )
                 if status and "error" not in status:
-                    print(f"   📋 Migration task status: {status.get('status', 'unknown')}")
+                    print(
+                        f"   📋 Migration task status: {status.get('status', 'unknown')}"
+                    )
 
             # Get target schema ID
             target_data = get_schema_tool(
@@ -328,12 +355,14 @@ class IDPreservationTest:
                 registry="prod",
                 context=context,
                 registry_manager=mcp_server.registry_manager,
-                registry_mode=mcp_server.REGISTRY_MODE
+                registry_mode=mcp_server.REGISTRY_MODE,
             )
-            
+
             if "error" in target_data:
                 print(f"   ❌ Could not get target schema: {target_data['error']}")
-                print(f"   💡 This might be expected if the subject name changed during migration")
+                print(
+                    f"   💡 This might be expected if the subject name changed during migration"
+                )
                 return True  # Don't fail the test for this
 
             target_id = target_data.get("id")
@@ -344,40 +373,50 @@ class IDPreservationTest:
                 print(f"   ✅ ID preservation successful: {source_id} == {target_id}")
                 return True
             else:
-                print(f"   ⚠️ ID preservation may not have worked: source={source_id}, target={target_id}")
-                print(f"   💡 This could be due to registry configuration or existing schemas")
+                print(
+                    f"   ⚠️ ID preservation may not have worked: source={source_id}, target={target_id}"
+                )
+                print(
+                    f"   💡 This could be due to registry configuration or existing schemas"
+                )
                 return True  # Don't fail - just note the issue
 
         except Exception as e:
             print(f"   ⚠️ ID preservation test encountered an issue: {e}")
-            print(f"   💡 This might be expected in some Schema Registry configurations")
+            print(
+                f"   💡 This might be expected in some Schema Registry configurations"
+            )
             return True  # Don't fail the entire test suite
 
     def cleanup(self):
         """Clean up test subjects."""
         print("\n🧹 Cleaning up test subjects...")
-        
+
         for subject in self.test_subjects:
             try:
-                result = asyncio.run(delete_subject_tool(
-                    subject=subject,
-                    registry="dev",
-                    permanent=True,
-                    registry_manager=mcp_server.registry_manager,
-                    registry_mode=mcp_server.REGISTRY_MODE
-                ))
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="dev",
+                        permanent=True,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
+                    )
+                )
                 print(f"   ✅ Cleaned up {subject} from dev")
             except Exception as e:
                 print(f"   ⚠️ Could not clean up {subject} from dev: {e}")
 
             try:
-                result = asyncio.run(delete_subject_tool(
-                    subject=subject,
-                    registry="prod",
-                    permanent=True,
-                    registry_manager=mcp_server.registry_manager,
-                    registry_mode=mcp_server.REGISTRY_MODE
-                ))
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="prod",
+                        permanent=True,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
+                    )
+                )
                 print(f"   ✅ Cleaned up {subject} from prod")
             except Exception as e:
                 print(f"   ⚠️ Could not clean up {subject} from prod: {e}")
@@ -389,7 +428,7 @@ class IDPreservationTest:
 
         try:
             self.setup_test_environment()
-            
+
             if not self.create_test_environment():
                 print("❌ Failed to set up test environment")
                 return False
@@ -408,6 +447,7 @@ class IDPreservationTest:
         except Exception as e:
             print(f"\n❌ Test execution failed: {e}")
             import traceback
+
             traceback.print_exc()
             return False
         finally:
@@ -417,16 +457,16 @@ class IDPreservationTest:
 def test_registry_connectivity():
     """Test that both registries are accessible before running tests"""
     print("🔍 Testing registry connectivity...")
-    
+
     dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
     prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
-    
+
     if dev_response.status_code != 200:
         raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
-    
+
     if prod_response.status_code != 200:
         raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
-    
+
     print("✅ Both registries accessible")
 
 
@@ -438,21 +478,22 @@ def main():
     try:
         # Check connectivity first
         test_registry_connectivity()
-        
+
         # Run the test
         test = IDPreservationTest()
         success = test.run_tests()
-        
+
         if success:
             print("\n🎉 ID Preservation Migration Test completed successfully!")
             return 0
         else:
             print("\n❌ ID Preservation Migration Test failed!")
             return 1
-            
+
     except Exception as e:
         print(f"❌ Test setup failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

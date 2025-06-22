@@ -13,8 +13,8 @@ import subprocess
 import sys
 
 from fastmcp import Client
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 from fastmcp.client.session import ClientSession
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first
@@ -31,7 +31,7 @@ env_vars = {
     "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
     "READONLY_2": "true",
     "ALLOW_LOCALHOST": "true",  # Allow localhost URLs in test mode
-    "TESTING": "true"  # Mark as testing environment
+    "TESTING": "true",  # Mark as testing environment
 }
 
 # Apply environment variables before any imports
@@ -57,18 +57,22 @@ class ReadOnlyValidationTest:
         """Parse MCP tool result with simple error handling"""
         if not result:
             return {}
-        
+
         try:
             # Handle FastMCP response format
             if isinstance(result, list) and len(result) > 0:
-                text = result[0].text if hasattr(result[0], 'text') else str(result[0])
+                text = result[0].text if hasattr(result[0], "text") else str(result[0])
             else:
                 text = str(result) if result else "{}"
-            
+
             return json.loads(text)
         except json.JSONDecodeError:
             # If it's not JSON, return as-is
-            return result if isinstance(result, (list, dict)) else {"response": str(result)}
+            return (
+                result
+                if isinstance(result, (list, dict))
+                else {"response": str(result)}
+            )
 
     async def run_test(self):
         """Test unified server in multi-registry mode's read-only enforcement for PROD registry"""
@@ -78,8 +82,10 @@ class ReadOnlyValidationTest:
         try:
             # Get the path to the parent directory where the server script is located
             parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
-            
+            server_script = os.path.join(
+                parent_dir, "kafka_schema_registry_unified_mcp.py"
+            )
+
             # Debug: Show environment variables that will be passed
             print(f"\n🔍 Debug: Environment variables for server:")
             for i in range(1, 3):
@@ -89,22 +95,20 @@ class ReadOnlyValidationTest:
                 print(f"   {name_var}={os.environ.get(name_var, 'NOT_SET')}")
                 print(f"   {url_var}={os.environ.get(url_var, 'NOT_SET')}")
                 print(f"   {readonly_var}={os.environ.get(readonly_var, 'NOT_SET')}")
-            
+
             # Use subprocess to run server with proper environment
             print("\n🚀 Starting MCP server subprocess with environment...")
-            
+
             # FastMCP Client already imported at top of file
-            
+
             # Create environment dict for subprocess
             subprocess_env = os.environ.copy()
-            
+
             # Create server parameters with explicit environment
             server_params = StdioServerParameters(
-                command="python", 
-                args=[server_script], 
-                env=subprocess_env
+                command="python", args=[server_script], env=subprocess_env
             )
-            
+
             # Test with subprocess communication
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
@@ -119,19 +123,26 @@ class ReadOnlyValidationTest:
                         registries = json.loads(result.content[0].text)
                     else:
                         registries = []
-                    
+
                     print(f"   📋 Found registries: {registries}")
-                    
+
                     if isinstance(registries, list):
-                        registry_names = [r.get('name') for r in registries if isinstance(r, dict)]
+                        registry_names = [
+                            r.get("name") for r in registries if isinstance(r, dict)
+                        ]
                     else:
                         registry_names = []
-                    
+
                     print(f"   📋 Configured registries: {registry_names}")
 
                     # Check that we have both registries
-                    if "development" not in registry_names or "production" not in registry_names:
-                        print(f"   ❌ Expected both 'development' and 'production' registries, got: {registry_names}")
+                    if (
+                        "development" not in registry_names
+                        or "production" not in registry_names
+                    ):
+                        print(
+                            f"   ❌ Expected both 'development' and 'production' registries, got: {registry_names}"
+                        )
                         return False
 
                     print("   ✅ Both DEV and PROD registries configured")
@@ -149,75 +160,95 @@ class ReadOnlyValidationTest:
                     }
 
                     # Try to register schema in PROD (should be blocked by readonly mode)
-                    result = await session.call_tool("register_schema", {
-                        "subject": "readonly-test-value",
-                        "schema_definition": test_schema,
-                        "registry": "production"
-                    })
-                    
+                    result = await session.call_tool(
+                        "register_schema",
+                        {
+                            "subject": "readonly-test-value",
+                            "schema_definition": test_schema,
+                            "registry": "production",
+                        },
+                    )
+
                     if result.content and len(result.content) > 0:
                         prod_result = json.loads(result.content[0].text)
                     else:
                         prod_result = {}
 
-                    if isinstance(prod_result, dict) and prod_result.get("readonly_mode"):
-                        print(f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}")
+                    if isinstance(prod_result, dict) and prod_result.get(
+                        "readonly_mode"
+                    ):
+                        print(
+                            f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}"
+                        )
                     else:
-                        print(f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}")
+                        print(
+                            f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}"
+                        )
                         return False
 
                     # Test 3: Test write operations on DEV registry (should work)
                     print("\n✏️  Testing write operations on DEV registry...")
 
                     # Try to register schema in DEV (should succeed or fail due to connection, not readonly)
-                    result = await session.call_tool("register_schema", {
-                        "subject": "readonly-test-value",
-                        "schema_definition": test_schema,
-                        "registry": "development"
-                    })
-                    
+                    result = await session.call_tool(
+                        "register_schema",
+                        {
+                            "subject": "readonly-test-value",
+                            "schema_definition": test_schema,
+                            "registry": "development",
+                        },
+                    )
+
                     if result.content and len(result.content) > 0:
                         dev_result = json.loads(result.content[0].text)
                     else:
                         dev_result = {}
 
                     if isinstance(dev_result, dict) and dev_result.get("readonly_mode"):
-                        print(f"   ❌ DEV incorrectly blocked by readonly mode: {dev_result}")
+                        print(
+                            f"   ❌ DEV incorrectly blocked by readonly mode: {dev_result}"
+                        )
                         return False
                     else:
-                        print(f"   ✅ DEV write operations: Not blocked by readonly mode")
+                        print(
+                            f"   ✅ DEV write operations: Not blocked by readonly mode"
+                        )
 
                     # Test 4: Test other modification operations on PROD
                     print("\n🚫 Testing other modification operations on PROD...")
 
                     # Try to update global config (should be blocked)
-                    result = await session.call_tool("update_global_config", {
-                        "compatibility": "FULL",
-                        "registry": "production"
-                    })
-                    
+                    result = await session.call_tool(
+                        "update_global_config",
+                        {"compatibility": "FULL", "registry": "production"},
+                    )
+
                     if result.content and len(result.content) > 0:
                         config_result = json.loads(result.content[0].text)
                     else:
                         config_result = {}
 
-                    if isinstance(config_result, dict) and config_result.get("readonly_mode"):
+                    if isinstance(config_result, dict) and config_result.get(
+                        "readonly_mode"
+                    ):
                         print(f"   ✅ Config update correctly blocked")
                     else:
                         print(f"   ❌ Config update not blocked: {config_result}")
 
                     # Try to create context (should be blocked)
-                    result = await session.call_tool("create_context", {
-                        "context": "readonly-test-context",
-                        "registry": "production"
-                    })
-                    
+                    result = await session.call_tool(
+                        "create_context",
+                        {"context": "readonly-test-context", "registry": "production"},
+                    )
+
                     if result.content and len(result.content) > 0:
                         context_result = json.loads(result.content[0].text)
                     else:
                         context_result = {}
 
-                    if isinstance(context_result, dict) and context_result.get("readonly_mode"):
+                    if isinstance(context_result, dict) and context_result.get(
+                        "readonly_mode"
+                    ):
                         print(f"   ✅ Context creation correctly blocked")
                     else:
                         print(f"   ❌ Context creation not blocked: {context_result}")
@@ -226,19 +257,24 @@ class ReadOnlyValidationTest:
                     print("\n🔄 Testing cross-registry operations...")
 
                     # Migration to PROD should be blocked
-                    result = await session.call_tool("migrate_schema", {
-                        "subject": "readonly-test-value",
-                        "source_registry": "development",
-                        "target_registry": "production",
-                        "dry_run": False
-                    })
-                    
+                    result = await session.call_tool(
+                        "migrate_schema",
+                        {
+                            "subject": "readonly-test-value",
+                            "source_registry": "development",
+                            "target_registry": "production",
+                            "dry_run": False,
+                        },
+                    )
+
                     if result.content and len(result.content) > 0:
                         migration_result = json.loads(result.content[0].text)
                     else:
                         migration_result = {}
 
-                    if isinstance(migration_result, dict) and migration_result.get("readonly_mode"):
+                    if isinstance(migration_result, dict) and migration_result.get(
+                        "readonly_mode"
+                    ):
                         print(f"   ✅ Migration to PROD correctly blocked")
                     else:
                         print(f"   ⚠️  Migration response: {migration_result}")
@@ -249,6 +285,7 @@ class ReadOnlyValidationTest:
         except Exception as e:
             print(f"❌ Test failed: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 

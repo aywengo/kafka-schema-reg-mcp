@@ -120,13 +120,13 @@ async def test_advanced_mcp_features():
 
             # Test 5: List subjects in different contexts
             print("\n📄 Listing subjects in production context...")
-            result = await client.call_tool(
-                "list_subjects", {"context": "production"}
-            )
+            result = await client.call_tool("list_subjects", {"context": "production"})
             if result:
                 print(f"Production subjects: {result}")
             else:
-                print(f"❌ No content returned for list_subjects (production): {result}")
+                print(
+                    f"❌ No content returned for list_subjects (production): {result}"
+                )
 
             print("\n📄 Listing subjects in default context...")
             result = await client.call_tool("list_subjects", {})
@@ -236,16 +236,22 @@ async def test_advanced_mcp_features():
                 try:
                     # FastMCP 2.8.0+ returns a list of content objects
                     if isinstance(result, list) and len(result) > 0:
-                        response_text = result[0].text if hasattr(result[0], 'text') else str(result[0])
+                        response_text = (
+                            result[0].text
+                            if hasattr(result[0], "text")
+                            else str(result[0])
+                        )
                     else:
                         response_text = str(result)
-                    
+
                     if response_text:
                         export_data = json.loads(response_text)
                         if "error" in export_data:
                             print(f"⚠️ Export failed: {export_data['error']}")
                         else:
-                            print(f"Production export: {len(export_data.get('subjects', []))} subjects exported")
+                            print(
+                                f"Production export: {len(export_data.get('subjects', []))} subjects exported"
+                            )
                     else:
                         print("⚠️ Empty response from export_context")
                 except json.JSONDecodeError as e:
@@ -263,7 +269,9 @@ async def test_advanced_mcp_features():
                 print(f"❌ No content returned for get_mode: {result}")
 
             print("\n🎉 Advanced MCP Server test completed successfully!")
-            print("✅ All features working: Registration, Contexts, Configuration, Export, Compatibility")
+            print(
+                "✅ All features working: Registration, Contexts, Configuration, Export, Compatibility"
+            )
 
     except Exception as e:
         print(f"❌ Error during advanced test: {e}")

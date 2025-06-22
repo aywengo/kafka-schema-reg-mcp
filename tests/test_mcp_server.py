@@ -19,14 +19,14 @@ async def test_mcp_server():
 
     # Path to the unified server script
     server_script = "kafka_schema_registry_unified_mcp.py"
-    
+
     # Environment variables for the server
     env = {
         "SCHEMA_REGISTRY_URL": "http://localhost:38081",  # Actual Schema Registry port
         "SCHEMA_REGISTRY_USER": "",
         "SCHEMA_REGISTRY_PASSWORD": "",
     }
-    
+
     # Update the current environment
     for key, value in env.items():
         os.environ[key] = value
@@ -38,11 +38,11 @@ async def test_mcp_server():
     try:
         # Create client that will run the server script
         client = Client(server_script)
-        
+
         # Add timeout to prevent hanging
         async with client:
             print("📡 Connection established successfully!")
-            
+
             # List available tools
             print("\n🔧 Available tools:")
             tools = await client.list_tools()
@@ -91,13 +91,17 @@ async def test_dependencies():
 
     try:
         import fastmcp
-        print(f"✅ FastMCP available: {fastmcp.__version__ if hasattr(fastmcp, '__version__') else 'Unknown version'}")
+
+        print(
+            f"✅ FastMCP available: {fastmcp.__version__ if hasattr(fastmcp, '__version__') else 'Unknown version'}"
+        )
     except ImportError as e:
         print(f"❌ FastMCP not available: {e}")
         return False
 
     try:
         import requests
+
         print(f"✅ Requests available: {requests.__version__}")
     except ImportError as e:
         print(f"❌ Requests not available: {e}")
@@ -105,6 +109,7 @@ async def test_dependencies():
 
     try:
         import asyncio
+
         print(f"✅ Asyncio available")
     except ImportError as e:
         print(f"❌ Asyncio not available: {e}")

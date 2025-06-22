@@ -47,7 +47,7 @@ async def test_docker_command_generation():
         dry_run=True,
         migrate_all_versions=True,
         registry_manager=mcp_server.registry_manager,
-        registry_mode=mcp_server.REGISTRY_MODE
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     # Check for errors
@@ -230,7 +230,7 @@ async def test_default_context():
         dry_run=False,
         migrate_all_versions=False,
         registry_manager=mcp_server.registry_manager,
-        registry_mode=mcp_server.REGISTRY_MODE
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     if "error" in result:
@@ -283,10 +283,10 @@ async def test_single_registry_mode():
 
     try:
         result = await migrate_context_tool(
-            source_registry="source-test", 
+            source_registry="source-test",
             target_registry="target-test",
             registry_manager=mcp_server.registry_manager,
-            registry_mode=mcp_server.REGISTRY_MODE
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
 
         if "error" not in result:
@@ -314,10 +314,10 @@ async def test_missing_registry():
     print("\n🧪 Testing missing registry error")
 
     result = await migrate_context_tool(
-        source_registry="nonexistent-registry", 
+        source_registry="nonexistent-registry",
         target_registry="target-test",
         registry_manager=mcp_server.registry_manager,
-        registry_mode=mcp_server.REGISTRY_MODE
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     if "error" not in result:
