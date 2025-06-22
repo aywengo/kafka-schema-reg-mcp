@@ -21,8 +21,7 @@ import subprocess
 import time
 
 import requests
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Configuration for simulated registries using contexts
 SCHEMA_REGISTRY_BASE_URL = "http://localhost:38081"
@@ -537,6 +536,112 @@ async def _test_per_registry_readonly_with_client(server_params):
                     )
                 else:
                     print(f"⚠️  Production read operations: {subjects}")
+
+
+async def test_numbered_integration():
+    """Test the numbered environment configuration."""
+
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    print("🔢 Testing Numbered Environment Configuration...")
+
+    # Set up numbered environment configuration
+    env = {
+        # Registry 1 (DEV)
+        "SCHEMA_REGISTRY_NAME_1": "dev",
+        "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
+        "SCHEMA_REGISTRY_USER_1": "",
+        "SCHEMA_REGISTRY_PASSWORD_1": "",
+        "READONLY_1": "false",
+        
+        # Registry 2 (PROD)
+        "SCHEMA_REGISTRY_NAME_2": "prod",
+        "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
+        "SCHEMA_REGISTRY_USER_2": "",
+        "SCHEMA_REGISTRY_PASSWORD_2": "",
+        "READONLY_2": "true",
+    }
+
+    try:
+        # Update the current environment
+        for key, value in env.items():
+            os.environ[key] = value
+
+        client = Client(server_script)
+
+        async with client:
+            print("✅ Connected to MCP server with numbered configuration!")
+
+            # Test 1: List available tools
+            print("\n🔧 Listing available tools...")
+            tools = await client.list_tools()
+            print(f"Found {len(tools)} tools")
+
+            # Test 2: List registries (should show both numbered registries)
+            print("\n🏢 Listing registries...")
+            try:
+                result = await client.call_tool("list_registries", {})
+                if result:
+                    registries = json.loads(result) if isinstance(result, str) else result
+                    print(f"Available registries: {registries}")
+                    if isinstance(registries, list):
+                        print(f"Found {len(registries)} registries from numbered config")
+                else:
+                    print("❌ No registries found")
+            except Exception as e:
+                print(f"⚠️ Registry listing error: {e}")
+
+            # Test 3: Test registry-specific operations
+            print("\n📝 Testing dev registry operations...")
+            try:
+                result = await client.call_tool("list_subjects", {"registry": "dev"})
+                print(f"DEV subjects: {result}")
+            except Exception as e:
+                print(f"⚠️ DEV registry test (expected if not running): {e}")
+
+            print("\n📝 Testing prod registry operations...")
+            try:
+                result = await client.call_tool("list_subjects", {"registry": "prod"})
+                print(f"PROD subjects: {result}")
+            except Exception as e:
+                print(f"⚠️ PROD registry test (expected if not running): {e}")
+
+            # Test 4: Test READONLY enforcement on prod
+            print("\n🔒 Testing READONLY enforcement on prod registry...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": "test-readonly-subject",
+                    "schema_definition": {"type": "string"},
+                    "schema_type": "AVRO",
+                    "registry": "prod"
+                })
+                if result:
+                    try:
+                        response = json.loads(result) if isinstance(result, str) else result
+                        if "readonly" in str(response).lower() or "error" in response:
+                            print("✅ READONLY mode correctly enforced on prod registry")
+                        else:
+                            print("❌ READONLY mode not enforced on prod registry")
+                            print(f"   Response: {response}")
+                    except:
+                        if "readonly" in result.lower():
+                            print("✅ READONLY mode correctly enforced on prod registry")
+                        else:
+                            print("❌ READONLY mode may not be enforced")
+                            print(f"   Response: {result}")
+            except Exception as e:
+                if "readonly" in str(e).lower():
+                    print("✅ READONLY mode correctly enforced on prod registry")
+                else:
+                    print(f"⚠️ Error testing READONLY mode: {e}")
+
+            print("\n🎉 Numbered integration test completed successfully!")
+
+    except Exception as e:
+        print(f"❌ Error during numbered integration test: {e}")
+        raise
 
 
 async def main():

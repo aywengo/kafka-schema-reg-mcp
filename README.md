@@ -14,7 +14,7 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: This server uses the official MCP Python SDK and communicates via JSON-RPC over stdio, making it fully compatible with Claude Desktop and other MCP clients.
+> **🎯 True MCP Implementation**: This server uses the modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**, communicating via JSON-RPC over stdio and supporting advanced transports like SSE and HTTP. It's fully compatible with Claude Desktop and other MCP clients.
 </td>
 </tr>
 </table>
@@ -65,7 +65,9 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 ## 🏗️ Architecture
 
 - **Unified Server Design**: Single `kafka_schema_registry_unified_mcp.py` that auto-detects single vs multi-registry mode
-- **MCP Protocol Server**: Uses official MCP Python SDK with JSON-RPC over stdio
+- **FastMCP 2.8.0+ Framework**: Modern MCP architecture with MCP 2025-06-18 specification compliance
+- **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 support for 5 identity platforms
+- **Multi-Transport Support**: stdio, SSE, and Streamable HTTP transports via FastMCP
 - **Kafka Schema Registry Integration**: Backend for schema storage and management  
 - **KRaft Mode Support**: Works with modern Kafka without Zookeeper dependency
 - **Context-Aware Operations**: All tools support optional context parameters
@@ -85,14 +87,17 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 
 #### Pull from DockerHub
 ```bash
-# Latest stable release
+# Current stable release (v1.8.3)
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Or use latest (might be not released yet)
+# Or use latest (may be pre-release)
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
-# Or specific version
-docker pull aywengo/kafka-schema-reg-mcp:v1.4.0
+# FastMCP 2.8.0+ testing (v2.0.0)
+docker pull aywengo/kafka-schema-reg-mcp:2.0.0
+
+# Or specific stable version
+docker pull aywengo/kafka-schema-reg-mcp:1.8.3
 ```
 
 #### Test the Docker image

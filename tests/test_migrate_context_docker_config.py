@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import kafka_schema_registry_unified_mcp as mcp_server
+from migration_tools import migrate_context_tool
 
 
 async def test_docker_command_generation():
@@ -37,7 +38,7 @@ async def test_docker_command_generation():
     mcp_server.registry_manager._load_multi_registries()
 
     # Call migrate_context
-    result = await mcp_server.migrate_context(
+    result = await migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         context="test-context",
@@ -45,6 +46,8 @@ async def test_docker_command_generation():
         preserve_ids=True,
         dry_run=True,
         migrate_all_versions=True,
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE
     )
 
     # Check for errors
@@ -219,13 +222,15 @@ async def test_default_context():
     """Test with default context (.)"""
     print("\n🧪 Testing default context handling")
 
-    result = await mcp_server.migrate_context(
+    result = await migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         # No context specified - should default to "."
         preserve_ids=False,  # Test without preserve_ids
         dry_run=False,
         migrate_all_versions=False,
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE
     )
 
     if "error" in result:
@@ -277,8 +282,11 @@ async def test_single_registry_mode():
     mcp_server.REGISTRY_MODE = "single"
 
     try:
-        result = await mcp_server.migrate_context(
-            source_registry="source-test", target_registry="target-test"
+        result = await migrate_context_tool(
+            source_registry="source-test", 
+            target_registry="target-test",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE
         )
 
         if "error" not in result:
@@ -305,8 +313,11 @@ async def test_missing_registry():
     """Test error handling for missing registry."""
     print("\n🧪 Testing missing registry error")
 
-    result = await mcp_server.migrate_context(
-        source_registry="nonexistent-registry", target_registry="target-test"
+    result = await migrate_context_tool(
+        source_registry="nonexistent-registry", 
+        target_registry="target-test",
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE
     )
 
     if "error" not in result:

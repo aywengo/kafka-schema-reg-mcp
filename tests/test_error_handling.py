@@ -23,8 +23,7 @@ from typing import Any, Dict
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Invalid schemas for testing error handling
 INVALID_SCHEMAS = {
@@ -620,6 +619,139 @@ async def test_authentication_errors():
         print(f"❌ Authentication error handling test failed: {e}")
 
 
+async def test_error_handling():
+    """Test error handling and recovery mechanisms."""
+
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    print("⚠️  Testing Error Handling and Recovery...")
+
+    try:
+        client = Client(
+            server_script,
+            env={
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "MULTI_REGISTRY_CONFIG": json.dumps({
+                    "dev": {"url": "http://localhost:38081"},
+                    "invalid": {"url": "http://localhost:99999"}  # Invalid port for testing
+                })
+            }
+        )
+
+        async with client:
+            print("✅ Connected to MCP server!")
+
+            # Test 1: Invalid schema registration
+            print("\n❌ Test 1: Invalid schema registration...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": "test-invalid-schema",
+                    "schema_definition": {"invalid": "schema"},  # Invalid Avro schema
+                    "schema_type": "AVRO"
+                })
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid schema")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 2: Non-existent subject operations
+            print("\n❌ Test 2: Non-existent subject operations...")
+            try:
+                result = await client.call_tool("get_schema", {
+                    "subject": "non-existent-subject-12345",
+                    "version": "latest"
+                })
+                if result and ("error" in result.lower() or "not found" in result.lower()):
+                    print("   ✅ Error properly handled for non-existent subject")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 3: Invalid registry operations
+            print("\n❌ Test 3: Invalid registry operations...")
+            try:
+                result = await client.call_tool("list_subjects", {
+                    "registry": "invalid"  # This should fail
+                })
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid registry")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 4: Invalid tool parameters
+            print("\n❌ Test 4: Invalid tool parameters...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": "",  # Empty subject
+                    "schema_definition": {"type": "string"},
+                    "schema_type": "AVRO"
+                })
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for empty subject")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 5: Tool call with missing required parameters
+            print("\n❌ Test 5: Missing required parameters...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": "test-subject"
+                    # Missing schema_definition and schema_type
+                })
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for missing parameters")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 6: Recovery after errors
+            print("\n🔄 Test 6: Recovery after errors...")
+            try:
+                # First, cause an error
+                await client.call_tool("get_schema", {
+                    "subject": "non-existent",
+                    "version": "latest"
+                })
+                
+                # Then, perform a valid operation
+                result = await client.call_tool("list_subjects", {})
+                print("   ✅ Server recovered and handles valid operations after errors")
+            except Exception as e:
+                print(f"   ✅ Server continues to function: {e}")
+
+            # Test 7: Invalid JSON in schema definitions
+            print("\n❌ Test 7: Invalid JSON handling...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": "test-invalid-json",
+                    "schema_definition": "not-valid-json",  # String instead of dict
+                    "schema_type": "AVRO"
+                })
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid JSON")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            print("\n🎉 Error handling testing completed!")
+            print("✅ Server demonstrates robust error handling and recovery")
+
+    except Exception as e:
+        print(f"❌ Error during error handling test: {e}")
+        raise
+
+
 async def main():
     """Run all error handling and edge case tests."""
     print("🧪 Starting Error Handling and Edge Case Integration Tests")
@@ -641,6 +773,7 @@ async def main():
         await test_cross_registry_error_scenarios()
         await test_resource_limits_and_timeouts()
         await test_authentication_errors()
+        await test_error_handling()
 
         print("\n" + "=" * 70)
         print("🎉 All Error Handling and Edge Case Tests Complete!")

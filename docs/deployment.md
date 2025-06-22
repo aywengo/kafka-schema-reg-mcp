@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v1.7.0, from local development to production environments, including async task management, multi-registry support, and backup strategies.
+This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**, from local development to production environments, including enhanced authentication, async task management, multi-registry support, and backup strategies.
 
 ## 🐳 Docker Deployment
 
@@ -29,12 +29,14 @@ docker run -p 38000:8000 \
 ```
 
 **Available DockerHub Tags:**
-- `aywengo/kafka-schema-reg-mcp:latest` - Latest build
-- `aywengo/kafka-schema-reg-mcp:stable` - Stable release pointer
+- `aywengo/kafka-schema-reg-mcp:latest` - Latest build (may be pre-release)
+- `aywengo/kafka-schema-reg-mcp:stable` - Current stable release (v1.8.3)
+- `aywengo/kafka-schema-reg-mcp:2.0.0` - FastMCP 2.8.0+ framework & MCP 2025-06-18 compliance (testing)
+- `aywengo/kafka-schema-reg-mcp:1.8.3` - Current stable (modular architecture & enhanced migrations)
 - `aywengo/kafka-schema-reg-mcp:1.7.0` - Async operations & progress tracking
-- `aywengo/kafka-schema-reg-mcp:1.6.0` - Batch cleanup & migrations
-- `aywengo/kafka-schema-reg-mcp:1.5.0` - Multi-registry support
 - **Multi-Platform Support**: Automatically detects `linux/amd64` or `linux/arm64`
+
+> **Note**: The `:stable` tag is manually promoted after versions are proven in production. Use specific version tags for testing new features.
 
 ### Docker Compose Override
 

@@ -11,10 +11,10 @@ import json
 import os
 import sys
 import time
+import uuid
 
 import requests
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -375,6 +375,116 @@ def test_performance_characteristics():
     return True
 
 
+async def test_batch_cleanup_mcp():
+    """Test batch cleanup operations through the MCP client."""
+
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    print("🧹 Testing Batch Cleanup via MCP Client...")
+
+    try:
+        client = Client(
+            server_script,
+            env={
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "MULTI_REGISTRY_CONFIG": json.dumps({
+                    "dev": {"url": "http://localhost:38081"},
+                    "prod": {"url": "http://localhost:38082"}
+                })
+            }
+        )
+
+        async with client:
+            print("✅ Connected to MCP server!")
+
+            # Generate unique test prefix
+            test_prefix = f"batch-cleanup-test-{uuid.uuid4().hex[:8]}"
+            
+            # Test 1: Create some test schemas
+            print(f"\n📝 Creating test schemas with prefix: {test_prefix}")
+            test_schemas = []
+            
+            for i in range(3):
+                subject = f"{test_prefix}-schema-{i}"
+                schema = {
+                    "type": "record",
+                    "name": f"TestRecord{i}",
+                    "fields": [
+                        {"name": "id", "type": "int"},
+                        {"name": "data", "type": "string"}
+                    ]
+                }
+                
+                try:
+                    result = await client.call_tool("register_schema", {
+                        "subject": subject,
+                        "schema_definition": schema,
+                        "schema_type": "AVRO",
+                        "registry": "dev"
+                    })
+                    if result:
+                        print(f"   Created: {subject}")
+                        test_schemas.append(subject)
+                    else:
+                        print(f"   Failed to create: {subject}")
+                except Exception as e:
+                    print(f"   Error creating {subject}: {e}")
+
+            # Test 2: List subjects to verify creation
+            print(f"\n📋 Listing subjects with prefix: {test_prefix}")
+            try:
+                result = await client.call_tool("list_subjects", {"registry": "dev"})
+                if result:
+                    subjects = json.loads(result) if isinstance(result, str) else result
+                    matching_subjects = [s for s in subjects if test_prefix in s]
+                    print(f"   Found {len(matching_subjects)} matching subjects")
+                else:
+                    print("   No subjects found")
+            except Exception as e:
+                print(f"   Error listing subjects: {e}")
+
+            # Test 3: Test batch cleanup
+            print(f"\n🧹 Testing batch cleanup for prefix: {test_prefix}")
+            try:
+                result = await client.call_tool("batch_cleanup_subjects", {
+                    "pattern": f"{test_prefix}*",
+                    "registry": "dev",
+                    "dry_run": False
+                })
+                if result:
+                    cleanup_result = json.loads(result) if isinstance(result, str) else result
+                    print(f"   Cleanup result: {cleanup_result}")
+                else:
+                    print("   No cleanup result returned")
+            except Exception as e:
+                print(f"   Error during batch cleanup: {e}")
+
+            # Test 4: Verify cleanup
+            print(f"\n✅ Verifying cleanup completed...")
+            try:
+                result = await client.call_tool("list_subjects", {"registry": "dev"})
+                if result:
+                    subjects = json.loads(result) if isinstance(result, str) else result
+                    remaining_subjects = [s for s in subjects if test_prefix in s]
+                    print(f"   Remaining matching subjects: {len(remaining_subjects)}")
+                    if len(remaining_subjects) == 0:
+                        print("   ✅ Cleanup successful!")
+                    else:
+                        print(f"   ⚠️ Some subjects remain: {remaining_subjects}")
+                else:
+                    print("   No subjects found after cleanup")
+            except Exception as e:
+                print(f"   Error verifying cleanup: {e}")
+
+            print("\n🎉 Batch cleanup MCP test completed!")
+
+    except Exception as e:
+        print(f"❌ Error during batch cleanup test: {e}")
+        raise
+
+
 async def main():
     """Main test runner"""
     print("🚀 Batch Context Cleanup Tools Test Suite")
@@ -407,6 +517,7 @@ async def main():
         ("Single-Registry Batch Cleanup", test_single_registry_batch_cleanup, True),
         ("Multi-Registry Batch Cleanup", test_multi_registry_batch_cleanup, True),
         ("Performance Characteristics", test_performance_characteristics, False),
+        ("Batch Cleanup via MCP Client", test_batch_cleanup_mcp, True),
     ]
 
     passed = 0
@@ -464,7 +575,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    success = asyncio.run(main())
-    sys.exit(0 if success else 1)
+    asyncio.run(main())

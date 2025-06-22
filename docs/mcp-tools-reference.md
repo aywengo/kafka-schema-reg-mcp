@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v1.7.0 **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance** **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
 
 ## 🔍 Registry Metadata Integration
 

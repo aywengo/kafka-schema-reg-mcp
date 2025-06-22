@@ -8,6 +8,7 @@ not just the latest version, when provided with a versions parameter.
 """
 
 import asyncio
+import copy
 import json
 import os
 import sys
@@ -16,6 +17,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import pytest
 import requests
 
 # Add the project root directory to Python path
@@ -24,6 +26,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 import kafka_schema_registry_unified_mcp as mcp_server
+from migration_tools import migrate_schema_tool, get_migration_status_tool
+from core_registry_tools import register_schema_tool, get_schema_versions_tool, delete_subject_tool
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"
@@ -43,29 +47,42 @@ class AllVersionsMigrationTest:
         self.target_context = "."
         self.test_subjects = []
 
-        # Set up environment variables for registry manager
+    def setup_test_environment(self):
+        """Setup environment and reload registry manager"""
+        # Set up environment variables for multi-registry setup
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
         os.environ["SCHEMA_REGISTRY_URL_1"] = self.dev_url
+        os.environ["READONLY_1"] = "false"
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
-        os.environ["READONLY_2"] = "false"  # Allow writes to prod for testing
+        os.environ["READONLY_2"] = "false"
 
-        # Reinitialize registry manager with test config
+        # Clear any other registry configurations
+        for i in range(3, 9):
+            for var in [
+                f"SCHEMA_REGISTRY_NAME_{i}",
+                f"SCHEMA_REGISTRY_URL_{i}",
+                f"READONLY_{i}",
+            ]:
+                if var in os.environ:
+                    del os.environ[var]
+
+        # Clear any global READONLY setting
+        os.environ.pop("READONLY", None)
+
+        # Force reload the registry manager with new configuration
         mcp_server.registry_manager._load_multi_registries()
 
-        # Initialize registry manager
-        self.registry_manager = mcp_server.registry_manager
-
-    async def setup_test_contexts(self):
+    def setup_test_contexts(self):
         """No need to create contexts when using default context."""
         print(f"\n=== Using Default Contexts ===")
         print(f"✓ Source context: {self.source_context} (default)")
         print(f"✓ Target context: {self.target_context} (default)")
         return True
 
-    async def create_schema_evolution(self, subject: str, num_versions: int = 3):
-        """Create multiple versions of a schema for testing."""
-        import copy
+    def create_schema_evolution(self, subject: str, num_versions: int = 3):
+        """Create multiple versions of a schema for testing using direct function calls."""
+        print(f"--- Creating schema evolution for {subject} ---")
 
         # Create initial schema
         base_schema = {
@@ -85,14 +102,18 @@ class AllVersionsMigrationTest:
                 schema["fields"].append(
                     {"name": f"field_{j}", "type": "string", "default": ""}
                 )
-            # Register schema using the top-level function
-            result = mcp_server.register_schema(
+            
+            # Register schema using direct tool function call
+            result = register_schema_tool(
                 subject=subject,
                 schema_definition=schema,
                 schema_type="AVRO",
                 context=self.source_context,
                 registry="dev",
+                registry_manager=mcp_server.registry_manager,
+                registry_mode=mcp_server.REGISTRY_MODE
             )
+            
             if "error" in result:
                 raise Exception(
                     f"Failed to register schema version {i+1}: {result['error']}"
@@ -100,13 +121,16 @@ class AllVersionsMigrationTest:
             print(f"✓ Registered schema version {i+1}")
         return True
 
-    async def verify_schema_versions(
-        self, subject: str, registry: str, context: str, expected_versions: int
-    ):
+    def verify_schema_versions(self, subject: str, registry: str, context: str, expected_versions: int):
         """Verify that a schema has the expected number of versions."""
-        versions = mcp_server.get_schema_versions(
-            subject, context=context, registry=registry
+        versions = get_schema_versions_tool(
+            subject=subject,
+            context=context,
+            registry=registry,
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE
         )
+        
         if isinstance(versions, dict) and "error" in versions:
             raise Exception(f"Error getting versions: {versions['error']}")
         if len(versions) != expected_versions:
@@ -116,7 +140,7 @@ class AllVersionsMigrationTest:
         print(f"✓ Verified {len(versions)} versions in {registry} registry")
         return True
 
-    async def test_all_versions_migration(self):
+    def test_all_versions_migration(self):
         """Test migration of all versions."""
         print("\n=== Testing All Versions Migration ===")
 
@@ -125,133 +149,153 @@ class AllVersionsMigrationTest:
         self.test_subjects.append(subject)
 
         # Create schema versions in source context
-        await self.create_schema_evolution(subject)
+        self.create_schema_evolution(subject)
 
         # Verify source has multiple versions
-        await self.verify_schema_versions(subject, "dev", self.source_context, 3)
+        self.verify_schema_versions(subject, "dev", self.source_context, 3)
 
-        # migrate_context now generates Docker config, so we use migrate_schema directly
-        # First get all versions
-        versions = mcp_server.get_schema_versions(
-            subject, context=self.source_context, registry="dev"
+        # Get all versions
+        versions = get_schema_versions_tool(
+            subject=subject,
+            context=self.source_context,
+            registry="dev",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE
         )
+        
         if isinstance(versions, dict) and "error" in versions:
             raise Exception(f"Failed to get versions: {versions['error']}")
 
         print(f"✓ Found {len(versions)} versions to migrate: {versions}")
 
-        # Migrate the schema with all versions
-        result = mcp_server.migrate_schema(
+        # Migrate the schema with all versions using direct function call
+        migration_result = migrate_schema_tool(
             subject=subject,
             source_registry="dev",
             target_registry="prod",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
             source_context=self.source_context,
             target_context=self.target_context,
             preserve_ids=True,
             dry_run=False,
-            versions=versions,  # Pass all versions to migrate
+            versions=versions  # Pass all versions to migrate
         )
 
-        if "error" in result:
-            raise Exception(f"Migration failed: {result['error']}")
+        if "error" in migration_result:
+            raise Exception(f"Migration failed: {migration_result['error']}")
 
-        # Wait for async task to complete
-        if "task_id" in result:
-            print(f"✓ Migration started with task ID: {result['task_id']}")
+        # Check for task tracking
+        if "migration_id" in migration_result:
+            print(f"✓ Migration started with task ID: {migration_result['migration_id']}")
 
-            # Poll for task completion
-            max_wait = 30  # seconds
-            poll_interval = 1  # second
-            elapsed = 0
+            # Check task status
+            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
+            if status and "error" not in status:
+                print(f"✓ Migration task status: {status.get('status', 'unknown')}")
 
-            while elapsed < max_wait:
-                task_status = await mcp_server.get_task_progress(result["task_id"])
-
-                if "error" in task_status:
-                    raise Exception(
-                        f"Failed to get task status: {task_status['error']}"
-                    )
-
-                status = task_status.get("status", "")
-                progress = task_status.get("progress_percent", 0)
-
-                print(f"  Migration progress: {progress}% - {status}")
-
-                if status in ["completed", "failed", "cancelled"]:
-                    if status != "completed":
-                        raise Exception(
-                            f"Migration task {status}: {task_status.get('error', 'Unknown error')}"
-                        )
-                    break
-
-                await asyncio.sleep(poll_interval)
-                elapsed += poll_interval
-
-            if elapsed >= max_wait:
-                raise Exception("Migration task timed out")
-
-            print("✓ Migration task completed")
+        print("✓ Migration completed")
 
         # Verify target has all versions
-        await self.verify_schema_versions(subject, "prod", self.target_context, 3)
+        self.verify_schema_versions(subject, "prod", self.target_context, 3)
 
         print("✓ All versions migration successful")
         return True
 
-    async def cleanup_test_contexts(self):
+    def cleanup_test_subjects(self):
         """Clean up test subjects from both registries."""
         print("\n=== Cleaning Up Test Subjects ===")
+        
+        for subject in self.test_subjects:
+            # Clean up from dev registry
+            try:
+                result = asyncio.run(delete_subject_tool(
+                    subject=subject,
+                    registry="dev",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE
+                ))
+                print(f"✓ Cleaned up {subject} from dev")
+            except Exception as e:
+                print(f"Warning: Failed to delete {subject} from dev: {e}")
 
-        # Clean up subjects from both registries
-        for registry in ["dev", "prod"]:
-            for subject in self.test_subjects:
-                try:
-                    result = await mcp_server.delete_subject(
-                        subject, context=self.source_context, registry=registry
-                    )
-                    if isinstance(result, dict) and "error" in result:
-                        # It's ok if subject doesn't exist in target
-                        if "not found" not in str(result["error"]).lower():
-                            print(
-                                f"Warning: Failed to delete {subject} from {registry}: {result['error']}"
-                            )
-                    else:
-                        print(f"✓ Deleted {subject} from {registry}")
-                except Exception as e:
-                    # It's ok if subject doesn't exist
-                    if "not found" not in str(e).lower():
-                        print(
-                            f"Warning: Failed to delete {subject} from {registry}: {str(e)}"
-                        )
+            # Clean up from prod registry
+            try:
+                result = asyncio.run(delete_subject_tool(
+                    subject=subject,
+                    registry="prod",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE
+                ))
+                print(f"✓ Cleaned up {subject} from prod")
+            except Exception as e:
+                print(f"Warning: Failed to delete {subject} from prod: {e}")
 
-        return True
+    def run_all_tests(self):
+        """Run all migration tests."""
+        print("🧪 Starting All Versions Migration Tests")
+        print("=" * 50)
 
-    async def run_all_tests(self):
-        """Run all tests."""
         try:
-            # Set up test contexts
-            await self.setup_test_contexts()
-
-            # Run tests
-            await self.test_all_versions_migration()
-
-            print("\n=== All Tests Completed Successfully ===")
+            self.setup_test_environment()
+            self.setup_test_contexts()
+            self.test_all_versions_migration()
+            print("\n✅ All tests passed!")
             return True
-
         except Exception as e:
-            print(f"\n❌ Test Failed: {str(e)}")
+            print(f"\n❌ Test failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-
         finally:
-            # Clean up
-            await self.cleanup_test_contexts()
+            self.cleanup_test_subjects()
 
 
-async def main():
-    test = AllVersionsMigrationTest()
-    success = await test.run_all_tests()
-    sys.exit(0 if success else 1)
+def test_registry_connectivity():
+    """Test that both registries are accessible before running tests"""
+    print("🔍 Testing registry connectivity...")
+    
+    dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
+    prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+    
+    if dev_response.status_code != 200:
+        raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
+    
+    if prod_response.status_code != 200:
+        raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+    
+    print("✅ Both registries accessible")
+
+
+def main():
+    """Main test execution function."""
+    print("🔄 All Versions Migration Test")
+    print("=" * 50)
+
+    try:
+        # Check connectivity first
+        test_registry_connectivity()
+        
+        # Run the test
+        test = AllVersionsMigrationTest()
+        success = test.run_all_tests()
+        
+        if success:
+            print("\n🎉 All Versions Migration Test completed successfully!")
+            return 0
+        else:
+            print("\n❌ All Versions Migration Test failed!")
+            return 1
+            
+    except Exception as e:
+        print(f"❌ Test setup failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    exit_code = main()
+    sys.exit(exit_code)

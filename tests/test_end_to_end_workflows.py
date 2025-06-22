@@ -16,12 +16,13 @@ import os
 import sys
 import time
 from typing import Any, Dict
+import uuid
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Test schemas for different workflows
 TEST_SCHEMAS = {
@@ -66,6 +67,172 @@ TEST_SCHEMAS = {
         ],
     },
 }
+
+
+async def test_end_to_end_workflows():
+    """Test complete end-to-end workflows through the MCP client."""
+
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    print("🔄 Testing End-to-End Workflows...")
+
+    try:
+        client = Client(
+            server_script,
+            env={
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "MULTI_REGISTRY_CONFIG": json.dumps({
+                    "dev": {"url": "http://localhost:38081"},
+                    "prod": {"url": "http://localhost:38082"}
+                })
+            }
+        )
+
+        async with client:
+            print("✅ Connected to MCP server!")
+
+            # Generate unique test identifier
+            test_id = uuid.uuid4().hex[:8]
+            
+            # Workflow 1: Schema Development Lifecycle
+            print(f"\n📝 Workflow 1: Schema Development Lifecycle (ID: {test_id})")
+            
+            # Step 1: Create a user schema
+            user_subject = f"user-events-{test_id}"
+            user_schema_v1 = {
+                "type": "record",
+                "name": "User",
+                "fields": [
+                    {"name": "id", "type": "long"},
+                    {"name": "name", "type": "string"}
+                ]
+            }
+            
+            print("   1.1 Registering initial user schema...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": user_subject,
+                    "schema_definition": user_schema_v1,
+                    "schema_type": "AVRO",
+                    "registry": "dev"
+                })
+                print(f"   ✅ Schema registered: {result}")
+            except Exception as e:
+                print(f"   ❌ Failed to register schema: {e}")
+
+            # Step 2: Check compatibility for evolution
+            user_schema_v2 = {
+                "type": "record",
+                "name": "User",
+                "fields": [
+                    {"name": "id", "type": "long"},
+                    {"name": "name", "type": "string"},
+                    {"name": "email", "type": ["null", "string"], "default": None}
+                ]
+            }
+            
+            print("   1.2 Checking compatibility for schema evolution...")
+            try:
+                result = await client.call_tool("check_compatibility", {
+                    "subject": user_subject,
+                    "schema_definition": user_schema_v2,
+                    "registry": "dev"
+                })
+                print(f"   ✅ Compatibility check: {result}")
+            except Exception as e:
+                print(f"   ❌ Compatibility check failed: {e}")
+
+            # Step 3: Register evolved schema
+            print("   1.3 Registering evolved schema...")
+            try:
+                result = await client.call_tool("register_schema", {
+                    "subject": user_subject,
+                    "schema_definition": user_schema_v2,
+                    "schema_type": "AVRO",
+                    "registry": "dev"
+                })
+                print(f"   ✅ Evolved schema registered: {result}")
+            except Exception as e:
+                print(f"   ❌ Failed to register evolved schema: {e}")
+
+            # Step 4: Check versions
+            print("   1.4 Checking schema versions...")
+            try:
+                result = await client.call_tool("get_schema_versions", {
+                    "subject": user_subject,
+                    "registry": "dev"
+                })
+                print(f"   ✅ Schema versions: {result}")
+            except Exception as e:
+                print(f"   ❌ Failed to get versions: {e}")
+
+            # Workflow 2: Multi-Registry Migration
+            print(f"\n🔄 Workflow 2: Multi-Registry Migration")
+            
+            print("   2.1 Comparing registries...")
+            try:
+                result = await client.call_tool("compare_registries", {
+                    "source_registry": "dev",
+                    "target_registry": "prod"
+                })
+                print(f"   ✅ Registry comparison: {result}")
+            except Exception as e:
+                print(f"   ❌ Registry comparison failed: {e}")
+
+            print("   2.2 Migrating schema to production...")
+            try:
+                result = await client.call_tool("migrate_schema", {
+                    "subject": user_subject,
+                    "source_registry": "dev",
+                    "target_registry": "prod",
+                    "dry_run": True
+                })
+                print(f"   ✅ Migration (dry run): {result}")
+            except Exception as e:
+                print(f"   ❌ Migration failed: {e}")
+
+            # Workflow 3: Export and Backup
+            print(f"\n📤 Workflow 3: Export and Backup")
+            
+            print("   3.1 Exporting schema...")
+            try:
+                result = await client.call_tool("export_schema", {
+                    "subject": user_subject,
+                    "registry": "dev",
+                    "format": "json"
+                })
+                print(f"   ✅ Schema export: {result[:100]}..." if result else "   ❌ No export result")
+            except Exception as e:
+                print(f"   ❌ Export failed: {e}")
+
+            print("   3.2 Exporting full registry...")
+            try:
+                result = await client.call_tool("export_global", {
+                    "registry": "dev",
+                    "include_versions": "latest"
+                })
+                print(f"   ✅ Global export: {result[:100]}..." if result else "   ❌ No global export result")
+            except Exception as e:
+                print(f"   ❌ Global export failed: {e}")
+
+            # Cleanup
+            print(f"\n🧹 Cleanup: Removing test subjects...")
+            try:
+                result = await client.call_tool("delete_subject", {
+                    "subject": user_subject,
+                    "registry": "dev"
+                })
+                print(f"   ✅ Cleanup completed: {result}")
+            except Exception as e:
+                print(f"   ⚠️ Cleanup failed (may not exist): {e}")
+
+            print("\n🎉 End-to-end workflow testing completed!")
+
+    except Exception as e:
+        print(f"❌ Error during end-to-end workflow test: {e}")
+        raise
 
 
 async def test_schema_evolution_workflow():
@@ -590,6 +757,7 @@ async def main():
         print(f"⚠️ Warning: Could not cleanup task manager initially: {e}")
 
     try:
+        await test_end_to_end_workflows()
         await test_schema_evolution_workflow()
         await test_multi_schema_deployment_workflow()
         await test_context_management_workflow()

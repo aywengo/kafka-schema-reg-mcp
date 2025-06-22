@@ -1,5 +1,5 @@
-# MCP (Message Control Protocol) dependencies
-mcp[cli]==1.9.4
+# MCP (Message Control Protocol) dependencies - Updated for 2025-06-18 specification
+fastmcp>=2.8.0
 
 # Kafka Schema Registry integration
 requests==2.32.4

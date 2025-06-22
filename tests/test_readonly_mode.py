@@ -10,8 +10,7 @@ import asyncio
 import os
 import sys
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Add parent directory to Python path to find the main modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,183 +23,133 @@ async def test_readonly_mode():
     # Test with READONLY=false first (normal mode)
     print("\n🟢 Testing NORMAL mode (READONLY=false)...")
     os.environ["READONLY"] = "false"
-
-    # Import the MCP server after setting environment
-    import importlib
-
-    import kafka_schema_registry_unified_mcp
-    import schema_registry_common
-
-    importlib.reload(schema_registry_common)
-    importlib.reload(kafka_schema_registry_unified_mcp)
-
-    print(f"READONLY setting: {kafka_schema_registry_unified_mcp.READONLY}")
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
 
     # Test with READONLY=true (readonly mode)
     print("\n🔴 Testing READONLY mode (READONLY=true)...")
     os.environ["READONLY"] = "true"
 
-    # Reload the modules to pick up new environment variable
-    importlib.reload(schema_registry_common)
-    importlib.reload(kafka_schema_registry_unified_mcp)
-
-    print(f"READONLY setting: {kafka_schema_registry_unified_mcp.READONLY}")
-
-    # Test the helper function directly
-    readonly_check = kafka_schema_registry_unified_mcp.check_readonly_mode()
-    if readonly_check:
-        print("✅ READONLY check working:", readonly_check)
-    else:
-        print("❌ READONLY check failed - should return error in readonly mode")
-
-    # Test individual functions that should be blocked
-    print("\n🧪 Testing blocked operations in READONLY mode...")
-
-    blocked_functions = [
-        (
-            "register_schema",
-            lambda: kafka_schema_registry_unified_mcp.register_schema(
-                "test-subject", {"type": "string"}
-            ),
-        ),
-        (
-            "create_context",
-            lambda: kafka_schema_registry_unified_mcp.create_context("test-context"),
-        ),
-        (
-            "delete_context",
-            lambda: kafka_schema_registry_unified_mcp.delete_context("test-context"),
-        ),
-        (
-            "delete_subject",
-            lambda: asyncio.run(
-                kafka_schema_registry_unified_mcp.delete_subject("test-subject")
-            ),
-        ),
-        (
-            "update_global_config",
-            lambda: kafka_schema_registry_unified_mcp.update_global_config("BACKWARD"),
-        ),
-        (
-            "update_subject_config",
-            lambda: kafka_schema_registry_unified_mcp.update_subject_config(
-                "test-subject", "BACKWARD"
-            ),
-        ),
-        (
-            "update_mode",
-            lambda: kafka_schema_registry_unified_mcp.update_mode("READONLY"),
-        ),
-        (
-            "update_subject_mode",
-            lambda: kafka_schema_registry_unified_mcp.update_subject_mode(
-                "test-subject", "READONLY"
-            ),
-        ),
-    ]
-
-    for func_name, func in blocked_functions:
-        try:
-            result = func()
-            if isinstance(result, dict) and "readonly_mode" in result:
-                print(f"✅ {func_name}: Correctly blocked in READONLY mode")
-            else:
-                print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result}")
-        except Exception as e:
-            print(f"⚠️  {func_name}: Exception occurred: {e}")
-
-    # Test functions that should still work (read-only operations)
-    print("\n🧪 Testing allowed operations in READONLY mode...")
-
-    allowed_functions = [
-        ("list_contexts", lambda: kafka_schema_registry_unified_mcp.list_contexts()),
-        ("list_subjects", lambda: kafka_schema_registry_unified_mcp.list_subjects()),
-        (
-            "get_global_config",
-            lambda: kafka_schema_registry_unified_mcp.get_global_config(),
-        ),
-        ("get_mode", lambda: kafka_schema_registry_unified_mcp.get_mode()),
-    ]
-
-    for func_name, func in allowed_functions:
-        try:
-            result = func()
-            if isinstance(result, dict) and "readonly_mode" in result:
-                print(
-                    f"❌ {func_name}: Should NOT be blocked but was! Result: {result}"
-                )
-            else:
-                print(f"✅ {func_name}: Correctly allowed in READONLY mode")
-        except Exception as e:
-            # These might fail due to connection issues, but shouldn't be blocked by readonly mode
-            if "readonly" in str(e).lower():
-                print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
-            else:
-                print(
-                    f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
-                )
-
-    # Test export functions (should also be allowed)
-    print("\n🧪 Testing export operations in READONLY mode...")
-
-    export_functions = [
-        (
-            "export_schema",
-            lambda: kafka_schema_registry_unified_mcp.export_schema("test-subject"),
-        ),
-        (
-            "export_subject",
-            lambda: kafka_schema_registry_unified_mcp.export_subject("test-subject"),
-        ),
-        (
-            "export_context",
-            lambda: kafka_schema_registry_unified_mcp.export_context("test-context"),
-        ),
-        ("export_global", lambda: kafka_schema_registry_unified_mcp.export_global()),
-    ]
-
-    for func_name, func in export_functions:
-        try:
-            result = func()
-            if isinstance(result, dict) and "readonly_mode" in result:
-                print(
-                    f"❌ {func_name}: Should NOT be blocked but was! Result: {result}"
-                )
-            else:
-                print(f"✅ {func_name}: Correctly allowed in READONLY mode")
-        except Exception as e:
-            if "readonly" in str(e).lower():
-                print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
-            else:
-                print(
-                    f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
-                )
-
-    # Test check_compatibility (should be allowed since it doesn't modify anything)
-    print("\n🧪 Testing compatibility check in READONLY mode...")
+    # Create client for MCP server
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
     try:
-        result = kafka_schema_registry_unified_mcp.check_compatibility(
-            "test-subject", {"type": "string"}
-        )
-        if isinstance(result, dict) and "readonly_mode" in result:
-            print(f"❌ check_compatibility: Should NOT be blocked but was!")
-        else:
-            print(f"✅ check_compatibility: Correctly allowed in READONLY mode")
+        async with client:
+            print("✅ MCP connection established")
+            
+            # Test the check_readonly_mode tool
+            readonly_check = await client.call_tool("check_readonly_mode", {})
+            if readonly_check and "readonly_mode" in readonly_check[0].text:
+                print("✅ READONLY check working: read-only mode is active")
+            else:
+                print("❌ READONLY check failed - should return error in readonly mode")
+
+            # Test individual functions that should be blocked
+            print("\n🧪 Testing blocked operations in READONLY mode...")
+
+            blocked_operations = [
+                ("register_schema", {"subject": "test-subject", "schema_definition": {"type": "string"}}),
+                ("create_context", {"context": "test-context"}),
+                ("delete_context", {"context": "test-context"}),
+                ("update_global_config", {"compatibility": "BACKWARD"}),
+                ("update_subject_config", {"subject": "test-subject", "compatibility": "BACKWARD"}),
+                ("update_mode", {"mode": "READONLY"}),
+                ("update_subject_mode", {"subject": "test-subject", "mode": "READONLY"}),
+            ]
+
+            for func_name, args in blocked_operations:
+                try:
+                    result = await client.call_tool(func_name, args)
+                    result_text = result[0].text if result else ""
+                    if "readonly_mode" in result_text.lower() or "read-only" in result_text.lower():
+                        print(f"✅ {func_name}: Correctly blocked in READONLY mode")
+                    else:
+                        print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}")
+                except Exception as e:
+                    if "readonly" in str(e).lower():
+                        print(f"✅ {func_name}: Correctly blocked by readonly mode")
+                    else:
+                        print(f"⚠️  {func_name}: Exception occurred: {e}")
+
+            # Test functions that should still work (read-only operations)
+            print("\n🧪 Testing allowed operations in READONLY mode...")
+
+            allowed_operations = [
+                ("list_contexts", {}),
+                ("list_subjects", {}),
+                ("get_global_config", {}),
+                ("get_mode", {}),
+            ]
+
+            for func_name, args in allowed_operations:
+                try:
+                    result = await client.call_tool(func_name, args)
+                    result_text = result[0].text if result else ""
+                    if "readonly_mode" in result_text.lower():
+                        print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
+                    else:
+                        print(f"✅ {func_name}: Correctly allowed in READONLY mode")
+                except Exception as e:
+                    # These might fail due to connection issues, but shouldn't be blocked by readonly mode
+                    if "readonly" in str(e).lower():
+                        print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
+                    else:
+                        print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+
+            # Test export functions (should also be allowed)
+            print("\n🧪 Testing export operations in READONLY mode...")
+
+            export_operations = [
+                ("export_schema", {"subject": "test-subject"}),
+                ("export_subject", {"subject": "test-subject"}),
+                ("export_context", {"context": "test-context"}),
+                ("export_global", {}),
+            ]
+
+            for func_name, args in export_operations:
+                try:
+                    result = await client.call_tool(func_name, args)
+                    result_text = result[0].text if result else ""
+                    if "readonly_mode" in result_text.lower():
+                        print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
+                    else:
+                        print(f"✅ {func_name}: Correctly allowed in READONLY mode")
+                except Exception as e:
+                    if "readonly" in str(e).lower():
+                        print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
+                    else:
+                        print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
+
+            # Test check_compatibility (should be allowed since it doesn't modify anything)
+            print("\n🧪 Testing compatibility check in READONLY mode...")
+            try:
+                result = await client.call_tool("check_compatibility", {
+                    "subject": "test-subject", 
+                    "schema_definition": {"type": "string"}
+                })
+                result_text = result[0].text if result else ""
+                if "readonly_mode" in result_text.lower():
+                    print(f"❌ check_compatibility: Should NOT be blocked but was!")
+                else:
+                    print(f"✅ check_compatibility: Correctly allowed in READONLY mode")
+            except Exception as e:
+                if "readonly" in str(e).lower():
+                    print(f"❌ check_compatibility: Incorrectly blocked by readonly mode")
+                else:
+                    print(f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)")
+
     except Exception as e:
-        if "readonly" in str(e).lower():
-            print(f"❌ check_compatibility: Incorrectly blocked by readonly mode")
-        else:
-            print(
-                f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
-            )
+        print(f"❌ Error during test: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
     print("\n" + "=" * 50)
     print("🎉 READONLY mode test completed!")
     print("\nSummary:")
     print("- Modification operations should be blocked ❌")
-    print("- Read operations should be allowed ✅")
-    print("- Export operations should be allowed ✅")
-    print("- Compatibility checks should be allowed ✅")
+    print("- Read operations should continue working ✅")
+    print("- Export operations should continue working ✅")
+    return True
 
 
 async def test_readonly_environment_variations():

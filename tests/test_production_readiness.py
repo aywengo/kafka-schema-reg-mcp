@@ -25,8 +25,7 @@ from typing import Any, Dict, List
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
 
 # Production-grade test schemas
 PRODUCTION_SCHEMAS = {
