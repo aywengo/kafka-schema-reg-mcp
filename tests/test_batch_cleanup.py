@@ -15,6 +15,8 @@ import uuid
 
 import requests
 from fastmcp import Client
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
+from fastmcp.client.session import ClientSession
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

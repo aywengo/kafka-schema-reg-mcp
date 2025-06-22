@@ -24,6 +24,8 @@ from typing import Any, Dict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastmcp import Client
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
+from fastmcp.client.session import ClientSession
 
 # Invalid schemas for testing error handling
 INVALID_SCHEMAS = {

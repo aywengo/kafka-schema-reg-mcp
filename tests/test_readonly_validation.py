@@ -13,6 +13,8 @@ import subprocess
 import sys
 
 from fastmcp import Client
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
+from fastmcp.client.session import ClientSession
 
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first

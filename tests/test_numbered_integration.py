@@ -22,6 +22,8 @@ import time
 
 import requests
 from fastmcp import Client
+from fastmcp.client.stdio import StdioServerParameters, stdio_client
+from fastmcp.client.session import ClientSession
 
 # Configuration for simulated registries using contexts
 SCHEMA_REGISTRY_BASE_URL = "http://localhost:38081"
