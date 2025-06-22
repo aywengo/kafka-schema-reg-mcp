@@ -149,6 +149,19 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Check MCP compliance test files
+    if [[ -f "$SCRIPT_DIR/test_mcp_compliance.py" ]]; then
+        print_color $GREEN "✅ MCP compliance test file found (tests directory)"
+    else
+        print_color $YELLOW "⚠️  MCP compliance test file not found in tests directory"
+    fi
+    
+    if [[ -f "$PROJECT_ROOT/test_mcp_header_validation.py" ]]; then
+        print_color $GREEN "✅ MCP header validation test file found (project root)"
+    else
+        print_color $YELLOW "⚠️  MCP header validation test file not found in project root"
+    fi
+    
     print_color $GREEN "✅ All prerequisites satisfied"
 }
 
@@ -237,6 +250,7 @@ run_tests() {
             "essential_integration"
             "multi_registry_core"
             "mcp_container_tests"
+            "mcp_compliance_tests"
         )
     else
         test_categories=(
@@ -244,6 +258,7 @@ run_tests() {
             "integration_tests"
             "multi_registry_tests"
             "mcp_container_tests"
+            "mcp_compliance_tests"
             "advanced_features"
         )
     fi
@@ -284,6 +299,9 @@ run_test_category() {
             ;;
         "multi_registry_tests")
             run_multi_registry_tests
+            ;;
+        "mcp_compliance_tests")
+            run_mcp_compliance_tests
             ;;
         "advanced_features")
             run_advanced_feature_tests
@@ -383,6 +401,18 @@ run_multi_registry_tests() {
         "test_numbered_integration.py:Numbered environment configuration"
         "test_default_context_dot_simple.py:Default context handling"
         "test_batch_cleanup.py:Batch cleanup operations"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
+# Run MCP compliance tests (NEW CATEGORY)
+run_mcp_compliance_tests() {
+    print_color $CYAN "🛡️  MCP 2025-06-18 Compliance Tests"
+    
+    # Use the test file in the tests directory
+    local tests=(
+        "test_mcp_compliance.py:MCP-Protocol-Version header validation and compliance verification"
     )
     
     run_test_list "${tests[@]}"
@@ -529,10 +559,12 @@ Test Categories Executed:
 $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Essential Integration Tests  
 - Multi-Registry Core Tests
-- MCP Container Integration Tests" || echo "- Basic Unified Server Tests (imports, connectivity)
+- MCP Container Integration Tests
+- MCP 2025-06-18 Compliance Tests ⭐" || echo "- Basic Unified Server Tests (imports, connectivity)
 - Integration Tests (schema operations, readonly mode)
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
+- MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐
 - Advanced Feature Tests (comparison, migration, workflows)")
 
 Log Files:
@@ -547,6 +579,9 @@ else
 echo ""
 echo "🎉 All tests passed successfully!"
 fi)
+
+⭐ NEW: MCP 2025-06-18 Compliance Tests validate header validation middleware,
+   exempt path functionality, and protocol version compliance.
 
 EOF
     
