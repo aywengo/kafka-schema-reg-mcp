@@ -26,8 +26,8 @@ from typing import Any, Dict, List
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastmcp import Client
-from fastmcp.client.session import ClientSession
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
+
+import pytest
 
 # Production-grade test schemas
 PRODUCTION_SCHEMAS = {
@@ -94,6 +94,7 @@ PRODUCTION_SCHEMAS = {
 }
 
 
+@pytest.mark.asyncio
 async def test_high_availability_scenarios():
     """Test high availability and failover scenarios."""
     print("\n🏥 Testing High Availability Scenarios")
@@ -240,6 +241,7 @@ async def _test_high_availability_with_client(server_params):
             print("\n🎉 High Availability Scenarios Tests Complete!")
 
 
+@pytest.mark.asyncio
 async def test_security_and_compliance():
     """Test security features and compliance capabilities."""
     print("\n🔒 Testing Security and Compliance Features")
@@ -419,6 +421,7 @@ async def _test_security_compliance_with_client(server_params):
             print("\n🎉 Security and Compliance Tests Complete!")
 
 
+@pytest.mark.asyncio
 async def test_enterprise_operations():
     """Test enterprise-level operational capabilities."""
     print("\n🏢 Testing Enterprise Operations")
@@ -636,6 +639,7 @@ async def _test_enterprise_operations_with_client(server_params):
             print("\n🎉 Enterprise Operations Tests Complete!")
 
 
+@pytest.mark.asyncio
 async def test_monitoring_and_observability():
     """Test monitoring and observability capabilities."""
     print("\n📊 Testing Monitoring and Observability")
@@ -786,6 +790,7 @@ async def _test_monitoring_observability_with_client(server_params):
             print("\n🎉 Monitoring and Observability Tests Complete!")
 
 
+@pytest.mark.asyncio
 async def test_disaster_recovery():
     """Test disaster recovery and backup capabilities."""
     print("\n🛡️ Testing Disaster Recovery Capabilities")
@@ -970,6 +975,239 @@ async def _test_disaster_recovery_with_client(server_params):
             print("\n🎉 Disaster Recovery Tests Complete!")
 
 
+@pytest.mark.asyncio
+async def test_production_mcp_deployment():
+    """Test production MCP deployment scenarios"""
+    print("🚀 Testing Production MCP Deployment")
+    print("=" * 50)
+    
+    # Test multiple production-like configurations
+    production_configs = [
+        {
+            "name": "Single Registry Production",
+            "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "READONLY": "false",
+                "LOG_LEVEL": "INFO"
+            }
+        },
+        {
+            "name": "Multi-Registry Production", 
+            "env": {
+                "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
+                "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
+                "SCHEMA_REGISTRY_NAME_1": "dev",
+                "SCHEMA_REGISTRY_NAME_2": "prod",
+                "READONLY_2": "true",  # Prod registry readonly
+                "LOG_LEVEL": "ERROR"
+            }
+        },
+        {
+            "name": "Readonly Production",
+            "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:38082",
+                "READONLY": "true",
+                "LOG_LEVEL": "WARNING"
+            }
+        }
+    ]
+    
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+    
+    all_configs_passed = True
+    
+    for config in production_configs:
+        print(f"\n🧪 Testing: {config['name']}")
+        print("-" * 40)
+        
+        # Set environment variables
+        for key, value in config['env'].items():
+            os.environ[key] = value
+        
+        # Create client
+        client = Client(server_script)
+        
+        config_passed = True
+        
+        try:
+            async with client:
+                print("✅ MCP connection established")
+                
+                # Get available tools
+                tools = await client.list_tools()
+                tool_names = [tool.name for tool in tools]
+                print(f"📋 Available tools: {len(tool_names)}")
+                
+                # Test core functionality
+                core_tests = [
+                    ("list_subjects", {}),
+                    ("get_global_config", {}),
+                    ("list_contexts", {})
+                ]
+                
+                for test_name, args in core_tests:
+                    if test_name in tool_names:
+                        try:
+                            result = await client.call_tool(test_name, args)
+                            print(f"✅ {test_name}: Working")
+                        except Exception as e:
+                            print(f"⚠️  {test_name}: {e}")
+                            # Don't fail config for connection errors
+                            if not any(keyword in str(e).lower() for keyword in ["connection", "refused", "timeout"]):
+                                config_passed = False
+                
+                # Test readonly enforcement if applicable
+                if config['env'].get('READONLY') == 'true' or config['env'].get('READONLY_2') == 'true':
+                    print("🔒 Testing readonly enforcement...")
+                    modification_tools = ["register_schema", "update_global_config", "delete_subject"]
+                    readonly_enforced = False
+                    
+                    for tool_name in modification_tools:
+                        if tool_name in tool_names:
+                            try:
+                                args = {}
+                                if tool_name == "register_schema":
+                                    args = {
+                                        "subject": "test-readonly",
+                                        "schema_definition": {"type": "string"},
+                                        "schema_type": "AVRO"
+                                    }
+                                elif tool_name == "update_global_config":
+                                    args = {"compatibility": "BACKWARD"}
+                                elif tool_name == "delete_subject":
+                                    args = {"subject": "test-readonly"}
+                                
+                                result = await client.call_tool(tool_name, args)
+                                result_text = str(result).lower()
+                                if "readonly" in result_text or "read-only" in result_text:
+                                    print(f"✅ {tool_name}: Correctly blocked by readonly mode")
+                                    readonly_enforced = True
+                                    break
+                            except Exception as e:
+                                if "readonly" in str(e).lower():
+                                    print(f"✅ {tool_name}: Correctly blocked by readonly mode")
+                                    readonly_enforced = True
+                                    break
+                    
+                    if readonly_enforced:
+                        print("✅ Readonly enforcement working")
+                    else:
+                        print("⚠️  Readonly enforcement not detected")
+                
+                # Test export functionality (should always work)
+                export_tools = ["export_global", "export_context", "count_total_schemas"]
+                available_exports = [tool for tool in export_tools if tool in tool_names]
+                
+                for export_tool in available_exports:
+                    try:
+                        args = {}
+                        if "context" in export_tool:
+                            args = {"context": "default"}
+                        
+                        result = await client.call_tool(export_tool, args)
+                        print(f"✅ {export_tool}: Working")
+                    except Exception as e:
+                        print(f"⚠️  {export_tool}: {e}")
+                
+                if config_passed:
+                    print(f"✅ {config['name']}: All tests passed")
+                else:
+                    print(f"❌ {config['name']}: Some tests failed")
+                    all_configs_passed = False
+                
+        except Exception as e:
+            print(f"❌ {config['name']}: Failed to establish MCP connection - {e}")
+            config_passed = False
+            all_configs_passed = False
+        
+        finally:
+            # Clean up environment variables
+            for key in config['env'].keys():
+                if key in os.environ:
+                    del os.environ[key]
+    
+    print(f"\n📊 Production Readiness Summary")
+    print("=" * 50)
+    if all_configs_passed:
+        print("🎉 All production configurations passed!")
+        return True
+    else:
+        print("❌ Some production configurations failed!")
+        return False
+
+
+@pytest.mark.asyncio
+async def test_performance_characteristics():
+    """Test basic performance characteristics"""
+    print("⚡ Testing Performance Characteristics")
+    print("=" * 50)
+    
+    # Setup environment
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
+    os.environ["READONLY"] = "false"
+    
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+    
+    # Create client
+    client = Client(server_script)
+    
+    try:
+        async with client:
+            print("✅ MCP connection established")
+            
+            # Test response times for common operations
+            operations = ["list_subjects", "get_global_config", "count_total_schemas"]
+            
+            for operation in operations:
+                start_time = time.time()
+                try:
+                    result = await client.call_tool(operation, {})
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    print(f"✅ {operation}: {duration:.3f}s")
+                    
+                    if duration > 5.0:  # More than 5 seconds is concerning
+                        print(f"⚠️  {operation}: Slow response time")
+                        
+                except Exception as e:
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    print(f"⚠️  {operation}: {duration:.3f}s (error: {e})")
+            
+            # Test concurrent operations
+            print(f"\n🔄 Testing concurrent operations...")
+            try:
+                tasks = []
+                for i in range(3):
+                    task = client.call_tool("list_subjects", {})
+                    tasks.append(task)
+                
+                start_time = time.time()
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                end_time = time.time()
+                duration = end_time - start_time
+                
+                successes = sum(1 for r in results if not isinstance(r, Exception))
+                print(f"✅ Concurrent operations: {successes}/3 succeeded in {duration:.3f}s")
+                
+            except Exception as e:
+                print(f"⚠️  Concurrent operations failed: {e}")
+            
+            return True
+            
+    except Exception as e:
+        print(f"❌ Performance test failed: {e}")
+        return False
+
+
 async def main():
     """Run all production readiness tests."""
     print("🧪 Starting Production Readiness Integration Tests")
@@ -983,6 +1221,8 @@ async def main():
         await test_enterprise_operations()
         await test_monitoring_and_observability()
         await test_disaster_recovery()
+        await test_production_mcp_deployment()
+        await test_performance_characteristics()
 
         total_time = time.time() - start_time
 

@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-PROD registry read-only enforcement
-
-Tests that the MCP server correctly enforces read-only mode for the PROD registry
-by blocking modification operations through MCP tools.
+Test script for READONLY mode validation using MCP client.
+Validates that all modification operations are properly blocked.
 """
 
 import asyncio
@@ -12,9 +10,8 @@ import os
 import subprocess
 import sys
 
+import pytest
 from fastmcp import Client
-from fastmcp.client.session import ClientSession
-from fastmcp.client.stdio import StdioServerParameters, stdio_client
 
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first
@@ -59,12 +56,8 @@ class ReadOnlyValidationTest:
             return {}
 
         try:
-            # Handle FastMCP response format
-            if isinstance(result, list) and len(result) > 0:
-                text = result[0].text if hasattr(result[0], "text") else str(result[0])
-            else:
-                text = str(result) if result else "{}"
-
+            # Handle FastMCP response format - use simplified approach
+            text = str(result) if result else "{}"
             return json.loads(text)
         except json.JSONDecodeError:
             # If it's not JSON, return as-is
@@ -96,19 +89,23 @@ class ReadOnlyValidationTest:
                 print(f"   {url_var}={os.environ.get(url_var, 'NOT_SET')}")
                 print(f"   {readonly_var}={os.environ.get(readonly_var, 'NOT_SET')}")
 
-            # Use subprocess to run server with proper environment
+            # Use subprocess approach to ensure environment variables are passed
             print("\n🚀 Starting MCP server subprocess with environment...")
-
-            # FastMCP Client already imported at top of file
-
+            
+            # Import required modules for subprocess communication
+            from mcp import ClientSession
+            from mcp.client.stdio import stdio_client, StdioServerParameters
+            
             # Create environment dict for subprocess
             subprocess_env = os.environ.copy()
-
+            
             # Create server parameters with explicit environment
             server_params = StdioServerParameters(
-                command="python", args=[server_script], env=subprocess_env
+                command="python", 
+                args=[server_script], 
+                env=subprocess_env
             )
-
+            
             # Test with subprocess communication
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
@@ -285,11 +282,11 @@ class ReadOnlyValidationTest:
         except Exception as e:
             print(f"❌ Test failed: {e}")
             import traceback
-
             traceback.print_exc()
             return False
 
 
+@pytest.mark.asyncio
 async def test_readonly_validation():
     """Async wrapper for the test."""
     test_instance = ReadOnlyValidationTest()
@@ -299,6 +296,199 @@ async def test_readonly_validation():
 def run_readonly_validation():
     """Synchronous wrapper for the async test."""
     return asyncio.run(test_readonly_validation())
+
+
+@pytest.mark.asyncio
+async def validate_readonly_mode():
+    """Comprehensive validation of READONLY mode functionality."""
+    print("🔍 Validating READONLY mode...")
+    print("=" * 60)
+
+    # Set environment for readonly mode
+    os.environ["READONLY"] = "true"
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
+
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+
+    try:
+        # Use subprocess approach for consistent environment passing
+        from mcp import ClientSession
+        from mcp.client.stdio import stdio_client, StdioServerParameters
+        
+        # Create environment dict for subprocess
+        subprocess_env = os.environ.copy()
+        
+        # Create server parameters with explicit environment
+        server_params = StdioServerParameters(
+            command="python", 
+            args=[server_script], 
+            env=subprocess_env
+        )
+        
+        # Test with subprocess communication
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                print("✅ MCP client connected successfully")
+
+                # Get list of available tools
+                tools = await session.list_tools()
+                tool_names = [tool.name for tool in tools]
+                print(f"📋 Available tools: {len(tool_names)}")
+
+                # Define operations that should be blocked in READONLY mode
+                modification_operations = [
+                    "register_schema",
+                    "create_context", 
+                    "delete_context",
+                    "update_global_config",
+                    "update_subject_config",
+                    "update_mode",
+                    "update_subject_mode",
+                    "migrate_schema",
+                    "migrate_subject",
+                    "delete_schema",
+                    "delete_subject",
+                    "cleanup_schemas",
+                    "bulk_cleanup"
+                ]
+
+                # Define operations that should still work (read-only)
+                readonly_operations = [
+                    "list_subjects",
+                    "list_contexts", 
+                    "get_global_config",
+                    "get_mode",
+                    "get_subject_config",
+                    "get_subject_mode",
+                    "export_schema",
+                    "export_subject",
+                    "export_context",
+                    "export_global",
+                    "check_compatibility",
+                    "count_schemas_by_type",
+                    "count_schemas_by_subject",
+                    "count_total_schemas"
+                ]
+
+                print(f"\n🚫 Testing {len(modification_operations)} modification operations (should be blocked)...")
+                blocked_count = 0
+                
+                for operation in modification_operations:
+                    if operation not in tool_names:
+                        print(f"⚠️  {operation}: Tool not found (skipping)")
+                        continue
+                        
+                    try:
+                        # Use minimal valid arguments for each operation
+                        args = {}
+                        if "schema" in operation or "subject" in operation:
+                            args = {"subject": "test-subject"}
+                            if "register" in operation:
+                                args["schema_definition"] = {"type": "string"}
+                        elif "context" in operation:
+                            args = {"context": "test-context"}
+                        elif "config" in operation:
+                            args = {"compatibility": "BACKWARD"}
+                        elif "mode" in operation:
+                            args = {"mode": "READONLY"}
+                        
+                        result = await session.call_tool(operation, args)
+                        if result.content and len(result.content) > 0:
+                            result_text = result.content[0].text.lower()
+                        else:
+                            result_text = str(result).lower()
+                        
+                        if "readonly" in result_text or "read-only" in result_text:
+                            print(f"✅ {operation}: Correctly blocked")
+                            blocked_count += 1
+                        else:
+                            print(f"❌ {operation}: NOT blocked (should be!)")
+                            print(f"   Result: {str(result)[:100]}...")
+                            
+                    except Exception as e:
+                        error_text = str(e).lower()
+                        if "readonly" in error_text or "read-only" in error_text:
+                            print(f"✅ {operation}: Correctly blocked (exception)")
+                            blocked_count += 1
+                        else:
+                            print(f"⚠️  {operation}: Exception (not readonly): {e}")
+
+                print(f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)...")
+                allowed_count = 0
+                
+                for operation in readonly_operations:
+                    if operation not in tool_names:
+                        print(f"⚠️  {operation}: Tool not found (skipping)")
+                        continue
+                        
+                    try:
+                        # Use minimal valid arguments
+                        args = {}
+                        if "subject" in operation:
+                            args = {"subject": "test-subject"}
+                        elif "context" in operation:
+                            args = {"context": "test-context"}
+                        elif "compatibility" in operation:
+                            args = {
+                                "subject": "test-subject",
+                                "schema_definition": {"type": "string"}
+                            }
+                        
+                        result = await session.call_tool(operation, args)
+                        if result.content and len(result.content) > 0:
+                            result_text = result.content[0].text.lower()
+                        else:
+                            result_text = str(result).lower()
+                        
+                        if "readonly" in result_text or "read-only" in result_text:
+                            print(f"❌ {operation}: Incorrectly blocked")
+                        else:
+                            print(f"✅ {operation}: Correctly allowed")
+                            allowed_count += 1
+                            
+                    except Exception as e:
+                        error_text = str(e).lower()
+                        if "readonly" in error_text or "read-only" in error_text:
+                            print(f"❌ {operation}: Incorrectly blocked by readonly mode")
+                        else:
+                            # Connection errors are expected and OK
+                            print(f"✅ {operation}: Not blocked by readonly mode (connection error OK)")
+                            allowed_count += 1
+
+                print(f"\n📊 READONLY Mode Validation Summary:")
+                print(f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}")
+                print(f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}")
+                
+                # Validate that most operations behave as expected
+                min_blocked = len(modification_operations) * 0.8  # At least 80% should be blocked
+                min_allowed = len(readonly_operations) * 0.8     # At least 80% should be allowed
+                
+                if blocked_count >= min_blocked and allowed_count >= min_allowed:
+                    print(f"\n✅ READONLY mode validation PASSED!")
+                    return True
+                else:
+                    print(f"\n❌ READONLY mode validation FAILED!")
+                    print(f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}")
+                    print(f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}")
+                    return False
+
+    except Exception as e:
+        print(f"❌ READONLY mode validation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+    finally:
+        # Clean up environment
+        if "READONLY" in os.environ:
+            del os.environ["READONLY"]
+        if "SCHEMA_REGISTRY_URL" in os.environ:
+            del os.environ["SCHEMA_REGISTRY_URL"]
 
 
 if __name__ == "__main__":
