@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Test Suite for MCP-Protocol-Version Header Validation (Tests Directory Version)
+MCP-Protocol-Version Header Validation Compliance Tests
 
-This is a wrapper/simplified version of the main test_mcp_header_validation.py
-that can be run from the tests directory as part of the unified test runner.
+Tests for MCP 2025-06-18 specification compliance in the 
+Kafka Schema Registry MCP Server.
 
 Tests cover:
 - MCP-Protocol-Version header validation middleware
-- Exempt path functionality
+- Exempt path functionality  
 - Error responses for missing/invalid headers
-- Header inclusion in all responses
+- Compliance status verification
 
 Usage:
     python test_mcp_compliance.py
@@ -24,58 +24,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 
-def run_mcp_header_validation_tests():
-    """Run the main MCP header validation test suite."""
-    print("🧪 Running MCP-Protocol-Version Header Validation Tests")
-    print("=" * 60)
-
-    try:
-        # Change to project root for imports
-        original_cwd = os.getcwd()
-        os.chdir(PROJECT_ROOT)
-
-        # Check if the main test file exists
-        main_test_file = os.path.join(PROJECT_ROOT, "test_mcp_header_validation.py")
-        if os.path.exists(main_test_file):
-            print("✅ Found main MCP header validation test file")
-
-            # Import and run the main test
-            try:
-                # Execute the main test file
-                with open(main_test_file, "r") as f:
-                    test_code = f.read()
-
-                # Create a namespace for execution
-                test_namespace = {
-                    "__name__": "__main__",
-                    "__file__": main_test_file,
-                }
-
-                # Execute the test code
-                exec(test_code, test_namespace)
-
-                print("✅ MCP header validation tests completed successfully")
-                return True
-
-            except Exception as e:
-                print(f"❌ Error running main test: {e}")
-                # Fall back to basic tests
-                return run_basic_compliance_tests()
-        else:
-            print("⚠️  Main test file not found, running basic compliance tests")
-            return run_basic_compliance_tests()
-
-    except Exception as e:
-        print(f"❌ Error in test execution: {e}")
-        return False
-    finally:
-        # Restore original working directory
-        os.chdir(original_cwd)
-
-
 def run_basic_compliance_tests():
-    """Run basic MCP compliance tests when main test file is not available."""
-    print("\n🔧 Running Basic MCP Compliance Tests")
+    """Run basic MCP compliance tests."""
+    print("🧪 Running MCP 2025-06-18 Compliance Tests")
+    print("=" * 60)
 
     try:
         # Test 1: Check if middleware constants are defined
@@ -163,21 +115,21 @@ def run_basic_compliance_tests():
         total_tests = len(tests_passed)
         passed_tests = sum(tests_passed)
 
-        print(f"\n📊 Basic Compliance Test Results:")
+        print(f"\n📊 MCP Compliance Test Results:")
         print(f"   Total Tests: {total_tests}")
         print(f"   Passed: {passed_tests}")
         print(f"   Failed: {total_tests - passed_tests}")
         print(f"   Success Rate: {(passed_tests/total_tests)*100:.1f}%")
 
         if passed_tests == total_tests:
-            print("🎉 All basic compliance tests passed!")
+            print("🎉 All MCP compliance tests passed!")
             return True
         else:
-            print("❌ Some basic compliance tests failed")
+            print("❌ Some MCP compliance tests failed")
             return False
 
     except Exception as e:
-        print(f"❌ Error in basic compliance tests: {e}")
+        print(f"❌ Error in MCP compliance tests: {e}")
         return False
 
 
@@ -233,6 +185,31 @@ class MCPComplianceTestSuite(unittest.TestCase):
         except ImportError:
             self.fail("Compliance status function not available")
 
+    def test_middleware_constants(self):
+        """Test that middleware constants are correctly defined."""
+        try:
+            from kafka_schema_registry_unified_mcp import (
+                MCP_PROTOCOL_VERSION, 
+                SUPPORTED_MCP_VERSIONS,
+                EXEMPT_PATHS
+            )
+
+            # Verify protocol version
+            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-06-18")
+            
+            # Verify supported versions list
+            self.assertIsInstance(SUPPORTED_MCP_VERSIONS, list)
+            self.assertIn("2025-06-18", SUPPORTED_MCP_VERSIONS)
+            
+            # Verify exempt paths
+            self.assertIsInstance(EXEMPT_PATHS, list)
+            expected_exempt_paths = ["/health", "/metrics", "/ready", "/.well-known"]
+            for path in expected_exempt_paths:
+                self.assertIn(path, EXEMPT_PATHS)
+
+        except ImportError:
+            self.fail("MCP middleware constants not available")
+
 
 def main():
     """Main test execution."""
@@ -241,24 +218,15 @@ def main():
     print("   MCP 2025-06-18 Specification Compliance")
     print("")
 
-    # First try to run the comprehensive test suite
-    comprehensive_success = run_mcp_header_validation_tests()
+    # Run the compliance tests
+    success = run_basic_compliance_tests()
 
-    # If that fails or isn't available, run basic tests
-    if not comprehensive_success:
-        print("\n" + "=" * 60)
-        print("🔄 Running fallback basic compliance tests...")
-        basic_success = run_basic_compliance_tests()
-
-        if basic_success:
-            print("\n✅ Basic compliance tests passed!")
-            return 0
-        else:
-            print("\n❌ Basic compliance tests failed!")
-            return 1
-    else:
-        print("\n✅ Comprehensive MCP compliance tests completed!")
+    if success:
+        print("\n✅ MCP compliance tests completed successfully!")
         return 0
+    else:
+        print("\n❌ MCP compliance tests failed!")
+        return 1
 
 
 if __name__ == "__main__":
