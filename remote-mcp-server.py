@@ -5,6 +5,9 @@ Kafka Schema Registry Remote MCP Server
 This file configures the MCP server for remote deployment with monitoring endpoints,
 making it compatible with Anthropic's remote MCP server ecosystem.
 
+✅ MCP 2025-06-18 COMPLIANT: All HTTP requests after initialization require the
+   MCP-Protocol-Version header. Health, metrics, and well-known endpoints are exempt.
+
 Remote MCP servers typically expose endpoints like:
 - https://your-domain.com/mcp (for MCP protocol)
 - https://your-domain.com/health (for health checks)
@@ -30,7 +33,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import the unified MCP server
-from kafka_schema_registry_unified_mcp import REGISTRY_MODE, mcp, registry_manager
+from kafka_schema_registry_unified_mcp import REGISTRY_MODE, mcp, registry_manager, MCP_PROTOCOL_VERSION
 
 # Configure logging for remote deployment
 logging.basicConfig(
@@ -52,6 +55,11 @@ class RemoteMCPMetrics:
         self.oauth_validation_errors = 0
         self.registry_health_checks = 0
         self.last_health_check = None
+
+        # MCP Protocol Version tracking
+        self.mcp_header_validation_attempts = 0
+        self.mcp_header_validation_failures = 0
+        self.mcp_header_validation_successes = 0
 
         # Schema Registry specific metrics
         self.schema_operations = defaultdict(int)  # operation type -> count
@@ -82,6 +90,14 @@ class RemoteMCPMetrics:
         self.oauth_token_validations += 1
         if not success:
             self.oauth_validation_errors += 1
+
+    def record_mcp_header_validation(self, success: bool):
+        """Record MCP-Protocol-Version header validation metric."""
+        self.mcp_header_validation_attempts += 1
+        if success:
+            self.mcp_header_validation_successes += 1
+        else:
+            self.mcp_header_validation_failures += 1
 
     def record_health_check(self):
         """Record health check execution."""
@@ -137,9 +153,7 @@ class RemoteMCPMetrics:
 
                         # Count total schemas across all subjects
                         total_schemas = 0
-                        for subject in (subjects or [])[
-                            :50
-                        ]:  # Limit to first 50 for performance
+                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
@@ -248,6 +262,18 @@ class RemoteMCPMetrics:
                 "# TYPE mcp_oauth_validation_errors_total counter",
                 f"mcp_oauth_validation_errors_total {self.oauth_validation_errors}",
                 "",
+                "# HELP mcp_protocol_header_validations_total MCP-Protocol-Version header validation attempts",
+                "# TYPE mcp_protocol_header_validations_total counter",
+                f"mcp_protocol_header_validations_total {self.mcp_header_validation_attempts}",
+                "",
+                "# HELP mcp_protocol_header_validation_failures_total MCP-Protocol-Version header validation failures",
+                "# TYPE mcp_protocol_header_validation_failures_total counter",
+                f"mcp_protocol_header_validation_failures_total {self.mcp_header_validation_failures}",
+                "",
+                "# HELP mcp_protocol_header_validation_successes_total MCP-Protocol-Version header validation successes",
+                "# TYPE mcp_protocol_header_validation_successes_total counter",
+                f"mcp_protocol_header_validation_successes_total {self.mcp_header_validation_successes}",
+                "",
                 "# HELP mcp_registry_health_checks_total Registry health checks performed",
                 "# TYPE mcp_registry_health_checks_total counter",
                 f"mcp_registry_health_checks_total {self.registry_health_checks}",
@@ -255,6 +281,10 @@ class RemoteMCPMetrics:
                 "# HELP mcp_registry_mode_info Registry mode information",
                 "# TYPE mcp_registry_mode_info gauge",
                 f'mcp_registry_mode_info{{mode="{REGISTRY_MODE}"}} 1',
+                "",
+                "# HELP mcp_protocol_version_info MCP Protocol Version information",
+                "# TYPE mcp_protocol_version_info gauge",
+                f'mcp_protocol_version_info{{version="{MCP_PROTOCOL_VERSION}"}} 1',
             ]
         )
 
@@ -452,6 +482,12 @@ async def health_check(request):
             "registry_mode": REGISTRY_MODE,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
             "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_compliance": {
+                "header_validation_enabled": True,
+                "jsonrpc_batching_disabled": True,
+                "specification": "MCP 2025-06-18",
+            },
         }
 
         # Test registry connectivity
@@ -515,7 +551,11 @@ async def health_check(request):
 
         status_code = 200 if overall_healthy else 503
 
-        return JSONResponse(server_status, status_code=status_code)
+        return JSONResponse(
+            server_status, 
+            status_code=status_code,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+        )
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -528,8 +568,10 @@ async def health_check(request):
                 "status": "unhealthy",
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": str(e),
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             },
             status_code=503,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
 
 
@@ -546,7 +588,9 @@ async def prometheus_metrics(request):
         from starlette.responses import Response
 
         return Response(
-            prometheus_output, media_type="text/plain; version=0.0.4; charset=utf-8"
+            prometheus_output, 
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
 
     except Exception as e:
@@ -559,6 +603,7 @@ async def prometheus_metrics(request):
             f"# Error generating metrics: {str(e)}\n",
             status_code=500,
             media_type="text/plain",
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
 
 
@@ -573,12 +618,22 @@ async def readiness_check(request):
                 "status": "ready",
                 "timestamp": datetime.utcnow().isoformat(),
                 "uptime_seconds": metrics.get_uptime(),
-            }
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
     except Exception as e:
         from starlette.responses import JSONResponse
 
-        return JSONResponse({"status": "not_ready", "error": str(e)}, status_code=503)
+        return JSONResponse(
+            {
+                "status": "not_ready", 
+                "error": str(e),
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            }, 
+            status_code=503,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+        )
 
 
 @mcp.custom_route("/.well-known/oauth-authorization-server-custom", methods=["GET"])
@@ -589,7 +644,11 @@ async def oauth_authorization_server_metadata(request):
 
         # Only provide metadata if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            return JSONResponse(
+                {"error": "OAuth not enabled"},
+                status_code=404,
+                headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+            )
 
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
@@ -677,11 +736,17 @@ async def oauth_authorization_server_metadata(request):
             ],
             # MCP-specific extensions
             "mcp_server_version": "2.0.0",
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             "mcp_transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
             "mcp_endpoints": {
                 "mcp": f"{base_url}/mcp",
                 "health": f"{base_url}/health",
                 "metrics": f"{base_url}/metrics",
+            },
+            "mcp_compliance": {
+                "specification": "MCP 2025-06-18",
+                "header_validation_enabled": True,
+                "jsonrpc_batching_disabled": True,
             },
         }
 
@@ -694,6 +759,7 @@ async def oauth_authorization_server_metadata(request):
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=3600",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
             },
         )
 
@@ -702,7 +768,9 @@ async def oauth_authorization_server_metadata(request):
         from starlette.responses import JSONResponse
 
         return JSONResponse(
-            {"error": "Failed to generate OAuth metadata"}, status_code=500
+            {"error": "Failed to generate OAuth metadata"},
+            status_code=500,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
 
 
@@ -714,7 +782,11 @@ async def oauth_protected_resource_metadata(request):
 
         # Only provide metadata if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            return JSONResponse(
+                {"error": "OAuth not enabled"},
+                status_code=404,
+                headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+            )
 
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
@@ -757,9 +829,15 @@ async def oauth_protected_resource_metadata(request):
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
                 "version": "2.0.0",
+                "protocol_version": MCP_PROTOCOL_VERSION,
                 "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
                 "tools_count": 48,
                 "supported_registries": ["confluent", "apicurio", "hortonworks"],
+                "compliance": {
+                    "specification": "MCP 2025-06-18",
+                    "header_validation_enabled": True,
+                    "jsonrpc_batching_disabled": True,
+                },
             },
             # API endpoints that require OAuth
             "protected_endpoints": {
@@ -782,6 +860,12 @@ async def oauth_protected_resource_metadata(request):
             "require_pkce": True,
             "pkce_code_challenge_methods": ["S256"],
             "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows",
+            # MCP Protocol Version requirements
+            "mcp_protocol_requirements": {
+                "required_header": "MCP-Protocol-Version",
+                "supported_versions": [MCP_PROTOCOL_VERSION],
+                "header_validation": "Enforced for all MCP endpoints",
+            },
         }
 
         # Remove None values
@@ -793,6 +877,7 @@ async def oauth_protected_resource_metadata(request):
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=3600",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
             },
         )
 
@@ -801,7 +886,9 @@ async def oauth_protected_resource_metadata(request):
         from starlette.responses import JSONResponse
 
         return JSONResponse(
-            {"error": "Failed to generate protected resource metadata"}, status_code=500
+            {"error": "Failed to generate protected resource metadata"},
+            status_code=500,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
         )
 
 
@@ -813,7 +900,11 @@ async def jwks_endpoint(request):
 
         # Only provide JWKS if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            return JSONResponse(
+                {"error": "OAuth not enabled"},
+                status_code=404,
+                headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+            )
 
         auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
 
@@ -843,6 +934,7 @@ async def jwks_endpoint(request):
                                     "Content-Type": "application/json",
                                     "Access-Control-Allow-Origin": "*",
                                     "Cache-Control": "public, max-age=3600",
+                                    "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
                                 },
                             )
             except Exception:
@@ -850,10 +942,15 @@ async def jwks_endpoint(request):
 
         # Fallback: return empty JWKS
         return JSONResponse(
-            {"keys": [], "note": f"JWKS available at provider endpoint: {jwks_url}"},
+            {
+                "keys": [], 
+                "note": f"JWKS available at provider endpoint: {jwks_url}",
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
             headers={
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
+                "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
             },
         )
 
@@ -861,7 +958,14 @@ async def jwks_endpoint(request):
         logger.error(f"JWKS endpoint error: {e}")
         from starlette.responses import JSONResponse
 
-        return JSONResponse({"keys": []}, status_code=500)
+        return JSONResponse(
+            {
+                "keys": [],
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+            status_code=500,
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+        )
 
 
 def main():
@@ -880,6 +984,8 @@ def main():
     logger.info(f"📍 Path: {path}")
     logger.info(f"🔐 OAuth Enabled: {os.getenv('ENABLE_AUTH', 'false')}")
     logger.info(f"🏷️  OAuth Provider: {os.getenv('AUTH_PROVIDER', 'auto')}")
+    logger.info(f"✅ MCP Protocol Version: {MCP_PROTOCOL_VERSION}")
+    logger.info("✅ MCP-Protocol-Version Header Validation: ENABLED")
 
     # Remote server URL for client connections
     server_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}{path}"
