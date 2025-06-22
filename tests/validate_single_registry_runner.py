@@ -90,7 +90,7 @@ def validate_single_registry_tests():
         return False
 
     try:
-        from mcp import ClientSession, StdioServerParameters
+        from fastmcp import Client
 
         print(f"   ✅ MCP components can be imported")
     except ImportError as e:

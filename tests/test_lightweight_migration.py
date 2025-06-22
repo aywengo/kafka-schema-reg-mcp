@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from fastmcp import Client
+
 """
 Lightweight Migration Tests
 

@@ -90,8 +90,7 @@ class ReadOnlyValidationTest:
             print("\n🚀 Starting MCP server subprocess with environment...")
             
             # Import required modules for subprocess communication
-            from mcp import ClientSession
-            from mcp.client.stdio import stdio_client, StdioServerParameters
+            from fastmcp import Client
             
             # Create environment dict for subprocess
             subprocess_env = os.environ.copy()

@@ -1,6 +1,6 @@
 [project]
 name = "kafka-schema-registry-mcp"
-version = "1.7.0"
+version = "2.0.0"
 description = "A Model Context Protocol (MCP) server for Kafka Schema Registry - enables AI assistants to interact with Kafka schemas through a standardized interface"
 authors = [
     {name = "Kafka Schema Registry MCP Team", email = ""},

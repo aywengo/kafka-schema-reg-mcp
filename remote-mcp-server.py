@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from fastmcp import Client
+
 """
 Kafka Schema Registry Remote MCP Server
 
