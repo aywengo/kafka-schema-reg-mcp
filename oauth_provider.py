@@ -471,13 +471,21 @@ def get_fastmcp_config(server_name: str):
 
     if ENABLE_AUTH and oauth_provider:
         config["auth"] = oauth_provider
-        logger.info("FastMCP configured with Bearer token authentication (MCP 2025-06-18 compliant)")
+        logger.info(
+            "FastMCP configured with Bearer token authentication (MCP 2025-06-18 compliant)"
+        )
     else:
-        logger.info("FastMCP configured without authentication (MCP 2025-06-18 compliant)")
+        logger.info(
+            "FastMCP configured without authentication (MCP 2025-06-18 compliant)"
+        )
 
     # Log the compliance information for clarity
-    logger.info("🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)")
-    logger.info("💡 Application-level batch operations (clear_context_batch, etc.) remain available")
+    logger.info(
+        "🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)"
+    )
+    logger.info(
+        "💡 Application-level batch operations (clear_context_batch, etc.) remain available"
+    )
 
     return config
 

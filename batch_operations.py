@@ -3,9 +3,9 @@
 Application-Level Batch Operations Module
 
 ⚠️  IMPORTANT: These are APPLICATION-LEVEL batch operations, NOT JSON-RPC batching.
-    
+
     JSON-RPC batching has been disabled per MCP 2025-06-18 specification compliance.
-    These functions perform application-level batching by making individual JSON-RPC 
+    These functions perform application-level batching by making individual JSON-RPC
     requests for each operation, providing client-side request queuing for performance.
 
 Handles batch cleanup operations for Schema Registry contexts.
@@ -156,7 +156,7 @@ def _execute_clear_context_batch(
     dry_run: bool = True,
 ) -> Dict[str, Any]:
     """Execute the actual context cleanup logic using individual requests.
-    
+
     Performance Implementation:
     - Uses ThreadPoolExecutor for parallel individual requests
     - Replaces previous JSON-RPC batching with application-level coordination
@@ -191,7 +191,8 @@ def _execute_clear_context_batch(
         registry_client = registry_manager.get_registry(registry)
 
         update_progress(
-            5.0, f"Starting cleanup of context '{context}' in registry '{registry}' (individual requests)"
+            5.0,
+            f"Starting cleanup of context '{context}' in registry '{registry}' (individual requests)",
         )
 
         if not registry_client:
@@ -257,7 +258,10 @@ def _execute_clear_context_batch(
         )
 
         if dry_run:
-            update_progress(100.0, f"DRY RUN: Would delete {subjects_found} subjects using individual requests")
+            update_progress(
+                100.0,
+                f"DRY RUN: Would delete {subjects_found} subjects using individual requests",
+            )
             return {
                 "subjects_found": subjects_found,
                 "subjects_deleted": 0,
@@ -271,7 +275,10 @@ def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(40.0, f"Starting deletion of {subjects_found} subjects using parallel individual requests")
+        update_progress(
+            40.0,
+            f"Starting deletion of {subjects_found} subjects using parallel individual requests",
+        )
 
         # Delete subjects in parallel using individual requests (replaces JSON-RPC batching)
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -312,7 +319,8 @@ def _execute_clear_context_batch(
             update_progress(95.0, "Context deletion not supported by API")
 
         update_progress(
-            100.0, f"Cleanup completed - deleted {subjects_deleted} subjects using individual requests"
+            100.0,
+            f"Cleanup completed - deleted {subjects_deleted} subjects using individual requests",
         )
 
         return {
@@ -350,8 +358,8 @@ def _delete_subject_from_context(
     registry_client, subject: str, context: Optional[str] = None
 ) -> bool:
     """Helper function to delete a subject from a context using individual request.
-    
-    Note: This makes a single HTTP request per subject, replacing previous 
+
+    Note: This makes a single HTTP request per subject, replacing previous
     JSON-RPC batching approach for MCP 2025-06-18 compliance.
     """
     try:
@@ -488,7 +496,7 @@ def _execute_clear_multiple_contexts_batch(
     dry_run: bool = True,
 ) -> Dict[str, Any]:
     """Execute the actual multiple contexts cleanup logic using individual requests.
-    
+
     Performance Implementation:
     - Uses ThreadPoolExecutor for parallel individual requests across contexts
     - Replaces previous JSON-RPC batching with application-level coordination

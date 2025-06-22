@@ -836,7 +836,7 @@ def clear_context_batch(
     dry_run: bool = True,
 ):
     """Clear all subjects in a context using application-level batch operations.
-    
+
     ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-06-18 compliance.
     """
     return clear_context_batch_tool(
@@ -858,7 +858,7 @@ def clear_multiple_contexts_batch(
     dry_run: bool = True,
 ):
     """Clear multiple contexts in a registry using application-level batch operations.
-    
+
     ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-06-18 compliance.
     """
     return clear_multiple_contexts_batch_tool(
@@ -1060,12 +1060,12 @@ def get_statistics_task_progress(task_id: str):
 @require_scopes("read")
 def get_mcp_compliance_status():
     """Get MCP 2025-06-18 specification compliance status and configuration details.
-    
+
     Returns information about JSON-RPC batching status, protocol version, and migration guidance.
     """
     try:
         from datetime import datetime
-        
+
         # Get FastMCP configuration details
         config_details = {
             "protocol_version": "2025-06-18",
@@ -1118,9 +1118,9 @@ def get_mcp_compliance_status():
                 ],
             },
         }
-        
+
         return config_details
-        
+
     except Exception as e:
         return {
             "error": f"Failed to get compliance status: {str(e)}",
@@ -1428,7 +1428,9 @@ def get_registry_status():
             return "❌ No Schema Registry configured"
 
         status_lines = [f"🔧 Registry Mode: {REGISTRY_MODE.upper()}"]
-        status_lines.append("🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)")
+        status_lines.append(
+            "🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)"
+        )
 
         for name in registries:
             client = registry_manager.get_registry(name)
@@ -1494,15 +1496,18 @@ def get_registry_info_resource():
 
         return json.dumps(overall_info, indent=2)
     except Exception as e:
-        return json.dumps({
-            "error": str(e), 
-            "registry_mode": REGISTRY_MODE,
-            "mcp_compliance": {
-                "protocol_version": "2025-06-18",
-                "jsonrpc_batching_disabled": True,
-                "compliance_status": "COMPLIANT",
+        return json.dumps(
+            {
+                "error": str(e),
+                "registry_mode": REGISTRY_MODE,
+                "mcp_compliance": {
+                    "protocol_version": "2025-06-18",
+                    "jsonrpc_batching_disabled": True,
+                    "compliance_status": "COMPLIANT",
+                },
             },
-        }, indent=2)
+            indent=2,
+        )
 
 
 @mcp.resource("registry://mode")
@@ -1603,8 +1608,12 @@ if __name__ == "__main__":
     logger.info(
         f"Detected {len(registry_manager.list_registries())} registry configurations"
     )
-    logger.info("🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance")
-    logger.info("💼 Application-level batch operations ENABLED with individual requests")
+    logger.info(
+        "🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance"
+    )
+    logger.info(
+        "💼 Application-level batch operations ENABLED with individual requests"
+    )
     logger.info(
         "Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows"
     )
