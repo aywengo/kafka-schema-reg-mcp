@@ -9,6 +9,8 @@ are compatible and can be imported successfully.
 import os
 import sys
 
+from fastmcp import Client
+
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -90,8 +92,7 @@ def validate_single_registry_tests():
         return False
 
     try:
-        from fastmcp import Client
-
+        # FastMCP Client already imported at top of file
         print(f"   ✅ MCP components can be imported")
     except ImportError as e:
         print(f"   ❌ Cannot import MCP components: {e}")

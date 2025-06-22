@@ -12,6 +12,8 @@ import os
 import subprocess
 import sys
 
+from fastmcp import Client
+
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first
 for var in ["READONLY", "SCHEMA_REGISTRY_URL", "SCHEMA_REGISTRY_NAME"]:
@@ -89,8 +91,7 @@ class ReadOnlyValidationTest:
             # Use subprocess to run server with proper environment
             print("\n🚀 Starting MCP server subprocess with environment...")
             
-            # Import required modules for subprocess communication
-            from fastmcp import Client
+            # FastMCP Client already imported at top of file
             
             # Create environment dict for subprocess
             subprocess_env = os.environ.copy()

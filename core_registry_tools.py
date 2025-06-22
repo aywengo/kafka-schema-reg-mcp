@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from fastmcp import Client
-
 """
 Core Registry Tools Module
 

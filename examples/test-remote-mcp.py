@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from fastmcp import Client
-
 """
 Test Script for Remote MCP Server Deployment
 
