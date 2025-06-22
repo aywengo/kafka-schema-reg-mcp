@@ -17,14 +17,14 @@ import asyncio
 import json
 import os
 import sys
-import time
-from typing import Any, Dict
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+import pytest
+from fastmcp import Client
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Invalid schemas for testing error handling
 INVALID_SCHEMAS = {
@@ -287,7 +287,7 @@ async def test_invalid_parameters():
                                 f"    ✅ Properly rejected: {response['error'][:50]}..."
                             )
                         else:
-                            print(f"    ⚠️ Unexpectedly accepted invalid schema")
+                            print("    ⚠️ Unexpectedly accepted invalid schema")
                     except Exception as e:
                         print(f"    ✅ Exception caught: {str(e)[:50]}...")
 
@@ -620,6 +620,361 @@ async def test_authentication_errors():
         print(f"❌ Authentication error handling test failed: {e}")
 
 
+async def test_error_handling():
+    """Test error handling and recovery mechanisms."""
+
+    # Get the path to the parent directory where the server script is located
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    print("⚠️  Testing Error Handling and Recovery...")
+
+    try:
+        client = Client(
+            server_script,
+            env={
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "MULTI_REGISTRY_CONFIG": json.dumps(
+                    {
+                        "dev": {"url": "http://localhost:38081"},
+                        "invalid": {
+                            "url": "http://localhost:99999"
+                        },  # Invalid port for testing
+                    }
+                ),
+            },
+        )
+
+        async with client:
+            print("✅ Connected to MCP server!")
+
+            # Test 1: Invalid schema registration
+            print("\n❌ Test 1: Invalid schema registration...")
+            try:
+                result = await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-invalid-schema",
+                        "schema_definition": {
+                            "invalid": "schema"
+                        },  # Invalid Avro schema
+                        "schema_type": "AVRO",
+                    },
+                )
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid schema")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 2: Non-existent subject operations
+            print("\n❌ Test 2: Non-existent subject operations...")
+            try:
+                result = await client.call_tool(
+                    "get_schema",
+                    {"subject": "non-existent-subject-12345", "version": "latest"},
+                )
+                if result and (
+                    "error" in result.lower() or "not found" in result.lower()
+                ):
+                    print("   ✅ Error properly handled for non-existent subject")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 3: Invalid registry operations
+            print("\n❌ Test 3: Invalid registry operations...")
+            try:
+                result = await client.call_tool(
+                    "list_subjects", {"registry": "invalid"}  # This should fail
+                )
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid registry")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 4: Invalid tool parameters
+            print("\n❌ Test 4: Invalid tool parameters...")
+            try:
+                result = await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "",  # Empty subject
+                        "schema_definition": {"type": "string"},
+                        "schema_type": "AVRO",
+                    },
+                )
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for empty subject")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 5: Tool call with missing required parameters
+            print("\n❌ Test 5: Missing required parameters...")
+            try:
+                result = await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-subject"
+                        # Missing schema_definition and schema_type
+                    },
+                )
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for missing parameters")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            # Test 6: Recovery after errors
+            print("\n🔄 Test 6: Recovery after errors...")
+            try:
+                # First, cause an error
+                await client.call_tool(
+                    "get_schema", {"subject": "non-existent", "version": "latest"}
+                )
+
+                # Then, perform a valid operation
+                result = await client.call_tool("list_subjects", {})
+                print(
+                    "   ✅ Server recovered and handles valid operations after errors"
+                )
+            except Exception as e:
+                print(f"   ✅ Server continues to function: {e}")
+
+            # Test 7: Invalid JSON in schema definitions
+            print("\n❌ Test 7: Invalid JSON handling...")
+            try:
+                result = await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-invalid-json",
+                        "schema_definition": "not-valid-json",  # String instead of dict
+                        "schema_type": "AVRO",
+                    },
+                )
+                if result and "error" in result.lower():
+                    print("   ✅ Error properly handled for invalid JSON")
+                else:
+                    print(f"   ⚠️ Unexpected result: {result}")
+            except Exception as e:
+                print(f"   ✅ Exception properly raised: {e}")
+
+            print("\n🎉 Error handling testing completed!")
+            print("✅ Server demonstrates robust error handling and recovery")
+
+    except Exception as e:
+        print(f"❌ Error during error handling test: {e}")
+        raise
+
+
+@pytest.mark.asyncio
+async def test_connection_error_handling():
+    """Test MCP connection error handling"""
+    print("🔌 Testing Connection Error Handling")
+    print("=" * 50)
+
+    # Setup environment with invalid registry URL
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:99999"  # Invalid port
+    os.environ["READONLY"] = "false"
+
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+
+    # Create client
+    client = Client(server_script)
+
+    try:
+        async with client:
+            print("✅ MCP connection established")
+
+            # Test operations that should fail gracefully due to connection issues
+            error_prone_operations = [
+                ("list_subjects", {}),
+                ("get_global_config", {}),
+                ("list_contexts", {}),
+                (
+                    "register_schema",
+                    {
+                        "subject": "test-subject",
+                        "schema_definition": {"type": "string"},
+                        "schema_type": "AVRO",
+                    },
+                ),
+            ]
+
+            connection_errors = 0
+            graceful_failures = 0
+
+            for operation, args in error_prone_operations:
+                print(f"\n🧪 Testing: {operation}")
+                try:
+                    result = await client.call_tool(operation, args)
+                    print(f"⚠️  {operation}: Unexpected success - {result}")
+                except Exception as e:
+                    error_text = str(e).lower()
+                    if any(
+                        keyword in error_text
+                        for keyword in [
+                            "connection",
+                            "refused",
+                            "timeout",
+                            "unreachable",
+                        ]
+                    ):
+                        print(f"✅ {operation}: Graceful connection error - {e}")
+                        graceful_failures += 1
+                    else:
+                        print(f"❌ {operation}: Non-connection error - {e}")
+                        connection_errors += 1
+
+            print("\n📊 Connection Error Summary:")
+            print(f"   Graceful failures: {graceful_failures}")
+            print(f"   Unexpected errors: {connection_errors}")
+
+            return graceful_failures > 0 and connection_errors == 0
+
+    except Exception as e:
+        print(f"❌ Critical error during connection error test: {e}")
+        return False
+
+
+@pytest.mark.asyncio
+async def test_invalid_input_handling():
+    """Test handling of invalid inputs"""
+    print("🚫 Testing Invalid Input Handling")
+    print("=" * 50)
+
+    # Setup environment with valid registry URL
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
+    os.environ["READONLY"] = "false"
+
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+
+    # Create client
+    client = Client(server_script)
+
+    try:
+        async with client:
+            print("✅ MCP connection established")
+
+            # Test operations with invalid arguments
+            invalid_operations = [
+                (
+                    "register_schema",
+                    {"subject": "", "schema_definition": {}},
+                ),  # Empty subject
+                (
+                    "register_schema",
+                    {"subject": "test", "schema_definition": "invalid"},
+                ),  # Invalid schema
+                ("get_schema_by_id", {"schema_id": -1}),  # Invalid ID
+                ("export_subject", {"subject": ""}),  # Empty subject
+                (
+                    "check_compatibility",
+                    {"subject": "test", "schema_definition": None},
+                ),  # Null schema
+            ]
+
+            validation_errors = 0
+            unexpected_successes = 0
+
+            for operation, args in invalid_operations:
+                print(f"\n🧪 Testing: {operation} with invalid args")
+                try:
+                    result = await client.call_tool(operation, args)
+                    print(f"⚠️  {operation}: Unexpected success with invalid input")
+                    unexpected_successes += 1
+                except Exception as e:
+                    error_text = str(e).lower()
+                    if any(
+                        keyword in error_text
+                        for keyword in ["invalid", "validation", "error", "bad request"]
+                    ):
+                        print(f"✅ {operation}: Proper validation error - {e}")
+                        validation_errors += 1
+                    else:
+                        print(f"⚠️  {operation}: Other error - {e}")
+
+            print("\n📊 Input Validation Summary:")
+            print(f"   Proper validation errors: {validation_errors}")
+            print(f"   Unexpected successes: {unexpected_successes}")
+
+            return validation_errors > 0 and unexpected_successes == 0
+
+    except Exception as e:
+        print(f"❌ Critical error during input validation test: {e}")
+        return False
+
+
+@pytest.mark.asyncio
+async def test_error_recovery():
+    """Test error recovery mechanisms"""
+    print("🔄 Testing Error Recovery")
+    print("=" * 50)
+
+    # Setup environment
+    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
+    os.environ["READONLY"] = "false"
+
+    # Get server script path
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(
+        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
+    )
+
+    # Create client
+    client = Client(server_script)
+
+    try:
+        async with client:
+            print("✅ MCP connection established")
+
+            # Test recovery after error
+            print("\n🧪 Testing recovery after error...")
+
+            # First, try an operation that might fail
+            try:
+                await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-recovery",
+                        "schema_definition": "invalid-schema",  # Invalid schema
+                    },
+                )
+                print("⚠️  Invalid schema registration unexpectedly succeeded")
+            except Exception as e:
+                print(f"✅ Expected error occurred: {e}")
+
+            # Then, try a valid operation to test recovery
+            try:
+                result = await client.call_tool("list_subjects", {})
+                print(
+                    "✅ Recovery successful: Can still perform operations after error"
+                )
+                return True
+            except Exception as e:
+                print(f"❌ Recovery failed: {e}")
+                return False
+
+    except Exception as e:
+        print(f"❌ Critical error during recovery test: {e}")
+        return False
+
+
 async def main():
     """Run all error handling and edge case tests."""
     print("🧪 Starting Error Handling and Edge Case Integration Tests")
@@ -641,6 +996,10 @@ async def main():
         await test_cross_registry_error_scenarios()
         await test_resource_limits_and_timeouts()
         await test_authentication_errors()
+        await test_error_handling()
+        await test_connection_error_handling()
+        await test_invalid_input_handling()
+        await test_error_recovery()
 
         print("\n" + "=" * 70)
         print("🎉 All Error Handling and Edge Case Tests Complete!")

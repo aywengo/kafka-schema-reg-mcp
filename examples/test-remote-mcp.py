@@ -22,7 +22,6 @@ Usage:
 import argparse
 import asyncio
 import json
-import sys
 from typing import Any, Dict, Optional
 
 import aiohttp
@@ -129,7 +128,7 @@ class RemoteMCPTester:
             return False
         elif "result" in result and "content" in result["result"]:
             oauth_info = json.loads(result["result"]["content"][0]["text"])
-            print(f"✅ OAuth authentication successful")
+            print("✅ OAuth authentication successful")
             print(f"   OAuth enabled: {oauth_info.get('oauth_enabled', False)}")
             print(f"   Valid scopes: {oauth_info.get('valid_scopes', [])}")
             return True
@@ -179,7 +178,7 @@ class RemoteMCPTester:
         elif "result" in result and "content" in result["result"]:
             response_text = result["result"]["content"][0]["text"]
             registries = json.loads(response_text)
-            print(f"✅ Tool call successful")
+            print("✅ Tool call successful")
             print(f"   Found {len(registries)} registries")
 
             if registries:

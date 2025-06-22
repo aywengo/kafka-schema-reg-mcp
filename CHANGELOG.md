@@ -7,171 +7,189 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - unreleased
 
-### 🚀 MAJOR RELEASE: Enterprise OAuth Integration & Remote MCP Server Revolution
+### 🚀 MAJOR RELEASE: FastMCP 2.8.0+ Upgrade & MCP 2025-06-18 Specification Compliance
 
-This **major version release** represents a fundamental transformation of the Kafka Schema Registry MCP Server from a local-only tool to a **production-ready, enterprise-grade remote MCP server**. This release introduces comprehensive OAuth 2.0 provider integration, remote deployment capabilities, and full compatibility with [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers).
+This **major version release** represents the complete migration to **FastMCP 2.8.0+** framework and full compliance with the **MCP 2025-06-18 specification**. This upgrade ensures compatibility with the latest Message Control Protocol ecosystem and provides a foundation for modern AI agent integration.
 
-**🔥 BREAKING CHANGES & NEW ARCHITECTURE:**
-- **Single Image, Dual Mode**: Same Docker image supports both local (stdio) and remote (HTTP/SSE) deployment modes
-- **Enterprise Authentication**: Production OAuth 2.0 with cryptographic JWT validation
-- **Remote MCP Ecosystem**: Full compatibility with Anthropic's remote MCP server standards
-- **Transport Revolution**: FastMCP-powered SSE and Streamable HTTP support
+**🔥 BREAKING CHANGES & FRAMEWORK MIGRATION:**
+- **FastMCP 2.8.0+ Framework**: Complete migration from legacy `mcp[cli]==1.9.4` to modern FastMCP architecture
+- **MCP 2025-06-18 Compliance**: Full support for the latest MCP specification
+- **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 integration
+- **Modernized Client API**: Updated client interface using FastMCP's dependency injection system
 
 #### 🎯 Why v2.0.0? - Major Version Justification
 
 This release qualifies as a **major version bump** because it introduces:
 
-1. **🌐 Architectural Transformation**: Complete shift from local-only to local+remote dual-mode architecture
-2. **🔐 Security Model Revolution**: Introduction of enterprise OAuth 2.0 with JWT validation as a core feature
-3. **🚀 Deployment Paradigm Change**: New remote deployment patterns that fundamentally change how the server is used
-4. **📡 Transport Layer Evolution**: Addition of HTTP/SSE transports alongside existing stdio transport
-5. **🏢 Enterprise Readiness**: Production-grade features that transform this from a development tool to enterprise infrastructure
-6. **🔧 Configuration Complexity**: Significant expansion of configuration options and deployment modes
-7. **📚 API Surface Expansion**: New OAuth-related tools and remote-specific functionality
+1. **📡 MCP Framework Migration**: Complete architectural shift from legacy MCP SDK to FastMCP 2.8.0+
+2. **🔄 Client API Changes**: New FastMCP client interface replacing legacy `mcp.ClientSession`
+3. **🔐 Authentication Architecture**: Migration to FastMCP's native BearerAuth system
+4. **📚 Import Structure Changes**: Updated import paths from `mcp.server.fastmcp` to `fastmcp`
+5. **🔧 Dependency System**: New FastMCP dependency injection for access tokens and authentication
+6. **🏗️ Test Framework Updates**: Complete test suite migration to new FastMCP client API
+7. **📖 API Surface Evolution**: Enhanced OAuth discovery endpoints and MCP compliance features
 
-**Migration Impact**: Existing local deployments continue to work unchanged, but the introduction of OAuth, remote deployment options, and new configuration patterns represents a significant evolution in the server's capabilities and intended use cases.
+**Migration Impact**: While basic functionality remains the same, the underlying MCP framework has been completely modernized. Custom clients and tests will need updates to use the new FastMCP API, but all MCP tools and core functionality remain unchanged.
 
 #### Added
 
-##### OAuth Provider Integration
-- **Multi-Provider OAuth Support**: Native integration with 4 major identity platforms
-  - **Azure AD / Entra ID**: Complete enterprise integration with Microsoft Graph API scopes
+##### FastMCP 2.8.0+ Framework Integration
+- **Modern MCP Architecture**: Complete migration from legacy `mcp[cli]==1.9.4` to FastMCP 2.8.0+
+- **Native BearerAuth Provider**: FastMCP's built-in authentication system with OAuth 2.0 support
+- **Dependency Injection System**: Modern access token management using FastMCP's `get_access_token()`
+- **Enhanced Transport Support**: Native stdio, SSE, and Streamable HTTP transport capabilities
+- **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+
+##### OAuth Provider Integration (FastMCP Compatible)
+- **Multi-Provider OAuth Support**: Native integration with 5 major identity platforms
+  - **Azure AD / Entra ID**: Enterprise identity with Microsoft Graph API scopes
   - **Google OAuth 2.0**: Google Workspace and Cloud integration
   - **Keycloak**: Self-hosted open-source identity management
   - **Okta**: Enterprise SaaS identity platform
-- **`get_oauth_provider_configs()` Function**: Programmatic access to provider-specific configurations
-  - Provider-specific endpoint URLs with templating support
-  - Environment variable mappings for each provider
-  - Standard and provider-specific OAuth scopes
-  - Setup documentation links for each platform
+  - **GitHub OAuth**: GitHub and GitHub Apps authentication
+- **FastMCP BearerAuthProvider**: Native FastMCP authentication provider with scope-based authorization
+- **Scope-Based Permissions**: Fine-grained `read`, `write`, `admin` permissions mapped to MCP tools
+- **Development Token Support**: Safe testing tokens (`dev-token-read`, `dev-token-write`, etc.)
 
-##### Kubernetes Production Deployment
-- **Helm Chart OAuth Examples**: Ready-to-use configurations for each provider
-  - `helm/examples/values-azure.yaml`: Azure AD deployment configuration
-  - `helm/examples/values-google.yaml`: Google OAuth deployment setup
-  - `helm/examples/values-keycloak.yaml`: Keycloak integration configuration
-  - `helm/examples/values-okta.yaml`: Okta enterprise deployment
-- **Production-Ready Security**: Network policies, RBAC, TLS, and secret management
-- **Multi-Registry + OAuth**: Secure access to multiple Schema Registry instances
+##### Enhanced Client API
+- **FastMCP Client**: Modern client interface replacing legacy `mcp.ClientSession`
+- **Simplified Connection**: Direct `Client()` instantiation with automatic protocol handling
+- **Async/Await Support**: Native async operations with better error handling
+- **Improved Testing**: Streamlined test framework with easier mocking and setup
 
-##### Remote MCP Server Deployment
-- **Remote MCP Compatibility**: Full support for [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers)
-- **FastMCP Transport Support**: SSE and Streamable HTTP transports for remote connectivity
-- **Remote MCP Server Script** (`remote-mcp-server.py`): Dedicated script for remote deployment
-- **Production Helm Configuration** (`helm/values-remote-mcp.yaml`): Complete Kubernetes setup
-- **HTTPS/TLS Support**: Automatic certificate management with cert-manager
-- **Remote Client Testing** (`examples/test-remote-mcp.py`): Comprehensive connectivity validation
+##### Updated Test Framework
+- **FastMCP Client Migration**: All tests updated to use new `fastmcp.Client` interface
+- **Simplified Test Setup**: Removed complex server parameter configuration
+- **Better Error Handling**: Enhanced error messages and debugging capabilities
+- **OAuth Discovery Testing**: Comprehensive testing of MCP 2025-06-18 OAuth endpoints
 
-##### Enhanced Documentation
-- **Remote MCP Deployment Guide** (`docs/remote-mcp-deployment.md`): Complete remote deployment instructions
-  - Quick deployment options (Docker and Kubernetes)
-  - OAuth authentication setup for all providers
-  - Transport configuration (SSE and Streamable HTTP)
-  - Client connection examples and testing
-  - Production security best practices
-- **OAuth Providers Guide** (`docs/oauth-providers-guide.md`): Complete setup instructions
-  - Step-by-step provider configuration for all 4 platforms
-  - Azure CLI and Portal setup instructions
-  - Google Cloud Console configuration
-  - Keycloak admin console setup
-  - Okta application integration
-  - Production JWT validation examples
-  - Security best practices and troubleshooting
-
-##### VSCode + Copilot Integration
-- **OAuth Authentication Flow**: Seamless integration with enterprise identity
-- **Kubernetes Connection**: Direct connection to deployed MCP server
-- **Port-Forward Development**: Local development with OAuth
-- **Enhanced MCP Settings**: OAuth-aware VSCode configuration
+##### Documentation & Examples
+- **FastMCP Usage Examples**: Updated code examples for new client API
+- **OAuth Discovery Endpoints**: MCP-compliant OAuth metadata endpoints
+- **Migration Guide**: Comprehensive guide for upgrading from legacy MCP SDK
+- **Enhanced Error Messages**: Better debugging information for authentication issues
 
 #### Improved
 
-##### Test Coverage
-- **OAuth Provider Tests**: Comprehensive validation of all 4 providers
-  - `test_oauth.py`: Enhanced with provider configuration testing
-  - `test_provider_configs_only.py`: Isolated provider validation
-  - Integration with main test runner (`run_all_tests.sh`)
-  - OAuth enabled/disabled mode testing
-- **Configuration Validation**: URL patterns, scopes, environment variables
-- **Production Testing**: Real OAuth flow validation examples
+##### Framework Architecture
+- **Performance**: FastMCP 2.8.0+ provides better performance and reliability than legacy MCP SDK
+- **Error Handling**: Enhanced error messages and recovery mechanisms with FastMCP's improved architecture
+- **Memory Usage**: More efficient memory management with modern FastMCP framework
+- **Protocol Compliance**: Full compliance with MCP 2025-06-18 specification requirements
 
-##### Security & Authentication
-- **Scope-Based Permissions**: Enhanced OAuth scope mapping to MCP tools
-- **JWT Token Validation**: Production-ready token verification framework
-- **Development Tokens**: Safe testing tokens for development environments
-- **Secret Management**: Kubernetes secrets integration for OAuth credentials
+##### Authentication System
+- **Simplified Configuration**: Streamlined OAuth setup with FastMCP's native BearerAuth
+- **Better Token Management**: FastMCP's dependency injection system for access tokens
+- **Enhanced Security**: Improved JWT validation with FastMCP's built-in cryptographic verification
+- **Scope Validation**: More robust scope checking with FastMCP's permission system
+
+##### Client Experience
+- **Modern API**: Clean, async-first client interface with FastMCP.Client
+- **Simplified Connection**: Direct client instantiation without complex server parameters
+- **Better Debugging**: Enhanced error messages and stack traces with FastMCP
+- **Test Simplicity**: Streamlined test setup and mocking capabilities
 
 ##### Developer Experience
-- **Provider Selection**: Easy switching between OAuth providers
-- **Configuration Templates**: Copy-paste ready configurations
-- **Quick Start Commands**: Simplified deployment for each provider
-- **Error Diagnostics**: Enhanced OAuth troubleshooting and debugging
+- **Migration Support**: Comprehensive migration guide from legacy MCP SDK
+- **Code Examples**: Updated examples using modern FastMCP patterns
+- **Documentation**: Clear documentation of FastMCP-specific features and capabilities
+- **Troubleshooting**: Better diagnostic tools for FastMCP authentication issues
 
 #### Technical Details
 
-##### OAuth Provider Support Matrix
-| Provider | Issuer URL | Scopes | Environment Variables | Production Ready |
-|----------|------------|--------|----------------------|------------------|
-| Azure AD | `login.microsoftonline.com/{tenant}/v2.0` | openid, email, profile, User.Read | AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID | ✅ |
-| Google | `accounts.google.com` | openid, email, profile | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET | ✅ |
-| Keycloak | `{server}/realms/{realm}` | openid, email, profile | KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, KEYCLOAK_SERVER_URL, KEYCLOAK_REALM | ✅ |
-| Okta | `{domain}/oauth2/default` | openid, email, profile | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN | ✅ |
+##### FastMCP 2.8.0+ Framework Migration
+| Component | Legacy (v1.x) | FastMCP 2.8.0+ (v2.0.0) |
+|-----------|---------------|--------------------------|
+| **Framework** | `mcp[cli]==1.9.4` | `fastmcp>=2.8.0` |
+| **Server Import** | `from mcp.server.fastmcp import FastMCP` | `from fastmcp import FastMCP` |
+| **Client Import** | `from mcp import ClientSession, StdioServerParameters` | `from fastmcp import Client` |
+| **Authentication** | Custom OAuth implementation | Native FastMCP BearerAuthProvider |
+| **Token Access** | Manual token parsing | FastMCP dependency injection (`get_access_token()`) |
+| **Transport** | stdio via complex setup | Native stdio, SSE, HTTP support |
 
-##### Kubernetes Integration
-- **Helm Chart Enhancements**: OAuth provider-specific values files
-- **Security Policies**: Network policies for OAuth provider access
-- **TLS Configuration**: Automatic certificate management
-- **High Availability**: Multi-replica deployment with OAuth session handling
+##### OAuth Provider Support (FastMCP Compatible)
+| Provider | Authentication Method | Scope Mapping | Environment Variables |
+|----------|----------------------|---------------|----------------------|
+| **Azure AD** | FastMCP BearerAuth + JWT | Azure scopes → MCP permissions | AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID |
+| **Google** | FastMCP BearerAuth + JWT | Google scopes → MCP permissions | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET |
+| **Keycloak** | FastMCP BearerAuth + JWT | OIDC scopes → MCP permissions | KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, KEYCLOAK_SERVER_URL |
+| **Okta** | FastMCP BearerAuth + JWT | Okta scopes → MCP permissions | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN |
+| **GitHub** | FastMCP BearerAuth + API | GitHub scopes → MCP permissions | GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_ORG |
+
+##### MCP 2025-06-18 Compliance Features
+- **OAuth Discovery Endpoints**: `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`
+- **PKCE Support**: Mandatory PKCE (Proof Key for Code Exchange) for enhanced security
+- **Bearer Token Support**: Standard `Authorization: Bearer {token}` header authentication
+- **Scope-Based Authorization**: Fine-grained permissions mapped to MCP tool access
+- **JWT Validation**: Cryptographic token verification with JWKS endpoint support
 
 ##### Backward Compatibility
-- **100% Compatible**: All existing functionality preserved
-- **Optional OAuth**: Can be enabled/disabled without code changes
-- **Legacy Support**: Original authentication methods still supported
-- **Migration Path**: Smooth transition to OAuth authentication
+- **100% Tool Compatibility**: All 48 MCP tools work identically with new framework
+- **Configuration Preserved**: All environment variables and settings remain the same
+- **Optional Authentication**: OAuth can be enabled/disabled without affecting core functionality
+- **Seamless Migration**: Existing deployments continue to work without changes
 
 #### Usage Examples
 
-##### Quick Deployment
-```bash
-# Deploy with Azure AD
-cp helm/examples/values-azure.yaml helm/values-production.yaml
-helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
-
-# Deploy with Google OAuth
-cp helm/examples/values-google.yaml helm/values-production.yaml
-helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
-```
-
-##### VSCode Integration
-```json
-{
-  "mcp.servers": {
-    "kafka-schema-registry-k8s": {
-      "transport": "http",
-      "baseUrl": "https://mcp-schema-registry.your-domain.com",
-      "authentication": {
-        "type": "oauth2",
-        "oauth2": {
-          "authUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/authorize",
-          "tokenUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token",
-          "clientId": "YOUR_CLIENT_ID",
-          "scopes": ["openid", "email", "profile"]
-        }
-      }
-    }
-  }
-}
-```
-
-##### Programmatic Access
+##### FastMCP Client (New in v2.0.0)
 ```python
-from oauth_provider import get_oauth_provider_configs
+from fastmcp import Client
+import asyncio
 
-configs = get_oauth_provider_configs()
-azure_config = configs['azure']
-google_config = configs['google']
-keycloak_config = configs['keycloak']
-okta_config = configs['okta']
+async def main():
+    # Modern FastMCP client usage
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # List available tools
+        tools = await client.list_tools()
+        print(f"Available tools: {len(tools)}")
+        
+        # Call a tool with authentication
+        result = await client.call_tool("register_schema", {
+            "subject": "user-events",
+            "schema_definition": {"type": "record", "name": "User", "fields": [
+                {"name": "id", "type": "long"},
+                {"name": "name", "type": "string"}
+            ]},
+            "schema_type": "AVRO"
+        })
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+##### OAuth Authentication Setup
+```bash
+# Enable FastMCP OAuth authentication
+export ENABLE_AUTH=true
+export AUTH_PROVIDER=azure  # or google, keycloak, okta, github
+export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0
+export AZURE_CLIENT_ID=your_client_id
+export AZURE_CLIENT_SECRET=your_client_secret
+
+# Run with FastMCP 2.8.0+
+python kafka_schema_registry_unified_mcp.py
+```
+
+##### Migration from Legacy MCP SDK
+```python
+# OLD (v1.x) - Legacy MCP SDK
+from mcp import ClientSession, StdioServerParameters
+from fastmcp.client.stdio import stdio_client
+
+server_params = StdioServerParameters(command="python", args=["server.py"])
+async with stdio_client(server_params) as (read, write):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        result = await session.call_tool("list_subjects", {})
+
+# NEW (v2.0.0) - FastMCP 2.8.0+
+from fastmcp import Client
+
+client = Client("kafka_schema_registry_unified_mcp.py")
+async with client:
+    result = await client.call_tool("list_subjects", {})
 ```
 
 ### Maintained

@@ -6,19 +6,14 @@ This test validates migration integration functionality using the existing
 multi-registry environment without managing Docker containers.
 """
 
-import asyncio
-import json
 import logging
 import os
 import sys
-import time
 import uuid
-from datetime import datetime
 from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
-import requests
 
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

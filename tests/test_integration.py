@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-from typing import Any, Dict
 
 import httpx
 import pytest
@@ -1333,7 +1332,6 @@ async def test_export_schema_specific_version(
     assert data["version"] == 1
 
     # The schema should be the V1 schema (no email field)
-    import json
 
     schema_obj = json.loads(data["schema"])
     field_names = [field["name"] for field in schema_obj["fields"]]
@@ -1377,7 +1375,6 @@ async def test_export_subject_specific_version(
     assert data["versions"][0]["version"] == 2
 
     # The schema should be the V2 schema (has email field)
-    import json
 
     schema_obj = json.loads(data["versions"][0]["schema"])
     field_names = [field["name"] for field in schema_obj["fields"]]

@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry-v2-oauth": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "--rm", 
+        "-i",
+        "--network", "host",
+        "-e", "SCHEMA_REGISTRY_URL",
+        "-e", "SCHEMA_REGISTRY_USER",
+        "-e", "SCHEMA_REGISTRY_PASSWORD",
+        "-e", "ENABLE_AUTH",
+        "-e", "AUTH_PROVIDER",
+        "-e", "AUTH_ISSUER_URL",
+        "-e", "AZURE_CLIENT_ID",
+        "-e", "AZURE_CLIENT_SECRET",
+        "aywengo/kafka-schema-reg-mcp:2.0.0"
+      ],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+        "SCHEMA_REGISTRY_USER": "",
+        "SCHEMA_REGISTRY_PASSWORD": "",
+        "ENABLE_AUTH": "true",
+        "AUTH_PROVIDER": "azure",
+        "AUTH_ISSUER_URL": "https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0",
+        "AZURE_CLIENT_ID": "your_azure_client_id",
+        "AZURE_CLIENT_SECRET": "your_azure_client_secret"
+      }
+    }
+  }
+} 

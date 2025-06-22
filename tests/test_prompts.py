@@ -11,19 +11,13 @@ This module comprehensively tests:
 """
 
 import asyncio
-import json
-import os
 import re
 
 # Import the unified MCP server and prompts
 import sys
-import tempfile
 import uuid
-from typing import Any, Dict, List
-from unittest.mock import MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 sys.path.append("..")
 from kafka_schema_registry_unified_mcp import (
@@ -34,15 +28,11 @@ from kafka_schema_registry_unified_mcp import (
     export_schema,
     export_subject,
     get_global_config,
-    get_registry_info,
     get_schema,
-    get_schema_versions,
     list_contexts,
     list_registries,
     list_subjects,
-    mcp,
     register_schema,
-    registry_manager,
 )
 from kafka_schema_registry_unified_mcp import (
     test_registry_connection as _test_registry_connection,
@@ -340,7 +330,7 @@ class TestConfigurationManagementPrompts:
 
             assert isinstance(result, dict)
             # Should have compatibility info or be a valid response
-            print(f"✅ Retrieved global configuration")
+            print("✅ Retrieved global configuration")
 
         except Exception as e:
             pytest.skip(f"Registry not available: {e}")
@@ -356,7 +346,7 @@ class TestConfigurationManagementPrompts:
             assert (
                 "error" not in result or "readonly" in result.get("error", "").lower()
             )
-            print(f"✅ Updated global compatibility to BACKWARD")
+            print("✅ Updated global compatibility to BACKWARD")
 
         except Exception as e:
             pytest.skip(f"Registry not available: {e}")
@@ -476,7 +466,7 @@ class TestMultiRegistryPrompts:
                 result = await test_all_registries()
 
             assert isinstance(result, dict)
-            print(f"✅ Tested registry connections")
+            print("✅ Tested registry connections")
 
         except Exception as e:
             pytest.skip(f"Registry not available: {e}")
@@ -519,7 +509,7 @@ class TestComplexWorkflowPrompts:
             export_result = export_context(context=dev_context)
 
             assert isinstance(export_result, dict)
-            print(f"✅ Completed schema lifecycle workflow")
+            print("✅ Completed schema lifecycle workflow")
 
         except Exception as e:
             pytest.skip(f"Registry not available: {e}")

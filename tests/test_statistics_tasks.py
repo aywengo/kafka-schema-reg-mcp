@@ -6,7 +6,6 @@ This script tests the new optimized statistics functionality that uses
 the task queue for better performance with parallel API calls and progress tracking.
 """
 
-import json
 import os
 import sys
 from unittest.mock import Mock, patch
@@ -341,7 +340,7 @@ def test_statistics_task_workflow():
     retrieved_task = task_manager.get_task(task.id)
     assert retrieved_task is not None
     assert retrieved_task.id == task.id
-    print(f"✅ Task retrieved successfully")
+    print("✅ Task retrieved successfully")
 
     # Test task listing
     tasks = task_manager.list_tasks(task_type=TaskType.STATISTICS)
@@ -353,9 +352,9 @@ def test_statistics_task_workflow():
     task_manager.update_progress(task.id, 50.0)
     updated_task = task_manager.get_task(task.id)
     assert updated_task.progress == 50.0
-    print(f"✅ Progress update works (50%)")
+    print("✅ Progress update works (50%)")
 
-    print(f"✅ Statistics task workflow validated")
+    print("✅ Statistics task workflow validated")
 
 
 if __name__ == "__main__":
@@ -368,17 +367,17 @@ if __name__ == "__main__":
     # Show performance characteristics
     test_performance_characteristics()
 
-    print(f"\n📝 To run all tests with pytest:")
-    print(f"   pytest tests/test_statistics_tasks.py -v")
-    print(f"   pytest tests/test_statistics_tasks.py::TestStatisticsTaskQueue -v")
-    print(f"   pytest tests/test_statistics_tasks.py::TestAsyncStatisticsFunctions -v")
-    print(f"   pytest tests/test_statistics_tasks.py::TestStatisticsOptimizations -v")
+    print("\n📝 To run all tests with pytest:")
+    print("   pytest tests/test_statistics_tasks.py -v")
+    print("   pytest tests/test_statistics_tasks.py::TestStatisticsTaskQueue -v")
+    print("   pytest tests/test_statistics_tasks.py::TestAsyncStatisticsFunctions -v")
+    print("   pytest tests/test_statistics_tasks.py::TestStatisticsOptimizations -v")
 
-    print(f"\n🎯 Test Coverage:")
-    print(f"   ✅ Task queue integration")
-    print(f"   ✅ Async statistics functions")
-    print(f"   ✅ Parallel execution optimizations")
-    print(f"   ✅ MCP tool integration")
-    print(f"   ✅ Performance characteristics")
+    print("\n🎯 Test Coverage:")
+    print("   ✅ Task queue integration")
+    print("   ✅ Async statistics functions")
+    print("   ✅ Parallel execution optimizations")
+    print("   ✅ MCP tool integration")
+    print("   ✅ Performance characteristics")
 
-    print(f"\n🚀 Statistics performance optimizations are properly tested!")
+    print("\n🚀 Statistics performance optimizations are properly tested!")

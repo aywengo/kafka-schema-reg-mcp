@@ -6,13 +6,12 @@ This test suite verifies that the MCP server works correctly when deployed
 in a Docker container, testing both single and multi-registry modes.
 """
 
-import asyncio
 import json
 import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import pytest
 

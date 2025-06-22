@@ -1,6 +1,6 @@
 # IDE & AI Assistant Integration Guide
 
-This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server v1.7.0 with popular development environments and AI-powered coding assistants, including async operations testing and multi-registry support.
+This guide provides comprehensive instructions for integrating the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance** with popular development environments and AI-powered coding assistants, including enhanced authentication, async operations testing, and multi-registry support.
 
 ## 🔵 VS Code Integration
 

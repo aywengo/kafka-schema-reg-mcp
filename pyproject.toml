@@ -1,6 +1,6 @@
 [project]
 name = "kafka-schema-registry-mcp"
-version = "1.7.0"
+version = "2.0.0"
 description = "A Model Context Protocol (MCP) server for Kafka Schema Registry - enables AI assistants to interact with Kafka schemas through a standardized interface"
 authors = [
     {name = "Kafka Schema Registry MCP Team", email = ""},
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.1,<25.0.0",
     "httpx>=0.25.2",
-    "mcp[cli]>=0.9.0",
+    "fastmcp>=2.8.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
     "aiohttp>=3.9.0",

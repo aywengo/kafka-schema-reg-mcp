@@ -20,7 +20,7 @@ def test_test_version_migration():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting version migration test...")
+    print("🧪 Starting version migration test...")
 
     try:
         # Check connectivity
@@ -285,7 +285,7 @@ def test_test_version_migration():
                         )
 
         # Summary
-        print(f"\n📊 Version Migration Summary:")
+        print("\n📊 Version Migration Summary:")
         print(f"   Total versions tested: {len(all_versions)}")
         print(f"   Successful migrations: {len(migration_results['successful'])}")
         print(f"   Failed migrations: {len(migration_results['failed'])}")
@@ -303,7 +303,7 @@ def test_test_version_migration():
 
         # Show version lineage
         if created_versions:
-            print(f"\n📋 Version lineage created:")
+            print("\n📋 Version lineage created:")
             for version_info in created_versions:
                 print(
                     f"   • {version_info['name']}: v{version_info.get('version', 'unknown')} (ID: {version_info.get('id', 'unknown')})"

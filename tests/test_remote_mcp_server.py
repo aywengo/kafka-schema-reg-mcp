@@ -10,17 +10,11 @@ Tests the new remote MCP server deployment capabilities including:
 - Environment variable handling
 """
 
-import asyncio
 import importlib.util
-import json
 import os
-import subprocess
 import sys
-import tempfile
-import time
 import unittest
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -173,7 +167,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 # Verify mcp.run was called with correct transport
                 mock_mcp.run.assert_called_once_with(transport="streamable-http")
                 self.assertEqual(result, 0)
-            except Exception as e:
+            except Exception:
                 # If we can't test the startup, at least verify config is correct
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
                 self.assertEqual(transport, "streamable-http")
@@ -201,7 +195,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 # Should return error code for invalid transport
                 self.assertEqual(result, 1)
                 mock_mcp.run.assert_not_called()
-            except Exception as e:
+            except Exception:
                 # If we can't test the startup, at least verify config is invalid
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
                 self.assertEqual(transport, "invalid-transport")

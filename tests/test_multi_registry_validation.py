@@ -7,12 +7,8 @@ with the existing running environment (DEV + PROD registries).
 """
 
 import asyncio
-import json
 import os
 import sys
-import time
-import uuid
-from datetime import datetime
 
 import pytest
 import requests
@@ -76,7 +72,7 @@ class MultiRegistryValidationTest:
 
     def test_registry_connectivity(self) -> bool:
         """Test that both registries are reachable"""
-        print(f"\n🔌 Testing registry connectivity...")
+        print("\n🔌 Testing registry connectivity...")
 
         try:
             # Test DEV registry
@@ -103,7 +99,7 @@ class MultiRegistryValidationTest:
 
     def test_mcp_registry_detection(self) -> bool:
         """Test that the MCP server detects both registries"""
-        print(f"\n🔍 Testing MCP registry detection...")
+        print("\n🔍 Testing MCP registry detection...")
 
         try:
             # Get list of registries from MCP server
@@ -152,7 +148,7 @@ class MultiRegistryValidationTest:
 
     async def test_cross_registry_operations(self) -> bool:
         """Test cross-registry operations"""
-        print(f"\n🔄 Testing cross-registry operations...")
+        print("\n🔄 Testing cross-registry operations...")
 
         try:
             # Test registry comparison
@@ -200,7 +196,7 @@ class MultiRegistryValidationTest:
 
     def test_readonly_enforcement(self) -> bool:
         """Test that PROD registry is properly configured as read-only"""
-        print(f"\n🔒 Testing read-only enforcement...")
+        print("\n🔒 Testing read-only enforcement...")
 
         try:
             # Test that PROD registry is marked as read-only in config
@@ -211,10 +207,10 @@ class MultiRegistryValidationTest:
                 return False
 
             if not prod_info.get("readonly", False):
-                print(f"   ⚠️  PROD registry not marked as read-only in configuration")
+                print("   ⚠️  PROD registry not marked as read-only in configuration")
                 # This is a warning, not a failure for this test
             else:
-                print(f"   ✅ PROD registry correctly marked as read-only")
+                print("   ✅ PROD registry correctly marked as read-only")
 
             # Test DEV registry (should not be read-only)
             dev_info = mcp_server.get_registry_info("dev")
@@ -224,9 +220,9 @@ class MultiRegistryValidationTest:
                 return False
 
             if dev_info.get("readonly", False):
-                print(f"   ⚠️  DEV registry incorrectly marked as read-only")
+                print("   ⚠️  DEV registry incorrectly marked as read-only")
             else:
-                print(f"   ✅ DEV registry correctly configured as read-write")
+                print("   ✅ DEV registry correctly configured as read-write")
 
             return True
 
@@ -236,7 +232,7 @@ class MultiRegistryValidationTest:
 
     async def test_multi_registry_tools(self) -> bool:
         """Test that multi-registry specific tools work"""
-        print(f"\n🛠️  Testing multi-registry tools...")
+        print("\n🛠️  Testing multi-registry tools...")
 
         try:
             # Test registry connectivity check
@@ -252,13 +248,13 @@ class MultiRegistryValidationTest:
             connected = connectivity_test.get("connected", 0)
             failed = connectivity_test.get("failed", 0)
 
-            print(f"   ✅ Connectivity test completed")
+            print("   ✅ Connectivity test completed")
             print(f"      Total registries: {total_registries}")
             print(f"      Connected: {connected}")
             print(f"      Failed: {failed}")
 
             if failed > 0:
-                print(f"   ⚠️  Some registries failed connectivity test")
+                print("   ⚠️  Some registries failed connectivity test")
                 # Show detailed results
                 registry_tests = connectivity_test.get("registry_tests", {})
                 for name, result in registry_tests.items():

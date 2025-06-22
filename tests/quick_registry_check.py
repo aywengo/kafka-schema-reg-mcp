@@ -4,7 +4,6 @@ Quick test script to verify Schema Registry connections
 """
 
 import json
-import os
 from typing import Any, Dict
 
 import requests

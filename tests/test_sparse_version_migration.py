@@ -11,12 +11,10 @@ not be shifted to [1, 2, 3].
 """
 
 import asyncio
-import json
+import copy
 import os
 import sys
-import time
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -27,6 +25,12 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 import kafka_schema_registry_unified_mcp as mcp_server
+from core_registry_tools import (
+    delete_subject_tool,
+    get_schema_versions_tool,
+    register_schema_tool,
+)
+from migration_tools import get_migration_status_tool, migrate_schema_tool
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"
@@ -46,30 +50,41 @@ class SparseVersionMigrationTest:
         self.target_context = "."
         self.test_subjects = []
 
-        # Set up environment variables for registry manager
+    def setup_test_environment(self):
+        """Setup environment and reload registry manager"""
+        # Set up environment variables for multi-registry setup
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
         os.environ["SCHEMA_REGISTRY_URL_1"] = self.dev_url
+        os.environ["READONLY_1"] = "false"
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
-        os.environ["READONLY_2"] = "false"  # Allow writes to prod for testing
+        os.environ["READONLY_2"] = "false"
 
-        # Reinitialize registry manager with test config
+        # Clear any other registry configurations
+        for i in range(3, 9):
+            for var in [
+                f"SCHEMA_REGISTRY_NAME_{i}",
+                f"SCHEMA_REGISTRY_URL_{i}",
+                f"READONLY_{i}",
+            ]:
+                if var in os.environ:
+                    del os.environ[var]
+
+        # Clear any global READONLY setting
+        os.environ.pop("READONLY", None)
+
+        # Force reload the registry manager with new configuration
         mcp_server.registry_manager._load_multi_registries()
 
-        # Initialize registry manager
-        self.registry_manager = mcp_server.registry_manager
-
-    async def setup_test_contexts(self):
+    def setup_test_contexts(self):
         """No need to create contexts when using default context."""
-        print(f"\n=== Using Default Contexts ===")
+        print("\n=== Using Default Contexts ===")
         print(f"✓ Source context: {self.source_context} (default)")
         print(f"✓ Target context: {self.target_context} (default)")
         return True
 
-    async def create_sparse_version_schema(self, subject: str):
+    def create_sparse_version_schema(self, subject: str):
         """Create a schema with sparse versions (3, 4, 5) by creating 5 versions then deleting 1 and 2."""
-        import copy
-
         print(f"\n--- Creating sparse version schema for {subject} ---")
 
         # Create initial schema
@@ -90,14 +105,17 @@ class SparseVersionMigrationTest:
                 {"name": f"version_{i+1}_field", "type": "string", "default": f"v{i+1}"}
             )
 
-            # Register schema
-            result = mcp_server.register_schema(
+            # Register schema using direct tool function call
+            result = register_schema_tool(
                 subject=subject,
                 schema_definition=schema,
                 schema_type="AVRO",
                 context=self.source_context,
                 registry="dev",
+                registry_manager=mcp_server.registry_manager,
+                registry_mode=mcp_server.REGISTRY_MODE,
             )
+
             if "error" in result:
                 raise Exception(
                     f"Failed to register schema version {i+1}: {result['error']}"
@@ -105,9 +123,14 @@ class SparseVersionMigrationTest:
             print(f"✓ Registered schema version {i+1}")
 
         # Verify we have 5 versions
-        versions = mcp_server.get_schema_versions(
-            subject, context=self.source_context, registry="dev"
+        versions = get_schema_versions_tool(
+            subject=subject,
+            context=self.source_context,
+            registry="dev",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
+
         if isinstance(versions, dict) and "error" in versions:
             raise Exception(f"Error getting versions: {versions['error']}")
         if len(versions) != 5:
@@ -117,15 +140,11 @@ class SparseVersionMigrationTest:
         # Now delete versions 1 and 2 to create sparse version set [3, 4, 5]
         print("\n--- Deleting versions 1 and 2 to create sparse set ---")
 
-        # Delete version 1
+        # Get registry client info for direct deletion
         try:
-            dev_client = self.registry_manager.get_registry("dev")
-            url1 = dev_client.build_context_url(
-                f"/subjects/{subject}/versions/1", self.source_context
-            )
-            response1 = requests.delete(
-                url1, auth=dev_client.auth, headers=dev_client.headers
-            )
+            # Delete version 1
+            delete_url1 = f"{self.dev_url}/subjects/{subject}/versions/1"
+            response1 = requests.delete(delete_url1)
             if response1.status_code == 200:
                 print("✓ Deleted version 1")
             else:
@@ -135,14 +154,10 @@ class SparseVersionMigrationTest:
         except Exception as e:
             print(f"Warning: Error deleting version 1: {e}")
 
-        # Delete version 2
         try:
-            url2 = dev_client.build_context_url(
-                f"/subjects/{subject}/versions/2", self.source_context
-            )
-            response2 = requests.delete(
-                url2, auth=dev_client.auth, headers=dev_client.headers
-            )
+            # Delete version 2
+            delete_url2 = f"{self.dev_url}/subjects/{subject}/versions/2"
+            response2 = requests.delete(delete_url2)
             if response2.status_code == 200:
                 print("✓ Deleted version 2")
             else:
@@ -153,9 +168,14 @@ class SparseVersionMigrationTest:
             print(f"Warning: Error deleting version 2: {e}")
 
         # Verify we now have sparse versions [3, 4, 5]
-        final_versions = mcp_server.get_schema_versions(
-            subject, context=self.source_context, registry="dev"
+        final_versions = get_schema_versions_tool(
+            subject=subject,
+            context=self.source_context,
+            registry="dev",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
+
         if isinstance(final_versions, dict) and "error" in final_versions:
             raise Exception(f"Error getting final versions: {final_versions['error']}")
 
@@ -171,13 +191,16 @@ class SparseVersionMigrationTest:
         print(f"✓ Successfully created sparse version set: {sorted(final_versions)}")
         return final_versions
 
-    async def verify_sparse_versions_preserved(
-        self, subject: str, expected_versions: list
-    ):
+    def verify_sparse_versions_preserved(self, subject: str, expected_versions: list):
         """Verify that the target registry has the exact same version numbers as source."""
-        target_versions = mcp_server.get_schema_versions(
-            subject, context=self.target_context, registry="prod"
+        target_versions = get_schema_versions_tool(
+            subject=subject,
+            context=self.target_context,
+            registry="prod",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
+
         if isinstance(target_versions, dict) and "error" in target_versions:
             raise Exception(
                 f"Error getting target versions: {target_versions['error']}"
@@ -186,182 +209,172 @@ class SparseVersionMigrationTest:
         sorted_target = sorted(target_versions)
         sorted_expected = sorted(expected_versions)
 
-        print(f"Expected versions: {sorted_expected}")
-        print(f"Target versions:   {sorted_target}")
+        print(f"  Source versions: {sorted_expected}")
+        print(f"  Target versions: {sorted_target}")
 
-        # Check if we achieved perfect preservation
-        if sorted_target == sorted_expected:
-            print(f"✅ Perfect sparse version preservation achieved: {sorted_target}")
-            return True
-
-        # Check if we got partial preservation (some versions preserved)
-        preserved_versions = [v for v in sorted_expected if v in sorted_target]
-        if preserved_versions:
-            print(
-                f"⚠️  Partial sparse version preservation: {preserved_versions} out of {sorted_expected}"
+        if sorted_target != sorted_expected:
+            raise Exception(
+                f"VERSION MISMATCH: Expected {sorted_expected}, got {sorted_target}. "
+                f"This indicates that sparse versions were not preserved during migration!"
             )
-            print(
-                f"   This is expected behavior for Schema Registry with sequential ID constraints."
-            )
-            print(f"   Perfect sparse version preservation requires:")
-            print(f"   • Enterprise Schema Registry with full IMPORT mode support")
-            print(f"   • Empty target registry")
-            print(f"   • Sequential schema registration from version 1")
-            return True  # Accept partial preservation as success
 
-        # No preservation at all - this would be a failure
-        raise Exception(
-            f"NO VERSION PRESERVATION! Expected {sorted_expected}, got {sorted_target}. "
-            f"This indicates the migration failed to preserve any version numbers."
-        )
+        print("✓ Sparse versions correctly preserved in target")
+        return True
 
-    async def test_sparse_version_migration(self):
-        """Test migration of sparse versions to detect the version shifting bug."""
+    def test_sparse_version_migration(self):
+        """Test that sparse version numbers are preserved during migration."""
         print("\n=== Testing Sparse Version Migration ===")
 
-        # Create test schemas
-        subject = f"test-sparse-versions-{uuid.uuid4().hex[:6]}"
+        # Create test subject
+        subject = f"sparse-test-{uuid.uuid4().hex[:8]}"
         self.test_subjects.append(subject)
 
-        # Create sparse version schema in source registry [3, 4, 5]
-        source_versions = await self.create_sparse_version_schema(subject)
-        expected_versions = sorted(source_versions)
+        # Create sparse version schema in source
+        sparse_versions = self.create_sparse_version_schema(subject)
+        print(
+            f"✓ Created sparse version schema with versions: {sorted(sparse_versions)}"
+        )
 
-        print(f"\n--- Migrating sparse versions {expected_versions} ---")
-
-        # Migrate the schema with specific versions
-        result = mcp_server.migrate_schema(
+        # Migrate the schema with sparse versions using direct function call
+        print(f"\n--- Migrating sparse schema {subject} ---")
+        migration_result = migrate_schema_tool(
             subject=subject,
             source_registry="dev",
             target_registry="prod",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
             source_context=self.source_context,
             target_context=self.target_context,
-            preserve_ids=True,
+            preserve_ids=True,  # This should preserve version numbers
             dry_run=False,
-            versions=expected_versions,  # Pass the specific sparse versions
+            versions=sparse_versions,  # Pass specific versions to migrate
         )
 
-        print(f"Migration result: {result}")
+        if "error" in migration_result:
+            raise Exception(f"Migration failed: {migration_result['error']}")
 
-        if "error" in result:
-            raise Exception(f"Migration failed: {result['error']}")
+        # Check for task tracking
+        if "migration_id" in migration_result:
+            print(
+                f"✓ Migration started with task ID: {migration_result['migration_id']}"
+            )
 
-        # Wait for async task to complete
-        if "task_id" in result:
-            print(f"✓ Migration started with task ID: {result['task_id']}")
+            # Check task status
+            status = get_migration_status_tool(
+                migration_result["migration_id"], mcp_server.REGISTRY_MODE
+            )
+            if status and "error" not in status:
+                print(f"✓ Migration task status: {status.get('status', 'unknown')}")
 
-            # Poll for task completion
-            max_wait = 30  # seconds
-            poll_interval = 1  # second
-            elapsed = 0
+        print("✓ Migration completed")
 
-            while elapsed < max_wait:
-                task_status = mcp_server.get_task_progress(result["task_id"])
+        # Verify that sparse versions are preserved (crucial test)
+        print("\n--- Verifying sparse versions preserved ---")
+        self.verify_sparse_versions_preserved(subject, sparse_versions)
 
-                if "error" in task_status:
-                    raise Exception(
-                        f"Failed to get task status: {task_status['error']}"
-                    )
-
-                status = task_status.get("status", "")
-                progress = task_status.get("progress_percent", 0)
-
-                print(f"  Migration progress: {progress}% - {status}")
-
-                if status in ["completed", "failed", "cancelled"]:
-                    if status != "completed":
-                        raise Exception(
-                            f"Migration task {status}: {task_status.get('error', 'Unknown error')}"
-                        )
-                    break
-
-                await asyncio.sleep(poll_interval)
-                elapsed += poll_interval
-
-            if elapsed >= max_wait:
-                raise Exception("Migration task timed out")
-
-            print("✓ Migration task completed")
-
-        # Verify target has preserved version numbers (accepts partial preservation)
-        print(f"\n--- Verifying version preservation ---")
-        await self.verify_sparse_versions_preserved(subject, expected_versions)
-
-        print("✅ Sparse version migration test completed successfully!")
-        print(
-            "    This test verifies that the migration system attempts to preserve version numbers"
-        )
-        print(
-            "    and achieves the best possible preservation given Schema Registry constraints."
-        )
+        print("✅ Sparse version migration test passed!")
         return True
 
-    async def cleanup_test_contexts(self):
+    def cleanup_test_subjects(self):
         """Clean up test subjects from both registries."""
         print("\n=== Cleaning Up Test Subjects ===")
 
-        # Clean up subjects from both registries
-        for registry in ["dev", "prod"]:
-            for subject in self.test_subjects:
-                try:
-                    result = await mcp_server.delete_subject(
-                        subject, context=self.source_context, registry=registry
+        for subject in self.test_subjects:
+            # Clean up from dev registry
+            try:
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="dev",
+                        permanent=True,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
                     )
-                    if isinstance(result, dict) and "error" in result:
-                        # It's ok if subject doesn't exist in target
-                        if "not found" not in str(result["error"]).lower():
-                            print(
-                                f"Warning: Failed to delete {subject} from {registry}: {result['error']}"
-                            )
-                    else:
-                        print(f"✓ Deleted {subject} from {registry}")
-                except Exception as e:
-                    # It's ok if subject doesn't exist
-                    if "not found" not in str(e).lower():
-                        print(
-                            f"Warning: Failed to delete {subject} from {registry}: {str(e)}"
-                        )
-
-        return True
-
-    async def run_all_tests(self):
-        """Run all tests."""
-        try:
-            # Set up test contexts
-            await self.setup_test_contexts()
-
-            # Run tests
-            await self.test_sparse_version_migration()
-
-            print("\n=== All Tests Completed Successfully ===")
-            return True
-
-        except Exception as e:
-            print(f"\n❌ Test Failed: {str(e)}")
-            if "NO VERSION PRESERVATION" in str(e):
-                print("\n🐛 Critical failure: No version numbers were preserved!")
-                print("This indicates a complete migration failure.")
-                return False
-            else:
-                print("\n📋 Test completed with Schema Registry limitations noted.")
-                print(
-                    "Sparse version preservation is an enterprise feature with constraints:"
                 )
-                print("• Requires specific Schema Registry versions and configurations")
-                print("• Works best with empty target registries")
-                print("• May require sequential schema ID assignment")
-                return False
+                print(f"✓ Cleaned up {subject} from dev")
+            except Exception as e:
+                print(f"Warning: Failed to delete {subject} from dev: {e}")
 
+            # Clean up from prod registry
+            try:
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="prod",
+                        permanent=True,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
+                    )
+                )
+                print(f"✓ Cleaned up {subject} from prod")
+            except Exception as e:
+                print(f"Warning: Failed to delete {subject} from prod: {e}")
+
+    def run_all_tests(self):
+        """Run all sparse version migration tests."""
+        print("🧪 Starting Sparse Version Migration Tests")
+        print("=" * 50)
+
+        try:
+            self.setup_test_environment()
+            self.setup_test_contexts()
+            self.test_sparse_version_migration()
+            print("\n✅ All tests passed!")
+            return True
+        except Exception as e:
+            print(f"\n❌ Test failed: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return False
         finally:
-            # Clean up
-            await self.cleanup_test_contexts()
+            self.cleanup_test_subjects()
 
 
-async def main():
-    test = SparseVersionMigrationTest()
-    success = await test.run_all_tests()
-    sys.exit(0 if success else 1)
+def test_registry_connectivity():
+    """Test that both registries are accessible before running tests"""
+    print("🔍 Testing registry connectivity...")
+
+    dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
+    prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+
+    if dev_response.status_code != 200:
+        raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
+
+    if prod_response.status_code != 200:
+        raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+
+    print("✅ Both registries accessible")
+
+
+def main():
+    """Main test execution function."""
+    print("🔄 Sparse Version Migration Test")
+    print("=" * 50)
+
+    try:
+        # Check connectivity first
+        test_registry_connectivity()
+
+        # Run the test
+        test = SparseVersionMigrationTest()
+        success = test.run_all_tests()
+
+        if success:
+            print("\n🎉 Sparse Version Migration Test completed successfully!")
+            return 0
+        else:
+            print("\n❌ Sparse Version Migration Test failed!")
+            return 1
+
+    except Exception as e:
+        print(f"❌ Test setup failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    exit_code = main()
+    sys.exit(exit_code)

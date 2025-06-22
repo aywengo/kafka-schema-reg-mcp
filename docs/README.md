@@ -1,13 +1,16 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v1.8.1 documentation! This folder contains comprehensive guides and references for the **True MCP Implementation** with **Claude Desktop Integration**, **Advanced Async Operations**, and **Modular Architecture**.
+Welcome to the Kafka Schema Registry MCP Server v2.0.0 documentation! This folder contains comprehensive guides and references for the **FastMCP 2.8.0+ Framework** with **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, and **Modern Client API**.
 
 ## 🤖 **MCP Implementation Overview**
 
-This project has been **completely transformed** from a REST API to a **true Message Control Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** instead of API calls.
+This project uses the **modern FastMCP 2.8.0+ framework** for full **MCP 2025-06-18 specification compliance**, providing a **true Message Control Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
 
 ### **Key MCP Features:**
+- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with enhanced performance
+- ✅ **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
 - ✅ **48 MCP Tools**: Complete schema operations via natural language with async task management
+- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0 support for 5 providers
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Context-Aware Operations**: All tools support schema contexts
@@ -76,30 +79,31 @@ Production deployment instructions covering:
 
 ---
 
-## 🎉 What's New in v1.8.1 - Modular Architecture
+## 🎉 What's New in v2.0.0 - FastMCP 2.8.0+ Framework Upgrade
 
-### **🏗️ Complete Modular Architecture Refactoring**
-- **✅ 8 Specialized Modules**: Split 3917-line monolithic file into focused modules
-- **✅ Better Maintainability**: Clear separation of concerns and responsibilities
-- **✅ Parallel Development**: Multiple developers can work on different modules
-- **✅ Improved Testing**: Module-specific testing and debugging
-- **✅ 100% Backward Compatibility**: Original version still available
+### **🚀 FastMCP 2.8.0+ Framework Migration**
+- **✅ Modern MCP Architecture**: Complete migration from legacy `mcp[cli]==1.9.4` to FastMCP 2.8.0+
+- **✅ MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+- **✅ Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 integration
+- **✅ Improved Client API**: Modern FastMCP client interface replacing legacy `mcp.ClientSession`
+- **✅ Better Performance**: Enhanced reliability and performance with modern framework
+- **✅ 100% Backward Compatibility**: All existing deployments continue to work unchanged
 
-### **Module Structure**
-- **`task_management.py`**: Async task queue operations for long-running processes
-- **`migration_tools.py`**: Schema and context migration between registries
-- **`comparison_tools.py`**: Registry and context comparison operations
-- **`export_tools.py`**: Schema export in multiple formats (JSON, Avro IDL)
-- **`batch_operations.py`**: Batch cleanup operations with progress tracking
-- **`statistics_tools.py`**: Counting and statistics operations
-- **`core_registry_tools.py`**: Basic CRUD operations for schemas, subjects, configs
-- **`kafka_schema_registry_unified_modular.py`**: Main orchestration server file
+### **FastMCP 2.8.0+ Framework Benefits**
+- **Enhanced Performance**: Better memory management and faster operation execution
+- **Modern Client API**: Simplified connection with `fastmcp.Client` instead of complex session setup
+- **Native Authentication**: Built-in OAuth 2.0 support with BearerAuth provider
+- **Better Error Handling**: Improved error messages and debugging capabilities
+- **Future-Proof**: MCP 2025-06-18 specification compliance ensures compatibility
+- **Simplified Testing**: Streamlined test setup with new FastMCP client patterns
 
-### **Enhanced Migration System (v1.8.3)**
-- **Docker Command Generation**: `migrate_context` generates ready-to-run Docker commands
-- **External Tool Integration**: Uses [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) for robust migrations
-- **Immediate Execution**: Copy-paste commands with automatic credential mapping
-- **Streamlined Workflow**: Single command approach instead of multi-file configuration
+### **OAuth Authentication System (v2.0.0)**
+- **FastMCP BearerAuth**: Native authentication provider with scope-based authorization
+- **5 OAuth Providers**: Azure AD, Google, Keycloak, Okta, and GitHub support
+- **JWT Validation**: Cryptographic token verification with JWKS endpoint support
+- **Development Tokens**: Safe testing with `dev-token-read`, `dev-token-write`, etc.
+- **Auto-Detection**: Automatic provider detection from token format
+- **MCP Compliance**: OAuth discovery endpoints per MCP 2025-06-18 specification
 
 ## 🎉 What's New in v1.7.0 - Advanced Async Operations
 

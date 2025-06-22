@@ -7,7 +7,7 @@ Provides schema, subject, configuration, and mode management functionality.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 import requests
@@ -981,6 +981,7 @@ async def delete_subject_tool(
     registry_mode: str,
     context: Optional[str] = None,
     registry: Optional[str] = None,
+    permanent: bool = False,
     auth=None,
     headers=None,
     schema_registry_url: str = "",
@@ -992,6 +993,7 @@ async def delete_subject_tool(
         subject: The subject name to delete
         context: Optional schema context
         registry: Optional registry name (ignored in single-registry mode)
+        permanent: If True, perform a hard delete (removes all metadata including schema ID)
 
     Returns:
         List of deleted version numbers
@@ -1008,6 +1010,10 @@ async def delete_subject_tool(
                 f"/subjects/{subject}", schema_registry_url, context
             )
 
+            # Add permanent parameter if specified
+            if permanent:
+                url += "?permanent=true"
+
             response = requests.delete(url, auth=auth, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -1018,6 +1024,10 @@ async def delete_subject_tool(
                 return {"error": f"Registry '{registry}' not found"}
 
             url = client.build_context_url(f"/subjects/{subject}", context)
+
+            # Add permanent parameter if specified
+            if permanent:
+                url += "?permanent=true"
 
             # Use aiohttp for async HTTP requests
             async with aiohttp.ClientSession() as session:

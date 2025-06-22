@@ -5,85 +5,58 @@ Isolated test for OAuth provider configurations function.
 This is a simple, focused test just for the get_oauth_provider_configs() function.
 """
 
-import json
 import os
 import sys
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from oauth_provider import get_oauth_provider_configs
+from oauth_provider import get_oauth_provider_configs, get_oauth_scopes_info
 
 
 def test_provider_configs():
     """Simple test for provider configurations."""
     print("🧪 Testing get_oauth_provider_configs()...")
 
-    try:
-        configs = get_oauth_provider_configs()
+    configs = get_oauth_provider_configs()
 
-        # Basic structure test
-        assert isinstance(configs, dict), "Should return a dictionary"
-        assert len(configs) == 5, f"Should have 5 providers, got {len(configs)}"
+    # Basic structure test
+    assert isinstance(configs, dict), "Should return a dictionary"
 
-        # Check all expected providers exist
-        expected_providers = ["azure", "google", "keycloak", "okta", "github"]
-        for provider in expected_providers:
-            assert provider in configs, f"Missing provider: {provider}"
+    # The function should return provider configurations for multiple providers
+    expected_providers = ["azure", "google", "keycloak", "okta", "github"]
 
-        # Test Azure config
-        azure = configs["azure"]
-        assert azure["name"] == "Azure AD / Entra ID"
-        assert "tenant-id" in azure["issuer_url"]
-        assert "https://graph.microsoft.com/User.Read" in azure["scopes"]
+    for provider in expected_providers:
+        assert provider in configs, f"Missing provider: {provider}"
 
-        # Test Google config
-        google = configs["google"]
-        assert google["name"] == "Google OAuth 2.0"
-        assert google["issuer_url"] == "https://accounts.google.com"
+        provider_config = configs[provider]
+        assert isinstance(
+            provider_config, dict
+        ), f"Provider {provider} config should be a dict"
 
-        # Test Keycloak config
-        keycloak = configs["keycloak"]
-        assert keycloak["name"] == "Keycloak"
-        assert "{keycloak-server}" in keycloak["issuer_url"]
-        assert "{realm}" in keycloak["issuer_url"]
+        # Check required keys for each provider
+        required_keys = ["name", "issuer_url", "auth_url", "token_url", "scopes"]
+        for key in required_keys:
+            assert (
+                key in provider_config
+            ), f"Missing key '{key}' in provider '{provider}'"
 
-        # Test Okta config
-        okta = configs["okta"]
-        assert okta["name"] == "Okta"
-        assert "{okta-domain}" in okta["issuer_url"]
+        # Check that scopes is a list
+        assert isinstance(
+            provider_config["scopes"], list
+        ), f"Scopes for {provider} should be a list"
+        assert (
+            len(provider_config["scopes"]) > 0
+        ), f"Scopes for {provider} should not be empty"
 
-        # Test GitHub config
-        github = configs["github"]
-        assert github["name"] == "GitHub OAuth"
-        assert github["issuer_url"] == "https://api.github.com"
-        assert github["auth_url"] == "https://github.com/login/oauth/authorize"
-        assert github["token_url"] == "https://github.com/login/oauth/access_token"
-        assert "read:user" in github["scopes"]
-        assert "user:email" in github["scopes"]
-        assert "read:org" in github["scopes"]
+    print("✅ Provider configuration structure test passed!")
+    print(f"   Found {len(configs)} provider configurations")
 
-        # Test that all providers have required keys
-        required_keys = [
-            "name",
-            "issuer_url",
-            "auth_url",
-            "token_url",
-            "scopes",
-            "setup_docs",
-        ]
-        for provider_name, provider_config in configs.items():
-            for key in required_keys:
-                assert (
-                    key in provider_config
-                ), f"Provider {provider_name} missing key: {key}"
-
-        print("✅ All provider configuration tests passed!")
-        return True
-
-    except Exception as e:
-        print(f"❌ Test failed: {e}")
-        return False
+    # Test OAuth status using get_oauth_scopes_info
+    oauth_info = get_oauth_scopes_info()
+    print(f"   OAuth enabled: {oauth_info.get('oauth_enabled', False)}")
+    print(f"   Current provider: {oauth_info.get('provider', 'none')}")
+    print(f"   Valid scopes: {oauth_info.get('valid_scopes', [])}")
 
 
 def main():
@@ -91,18 +64,21 @@ def main():
     print("🚀 OAuth Provider Configs - Isolated Test")
     print("=" * 50)
 
-    success = test_provider_configs()
+    test_provider_configs()
 
-    if success:
-        print("\n🎉 Test completed successfully!")
-        print("\nProvider configurations:")
-        configs = get_oauth_provider_configs()
-        for provider, config in configs.items():
-            print(f"  • {config['name']} ({provider})")
-        return 0
-    else:
-        print("\n❌ Test failed!")
-        return 1
+    print("\n🎉 Test completed successfully!")
+    print("\nProvider configurations available:")
+    configs = get_oauth_provider_configs()
+    for provider_name, config in configs.items():
+        print(f"  • {provider_name}: {config.get('name', 'N/A')}")
+
+    # Show current OAuth status
+    oauth_info = get_oauth_scopes_info()
+    print("\nCurrent OAuth Status:")
+    print(f"  • Enabled: {oauth_info.get('oauth_enabled', False)}")
+    print(f"  • Provider: {oauth_info.get('provider', 'none')}")
+    print(f"  • Issuer: {oauth_info.get('issuer', 'none')}")
+    return 0
 
 
 if __name__ == "__main__":

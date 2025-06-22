@@ -18,7 +18,6 @@ Usage:
     docker run -p 8000:8000 -e ENABLE_AUTH=true aywengo/kafka-schema-reg-mcp:stable python remote-mcp-server.py
 """
 
-import json
 import logging
 import os
 import time
@@ -874,7 +873,7 @@ def main():
     port = int(os.getenv("MCP_PORT", "8000"))
     path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
 
-    logger.info(f"🚀 Starting Kafka Schema Registry Remote MCP Server")
+    logger.info("🚀 Starting Kafka Schema Registry Remote MCP Server")
     logger.info(f"📡 Transport: {transport}")
     logger.info(f"🌐 Host: {host}")
     logger.info(f"🔌 Port: {port}")

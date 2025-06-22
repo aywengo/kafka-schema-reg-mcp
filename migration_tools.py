@@ -6,19 +6,15 @@ Handles schema and context migration operations between registries.
 Provides schema migration, context migration, and migration status tracking.
 """
 
-import asyncio
-import inspect
 import json
 import logging
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import requests
 
-from task_management import TaskStatus, TaskType, get_operation_info, task_manager
+from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -597,7 +593,7 @@ def _execute_schema_migration(
             "subject_existed_in_target": target_subject_exists,
             "preserve_ids": preserve_ids,
             "message": f"Migrated {successful_count}/{len(versions_to_migrate)} versions successfully"
-            + (f" (dry run)" if dry_run else ""),
+            + (" (dry run)" if dry_run else ""),
             "debug_info": {
                 "available_versions": available_versions,
                 "requested_versions": versions,

@@ -21,7 +21,7 @@ def test_test_bulk_migration():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting bulk migration test...")
+    print("🧪 Starting bulk migration test...")
 
     try:
         # Check connectivity
@@ -120,7 +120,7 @@ def test_test_bulk_migration():
                 failed_subjects.append(subject)
                 print(f"   ❌ Failed to create {subject}: {e}")
 
-        print(f"📊 Schema creation results:")
+        print("📊 Schema creation results:")
         print(f"   Created: {len(created_subjects)}")
         print(f"   Failed: {len(failed_subjects)}")
 
@@ -206,7 +206,7 @@ def test_test_bulk_migration():
                 print(f"   ❌ {subject} migration error: {e}")
 
         # Summary of bulk migration
-        print(f"\n📊 Bulk migration summary:")
+        print("\n📊 Bulk migration summary:")
         print(f"   Total subjects: {len(created_subjects)}")
         print(f"   Successful migrations: {len(migration_results['successful'])}")
         print(f"   Failed migrations: {len(migration_results['failed'])}")
@@ -224,12 +224,12 @@ def test_test_bulk_migration():
 
         # Show details for failed migrations
         if migration_results["failed"]:
-            print(f"\n📋 Failed migration details:")
+            print("\n📋 Failed migration details:")
             for failure in migration_results["failed"][:3]:
                 print(f"   • {failure['subject']}: {failure['reason']}")
 
         # Test batch validation
-        print(f"\n🔍 Testing batch validation...")
+        print("\n🔍 Testing batch validation...")
 
         # Validate all schemas exist in DEV
         validation_count = 0

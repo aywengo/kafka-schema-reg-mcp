@@ -1,6 +1,5 @@
 import os
 import sys
-from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest

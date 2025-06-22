@@ -29,7 +29,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Load environment variables first
 load_dotenv()
@@ -101,25 +101,18 @@ from schema_registry_common import (
     SINGLE_REGISTRY_USER,
     LegacyRegistryManager,
     MultiRegistryManager,
-    RegistryClient,
-    RegistryConfig,
-    build_context_url,
 )
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
-from schema_registry_common import (
-    get_default_client,
-)
 from statistics_tools import (
     count_contexts_tool,
     count_schema_versions_tool,
     count_schemas_task_queue_tool,
     count_schemas_tool,
     get_registry_statistics_task_queue_tool,
-    get_registry_statistics_tool,
 )
 
 # Import specialized modules
-from task_management import get_operation_info, task_manager
+from task_management import task_manager
 
 
 # Auto-detection of registry mode
@@ -650,14 +643,24 @@ def delete_context(context: str, registry: str = None):
 
 @mcp.tool()
 @require_scopes("admin")
-async def delete_subject(subject: str, context: str = None, registry: str = None):
-    """Delete a subject and all its versions."""
+async def delete_subject(
+    subject: str, context: str = None, registry: str = None, permanent: bool = False
+):
+    """Delete a subject and all its versions.
+
+    Args:
+        subject: The subject name to delete
+        context: Optional schema context
+        registry: Optional registry name
+        permanent: If True, perform a hard delete (removes all metadata including schema ID)
+    """
     return await delete_subject_tool(
         subject,
         registry_manager,
         REGISTRY_MODE,
         context,
         registry,
+        permanent,
         auth,
         headers,
         SCHEMA_REGISTRY_URL,
@@ -763,17 +766,17 @@ def migrate_schema(
 ):
     """Migrate a schema from one registry to another."""
     return migrate_schema_tool(
-        subject,
-        source_registry,
-        target_registry,
-        registry_manager,
-        REGISTRY_MODE,
-        dry_run,
-        preserve_ids,
-        source_context,
-        target_context,
-        versions,
-        migrate_all_versions,
+        subject=subject,
+        source_registry=source_registry,
+        target_registry=target_registry,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        dry_run=dry_run,
+        preserve_ids=preserve_ids,
+        source_context=source_context,
+        target_context=target_context,
+        versions=versions,
+        migrate_all_versions=migrate_all_versions,
     )
 
 
@@ -1442,20 +1445,25 @@ def get_mode_info():
 # Import prompts from external module
 from mcp_prompts import PROMPT_REGISTRY
 
-# Register all prompts with the MCP server
-for prompt_name, prompt_function in PROMPT_REGISTRY.items():
 
-    @mcp.prompt(prompt_name)
-    def create_prompt_handler(func=prompt_function):
-        return lambda: func()
+# Register all prompts with the MCP server
+def register_prompt(name, func):
+    """Helper function to register a prompt with proper closure."""
+
+    @mcp.prompt(name)
+    def prompt_handler():
+        return func()
 
     # Set the proper function name and docstring
-    prompt_handler = create_prompt_handler()
-    prompt_handler.__name__ = prompt_name.replace("-", "_")
-    prompt_handler.__doc__ = prompt_function.__doc__
+    prompt_handler.__name__ = name.replace("-", "_")
+    prompt_handler.__doc__ = func.__doc__
+    return prompt_handler
 
-    # Store the handler
-    globals()[prompt_name.replace("-", "_")] = prompt_handler
+
+# Register all prompts
+for prompt_name, prompt_function in PROMPT_REGISTRY.items():
+    handler = register_prompt(prompt_name, prompt_function)
+    globals()[prompt_name.replace("-", "_")] = handler
 
 # ===== SERVER ENTRY POINT =====
 

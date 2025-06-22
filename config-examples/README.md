@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**.
 
 ## 📂 Available Configurations
 
@@ -10,9 +10,16 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_readonly_config.json`** - Read-only mode for production safety
 
-### Modular Architecture Configurations (v1.8.1+)
-- **`claude_desktop_modular_config.json`** - Local Python modular architecture
-- **`claude_desktop_modular_docker_config.json`** - Docker modular architecture configuration
+### Version-Specific Configurations
+
+#### Current Stable (v1.8.3)
+- **`claude_desktop_stable_config.json`** - Current stable release (v1.8.3)
+- **`claude_desktop_docker_config.json`** - Latest Docker image (may be pre-release)
+
+#### FastMCP 2.8.0+ Configurations (v2.0.0)
+- **`claude_desktop_v2_config.json`** - FastMCP 2.8.0+ framework (v2.0.0)
+- **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth authentication
+- **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
 
 ### Multi-Registry Configurations
 - **`claude_desktop_numbered_config.json`** - Local Python multi-registry setup
@@ -35,13 +42,22 @@ This directory contains example Claude Desktop configuration files for different
 
 ## 🚀 Quick Start
 
-### For Production (Recommended)
+### For Production (Recommended - Current Stable v1.8.3)
 ```bash
-# Copy stable configuration
+# Copy stable configuration (v1.8.3)
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
 cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+### For FastMCP 2.8.0+ Testing (v2.0.0)
+```bash
+# Copy v2.0.0 configuration for testing FastMCP 2.8.0+ features
+cp config-examples/claude_desktop_v2_config.json ~/.config/claude-desktop/config.json
+
+# Or for macOS
+cp config-examples/claude_desktop_v2_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
 ### For Multi-Registry Setup
@@ -141,12 +157,21 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Modular Architecture Development (v1.8.1+)
-**Recommended:** `claude_desktop_modular_config.json`
-- ✅ New modular architecture
-- ✅ Better code organization
-- ✅ Improved maintainability
-- ✅ Focused module responsibilities
+### Use Case: Current Production (Stable v1.8.3)
+**Recommended:** `claude_desktop_stable_config.json`
+- ✅ Battle-tested stable release
+- ✅ Proven in production environments
+- ✅ Full MCP functionality with 48 tools
+- ✅ Multi-registry and async operations support
+
+### Use Case: FastMCP 2.8.0+ Framework Testing (v2.0.0)
+**Recommended:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
+- ✅ Modern FastMCP 2.8.0+ framework
+- ✅ MCP 2025-06-18 specification compliance
+- ✅ Enhanced authentication with OAuth 2.0 support
+- ✅ Better performance and reliability
+- ✅ Improved client API and error handling
+- ⚠️ **Pre-release**: Use for testing only until promoted to stable
 
 ### Use Case: Production Safety
 **Recommended:** `claude_desktop_readonly_config.json`
@@ -182,6 +207,7 @@ cd tests
 
 ## 🔗 Related Documentation
 
+- **[v2.0.0 Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 2.8.0+ testing and migration
 - **[TEST_ENVIRONMENT_SUMMARY.md](../tests/TEST_ENVIRONMENT_SUMMARY.md)** - Complete testing and troubleshooting guide
 - **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Testing environment setup
 - **[tests/README.md](../tests/README.md)** - Testing infrastructure details

@@ -7,7 +7,6 @@ run commands for the kafka-schema-reg-migrator tool.
 """
 
 import asyncio
-import json
 import os
 import sys
 
@@ -15,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import kafka_schema_registry_unified_mcp as mcp_server
+from migration_tools import migrate_context_tool
 
 
 async def test_docker_command_generation():
@@ -37,7 +37,7 @@ async def test_docker_command_generation():
     mcp_server.registry_manager._load_multi_registries()
 
     # Call migrate_context
-    result = await mcp_server.migrate_context(
+    result = await migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         context="test-context",
@@ -45,6 +45,8 @@ async def test_docker_command_generation():
         preserve_ids=True,
         dry_run=True,
         migrate_all_versions=True,
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     # Check for errors
@@ -52,7 +54,7 @@ async def test_docker_command_generation():
         print(f"❌ Error generating command: {result['error']}")
         return False
 
-    print(f"✅ Successfully generated Docker command")
+    print("✅ Successfully generated Docker command")
 
     # Validate the result structure
     required_keys = [
@@ -72,7 +74,7 @@ async def test_docker_command_generation():
             print(f"❌ Missing required key: {key}")
             return False
 
-    print(f"✅ All required keys present")
+    print("✅ All required keys present")
 
     # Check message and reason
     if "external kafka-schema-reg-migrator tool" not in result["message"]:
@@ -93,7 +95,7 @@ async def test_docker_command_generation():
         print(f"❌ Wrong documentation URL: {result['documentation']}")
         return False
 
-    print(f"✅ Basic fields correct")
+    print("✅ Basic fields correct")
 
     # Check migration details
     details = result["migration_details"]
@@ -125,7 +127,7 @@ async def test_docker_command_generation():
         print(f"❌ Wrong options: {options}")
         return False
 
-    print(f"✅ Migration details correct")
+    print("✅ Migration details correct")
 
     # Check docker command
     docker_cmd = result["docker_command"]
@@ -152,7 +154,7 @@ async def test_docker_command_generation():
             print(f"❌ Missing in docker command: {check}")
             return False
 
-    print(f"✅ Docker command correct")
+    print("✅ Docker command correct")
 
     # Check environment variables
     env_vars = result["env_variables"]
@@ -177,29 +179,29 @@ async def test_docker_command_generation():
             print(f"❌ Missing environment variable: {env_var}")
             return False
 
-    print(f"✅ Environment variables correct")
+    print("✅ Environment variables correct")
 
     # Check instructions
     if not isinstance(result["instructions"], list):
-        print(f"❌ Instructions should be a list")
+        print("❌ Instructions should be a list")
         return False
 
     if len(result["instructions"]) < 5:
-        print(f"❌ Not enough instructions provided")
+        print("❌ Not enough instructions provided")
         return False
 
     # Should contain the docker command in instructions
     instructions_text = " ".join(result["instructions"])
     if docker_cmd not in instructions_text:
-        print(f"❌ Docker command not found in instructions")
+        print("❌ Docker command not found in instructions")
         return False
 
-    print(f"✅ Instructions correct")
+    print("✅ Instructions correct")
 
     # Check warnings
     warnings = result["warnings"]
     if not isinstance(warnings, list):
-        print(f"❌ Warnings should be a list")
+        print("❌ Warnings should be a list")
         return False
 
     # Should have warnings about external tool, Docker requirement, and dry run
@@ -209,9 +211,9 @@ async def test_docker_command_generation():
             print(f"❌ Missing expected warning about: {expected}")
             return False
 
-    print(f"✅ Warnings correct")
+    print("✅ Warnings correct")
 
-    print(f"✅ All validations passed!")
+    print("✅ All validations passed!")
     return True
 
 
@@ -219,13 +221,15 @@ async def test_default_context():
     """Test with default context (.)"""
     print("\n🧪 Testing default context handling")
 
-    result = await mcp_server.migrate_context(
+    result = await migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         # No context specified - should default to "."
         preserve_ids=False,  # Test without preserve_ids
         dry_run=False,
         migrate_all_versions=False,
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     if "error" in result:
@@ -261,10 +265,10 @@ async def test_default_context():
         "actual data migration" in warning for warning in warnings
     )
     if not non_dry_run_warning:
-        print(f"❌ Missing non-dry-run warning")
+        print("❌ Missing non-dry-run warning")
         return False
 
-    print(f"✅ Default context and options handled correctly")
+    print("✅ Default context and options handled correctly")
     return True
 
 
@@ -277,12 +281,15 @@ async def test_single_registry_mode():
     mcp_server.REGISTRY_MODE = "single"
 
     try:
-        result = await mcp_server.migrate_context(
-            source_registry="source-test", target_registry="target-test"
+        result = await migrate_context_tool(
+            source_registry="source-test",
+            target_registry="target-test",
+            registry_manager=mcp_server.registry_manager,
+            registry_mode=mcp_server.REGISTRY_MODE,
         )
 
         if "error" not in result:
-            print(f"❌ Expected error for single registry mode")
+            print("❌ Expected error for single registry mode")
             return False
 
         if "single-registry mode" not in result["error"]:
@@ -293,7 +300,7 @@ async def test_single_registry_mode():
             print(f"❌ Wrong registry_mode in response: {result.get('registry_mode')}")
             return False
 
-        print(f"✅ Single registry mode error handled correctly")
+        print("✅ Single registry mode error handled correctly")
         return True
 
     finally:
@@ -305,19 +312,22 @@ async def test_missing_registry():
     """Test error handling for missing registry."""
     print("\n🧪 Testing missing registry error")
 
-    result = await mcp_server.migrate_context(
-        source_registry="nonexistent-registry", target_registry="target-test"
+    result = await migrate_context_tool(
+        source_registry="nonexistent-registry",
+        target_registry="target-test",
+        registry_manager=mcp_server.registry_manager,
+        registry_mode=mcp_server.REGISTRY_MODE,
     )
 
     if "error" not in result:
-        print(f"❌ Expected error for missing registry")
+        print("❌ Expected error for missing registry")
         return False
 
     if "not found" not in result["error"]:
         print(f"❌ Wrong error message: {result['error']}")
         return False
 
-    print(f"✅ Missing registry error handled correctly")
+    print("✅ Missing registry error handled correctly")
     return True
 
 
