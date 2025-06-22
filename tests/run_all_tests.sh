@@ -149,6 +149,13 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Check MCP header validation test file
+    if [[ -f "$PROJECT_ROOT/test_mcp_header_validation.py" ]]; then
+        print_color $GREEN "✅ MCP header validation test file found"
+    else
+        print_color $YELLOW "⚠️  MCP header validation test file not found (optional)"
+    fi
+    
     print_color $GREEN "✅ All prerequisites satisfied"
 }
 
@@ -237,6 +244,7 @@ run_tests() {
             "essential_integration"
             "multi_registry_core"
             "mcp_container_tests"
+            "mcp_compliance_tests"
         )
     else
         test_categories=(
@@ -244,6 +252,7 @@ run_tests() {
             "integration_tests"
             "multi_registry_tests"
             "mcp_container_tests"
+            "mcp_compliance_tests"
             "advanced_features"
         )
     fi
@@ -284,6 +293,9 @@ run_test_category() {
             ;;
         "multi_registry_tests")
             run_multi_registry_tests
+            ;;
+        "mcp_compliance_tests")
+            run_mcp_compliance_tests
             ;;
         "advanced_features")
             run_advanced_feature_tests
@@ -386,6 +398,56 @@ run_multi_registry_tests() {
     )
     
     run_test_list "${tests[@]}"
+}
+
+# Run MCP compliance tests (NEW CATEGORY)
+run_mcp_compliance_tests() {
+    print_color $CYAN "🛡️  MCP 2025-06-18 Compliance Tests"
+    
+    # Check if we have the MCP header validation test file
+    if [[ -f "$PROJECT_ROOT/test_mcp_header_validation.py" ]]; then
+        print_color $BLUE "   🔍 Found MCP header validation test in project root"
+        
+        # Copy the test to the tests directory temporarily if needed
+        local test_file="$PROJECT_ROOT/test_mcp_header_validation.py"
+        local temp_test_file="$SCRIPT_DIR/test_mcp_header_validation_temp.py"
+        
+        # Create a wrapper script that can run the test from project root
+        cat > "$temp_test_file" << 'EOF'
+#!/usr/bin/env python3
+import sys
+import os
+
+# Add project root to path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+# Import and run the actual test
+if __name__ == "__main__":
+    try:
+        # Change to project root for imports
+        os.chdir(project_root)
+        
+        # Import and run the test
+        exec(open('test_mcp_header_validation.py').read())
+    except Exception as e:
+        print(f"Error running MCP header validation test: {e}")
+        sys.exit(1)
+EOF
+        
+        local tests=(
+            "test_mcp_header_validation_temp.py:MCP-Protocol-Version header validation (MCP 2025-06-18 compliance)"
+        )
+        
+        run_test_list "${tests[@]}"
+        
+        # Clean up temporary file
+        rm -f "$temp_test_file"
+        
+    else
+        print_color $YELLOW "   ⚠️  MCP header validation test not found, skipping compliance tests"
+        print_color $BLUE "   💡 To include MCP compliance tests, ensure test_mcp_header_validation.py exists in project root"
+    fi
 }
 
 # Run MCP container tests
@@ -529,10 +591,12 @@ Test Categories Executed:
 $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Essential Integration Tests  
 - Multi-Registry Core Tests
-- MCP Container Integration Tests" || echo "- Basic Unified Server Tests (imports, connectivity)
+- MCP Container Integration Tests
+- MCP 2025-06-18 Compliance Tests (NEW)" || echo "- Basic Unified Server Tests (imports, connectivity)
 - Integration Tests (schema operations, readonly mode)
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
+- MCP 2025-06-18 Compliance Tests (header validation, protocol compliance)
 - Advanced Feature Tests (comparison, migration, workflows)")
 
 Log Files:
