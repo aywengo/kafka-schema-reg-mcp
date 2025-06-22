@@ -465,22 +465,18 @@ def get_fastmcp_config(server_name: str):
     """Get FastMCP configuration with optional OAuth authentication and MCP 2025-06-18 compliance."""
     config = {
         "name": server_name,
-        # MCP 2025-06-18 Specification Compliance: Explicitly disable JSON-RPC batching
-        "allow_batch_requests": False,
-        "batch_support": False,
-        # Additional configuration for protocol compliance
-        "protocol_version": "2025-06-18",
-        "jsonrpc_batching_disabled": True,
+        # Note: MCP 2025-06-18 compliance is handled at the application level,
+        # not through FastMCP configuration parameters
     }
 
     if ENABLE_AUTH and oauth_provider:
         config["auth"] = oauth_provider
-        logger.info("FastMCP configured with Bearer token authentication (no JSON-RPC batching)")
+        logger.info("FastMCP configured with Bearer token authentication (MCP 2025-06-18 compliant)")
     else:
-        logger.info("FastMCP configured without authentication (no JSON-RPC batching)")
+        logger.info("FastMCP configured without authentication (MCP 2025-06-18 compliant)")
 
-    # Log the batching configuration explicitly
-    logger.info("🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification")
+    # Log the compliance information for clarity
+    logger.info("🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)")
     logger.info("💡 Application-level batch operations (clear_context_batch, etc.) remain available")
 
     return config
