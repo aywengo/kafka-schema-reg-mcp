@@ -7,11 +7,9 @@ Validates that all modification operations are properly blocked.
 import asyncio
 import json
 import os
-import subprocess
 import sys
 
 import pytest
-from fastmcp import Client
 
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first
@@ -35,7 +33,7 @@ env_vars = {
 for key, value in env_vars.items():
     os.environ[key] = value
 
-print(f"🔧 Setting up environment variables for readonly test...")
+print("🔧 Setting up environment variables for readonly test...")
 for key, value in env_vars.items():
     print(f"   {key}={value}")
 
@@ -48,7 +46,7 @@ class ReadOnlyValidationTest:
 
     def __init__(self):
         """Initialize test - environment already set at module level"""
-        print(f"   Environment configured for multi-registry with readonly PROD")
+        print("   Environment configured for multi-registry with readonly PROD")
 
     def parse_result(self, result):
         """Parse MCP tool result with simple error handling"""
@@ -70,7 +68,7 @@ class ReadOnlyValidationTest:
     async def run_test(self):
         """Test unified server in multi-registry mode's read-only enforcement for PROD registry"""
 
-        print(f"🧪 Starting MCP read-only validation test...")
+        print("🧪 Starting MCP read-only validation test...")
 
         try:
             # Get the path to the parent directory where the server script is located
@@ -80,7 +78,7 @@ class ReadOnlyValidationTest:
             )
 
             # Debug: Show environment variables that will be passed
-            print(f"\n🔍 Debug: Environment variables for server:")
+            print("\n🔍 Debug: Environment variables for server:")
             for i in range(1, 3):
                 name_var = f"SCHEMA_REGISTRY_NAME_{i}"
                 url_var = f"SCHEMA_REGISTRY_URL_{i}"
@@ -91,21 +89,19 @@ class ReadOnlyValidationTest:
 
             # Use subprocess approach to ensure environment variables are passed
             print("\n🚀 Starting MCP server subprocess with environment...")
-            
+
             # Import required modules for subprocess communication
             from mcp import ClientSession
-            from mcp.client.stdio import stdio_client, StdioServerParameters
-            
+            from mcp.client.stdio import StdioServerParameters, stdio_client
+
             # Create environment dict for subprocess
             subprocess_env = os.environ.copy()
-            
+
             # Create server parameters with explicit environment
             server_params = StdioServerParameters(
-                command="python", 
-                args=[server_script], 
-                env=subprocess_env
+                command="python", args=[server_script], env=subprocess_env
             )
-            
+
             # Test with subprocess communication
             async with stdio_client(server_params) as (read, write):
                 async with ClientSession(read, write) as session:
@@ -208,7 +204,7 @@ class ReadOnlyValidationTest:
                         return False
                     else:
                         print(
-                            f"   ✅ DEV write operations: Not blocked by readonly mode"
+                            "   ✅ DEV write operations: Not blocked by readonly mode"
                         )
 
                     # Test 4: Test other modification operations on PROD
@@ -228,7 +224,7 @@ class ReadOnlyValidationTest:
                     if isinstance(config_result, dict) and config_result.get(
                         "readonly_mode"
                     ):
-                        print(f"   ✅ Config update correctly blocked")
+                        print("   ✅ Config update correctly blocked")
                     else:
                         print(f"   ❌ Config update not blocked: {config_result}")
 
@@ -246,7 +242,7 @@ class ReadOnlyValidationTest:
                     if isinstance(context_result, dict) and context_result.get(
                         "readonly_mode"
                     ):
-                        print(f"   ✅ Context creation correctly blocked")
+                        print("   ✅ Context creation correctly blocked")
                     else:
                         print(f"   ❌ Context creation not blocked: {context_result}")
 
@@ -272,7 +268,7 @@ class ReadOnlyValidationTest:
                     if isinstance(migration_result, dict) and migration_result.get(
                         "readonly_mode"
                     ):
-                        print(f"   ✅ Migration to PROD correctly blocked")
+                        print("   ✅ Migration to PROD correctly blocked")
                     else:
                         print(f"   ⚠️  Migration response: {migration_result}")
 
@@ -282,6 +278,7 @@ class ReadOnlyValidationTest:
         except Exception as e:
             print(f"❌ Test failed: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -317,18 +314,16 @@ async def validate_readonly_mode():
     try:
         # Use subprocess approach for consistent environment passing
         from mcp import ClientSession
-        from mcp.client.stdio import stdio_client, StdioServerParameters
-        
+        from mcp.client.stdio import StdioServerParameters, stdio_client
+
         # Create environment dict for subprocess
         subprocess_env = os.environ.copy()
-        
+
         # Create server parameters with explicit environment
         server_params = StdioServerParameters(
-            command="python", 
-            args=[server_script], 
-            env=subprocess_env
+            command="python", args=[server_script], env=subprocess_env
         )
-        
+
         # Test with subprocess communication
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -343,7 +338,7 @@ async def validate_readonly_mode():
                 # Define operations that should be blocked in READONLY mode
                 modification_operations = [
                     "register_schema",
-                    "create_context", 
+                    "create_context",
                     "delete_context",
                     "update_global_config",
                     "update_subject_config",
@@ -354,13 +349,13 @@ async def validate_readonly_mode():
                     "delete_schema",
                     "delete_subject",
                     "cleanup_schemas",
-                    "bulk_cleanup"
+                    "bulk_cleanup",
                 ]
 
                 # Define operations that should still work (read-only)
                 readonly_operations = [
                     "list_subjects",
-                    "list_contexts", 
+                    "list_contexts",
                     "get_global_config",
                     "get_mode",
                     "get_subject_config",
@@ -372,17 +367,19 @@ async def validate_readonly_mode():
                     "check_compatibility",
                     "count_schemas_by_type",
                     "count_schemas_by_subject",
-                    "count_total_schemas"
+                    "count_total_schemas",
                 ]
 
-                print(f"\n🚫 Testing {len(modification_operations)} modification operations (should be blocked)...")
+                print(
+                    f"\n🚫 Testing {len(modification_operations)} modification operations (should be blocked)..."
+                )
                 blocked_count = 0
-                
+
                 for operation in modification_operations:
                     if operation not in tool_names:
                         print(f"⚠️  {operation}: Tool not found (skipping)")
                         continue
-                        
+
                     try:
                         # Use minimal valid arguments for each operation
                         args = {}
@@ -396,20 +393,20 @@ async def validate_readonly_mode():
                             args = {"compatibility": "BACKWARD"}
                         elif "mode" in operation:
                             args = {"mode": "READONLY"}
-                        
+
                         result = await session.call_tool(operation, args)
                         if result.content and len(result.content) > 0:
                             result_text = result.content[0].text.lower()
                         else:
                             result_text = str(result).lower()
-                        
+
                         if "readonly" in result_text or "read-only" in result_text:
                             print(f"✅ {operation}: Correctly blocked")
                             blocked_count += 1
                         else:
                             print(f"❌ {operation}: NOT blocked (should be!)")
                             print(f"   Result: {str(result)[:100]}...")
-                            
+
                     except Exception as e:
                         error_text = str(e).lower()
                         if "readonly" in error_text or "read-only" in error_text:
@@ -418,14 +415,16 @@ async def validate_readonly_mode():
                         else:
                             print(f"⚠️  {operation}: Exception (not readonly): {e}")
 
-                print(f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)...")
+                print(
+                    f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)..."
+                )
                 allowed_count = 0
-                
+
                 for operation in readonly_operations:
                     if operation not in tool_names:
                         print(f"⚠️  {operation}: Tool not found (skipping)")
                         continue
-                        
+
                     try:
                         # Use minimal valid arguments
                         args = {}
@@ -436,50 +435,67 @@ async def validate_readonly_mode():
                         elif "compatibility" in operation:
                             args = {
                                 "subject": "test-subject",
-                                "schema_definition": {"type": "string"}
+                                "schema_definition": {"type": "string"},
                             }
-                        
+
                         result = await session.call_tool(operation, args)
                         if result.content and len(result.content) > 0:
                             result_text = result.content[0].text.lower()
                         else:
                             result_text = str(result).lower()
-                        
+
                         if "readonly" in result_text or "read-only" in result_text:
                             print(f"❌ {operation}: Incorrectly blocked")
                         else:
                             print(f"✅ {operation}: Correctly allowed")
                             allowed_count += 1
-                            
+
                     except Exception as e:
                         error_text = str(e).lower()
                         if "readonly" in error_text or "read-only" in error_text:
-                            print(f"❌ {operation}: Incorrectly blocked by readonly mode")
+                            print(
+                                f"❌ {operation}: Incorrectly blocked by readonly mode"
+                            )
                         else:
                             # Connection errors are expected and OK
-                            print(f"✅ {operation}: Not blocked by readonly mode (connection error OK)")
+                            print(
+                                f"✅ {operation}: Not blocked by readonly mode (connection error OK)"
+                            )
                             allowed_count += 1
 
-                print(f"\n📊 READONLY Mode Validation Summary:")
-                print(f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}")
-                print(f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}")
-                
+                print("\n📊 READONLY Mode Validation Summary:")
+                print(
+                    f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}"
+                )
+                print(
+                    f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}"
+                )
+
                 # Validate that most operations behave as expected
-                min_blocked = len(modification_operations) * 0.8  # At least 80% should be blocked
-                min_allowed = len(readonly_operations) * 0.8     # At least 80% should be allowed
-                
+                min_blocked = (
+                    len(modification_operations) * 0.8
+                )  # At least 80% should be blocked
+                min_allowed = (
+                    len(readonly_operations) * 0.8
+                )  # At least 80% should be allowed
+
                 if blocked_count >= min_blocked and allowed_count >= min_allowed:
-                    print(f"\n✅ READONLY mode validation PASSED!")
+                    print("\n✅ READONLY mode validation PASSED!")
                     return True
                 else:
-                    print(f"\n❌ READONLY mode validation FAILED!")
-                    print(f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}")
-                    print(f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}")
+                    print("\n❌ READONLY mode validation FAILED!")
+                    print(
+                        f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}"
+                    )
+                    print(
+                        f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}"
+                    )
                     return False
 
     except Exception as e:
         print(f"❌ READONLY mode validation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

@@ -7,7 +7,6 @@ using the official MCP Python SDK client.
 """
 
 import asyncio
-import json
 import os
 import sys
 
@@ -110,7 +109,7 @@ async def test_dependencies():
     try:
         import asyncio
 
-        print(f"✅ Asyncio available")
+        print("✅ Asyncio available")
     except ImportError as e:
         print(f"❌ Asyncio not available: {e}")
         return False

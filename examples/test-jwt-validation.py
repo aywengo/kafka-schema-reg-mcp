@@ -15,7 +15,6 @@ Examples:
 """
 
 import asyncio
-import json
 import os
 import sys
 

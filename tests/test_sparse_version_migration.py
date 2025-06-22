@@ -12,15 +12,11 @@ not be shifted to [1, 2, 3].
 
 import asyncio
 import copy
-import json
 import os
 import sys
-import time
 import uuid
-from datetime import datetime
 from pathlib import Path
 
-import pytest
 import requests
 
 # Add the project root directory to Python path
@@ -82,7 +78,7 @@ class SparseVersionMigrationTest:
 
     def setup_test_contexts(self):
         """No need to create contexts when using default context."""
-        print(f"\n=== Using Default Contexts ===")
+        print("\n=== Using Default Contexts ===")
         print(f"✓ Source context: {self.source_context} (default)")
         print(f"✓ Target context: {self.target_context} (default)")
         return True
@@ -273,7 +269,7 @@ class SparseVersionMigrationTest:
         print("✓ Migration completed")
 
         # Verify that sparse versions are preserved (crucial test)
-        print(f"\n--- Verifying sparse versions preserved ---")
+        print("\n--- Verifying sparse versions preserved ---")
         self.verify_sparse_versions_preserved(subject, sparse_versions)
 
         print("✅ Sparse version migration test passed!")

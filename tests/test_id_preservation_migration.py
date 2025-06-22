@@ -4,14 +4,10 @@ Test script for ID preservation during schema migration.
 """
 
 import asyncio
-import json
 import os
 import sys
-import time
 import uuid
-from datetime import datetime
 
-import pytest
 import requests
 
 # Add parent directory to path
@@ -21,7 +17,6 @@ import kafka_schema_registry_unified_mcp as mcp_server
 from core_registry_tools import (
     delete_subject_tool,
     get_schema_tool,
-    get_schema_versions_tool,
     register_schema_tool,
 )
 from migration_tools import get_migration_status_tool, migrate_schema_tool
@@ -139,7 +134,7 @@ class IDPreservationTest:
 
     def create_test_environment(self):
         """Set up test environment with test schemas."""
-        print(f"📝 Creating test schemas...")
+        print("📝 Creating test schemas...")
 
         # First check context support
         if not self.check_context_support():
@@ -361,7 +356,7 @@ class IDPreservationTest:
             if "error" in target_data:
                 print(f"   ❌ Could not get target schema: {target_data['error']}")
                 print(
-                    f"   💡 This might be expected if the subject name changed during migration"
+                    "   💡 This might be expected if the subject name changed during migration"
                 )
                 return True  # Don't fail the test for this
 
@@ -377,15 +372,13 @@ class IDPreservationTest:
                     f"   ⚠️ ID preservation may not have worked: source={source_id}, target={target_id}"
                 )
                 print(
-                    f"   💡 This could be due to registry configuration or existing schemas"
+                    "   💡 This could be due to registry configuration or existing schemas"
                 )
                 return True  # Don't fail - just note the issue
 
         except Exception as e:
             print(f"   ⚠️ ID preservation test encountered an issue: {e}")
-            print(
-                f"   💡 This might be expected in some Schema Registry configurations"
-            )
+            print("   💡 This might be expected in some Schema Registry configurations")
             return True  # Don't fail the entire test suite
 
     def cleanup(self):

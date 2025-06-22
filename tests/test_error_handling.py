@@ -17,15 +17,14 @@ import asyncio
 import json
 import os
 import sys
-import time
-from typing import Any, Dict
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastmcp import Client
-
 import pytest
+from fastmcp import Client
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Invalid schemas for testing error handling
 INVALID_SCHEMAS = {
@@ -288,7 +287,7 @@ async def test_invalid_parameters():
                                 f"    ✅ Properly rejected: {response['error'][:50]}..."
                             )
                         else:
-                            print(f"    ⚠️ Unexpectedly accepted invalid schema")
+                            print("    ⚠️ Unexpectedly accepted invalid schema")
                     except Exception as e:
                         print(f"    ✅ Exception caught: {str(e)[:50]}...")
 
@@ -780,39 +779,42 @@ async def test_connection_error_handling():
     """Test MCP connection error handling"""
     print("🔌 Testing Connection Error Handling")
     print("=" * 50)
-    
+
     # Setup environment with invalid registry URL
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:99999"  # Invalid port
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Test operations that should fail gracefully due to connection issues
             error_prone_operations = [
                 ("list_subjects", {}),
-                ("get_global_config", {}), 
+                ("get_global_config", {}),
                 ("list_contexts", {}),
-                ("register_schema", {
-                    "subject": "test-subject",
-                    "schema_definition": {"type": "string"},
-                    "schema_type": "AVRO"
-                })
+                (
+                    "register_schema",
+                    {
+                        "subject": "test-subject",
+                        "schema_definition": {"type": "string"},
+                        "schema_type": "AVRO",
+                    },
+                ),
             ]
-            
+
             connection_errors = 0
             graceful_failures = 0
-            
+
             for operation, args in error_prone_operations:
                 print(f"\n🧪 Testing: {operation}")
                 try:
@@ -820,19 +822,27 @@ async def test_connection_error_handling():
                     print(f"⚠️  {operation}: Unexpected success - {result}")
                 except Exception as e:
                     error_text = str(e).lower()
-                    if any(keyword in error_text for keyword in ["connection", "refused", "timeout", "unreachable"]):
+                    if any(
+                        keyword in error_text
+                        for keyword in [
+                            "connection",
+                            "refused",
+                            "timeout",
+                            "unreachable",
+                        ]
+                    ):
                         print(f"✅ {operation}: Graceful connection error - {e}")
                         graceful_failures += 1
                     else:
                         print(f"❌ {operation}: Non-connection error - {e}")
                         connection_errors += 1
-            
-            print(f"\n📊 Connection Error Summary:")
+
+            print("\n📊 Connection Error Summary:")
             print(f"   Graceful failures: {graceful_failures}")
             print(f"   Unexpected errors: {connection_errors}")
-            
+
             return graceful_failures > 0 and connection_errors == 0
-            
+
     except Exception as e:
         print(f"❌ Critical error during connection error test: {e}")
         return False
@@ -843,36 +853,45 @@ async def test_invalid_input_handling():
     """Test handling of invalid inputs"""
     print("🚫 Testing Invalid Input Handling")
     print("=" * 50)
-    
+
     # Setup environment with valid registry URL
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Test operations with invalid arguments
             invalid_operations = [
-                ("register_schema", {"subject": "", "schema_definition": {}}),  # Empty subject
-                ("register_schema", {"subject": "test", "schema_definition": "invalid"}),  # Invalid schema
+                (
+                    "register_schema",
+                    {"subject": "", "schema_definition": {}},
+                ),  # Empty subject
+                (
+                    "register_schema",
+                    {"subject": "test", "schema_definition": "invalid"},
+                ),  # Invalid schema
                 ("get_schema_by_id", {"schema_id": -1}),  # Invalid ID
                 ("export_subject", {"subject": ""}),  # Empty subject
-                ("check_compatibility", {"subject": "test", "schema_definition": None})  # Null schema
+                (
+                    "check_compatibility",
+                    {"subject": "test", "schema_definition": None},
+                ),  # Null schema
             ]
-            
+
             validation_errors = 0
             unexpected_successes = 0
-            
+
             for operation, args in invalid_operations:
                 print(f"\n🧪 Testing: {operation} with invalid args")
                 try:
@@ -881,18 +900,21 @@ async def test_invalid_input_handling():
                     unexpected_successes += 1
                 except Exception as e:
                     error_text = str(e).lower()
-                    if any(keyword in error_text for keyword in ["invalid", "validation", "error", "bad request"]):
+                    if any(
+                        keyword in error_text
+                        for keyword in ["invalid", "validation", "error", "bad request"]
+                    ):
                         print(f"✅ {operation}: Proper validation error - {e}")
                         validation_errors += 1
                     else:
                         print(f"⚠️  {operation}: Other error - {e}")
-            
-            print(f"\n📊 Input Validation Summary:")
+
+            print("\n📊 Input Validation Summary:")
             print(f"   Proper validation errors: {validation_errors}")
             print(f"   Unexpected successes: {unexpected_successes}")
-            
+
             return validation_errors > 0 and unexpected_successes == 0
-            
+
     except Exception as e:
         print(f"❌ Critical error during input validation test: {e}")
         return False
@@ -903,46 +925,51 @@ async def test_error_recovery():
     """Test error recovery mechanisms"""
     print("🔄 Testing Error Recovery")
     print("=" * 50)
-    
+
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Test recovery after error
             print("\n🧪 Testing recovery after error...")
-            
+
             # First, try an operation that might fail
             try:
-                await client.call_tool("register_schema", {
-                    "subject": "test-recovery",
-                    "schema_definition": "invalid-schema"  # Invalid schema
-                })
+                await client.call_tool(
+                    "register_schema",
+                    {
+                        "subject": "test-recovery",
+                        "schema_definition": "invalid-schema",  # Invalid schema
+                    },
+                )
                 print("⚠️  Invalid schema registration unexpectedly succeeded")
             except Exception as e:
                 print(f"✅ Expected error occurred: {e}")
-            
+
             # Then, try a valid operation to test recovery
             try:
                 result = await client.call_tool("list_subjects", {})
-                print(f"✅ Recovery successful: Can still perform operations after error")
+                print(
+                    "✅ Recovery successful: Can still perform operations after error"
+                )
                 return True
             except Exception as e:
                 print(f"❌ Recovery failed: {e}")
                 return False
-                
+
     except Exception as e:
         print(f"❌ Critical error during recovery test: {e}")
         return False

@@ -10,10 +10,10 @@ import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from schema_registry_common import get_default_client
-from task_management import TaskStatus, TaskType, task_manager
+from task_management import TaskType, task_manager
 
 
 def count_contexts_tool(

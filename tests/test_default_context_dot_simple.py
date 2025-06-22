@@ -44,15 +44,15 @@ def test_default_context_url_building():
 
         # Key test: context="." should produce the same URL as context=None
         if url_dot != url_none:
-            print(f"   ❌ CRITICAL: URL for context='.' differs from context=None")
+            print("   ❌ CRITICAL: URL for context='.' differs from context=None")
             return False
 
         # Named context should be different
         if url_named == url_none:
-            print(f"   ❌ Named context URL should be different from default")
+            print("   ❌ Named context URL should be different from default")
             return False
 
-        print(f"   ✅ URL building test PASSED")
+        print("   ✅ URL building test PASSED")
         return True
 
     except Exception as e:
@@ -98,7 +98,7 @@ def test_default_context_subject_listing():
                 or "Max retries exceeded" in subjects_none["error"]
             ):
                 print(
-                    f"   ℹ️  Schema Registry not available - skipping subject listing test"
+                    "   ℹ️  Schema Registry not available - skipping subject listing test"
                 )
                 return True
             return False
@@ -111,7 +111,7 @@ def test_default_context_subject_listing():
                 or "Max retries exceeded" in subjects_dot["error"]
             ):
                 print(
-                    f"   ℹ️  Schema Registry not available - skipping subject listing test"
+                    "   ℹ️  Schema Registry not available - skipping subject listing test"
                 )
                 return True
             return False
@@ -121,7 +121,7 @@ def test_default_context_subject_listing():
 
         # Both should return the same results
         if len(subjects_none) != len(subjects_dot):
-            print(f"   ❌ CRITICAL: Different results for context=None vs context='.'!")
+            print("   ❌ CRITICAL: Different results for context=None vs context='.'!")
             print(f"      context=None: {len(subjects_none)} subjects")
             print(f"      context='.': {len(subjects_dot)} subjects")
             return False
@@ -129,7 +129,7 @@ def test_default_context_subject_listing():
         # Check that the actual subjects are the same
         if set(subjects_none) != set(subjects_dot):
             print(
-                f"   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!"
+                "   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!"
             )
             diff_none_only = set(subjects_none) - set(subjects_dot)
             diff_dot_only = set(subjects_dot) - set(subjects_none)
@@ -139,17 +139,15 @@ def test_default_context_subject_listing():
                 print(f"      Only in context='.': {list(diff_dot_only)[:3]}...")
             return False
 
-        print(f"   ✅ Subject listing test PASSED")
-        print(f"   ℹ️  Both context=None and context='.' return identical results")
+        print("   ✅ Subject listing test PASSED")
+        print("   ℹ️  Both context=None and context='.' return identical results")
         return True
 
     except Exception as e:
         print(f"   ❌ Subject listing test failed: {e}")
         # If this is a connection error, it's expected in test environments
         if "Connection refused" in str(e) or "Max retries exceeded" in str(e):
-            print(
-                f"   ℹ️  Schema Registry not available - skipping subject listing test"
-            )
+            print("   ℹ️  Schema Registry not available - skipping subject listing test")
             return True
         return False
 
@@ -165,7 +163,7 @@ def test_schema_registry_connectivity():
         response = requests.get("http://localhost:38081/subjects", timeout=5)
         if response.status_code == 200:
             subjects = response.json()
-            print(f"   ✅ Schema Registry is accessible")
+            print("   ✅ Schema Registry is accessible")
             print(f"   📋 Found {len(subjects)} total subjects")
 
             # Test if it's read-only by attempting a simple operation
@@ -178,12 +176,12 @@ def test_schema_registry_connectivity():
                     print(f"   📊 Schema Registry mode: {mode}")
 
                     if mode == "READONLY":
-                        print(f"   ℹ️  Registry is in READONLY mode (expected)")
+                        print("   ℹ️  Registry is in READONLY mode (expected)")
                     else:
                         print(f"   ℹ️  Registry mode: {mode}")
 
             except Exception:
-                print(f"   ℹ️  Could not determine registry mode")
+                print("   ℹ️  Could not determine registry mode")
 
             return True
         else:
@@ -195,7 +193,7 @@ def test_schema_registry_connectivity():
         # Connection errors are expected in test environments without running Schema Registry
         if "Connection refused" in str(e) or "Max retries exceeded" in str(e):
             print(
-                f"   ℹ️  Schema Registry not available - this is expected in test environments"
+                "   ℹ️  Schema Registry not available - this is expected in test environments"
             )
             return True
         return False
@@ -229,10 +227,10 @@ async def main():
     print(f"\n📊 Test Results: {passed}/{total} tests passed")
 
     if passed == total:
-        print(f"\n🎉 ALL READ-ONLY COMPATIBLE TESTS PASSED!")
-        print(f"✅ Default context '.' functionality works correctly")
-        print(f"✅ URL building handles context='.' properly")
-        print(f"✅ Subject listing works for default context")
+        print("\n🎉 ALL READ-ONLY COMPATIBLE TESTS PASSED!")
+        print("✅ Default context '.' functionality works correctly")
+        print("✅ URL building handles context='.' properly")
+        print("✅ Subject listing works for default context")
         return True
     else:
         print(f"\n⚠️  {total - passed} tests failed")

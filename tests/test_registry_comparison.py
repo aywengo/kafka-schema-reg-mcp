@@ -5,9 +5,7 @@ Full registry comparison DEV vs PROD
 Tests comprehensive comparison of schemas, subjects, and versions between registries.
 """
 
-import json
 import sys
-from collections import defaultdict
 
 import requests
 
@@ -21,7 +19,7 @@ def test_test_registry_comparison():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting registry comparison test...")
+    print("🧪 Starting registry comparison test...")
 
     try:
         # Check connectivity
@@ -38,7 +36,7 @@ def test_test_registry_comparison():
         dev_subjects = set(dev_response.json())
         prod_subjects = set(prod_response.json())
 
-        print(f"📊 Registry statistics:")
+        print("📊 Registry statistics:")
         print(f"   DEV subjects: {len(dev_subjects)}")
         print(f"   PROD subjects: {len(prod_subjects)}")
 
@@ -47,7 +45,7 @@ def test_test_registry_comparison():
         prod_only = prod_subjects - dev_subjects
         common_subjects = dev_subjects & prod_subjects
 
-        print(f"🔍 Comparison results:")
+        print("🔍 Comparison results:")
         print(f"   Common subjects: {len(common_subjects)}")
         print(f"   DEV-only subjects: {len(dev_only)}")
         print(f"   PROD-only subjects: {len(prod_only)}")
@@ -134,26 +132,26 @@ def test_test_registry_comparison():
                 print(f"   ❌ Failed to compare {subject}: {e}")
 
         # Summary of differences
-        print(f"\n📊 Detailed comparison summary:")
+        print("\n📊 Detailed comparison summary:")
         print(f"   Schema differences: {len(schema_differences)}")
         print(f"   Version differences: {len(version_differences)}")
 
         if schema_differences:
-            print(f"   📋 Subjects with schema differences:")
+            print("   📋 Subjects with schema differences:")
             for diff in schema_differences[:3]:
                 print(
                     f"      • {diff['subject']}: DEV v{diff['dev_version']} ≠ PROD v{diff['prod_version']}"
                 )
 
         if version_differences:
-            print(f"   📋 Subjects with version count differences:")
+            print("   📋 Subjects with version count differences:")
             for diff in version_differences[:3]:
                 print(
                     f"      • {diff['subject']}: DEV={diff['dev_versions']} versions, PROD={diff['prod_versions']} versions"
                 )
 
         # Test registry metadata comparison
-        print(f"\n🔍 Comparing registry metadata...")
+        print("\n🔍 Comparing registry metadata...")
 
         # Get compatibility levels
         try:
@@ -174,9 +172,9 @@ def test_test_registry_comparison():
                 print(f"   PROD compatibility: {prod_compat}")
 
                 if dev_compat != prod_compat:
-                    print(f"   ⚠️  Compatibility levels differ!")
+                    print("   ⚠️  Compatibility levels differ!")
                 else:
-                    print(f"   ✅ Compatibility levels match")
+                    print("   ✅ Compatibility levels match")
 
         except Exception as e:
             print(f"   ⚠️  Could not compare metadata: {e}")

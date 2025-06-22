@@ -20,7 +20,7 @@ def test_test_compatibility_migration():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting compatibility migration test...")
+    print("🧪 Starting compatibility migration test...")
 
     try:
         # Check connectivity
@@ -47,7 +47,7 @@ def test_test_compatibility_migration():
             ],
         }
 
-        print(f"📝 Creating base schema v1 in DEV...")
+        print("📝 Creating base schema v1 in DEV...")
         base_payload = {"schema": json.dumps(base_schema)}
 
         create_response = requests.post(

@@ -7,9 +7,7 @@ while read and export operations continue to work.
 """
 
 import asyncio
-import json
 import os
-import subprocess
 import sys
 
 import pytest
@@ -48,15 +46,10 @@ async def test_readonly_mode():
 
             # Test the check_readonly_mode tool
             readonly_check = await client.call_tool("check_readonly_mode", {})
-            if (
-                readonly_check
-                and "readonly_mode" in str(readonly_check)
-            ):
+            if readonly_check and "readonly_mode" in str(readonly_check):
                 print("✅ READONLY check working: read-only mode is active")
             else:
-                print(
-                    "❌ READONLY check failed - should return error in readonly mode"
-                )
+                print("❌ READONLY check failed - should return error in readonly mode")
 
             # Test individual functions that should be blocked
             print("\n🧪 Testing blocked operations in READONLY mode...")
@@ -125,9 +118,7 @@ async def test_readonly_mode():
                 except Exception as e:
                     # These might fail due to connection issues, but shouldn't be blocked by readonly mode
                     if "readonly" in str(e).lower():
-                        print(
-                            f"❌ {func_name}: Incorrectly blocked by readonly mode"
-                        )
+                        print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
                     else:
                         print(
                             f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
@@ -155,9 +146,7 @@ async def test_readonly_mode():
                         print(f"✅ {func_name}: Correctly allowed in READONLY mode")
                 except Exception as e:
                     if "readonly" in str(e).lower():
-                        print(
-                            f"❌ {func_name}: Incorrectly blocked by readonly mode"
-                        )
+                        print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
                     else:
                         print(
                             f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
@@ -175,19 +164,17 @@ async def test_readonly_mode():
                 )
                 result_text = str(result)
                 if "readonly_mode" in result_text.lower():
-                    print(f"❌ check_compatibility: Should NOT be blocked but was!")
+                    print("❌ check_compatibility: Should NOT be blocked but was!")
                 else:
-                    print(
-                        f"✅ check_compatibility: Correctly allowed in READONLY mode"
-                    )
+                    print("✅ check_compatibility: Correctly allowed in READONLY mode")
             except Exception as e:
                 if "readonly" in str(e).lower():
                     print(
-                        f"❌ check_compatibility: Incorrectly blocked by readonly mode"
+                        "❌ check_compatibility: Incorrectly blocked by readonly mode"
                     )
                 else:
                     print(
-                        f"✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
+                        "✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
                     )
 
     except Exception as e:

@@ -16,7 +16,7 @@ def test_imports():
     try:
         import mcp
 
-        print(f"✅ MCP imported successfully")
+        print("✅ MCP imported successfully")
     except ImportError as e:
         print(f"❌ Failed to import MCP: {e}")
         return False
@@ -24,7 +24,7 @@ def test_imports():
     try:
         import requests
 
-        print(f"✅ Requests imported successfully")
+        print("✅ Requests imported successfully")
     except ImportError as e:
         print(f"❌ Failed to import requests: {e}")
         return False
@@ -32,7 +32,7 @@ def test_imports():
     try:
         import asyncio
 
-        print(f"✅ Asyncio imported successfully")
+        print("✅ Asyncio imported successfully")
     except ImportError as e:
         print(f"❌ Failed to import asyncio: {e}")
         return False
@@ -48,13 +48,13 @@ def test_server_import():
         # Try importing the unified server
         import kafka_schema_registry_unified_mcp
 
-        print(f"✅ Unified MCP server imported successfully")
+        print("✅ Unified MCP server imported successfully")
 
         # Test that mode detection function exists
         if hasattr(kafka_schema_registry_unified_mcp, "detect_registry_mode"):
-            print(f"✅ Mode detection function found")
+            print("✅ Mode detection function found")
         else:
-            print(f"❌ Mode detection function missing")
+            print("❌ Mode detection function missing")
             return False
 
     except ImportError as e:
@@ -81,16 +81,16 @@ def test_basic_functionality():
 
         # Check that the FastMCP instance exists
         if hasattr(kafka_schema_registry_unified_mcp, "mcp"):
-            print(f"✅ Unified MCP instance found")
+            print("✅ Unified MCP instance found")
 
             # Check that it has tools (FastMCP exposes tools via _tools attribute)
             if hasattr(kafka_schema_registry_unified_mcp.mcp, "_tools"):
                 tools_count = len(kafka_schema_registry_unified_mcp.mcp._tools)
                 print(f"✅ Unified server has {tools_count} tools")
             else:
-                print(f"⚠️ Unified server tools not accessible")
+                print("⚠️ Unified server tools not accessible")
         else:
-            print(f"❌ Unified MCP instance not found")
+            print("❌ Unified MCP instance not found")
             return False
 
         # Test mode detection
@@ -100,17 +100,17 @@ def test_basic_functionality():
 
         # Check helper classes exist
         if hasattr(kafka_schema_registry_unified_mcp, "LegacyRegistryManager"):
-            print(f"✅ LegacyRegistryManager class found")
+            print("✅ LegacyRegistryManager class found")
 
         if hasattr(kafka_schema_registry_unified_mcp, "MultiRegistryManager"):
-            print(f"✅ MultiRegistryManager class found")
+            print("✅ MultiRegistryManager class found")
 
         if hasattr(kafka_schema_registry_unified_mcp, "RegistryClient"):
-            print(f"✅ RegistryClient class found")
+            print("✅ RegistryClient class found")
 
         # Test registry manager instance
         if hasattr(kafka_schema_registry_unified_mcp, "registry_manager"):
-            print(f"✅ Registry manager instance found")
+            print("✅ Registry manager instance found")
             manager = kafka_schema_registry_unified_mcp.registry_manager
             print(f"✅ Registry manager type: {type(manager).__name__}")
 

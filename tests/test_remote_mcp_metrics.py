@@ -11,7 +11,6 @@ Tests the new Prometheus metrics and monitoring endpoints including:
 """
 
 import importlib.util
-import json
 import os
 import sys
 import time

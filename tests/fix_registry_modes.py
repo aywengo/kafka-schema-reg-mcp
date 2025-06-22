@@ -7,7 +7,6 @@ This script checks and fixes the modes of DEV and PROD registries:
 - PROD (38082): Can be READONLY for production safety
 """
 
-import json
 
 import requests
 
@@ -98,24 +97,24 @@ def main():
     # Check PROD registry (can be read-only for safety, but let's make it writable for testing)
     prod_success = check_and_fix_registry_mode("PROD", prod_url, "READWRITE")
 
-    print(f"\n📊 Results Summary")
+    print("\n📊 Results Summary")
     print("-" * 30)
     print(f"DEV Registry:  {'✅ Fixed' if dev_success else '❌ Issues'}")
     print(f"PROD Registry: {'✅ Fixed' if prod_success else '❌ Issues'}")
 
     if dev_success and prod_success:
-        print(f"\n🎉 All registries are now configured correctly!")
-        print(f"   DEV: READWRITE (allows schema creation)")
-        print(f"   PROD: READWRITE (allows migration testing)")
-        print(f"\n🧪 You can now run migration tests:")
-        print(f"   python3 tests/test_bulk_migration.py")
-        print(f"   python3 tests/test_schema_migration.py")
+        print("\n🎉 All registries are now configured correctly!")
+        print("   DEV: READWRITE (allows schema creation)")
+        print("   PROD: READWRITE (allows migration testing)")
+        print("\n🧪 You can now run migration tests:")
+        print("   python3 tests/test_bulk_migration.py")
+        print("   python3 tests/test_schema_migration.py")
         return True
     else:
-        print(f"\n⚠️  Some registries need manual intervention")
-        print(f"   Check Docker container logs:")
-        print(f"   docker logs schema-registry-dev")
-        print(f"   docker logs schema-registry-prod")
+        print("\n⚠️  Some registries need manual intervention")
+        print("   Check Docker container logs:")
+        print("   docker logs schema-registry-dev")
+        print("   docker logs schema-registry-prod")
         return False
 
 

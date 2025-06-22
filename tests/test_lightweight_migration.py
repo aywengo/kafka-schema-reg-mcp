@@ -8,16 +8,13 @@ multi-registry environment without requiring additional setup.
 
 import asyncio
 import atexit
-import json
 import os
 import sys
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import aiohttp
 import pytest
-import requests
 
 # Add parent directory to path to import the MCP server
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -145,13 +142,13 @@ async def wait_for_task_completion(task_id: str, timeout: int = 30) -> bool:
 @pytest.mark.asyncio
 async def test_default_context_url_building(test_env):
     """Test that default context URL building works correctly"""
-    print(f"\n🔗 Testing default context URL building...")
+    print("\n🔗 Testing default context URL building...")
 
     try:
         # Get client
         client = mcp_server.registry_manager.get_registry("dev")
         if not client:
-            print(f"   ❌ Could not get DEV registry client")
+            print("   ❌ Could not get DEV registry client")
             return False
 
         # Test URL building with different context values
@@ -160,7 +157,7 @@ async def test_default_context_url_building(test_env):
         url_empty = client.build_context_url("/subjects", "")
         url_production = client.build_context_url("/subjects", "production")
 
-        print(f"   📊 URL Building Results:")
+        print("   📊 URL Building Results:")
         print(f"      context=None: {url_none}")
         print(f"      context='.': {url_dot}")
         print(f"      context='': {url_empty}")
@@ -168,15 +165,15 @@ async def test_default_context_url_building(test_env):
 
         # Verify the fix: context='.' should be treated like None
         if url_none != url_dot:
-            print(f"   ❌ FAILURE: context=None and context='.' produce different URLs")
+            print("   ❌ FAILURE: context=None and context='.' produce different URLs")
             return False
 
         # Verify that production context is different
         if url_none == url_production:
-            print(f"   ❌ FAILURE: default context URL same as production context URL")
+            print("   ❌ FAILURE: default context URL same as production context URL")
             return False
 
-        print(f"   ✅ Default context URL building is correct")
+        print("   ✅ Default context URL building is correct")
         return True
 
     except Exception as e:
@@ -187,7 +184,7 @@ async def test_default_context_url_building(test_env):
 @pytest.mark.asyncio
 async def test_registry_comparison(test_env):
     """Test registry comparison functionality"""
-    print(f"\n📊 Testing registry comparison...")
+    print("\n📊 Testing registry comparison...")
 
     try:
         # Compare dev and prod registries
@@ -201,18 +198,18 @@ async def test_registry_comparison(test_env):
         if "task_id" in comparison:
             task_completed = await wait_for_task_completion(comparison["task_id"])
             if not task_completed:
-                print(f"   ❌ Registry comparison task did not complete")
+                print("   ❌ Registry comparison task did not complete")
                 return False
 
             # Get the final result
             task = mcp_server.task_manager.get_task(comparison["task_id"])
             if not task or not task.result:
-                print(f"   ❌ No result from registry comparison task")
+                print("   ❌ No result from registry comparison task")
                 return False
 
             comparison = task.result
 
-        print(f"   ✅ Registry comparison successful")
+        print("   ✅ Registry comparison successful")
 
         subjects_info = comparison.get("subjects", {})
         if subjects_info:
@@ -222,7 +219,7 @@ async def test_registry_comparison(test_env):
             source_only = len(subjects_info.get("source_only", []))
             target_only = len(subjects_info.get("target_only", []))
 
-            print(f"      📈 Comparison Results:")
+            print("      📈 Comparison Results:")
             print(f"         DEV subjects: {source_total}")
             print(f"         PROD subjects: {target_total}")
             print(f"         Common: {common}")
@@ -239,7 +236,7 @@ async def test_registry_comparison(test_env):
 @pytest.mark.asyncio
 async def test_migration_tools_availability(test_env):
     """Test that migration tools are available and working"""
-    print(f"\n🛠️  Testing migration tools availability...")
+    print("\n🛠️  Testing migration tools availability...")
 
     try:
         # Test find_missing_schemas
@@ -253,18 +250,18 @@ async def test_migration_tools_availability(test_env):
         if "task_id" in missing_schemas:
             task_completed = await wait_for_task_completion(missing_schemas["task_id"])
             if not task_completed:
-                print(f"   ❌ find_missing_schemas task did not complete")
+                print("   ❌ find_missing_schemas task did not complete")
                 return False
 
             # Get the final result
             task = mcp_server.task_manager.get_task(missing_schemas["task_id"])
             if not task or not task.result:
-                print(f"   ❌ No result from find_missing_schemas task")
+                print("   ❌ No result from find_missing_schemas task")
                 return False
 
             missing_schemas = task.result
 
-        print(f"   ✅ find_missing_schemas working")
+        print("   ✅ find_missing_schemas working")
         print(f"      Missing schemas: {missing_schemas.get('missing_count', 0)}")
 
         # Test compare_contexts_across_registries (if contexts exist)
@@ -281,7 +278,7 @@ async def test_migration_tools_availability(test_env):
                     )
                     if not task_completed:
                         print(
-                            f"   ❌ compare_contexts_across_registries task did not complete"
+                            "   ❌ compare_contexts_across_registries task did not complete"
                         )
                         return False
 
@@ -291,13 +288,13 @@ async def test_migration_tools_availability(test_env):
                     )
                     if not task or not task.result:
                         print(
-                            f"   ❌ No result from compare_contexts_across_registries task"
+                            "   ❌ No result from compare_contexts_across_registries task"
                         )
                         return False
 
                     context_comparison = task.result
 
-                print(f"   ✅ compare_contexts_across_registries working")
+                print("   ✅ compare_contexts_across_registries working")
                 subjects_info = context_comparison.get("subjects", {})
                 if subjects_info:
                     print(

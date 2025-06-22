@@ -18,16 +18,15 @@ import json
 import os
 import sys
 import time
-import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from datetime import datetime
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastmcp import Client
-
 import pytest
+from fastmcp import Client
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Production-grade test schemas
 PRODUCTION_SCHEMAS = {
@@ -194,7 +193,7 @@ async def _test_high_availability_with_client(server_params):
             dr_only = len(comparison.get("subjects", {}).get("target_only", []))
             common = len(comparison.get("subjects", {}).get("common", []))
 
-            print(f"  ✅ Schema sync status:")
+            print("  ✅ Schema sync status:")
             print(f"     Common schemas: {common}")
             print(f"     Primary only: {primary_only}")
             print(f"     DR only: {dr_only}")
@@ -719,7 +718,7 @@ async def _test_monitoring_observability_with_client(server_params):
             max_registration_time = max(registration_times)
             min_registration_time = min(registration_times)
 
-            print(f"  ✅ Schema registration metrics:")
+            print("  ✅ Schema registration metrics:")
             print(f"     Average time: {avg_registration_time*1000:.2f}ms")
             print(f"     Max time: {max_registration_time*1000:.2f}ms")
             print(f"     Min time: {min_registration_time*1000:.2f}ms")
@@ -736,7 +735,7 @@ async def _test_monitoring_observability_with_client(server_params):
             )
             contexts = json.loads(result.content[0].text) if result.content else []
 
-            print(f"  ✅ Inventory metrics:")
+            print("  ✅ Inventory metrics:")
             print(f"     Total subjects: {len(subjects)}")
             print(f"     Total contexts: {len(contexts)}")
 
@@ -752,7 +751,7 @@ async def _test_monitoring_observability_with_client(server_params):
             )
             mode_data = json.loads(result.content[0].text) if result.content else {}
 
-            print(f"  ✅ Configuration status:")
+            print("  ✅ Configuration status:")
             print(
                 f"     Compatibility level: {config_data.get('compatibility', 'unknown')}"
             )
@@ -899,7 +898,7 @@ async def _test_disaster_recovery_with_client(server_params):
             backup_only = len(comparison.get("subjects", {}).get("target_only", []))
             common = len(comparison.get("subjects", {}).get("common", []))
 
-            print(f"  ✅ Backup integrity check:")
+            print("  ✅ Backup integrity check:")
             print(f"     Common schemas: {common}")
             print(f"     Primary only: {primary_only}")
             print(f"     Backup only: {backup_only}")
@@ -962,7 +961,7 @@ async def _test_disaster_recovery_with_client(server_params):
 
             recovery_time = time.time() - start_time
 
-            print(f"  ✅ RTO simulation:")
+            print("  ✅ RTO simulation:")
             print(f"     Recovery time: {recovery_time*1000:.2f}ms")
             print(f"     Backup status: {backup_health.get('status', 'unknown')}")
             print(f"     Available schemas: {len(backup_subjects)}")
@@ -980,7 +979,7 @@ async def test_production_mcp_deployment():
     """Test production MCP deployment scenarios"""
     print("🚀 Testing Production MCP Deployment")
     print("=" * 50)
-    
+
     # Test multiple production-like configurations
     production_configs = [
         {
@@ -988,67 +987,67 @@ async def test_production_mcp_deployment():
             "env": {
                 "SCHEMA_REGISTRY_URL": "http://localhost:38081",
                 "READONLY": "false",
-                "LOG_LEVEL": "INFO"
-            }
+                "LOG_LEVEL": "INFO",
+            },
         },
         {
-            "name": "Multi-Registry Production", 
+            "name": "Multi-Registry Production",
             "env": {
                 "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
                 "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
                 "SCHEMA_REGISTRY_NAME_1": "dev",
                 "SCHEMA_REGISTRY_NAME_2": "prod",
                 "READONLY_2": "true",  # Prod registry readonly
-                "LOG_LEVEL": "ERROR"
-            }
+                "LOG_LEVEL": "ERROR",
+            },
         },
         {
             "name": "Readonly Production",
             "env": {
                 "SCHEMA_REGISTRY_URL": "http://localhost:38082",
                 "READONLY": "true",
-                "LOG_LEVEL": "WARNING"
-            }
-        }
+                "LOG_LEVEL": "WARNING",
+            },
+        },
     ]
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     all_configs_passed = True
-    
+
     for config in production_configs:
         print(f"\n🧪 Testing: {config['name']}")
         print("-" * 40)
-        
+
         # Set environment variables
-        for key, value in config['env'].items():
+        for key, value in config["env"].items():
             os.environ[key] = value
-        
+
         # Create client
         client = Client(server_script)
-        
+
         config_passed = True
-        
+
         try:
             async with client:
                 print("✅ MCP connection established")
-                
+
                 # Get available tools
                 tools = await client.list_tools()
                 tool_names = [tool.name for tool in tools]
                 print(f"📋 Available tools: {len(tool_names)}")
-                
+
                 # Test core functionality
                 core_tests = [
                     ("list_subjects", {}),
                     ("get_global_config", {}),
-                    ("list_contexts", {})
+                    ("list_contexts", {}),
                 ]
-                
+
                 for test_name, args in core_tests:
                     if test_name in tool_names:
                         try:
@@ -1057,15 +1056,25 @@ async def test_production_mcp_deployment():
                         except Exception as e:
                             print(f"⚠️  {test_name}: {e}")
                             # Don't fail config for connection errors
-                            if not any(keyword in str(e).lower() for keyword in ["connection", "refused", "timeout"]):
+                            if not any(
+                                keyword in str(e).lower()
+                                for keyword in ["connection", "refused", "timeout"]
+                            ):
                                 config_passed = False
-                
+
                 # Test readonly enforcement if applicable
-                if config['env'].get('READONLY') == 'true' or config['env'].get('READONLY_2') == 'true':
+                if (
+                    config["env"].get("READONLY") == "true"
+                    or config["env"].get("READONLY_2") == "true"
+                ):
                     print("🔒 Testing readonly enforcement...")
-                    modification_tools = ["register_schema", "update_global_config", "delete_subject"]
+                    modification_tools = [
+                        "register_schema",
+                        "update_global_config",
+                        "delete_subject",
+                    ]
                     readonly_enforced = False
-                    
+
                     for tool_name in modification_tools:
                         if tool_name in tool_names:
                             try:
@@ -1074,63 +1083,76 @@ async def test_production_mcp_deployment():
                                     args = {
                                         "subject": "test-readonly",
                                         "schema_definition": {"type": "string"},
-                                        "schema_type": "AVRO"
+                                        "schema_type": "AVRO",
                                     }
                                 elif tool_name == "update_global_config":
                                     args = {"compatibility": "BACKWARD"}
                                 elif tool_name == "delete_subject":
                                     args = {"subject": "test-readonly"}
-                                
+
                                 result = await client.call_tool(tool_name, args)
                                 result_text = str(result).lower()
-                                if "readonly" in result_text or "read-only" in result_text:
-                                    print(f"✅ {tool_name}: Correctly blocked by readonly mode")
+                                if (
+                                    "readonly" in result_text
+                                    or "read-only" in result_text
+                                ):
+                                    print(
+                                        f"✅ {tool_name}: Correctly blocked by readonly mode"
+                                    )
                                     readonly_enforced = True
                                     break
                             except Exception as e:
                                 if "readonly" in str(e).lower():
-                                    print(f"✅ {tool_name}: Correctly blocked by readonly mode")
+                                    print(
+                                        f"✅ {tool_name}: Correctly blocked by readonly mode"
+                                    )
                                     readonly_enforced = True
                                     break
-                    
+
                     if readonly_enforced:
                         print("✅ Readonly enforcement working")
                     else:
                         print("⚠️  Readonly enforcement not detected")
-                
+
                 # Test export functionality (should always work)
-                export_tools = ["export_global", "export_context", "count_total_schemas"]
-                available_exports = [tool for tool in export_tools if tool in tool_names]
-                
+                export_tools = [
+                    "export_global",
+                    "export_context",
+                    "count_total_schemas",
+                ]
+                available_exports = [
+                    tool for tool in export_tools if tool in tool_names
+                ]
+
                 for export_tool in available_exports:
                     try:
                         args = {}
                         if "context" in export_tool:
                             args = {"context": "default"}
-                        
+
                         result = await client.call_tool(export_tool, args)
                         print(f"✅ {export_tool}: Working")
                     except Exception as e:
                         print(f"⚠️  {export_tool}: {e}")
-                
+
                 if config_passed:
                     print(f"✅ {config['name']}: All tests passed")
                 else:
                     print(f"❌ {config['name']}: Some tests failed")
                     all_configs_passed = False
-                
+
         except Exception as e:
             print(f"❌ {config['name']}: Failed to establish MCP connection - {e}")
             config_passed = False
             all_configs_passed = False
-        
+
         finally:
             # Clean up environment variables
-            for key in config['env'].keys():
+            for key in config["env"].keys():
                 if key in os.environ:
                     del os.environ[key]
-    
-    print(f"\n📊 Production Readiness Summary")
+
+    print("\n📊 Production Readiness Summary")
     print("=" * 50)
     if all_configs_passed:
         print("🎉 All production configurations passed!")
@@ -1145,27 +1167,27 @@ async def test_performance_characteristics():
     """Test basic performance characteristics"""
     print("⚡ Testing Performance Characteristics")
     print("=" * 50)
-    
+
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Test response times for common operations
             operations = ["list_subjects", "get_global_config", "count_total_schemas"]
-            
+
             for operation in operations:
                 start_time = time.time()
                 try:
@@ -1173,36 +1195,38 @@ async def test_performance_characteristics():
                     end_time = time.time()
                     duration = end_time - start_time
                     print(f"✅ {operation}: {duration:.3f}s")
-                    
+
                     if duration > 5.0:  # More than 5 seconds is concerning
                         print(f"⚠️  {operation}: Slow response time")
-                        
+
                 except Exception as e:
                     end_time = time.time()
                     duration = end_time - start_time
                     print(f"⚠️  {operation}: {duration:.3f}s (error: {e})")
-            
+
             # Test concurrent operations
-            print(f"\n🔄 Testing concurrent operations...")
+            print("\n🔄 Testing concurrent operations...")
             try:
                 tasks = []
                 for i in range(3):
                     task = client.call_tool("list_subjects", {})
                     tasks.append(task)
-                
+
                 start_time = time.time()
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 end_time = time.time()
                 duration = end_time - start_time
-                
+
                 successes = sum(1 for r in results if not isinstance(r, Exception))
-                print(f"✅ Concurrent operations: {successes}/3 succeeded in {duration:.3f}s")
-                
+                print(
+                    f"✅ Concurrent operations: {successes}/3 succeeded in {duration:.3f}s"
+                )
+
             except Exception as e:
                 print(f"⚠️  Concurrent operations failed: {e}")
-            
+
             return True
-            
+
     except Exception as e:
         print(f"❌ Performance test failed: {e}")
         return False
@@ -1228,32 +1252,32 @@ async def main():
 
         print("\n" + "=" * 70)
         print("🎉 All Production Readiness Tests Complete!")
-        print(f"\n🏆 **Production Readiness Summary:**")
+        print("\n🏆 **Production Readiness Summary:**")
         print(f"• Total test time: {total_time:.2f}s")
         print(f"• Test timestamp: {datetime.now().isoformat()}")
 
-        print(f"\n✅ **Enterprise Features Validated:**")
+        print("\n✅ **Enterprise Features Validated:**")
         print("• High Availability and Failover")
         print("• Security and Compliance Controls")
         print("• Enterprise Operations and Workflows")
         print("• Monitoring and Observability")
         print("• Disaster Recovery Capabilities")
 
-        print(f"\n🔒 **Security & Compliance:**")
+        print("\n🔒 **Security & Compliance:**")
         print("• Multi-environment isolation")
         print("• READONLY mode enforcement")
         print("• PII and financial data schemas")
         print("• Audit logging capabilities")
         print("• GDPR compliance fields")
 
-        print(f"\n🏢 **Enterprise Operations:**")
+        print("\n🏢 **Enterprise Operations:**")
         print("• Schema promotion workflows")
         print("• Cross-environment comparisons")
         print("• Bulk operations support")
         print("• Production deployment validation")
         print("• Configuration management")
 
-        print(f"\n📊 **Monitoring & Recovery:**")
+        print("\n📊 **Monitoring & Recovery:**")
         print("• Health monitoring metrics")
         print("• Performance tracking")
         print("• Inventory management")

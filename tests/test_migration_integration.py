@@ -11,15 +11,11 @@ Tests the actual migration functionality in the MCP server to ensure:
 6. Edge cases are handled
 """
 
-import asyncio
 import json
 import logging
 import os
 import sys
-import time
 import uuid
-from datetime import datetime
-from typing import Any, Dict, List
 
 import pytest
 import requests
@@ -162,7 +158,7 @@ async def test_migrate_schema_functionality(test_env):
 
         assert "error" not in result, f"Schema migration failed: {result.get('error')}"
 
-        logger.info(f"Migration Results:")
+        logger.info("Migration Results:")
         logger.info(f"  Total versions: {result.get('total_versions', 0)}")
         logger.info(f"  Successful: {result.get('successful_migrations', 0)}")
         logger.info(f"  Failed: {result.get('failed_migrations', 0)}")

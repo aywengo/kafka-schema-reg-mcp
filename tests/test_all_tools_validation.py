@@ -216,18 +216,18 @@ async def test_all_tools_validation():
                     print(f"   ❌ {tool_name}: {e}")
 
             # Summary
-            print(f"\n📊 Tool Validation Summary:")
+            print("\n📊 Tool Validation Summary:")
             print(f"   ✅ Passed: {len(passed_tools)} tools")
             print(f"   ❌ Failed: {len(failed_tools)} tools")
             print(f"   📋 Total: {len(tools)} tools available")
 
             if failed_tools:
-                print(f"\n❌ Failed tools:")
+                print("\n❌ Failed tools:")
                 for tool_name, error in failed_tools:
                     print(f"   • {tool_name}: {error}")
 
             # Cleanup
-            print(f"\n🧹 Cleaning up test data...")
+            print("\n🧹 Cleaning up test data...")
             try:
                 await client.call_tool(
                     "delete_subject", {"subject": "test-validation-schema"}

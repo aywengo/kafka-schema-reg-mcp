@@ -10,13 +10,12 @@ import asyncio
 import json
 import os
 import sys
-import time
-import uuid
-
-import requests
-from fastmcp import Client
 
 import pytest
+import requests
+from fastmcp import Client
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -51,7 +50,7 @@ async def test_single_registry_batch_cleanup_helper():
         # Force test mode to allow localhost
         env["TESTING"] = "true"
 
-        print(f"🔍 Environment variables being passed to subprocess:")
+        print("🔍 Environment variables being passed to subprocess:")
         for k, v in sorted(env.items()):
             if "SCHEMA" in k or "TESTING" in k:
                 print(f"   {k}={v}")
@@ -73,7 +72,7 @@ async def test_single_registry_batch_cleanup_helper():
                 test_context = "test-cleanup-single"
 
                 # Test dry run first
-                print(f"🔍 Testing dry run mode...")
+                print("🔍 Testing dry run mode...")
                 dry_run_result = await session.call_tool(
                     "clear_context_batch",
                     {
@@ -88,14 +87,14 @@ async def test_single_registry_batch_cleanup_helper():
                     if "error" in content:
                         print(f"❌ Dry run failed: {content['error']}")
                         return False
-                    print(f"✅ Dry run completed")
+                    print("✅ Dry run completed")
                     print(f"   Response keys: {list(content.keys())}")
                 else:
                     print("❌ No response from dry run")
                     return False
 
                 # Test actual cleanup
-                print(f"\n🗑️  Testing actual batch cleanup...")
+                print("\n🗑️  Testing actual batch cleanup...")
                 cleanup_result = await session.call_tool(
                     "clear_context_batch",
                     {
@@ -110,7 +109,7 @@ async def test_single_registry_batch_cleanup_helper():
                     if "error" in content:
                         print(f"❌ Cleanup failed: {content['error']}")
                         return False
-                    print(f"✅ Batch cleanup completed")
+                    print("✅ Batch cleanup completed")
                     print(f"   Response keys: {list(content.keys())}")
                     return True
                 else:
@@ -196,7 +195,7 @@ async def test_single_registry_batch_cleanup():
     print(f"📊 Created {len(created_subjects)} test subjects")
 
     # Now test the single-registry batch cleanup with timeout protection
-    print(f"\n🧪 Testing single-registry batch cleanup...")
+    print("\n🧪 Testing single-registry batch cleanup...")
 
     try:
         # Run the async helper with timeout protection
@@ -259,7 +258,7 @@ async def test_multi_registry_batch_cleanup_helper():
                 test_context = "test-cleanup-multi"
 
                 # Test multi-registry context cleanup in DEV registry
-                print(f"🔍 Testing context cleanup in DEV registry...")
+                print("🔍 Testing context cleanup in DEV registry...")
                 cleanup_result = await session.call_tool(
                     "clear_context_batch",
                     {
@@ -275,7 +274,7 @@ async def test_multi_registry_batch_cleanup_helper():
                     if "error" in content:
                         print(f"❌ Multi-registry cleanup failed: {content['error']}")
                         return False
-                    print(f"✅ Multi-registry cleanup task started")
+                    print("✅ Multi-registry cleanup task started")
                     print(f"   Response keys: {list(content.keys())}")
                     return True
                 else:
@@ -337,7 +336,7 @@ async def test_multi_registry_batch_cleanup():
         return False
 
     # Test multi-registry batch cleanup with timeout protection
-    print(f"\n🧪 Testing multi-registry batch cleanup...")
+    print("\n🧪 Testing multi-registry batch cleanup...")
 
     try:
         # Run the async helper with timeout protection
@@ -386,40 +385,42 @@ async def test_batch_cleanup():
     """Test batch cleanup operations via MCP"""
     print("🧹 Testing Batch Cleanup Operations")
     print("=" * 50)
-    
+
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Get available tools
             tools = await client.list_tools()
             tool_names = [tool.name for tool in tools]
             print(f"📋 Available tools: {len(tool_names)}")
-            
+
             # Test batch cleanup tools if available
             cleanup_tools = [
                 "cleanup_schemas",
-                "bulk_cleanup", 
+                "bulk_cleanup",
                 "batch_delete_schemas",
-                "cleanup_by_pattern"
+                "cleanup_by_pattern",
             ]
-            
-            available_cleanup_tools = [tool for tool in cleanup_tools if tool in tool_names]
+
+            available_cleanup_tools = [
+                tool for tool in cleanup_tools if tool in tool_names
+            ]
             print(f"🧹 Cleanup tools available: {available_cleanup_tools}")
-            
+
             for tool_name in available_cleanup_tools:
                 print(f"\n🧪 Testing: {tool_name}")
                 try:
@@ -433,25 +434,32 @@ async def test_batch_cleanup():
                         args = {"subjects": ["test-subject"]}
                     else:
                         args = {"dry_run": True}
-                    
+
                     result = await client.call_tool(tool_name, args)
                     print(f"✅ {tool_name}: Executed successfully")
-                    
+
                     # Check if result contains cleanup info
                     result_text = str(result)
-                    if "cleanup" in result_text.lower() or "deleted" in result_text.lower():
-                        print(f"   Result appears to be cleanup-related")
-                    
+                    if (
+                        "cleanup" in result_text.lower()
+                        or "deleted" in result_text.lower()
+                    ):
+                        print("   Result appears to be cleanup-related")
+
                 except Exception as e:
                     if "connection" in str(e).lower() or "registry" in str(e).lower():
                         print(f"⚠️  {tool_name}: Connection error (expected): {e}")
                     else:
                         print(f"❌ {tool_name}: Unexpected error: {e}")
-            
+
             # Test non-destructive operations
-            safe_tools = ["count_schemas_by_subject", "count_total_schemas", "list_subjects"]
+            safe_tools = [
+                "count_schemas_by_subject",
+                "count_total_schemas",
+                "list_subjects",
+            ]
             available_safe_tools = [tool for tool in safe_tools if tool in tool_names]
-            
+
             print(f"\n📊 Testing safe operations: {available_safe_tools}")
             for tool_name in available_safe_tools:
                 try:
@@ -459,13 +467,14 @@ async def test_batch_cleanup():
                     print(f"✅ {tool_name}: Working")
                 except Exception as e:
                     print(f"⚠️  {tool_name}: {e}")
-            
-            print(f"\n🎉 Batch cleanup test completed!")
+
+            print("\n🎉 Batch cleanup test completed!")
             return True
-            
+
     except Exception as e:
         print(f"❌ Critical error during batch cleanup test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

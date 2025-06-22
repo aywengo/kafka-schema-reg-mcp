@@ -5,7 +5,6 @@ Isolated test for OAuth provider configurations function.
 This is a simple, focused test just for the get_oauth_provider_configs() function.
 """
 
-import json
 import os
 import sys
 
@@ -75,7 +74,7 @@ def main():
 
     # Show current OAuth status
     oauth_info = get_oauth_scopes_info()
-    print(f"\nCurrent OAuth Status:")
+    print("\nCurrent OAuth Status:")
     print(f"  • Enabled: {oauth_info.get('oauth_enabled', False)}")
     print(f"  • Provider: {oauth_info.get('provider', 'none')}")
     print(f"  • Issuer: {oauth_info.get('issuer', 'none')}")

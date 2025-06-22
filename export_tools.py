@@ -6,7 +6,7 @@ Handles schema export operations in various formats.
 Provides schema, subject, context, and global export functionality.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from schema_registry_common import export_context as common_export_context
 from schema_registry_common import export_global as common_export_global

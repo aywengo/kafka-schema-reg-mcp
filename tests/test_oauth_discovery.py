@@ -8,20 +8,16 @@ Tests the OAuth 2.0 discovery endpoints that enable MCP client auto-configuratio
 - /.well-known/jwks.json (RFC 7517)
 """
 
-import asyncio
 import json
 import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Optional
 
 import requests
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from oauth_provider import ENABLE_AUTH, get_oauth_scopes_info
 
 
 class OAuthDiscoveryTest:
@@ -739,7 +735,7 @@ class OAuthDiscoveryTest:
         )
 
         if failed_tests > 0:
-            print(f"\n❌ Failed Tests:")
+            print("\n❌ Failed Tests:")
             for test_name, passed, error in self.test_results:
                 if not passed:
                     print(f"   - {test_name}: {error}")

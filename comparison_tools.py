@@ -7,7 +7,7 @@ Provides registry comparison, context comparison, and missing schema detection.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 
 async def compare_registries_tool(

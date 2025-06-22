@@ -14,16 +14,15 @@ import asyncio
 import json
 import os
 import sys
-import time
 import uuid
-from typing import Any, Dict
 
 # Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastmcp import Client
-
 import pytest
+from fastmcp import Client
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Test schemas for different workflows
 TEST_SCHEMAS = {
@@ -181,7 +180,7 @@ async def test_end_to_end_workflows():
                 print(f"   ❌ Failed to get versions: {e}")
 
             # Workflow 2: Multi-Registry Migration
-            print(f"\n🔄 Workflow 2: Multi-Registry Migration")
+            print("\n🔄 Workflow 2: Multi-Registry Migration")
 
             print("   2.1 Comparing registries...")
             try:
@@ -209,7 +208,7 @@ async def test_end_to_end_workflows():
                 print(f"   ❌ Migration failed: {e}")
 
             # Workflow 3: Export and Backup
-            print(f"\n📤 Workflow 3: Export and Backup")
+            print("\n📤 Workflow 3: Export and Backup")
 
             print("   3.1 Exporting schema...")
             try:
@@ -239,7 +238,7 @@ async def test_end_to_end_workflows():
                 print(f"   ❌ Global export failed: {e}")
 
             # Cleanup
-            print(f"\n🧹 Cleanup: Removing test subjects...")
+            print("\n🧹 Cleanup: Removing test subjects...")
             try:
                 result = await client.call_tool(
                     "delete_subject", {"subject": user_subject, "registry": "dev"}
@@ -771,32 +770,32 @@ async def test_complete_schema_lifecycle():
     """Test complete schema lifecycle via MCP"""
     print("🔄 Testing Complete Schema Lifecycle")
     print("=" * 50)
-    
+
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
     os.environ["READONLY"] = "false"
-    
+
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(
         os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
     )
-    
+
     # Generate unique test prefix
     test_prefix = f"e2e-test-{uuid.uuid4().hex[:8]}"
-    
+
     # Create client
     client = Client(server_script)
-    
+
     try:
         async with client:
             print("✅ MCP connection established")
-            
+
             # Get available tools
             tools = await client.list_tools()
             tool_names = [tool.name for tool in tools]
             print(f"📋 Available tools: {len(tool_names)}")
-            
+
             # Phase 1: Registration
             print(f"\n📝 Phase 1: Schema Registration (prefix: {test_prefix})")
             if "register_schema" in tool_names:
@@ -805,98 +804,101 @@ async def test_complete_schema_lifecycle():
                     "name": "TestRecord",
                     "fields": [
                         {"name": "id", "type": "int"},
-                        {"name": "name", "type": "string"}
-                    ]
+                        {"name": "name", "type": "string"},
+                    ],
                 }
-                
+
                 try:
                     result = await client.call_tool(
                         "register_schema",
                         {
                             "subject": f"{test_prefix}-subject",
                             "schema_definition": test_schema,
-                            "schema_type": "AVRO"
-                        }
+                            "schema_type": "AVRO",
+                        },
                     )
                     print(f"✅ Schema registered: {result}")
                 except Exception as e:
                     print(f"⚠️  Schema registration: {e}")
-            
-            # Phase 2: Verification  
-            print(f"\n🔍 Phase 2: Schema Verification")
+
+            # Phase 2: Verification
+            print("\n🔍 Phase 2: Schema Verification")
             if "list_subjects" in tool_names:
                 try:
                     result = await client.call_tool("list_subjects", {})
-                    print(f"✅ Subjects listed")
+                    print("✅ Subjects listed")
                 except Exception as e:
                     print(f"⚠️  List subjects: {e}")
-            
+
             # Phase 3: Evolution
-            print(f"\n🔄 Phase 3: Schema Evolution")
+            print("\n🔄 Phase 3: Schema Evolution")
             if "register_schema" in tool_names:
                 evolved_schema = {
-                    "type": "record", 
+                    "type": "record",
                     "name": "TestRecord",
                     "fields": [
                         {"name": "id", "type": "int"},
                         {"name": "name", "type": "string"},
-                        {"name": "description", "type": ["null", "string"], "default": None}
-                    ]
+                        {
+                            "name": "description",
+                            "type": ["null", "string"],
+                            "default": None,
+                        },
+                    ],
                 }
-                
+
                 try:
                     result = await client.call_tool(
                         "register_schema",
                         {
                             "subject": f"{test_prefix}-subject",
                             "schema_definition": evolved_schema,
-                            "schema_type": "AVRO"
-                        }
+                            "schema_type": "AVRO",
+                        },
                     )
                     print(f"✅ Schema evolved: {result}")
                 except Exception as e:
                     print(f"⚠️  Schema evolution: {e}")
-            
+
             # Phase 4: Export
-            print(f"\n📤 Phase 4: Schema Export")
+            print("\n📤 Phase 4: Schema Export")
             if "export_subject" in tool_names:
                 try:
                     result = await client.call_tool(
-                        "export_subject",
-                        {"subject": f"{test_prefix}-subject"}
+                        "export_subject", {"subject": f"{test_prefix}-subject"}
                     )
-                    print(f"✅ Schema exported")
+                    print("✅ Schema exported")
                 except Exception as e:
                     print(f"⚠️  Schema export: {e}")
-            
+
             # Phase 5: Cleanup
-            print(f"\n🧹 Phase 5: Cleanup")
+            print("\n🧹 Phase 5: Cleanup")
             cleanup_tools = ["delete_subject", "cleanup_schemas"]
             available_cleanup = [tool for tool in cleanup_tools if tool in tool_names]
-            
+
             for cleanup_tool in available_cleanup:
                 try:
                     if cleanup_tool == "delete_subject":
                         result = await client.call_tool(
-                            cleanup_tool,
-                            {"subject": f"{test_prefix}-subject"}
+                            cleanup_tool, {"subject": f"{test_prefix}-subject"}
                         )
                     else:
                         result = await client.call_tool(
                             cleanup_tool,
-                            {"pattern": f"{test_prefix}-*", "dry_run": False}
+                            {"pattern": f"{test_prefix}-*", "dry_run": False},
                         )
                     print(f"✅ Cleanup with {cleanup_tool}")
                     break
                 except Exception as e:
                     print(f"⚠️  Cleanup with {cleanup_tool}: {e}")
-            
-            print(f"\n🎉 Complete schema lifecycle test completed!")
+
+            print("\n🎉 Complete schema lifecycle test completed!")
             return True
-            
+
     except Exception as e:
         print(f"❌ Critical error during lifecycle test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

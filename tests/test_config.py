@@ -7,7 +7,7 @@ against different Schema Registry setups.
 """
 
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 
 class TestConfig:

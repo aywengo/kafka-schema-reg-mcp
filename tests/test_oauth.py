@@ -6,11 +6,9 @@ Tests OAuth functionality including scope validation, token handling,
 and permission-based access control.
 """
 
-import json
 import os
 import sys
 import traceback
-from typing import Any, Dict
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -207,11 +205,11 @@ class OAuthTest:
                 required_scopes = set(oauth_info["required_scopes"])
 
                 if not default_scopes.issubset(valid_scopes):
-                    print(f"   ❌ Default scopes not subset of valid scopes")
+                    print("   ❌ Default scopes not subset of valid scopes")
                     return False
 
                 if not required_scopes.issubset(valid_scopes):
-                    print(f"   ❌ Required scopes not subset of valid scopes")
+                    print("   ❌ Required scopes not subset of valid scopes")
                     return False
 
                 print("   ✅ Scope configuration is consistent")

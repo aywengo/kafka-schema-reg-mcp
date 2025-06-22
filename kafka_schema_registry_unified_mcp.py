@@ -101,25 +101,18 @@ from schema_registry_common import (
     SINGLE_REGISTRY_USER,
     LegacyRegistryManager,
     MultiRegistryManager,
-    RegistryClient,
-    RegistryConfig,
-    build_context_url,
 )
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
-from schema_registry_common import (
-    get_default_client,
-)
 from statistics_tools import (
     count_contexts_tool,
     count_schema_versions_tool,
     count_schemas_task_queue_tool,
     count_schemas_tool,
     get_registry_statistics_task_queue_tool,
-    get_registry_statistics_tool,
 )
 
 # Import specialized modules
-from task_management import get_operation_info, task_manager
+from task_management import task_manager
 
 
 # Auto-detection of registry mode

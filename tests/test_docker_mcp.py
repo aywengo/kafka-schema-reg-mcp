@@ -4,10 +4,8 @@ Test the MCP server running in Docker container
 """
 
 import asyncio
-import json
 import os
 import subprocess
-import time
 
 
 async def test_docker_mcp_server():
@@ -93,7 +91,7 @@ async def test_docker_mcp_server():
                 print("✅ Container successfully imported MCP module")
                 print(f"   Container output: {logs.strip()}")
             elif logs:
-                print(f"✅ Container produced output (logs available)")
+                print("✅ Container produced output (logs available)")
                 print(
                     f"   Output: {logs.strip()[:200]}{'...' if len(logs.strip()) > 200 else ''}"
                 )
