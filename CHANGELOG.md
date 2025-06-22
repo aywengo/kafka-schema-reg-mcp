@@ -14,6 +14,7 @@ This **major version release** represents the complete migration to **FastMCP 2.
 **🔥 BREAKING CHANGES & FRAMEWORK MIGRATION:**
 - **FastMCP 2.8.0+ Framework**: Complete migration from legacy `mcp[cli]==1.9.4` to modern FastMCP architecture
 - **MCP 2025-06-18 Compliance**: Full support for the latest MCP specification
+- **JSON-RPC Batching Removal**: JSON-RPC batching explicitly disabled per MCP 2025-06-18 specification
 - **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 integration
 - **Modernized Client API**: Updated client interface using FastMCP's dependency injection system
 
@@ -22,23 +23,43 @@ This **major version release** represents the complete migration to **FastMCP 2.
 This release qualifies as a **major version bump** because it introduces:
 
 1. **📡 MCP Framework Migration**: Complete architectural shift from legacy MCP SDK to FastMCP 2.8.0+
-2. **🔄 Client API Changes**: New FastMCP client interface replacing legacy `mcp.ClientSession`
-3. **🔐 Authentication Architecture**: Migration to FastMCP's native BearerAuth system
-4. **📚 Import Structure Changes**: Updated import paths from `mcp.server.fastmcp` to `fastmcp`
-5. **🔧 Dependency System**: New FastMCP dependency injection for access tokens and authentication
-6. **🏗️ Test Framework Updates**: Complete test suite migration to new FastMCP client API
-7. **📖 API Surface Evolution**: Enhanced OAuth discovery endpoints and MCP compliance features
+2. **🚫 JSON-RPC Batching Removal**: Breaking change removing JSON-RPC batching support (MCP 2025-06-18 requirement)
+3. **🔄 Client API Changes**: New FastMCP client interface replacing legacy `mcp.ClientSession`
+4. **🔐 Authentication Architecture**: Migration to FastMCP's native BearerAuth system
+5. **📚 Import Structure Changes**: Updated import paths from `mcp.server.fastmcp` to `fastmcp`
+6. **🔧 Dependency System**: New FastMCP dependency injection for access tokens and authentication
+7. **🏗️ Test Framework Updates**: Complete test suite migration to new FastMCP client API
+8. **📖 API Surface Evolution**: Enhanced OAuth discovery endpoints and MCP compliance features
 
-**Migration Impact**: While basic functionality remains the same, the underlying MCP framework has been completely modernized. Custom clients and tests will need updates to use the new FastMCP API, but all MCP tools and core functionality remain unchanged.
+**Migration Impact**: While basic functionality remains the same, the underlying MCP framework has been completely modernized. Custom clients and tests will need updates to use the new FastMCP API, and any clients using JSON-RPC batching must migrate to individual requests.
 
 #### Added
+
+##### MCP 2025-06-18 Specification Compliance
+- **🚫 JSON-RPC Batching Disabled**: Explicitly disabled JSON-RPC batching per MCP 2025-06-18 specification
+  - FastMCP configuration: `allow_batch_requests: False`, `batch_support: False`
+  - Protocol version enforcement: `protocol_version: "2025-06-18"`
+  - Clear separation between JSON-RPC batching (disabled) and application-level batching (enabled)
+- **📊 Compliance Status Tool**: New `get_mcp_compliance_status()` tool for verification
+  - Real-time compliance status checking
+  - Configuration validation and verification
+  - Migration guidance and performance notes
+  - Detailed batching configuration status
+- **📋 Application-Level Batching Enhanced**: Clear distinction and enhanced functionality
+  - `clear_context_batch()`: Uses individual requests internally with parallel processing
+  - `clear_multiple_contexts_batch()`: Enhanced with compliance metadata
+  - Performance maintained through ThreadPoolExecutor and async coordination
+- **📚 Comprehensive Migration Guide**: `MCP-2025-06-18-MIGRATION-GUIDE.md`
+  - Step-by-step migration from JSON-RPC batching to individual requests
+  - Performance optimization strategies using parallel processing
+  - Code examples for client-side migration patterns
+  - Troubleshooting guide and rollout timeline
 
 ##### FastMCP 2.8.0+ Framework Integration
 - **Modern MCP Architecture**: Complete migration from legacy `mcp[cli]==1.9.4` to FastMCP 2.8.0+
 - **Native BearerAuth Provider**: FastMCP's built-in authentication system with OAuth 2.0 support
 - **Dependency Injection System**: Modern access token management using FastMCP's `get_access_token()`
 - **Enhanced Transport Support**: Native stdio, SSE, and Streamable HTTP transport capabilities
-- **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
 
 ##### OAuth Provider Integration (FastMCP Compatible)
 - **Multi-Provider OAuth Support**: Native integration with 5 major identity platforms
@@ -69,6 +90,36 @@ This release qualifies as a **major version bump** because it introduces:
 - **Migration Guide**: Comprehensive guide for upgrading from legacy MCP SDK
 - **Enhanced Error Messages**: Better debugging information for authentication issues
 
+#### Changed
+
+##### JSON-RPC Batching Removal (Breaking Change)
+- **⚠️ Breaking Change**: JSON-RPC batching support completely removed
+  - **Reason**: MCP 2025-06-18 specification explicitly removes JSON-RPC batching
+  - **Impact**: Clients using batch requests must migrate to individual requests
+  - **Migration Required**: See `MCP-2025-06-18-MIGRATION-GUIDE.md` for detailed migration steps
+- **Application-Level Batching**: Enhanced to use individual requests internally
+  - `clear_context_batch()`: Now uses parallel individual requests for performance
+  - `clear_multiple_contexts_batch()`: Enhanced with individual request coordination
+  - Maintains performance through ThreadPoolExecutor and async processing
+- **Performance Strategy**: Client-side request queuing replaces JSON-RPC batching
+  - Parallel processing with `asyncio.gather()` for multiple operations
+  - Request throttling and connection pooling for efficiency
+  - Enhanced error handling with individual request isolation
+
+##### Server Configuration Changes
+- **FastMCP Configuration**: Updated for MCP 2025-06-18 compliance
+  ```python
+  config = {
+      "name": server_name,
+      "allow_batch_requests": False,      # Explicitly disabled
+      "batch_support": False,             # No batch support
+      "protocol_version": "2025-06-18",   # Compliance version
+      "jsonrpc_batching_disabled": True,  # Clear flag
+  }
+  ```
+- **Enhanced Logging**: Clear startup messages about batching status
+- **Resource Updates**: All MCP resources now include compliance status
+
 #### Improved
 
 ##### Framework Architecture
@@ -97,15 +148,34 @@ This release qualifies as a **major version bump** because it introduces:
 
 #### Technical Details
 
+##### MCP 2025-06-18 Compliance Summary
+| Feature | Status | Implementation |
+|---------|---------|----------------|
+| **JSON-RPC Batching** | ❌ **DISABLED** | FastMCP config: `allow_batch_requests: False` |
+| **Individual Requests** | ✅ **REQUIRED** | All operations use individual JSON-RPC requests |
+| **Application Batching** | ✅ **ENHANCED** | Uses individual requests internally with parallel processing |
+| **Protocol Version** | ✅ **2025-06-18** | Explicit protocol version enforcement |
+| **Compliance Tools** | ✅ **ADDED** | `get_mcp_compliance_status()` for verification |
+
 ##### FastMCP 2.8.0+ Framework Migration
 | Component | Legacy (v1.x) | FastMCP 2.8.0+ (v2.0.0) |
-|-----------|---------------|--------------------------|
+|-----------|---------------|--------------------------| 
 | **Framework** | `mcp[cli]==1.9.4` | `fastmcp>=2.8.0` |
 | **Server Import** | `from mcp.server.fastmcp import FastMCP` | `from fastmcp import FastMCP` |
 | **Client Import** | `from mcp import ClientSession, StdioServerParameters` | `from fastmcp import Client` |
+| **JSON-RPC Batching** | Supported (legacy) | **DISABLED** (MCP 2025-06-18) |
 | **Authentication** | Custom OAuth implementation | Native FastMCP BearerAuthProvider |
 | **Token Access** | Manual token parsing | FastMCP dependency injection (`get_access_token()`) |
 | **Transport** | stdio via complex setup | Native stdio, SSE, HTTP support |
+
+##### Migration from JSON-RPC Batching
+| Aspect | Before (JSON-RPC Batching) | After (Individual Requests) |
+|--------|---------------------------|----------------------------|
+| **Request Format** | Array of JSON-RPC requests | Individual JSON-RPC requests |
+| **Network Overhead** | 1 HTTP request for N operations | N HTTP requests |
+| **Performance Strategy** | Single batch request | Parallel individual requests |
+| **Error Handling** | Batch-level error management | Individual request error isolation |
+| **Implementation** | Client sends request array | Client uses `asyncio.gather()` for parallelization |
 
 ##### OAuth Provider Support (FastMCP Compatible)
 | Provider | Authentication Method | Scope Mapping | Environment Variables |
@@ -116,20 +186,86 @@ This release qualifies as a **major version bump** because it introduces:
 | **Okta** | FastMCP BearerAuth + JWT | Okta scopes → MCP permissions | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN |
 | **GitHub** | FastMCP BearerAuth + API | GitHub scopes → MCP permissions | GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_ORG |
 
-##### MCP 2025-06-18 Compliance Features
-- **OAuth Discovery Endpoints**: `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`
-- **PKCE Support**: Mandatory PKCE (Proof Key for Code Exchange) for enhanced security
-- **Bearer Token Support**: Standard `Authorization: Bearer {token}` header authentication
-- **Scope-Based Authorization**: Fine-grained permissions mapped to MCP tool access
-- **JWT Validation**: Cryptographic token verification with JWKS endpoint support
-
 ##### Backward Compatibility
-- **100% Tool Compatibility**: All 48 MCP tools work identically with new framework
-- **Configuration Preserved**: All environment variables and settings remain the same
-- **Optional Authentication**: OAuth can be enabled/disabled without affecting core functionality
-- **Seamless Migration**: Existing deployments continue to work without changes
+- **✅ 100% Tool Compatibility**: All 48 MCP tools work identically with new framework
+- **✅ Configuration Preserved**: All environment variables and settings remain the same
+- **✅ Optional Authentication**: OAuth can be enabled/disabled without affecting core functionality
+- **⚠️ JSON-RPC Batching**: Breaking change - clients must migrate to individual requests
+- **✅ Application Batching**: Enhanced application-level operations remain functional
 
 #### Usage Examples
+
+##### Migration from JSON-RPC Batching
+
+**❌ Before (JSON-RPC Batching - No Longer Supported):**
+```python
+# This will now fail with MCP 2025-06-18 compliance
+batch_request = [
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 1},
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 2},
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 3},
+]
+response = await client.send_batch(batch_request)  # ❌ NOT SUPPORTED
+```
+
+**✅ After (Individual Requests with Parallelization):**
+```python
+# New compliant approach using individual requests
+import asyncio
+from fastmcp import Client
+
+async def main():
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # Method 1: Sequential individual requests
+        result1 = await client.call_tool("list_subjects", {"context": "users"})
+        result2 = await client.call_tool("get_schema", {"subject": "user-events"})
+        result3 = await client.call_tool("register_schema", {...})
+        
+        # Method 2: Parallel individual requests (recommended for performance)
+        tasks = [
+            client.call_tool("list_subjects", {"context": "users"}),
+            client.call_tool("get_schema", {"subject": "user-events"}),
+            client.call_tool("register_schema", {...})
+        ]
+        results = await asyncio.gather(*tasks)
+        
+        # Method 3: Use application-level batching where available
+        batch_result = await client.call_tool("clear_context_batch", {
+            "context": "test-context",
+            "dry_run": False
+        })
+        # Monitor task progress
+        task_id = batch_result["task_id"]
+        status = await client.call_tool("get_task_status", {"task_id": task_id})
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+##### Check MCP 2025-06-18 Compliance
+```python
+from fastmcp import Client
+
+async def check_compliance():
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # Verify server compliance
+        compliance = await client.call_tool("get_mcp_compliance_status")
+        
+        print(f"Compliance Status: {compliance['compliance_status']}")
+        print(f"Protocol Version: {compliance['protocol_version']}")
+        print(f"JSON-RPC Batching: {compliance['batching_configuration']['jsonrpc_batching']}")
+        print(f"Application Batching: {compliance['batching_configuration']['application_level_batching']}")
+        
+        # Check if migration is needed
+        if compliance['compliance_status'] == 'COMPLIANT':
+            print("✅ Server is MCP 2025-06-18 compliant")
+        else:
+            print("⚠️  Server requires updates for compliance")
+```
 
 ##### FastMCP Client (New in v2.0.0)
 ```python
@@ -168,35 +304,38 @@ export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0
 export AZURE_CLIENT_ID=your_client_id
 export AZURE_CLIENT_SECRET=your_client_secret
 
-# Run with FastMCP 2.8.0+
+# Run with FastMCP 2.8.0+ and MCP 2025-06-18 compliance
 python kafka_schema_registry_unified_mcp.py
 ```
 
-##### Migration from Legacy MCP SDK
-```python
-# OLD (v1.x) - Legacy MCP SDK
-from mcp import ClientSession, StdioServerParameters
-from fastmcp.client.stdio import stdio_client
-
-server_params = StdioServerParameters(command="python", args=["server.py"])
-async with stdio_client(server_params) as (read, write):
-    async with ClientSession(read, write) as session:
-        await session.initialize()
-        result = await session.call_tool("list_subjects", {})
-
-# NEW (v2.0.0) - FastMCP 2.8.0+
-from fastmcp import Client
-
-client = Client("kafka_schema_registry_unified_mcp.py")
-async with client:
-    result = await client.call_tool("list_subjects", {})
-```
-
 ### Maintained
-- **All 48 MCP Tools**: Complete backward compatibility
+- **All 48 MCP Tools**: Complete backward compatibility (except JSON-RPC batching removal)
 - **Multi-Registry Support**: Existing functionality enhanced with OAuth
 - **Docker Images**: Same deployment patterns with OAuth support
 - **Configuration**: All existing environment variables supported
+- **Application-Level Batching**: Enhanced and maintained with individual request implementation
+
+### Removed (Breaking Changes)
+- **JSON-RPC Batching Support**: Removed per MCP 2025-06-18 specification requirement
+  - Clients using batch requests must migrate to individual requests
+  - See `MCP-2025-06-18-MIGRATION-GUIDE.md` for detailed migration guidance
+  - Performance maintained through parallel individual requests and application-level batching
+
+### Migration Guide
+
+#### For Existing Users (v1.x → v2.0.0)
+1. **Basic Usage**: No changes required for standard MCP tool usage
+2. **JSON-RPC Batching**: Migrate to individual requests with parallel processing
+3. **Authentication**: OAuth is optional and can be enabled incrementally
+4. **Testing**: Update test framework if using custom FastMCP clients
+
+#### For JSON-RPC Batching Users
+1. **Immediate Action**: Review client code for JSON-RPC batch usage
+2. **Migration Path**: Implement parallel individual requests using `asyncio.gather()`
+3. **Performance**: Use application-level batch operations where available
+4. **Testing**: Validate performance with new individual request patterns
+
+See `MCP-2025-06-18-MIGRATION-GUIDE.md` for comprehensive migration instructions.
 
 ## [1.8.3] - 2025-06-07
 
@@ -551,7 +690,8 @@ while True:
 - **All 48 Tools Preserved**: Every existing MCP tool maintains the same API and functionality
 - **Configuration Migration**: Existing environment variables and Docker usage remain the same
 - **Optional Features**: OAuth and remote deployment are opt-in features
-- **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption
+- **⚠️ JSON-RPC Batching**: Breaking change - removed per MCP 2025-06-18 specification
+- **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption (except batching)
 
 ### Docker v2.0.0
 ```bash
