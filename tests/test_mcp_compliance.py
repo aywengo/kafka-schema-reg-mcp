@@ -2,12 +2,12 @@
 """
 MCP-Protocol-Version Header Validation Compliance Tests
 
-Tests for MCP 2025-06-18 specification compliance in the 
+Tests for MCP 2025-06-18 specification compliance in the
 Kafka Schema Registry MCP Server.
 
 Tests cover:
 - MCP-Protocol-Version header validation middleware
-- Exempt path functionality  
+- Exempt path functionality
 - Error responses for missing/invalid headers
 - Compliance status verification
 
@@ -189,18 +189,18 @@ class MCPComplianceTestSuite(unittest.TestCase):
         """Test that middleware constants are correctly defined."""
         try:
             from kafka_schema_registry_unified_mcp import (
-                MCP_PROTOCOL_VERSION, 
+                EXEMPT_PATHS,
+                MCP_PROTOCOL_VERSION,
                 SUPPORTED_MCP_VERSIONS,
-                EXEMPT_PATHS
             )
 
             # Verify protocol version
             self.assertEqual(MCP_PROTOCOL_VERSION, "2025-06-18")
-            
+
             # Verify supported versions list
             self.assertIsInstance(SUPPORTED_MCP_VERSIONS, list)
             self.assertIn("2025-06-18", SUPPORTED_MCP_VERSIONS)
-            
+
             # Verify exempt paths
             self.assertIsInstance(EXEMPT_PATHS, list)
             expected_exempt_paths = ["/health", "/metrics", "/ready", "/.well-known"]

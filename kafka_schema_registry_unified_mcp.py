@@ -141,10 +141,27 @@ mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
 mcp = FastMCP(**mcp_config)
 
 # Add MCP-Protocol-Version validation middleware (with error handling)
+MIDDLEWARE_ENABLED = False
 try:
-    mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
-    logger = logging.getLogger(__name__)
-    logger.info("✅ MCP-Protocol-Version header validation middleware enabled")
+    # Try different middleware installation approaches for different FastMCP versions
+    if hasattr(mcp, "app") and hasattr(mcp.app, "middleware"):
+        mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
+        MIDDLEWARE_ENABLED = True
+        logger = logging.getLogger(__name__)
+        logger.info("✅ MCP-Protocol-Version header validation middleware enabled")
+    elif hasattr(mcp, "add_middleware"):
+        # Alternative method for newer FastMCP versions
+        mcp.add_middleware(validate_mcp_protocol_version_middleware)
+        MIDDLEWARE_ENABLED = True
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "✅ MCP-Protocol-Version header validation middleware enabled (alternative method)"
+        )
+    else:
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "⚠️ FastMCP middleware interface not available - running in compatibility mode"
+        )
 except Exception as e:
     # If middleware fails to install, log warning but continue
     logger = logging.getLogger(__name__)
@@ -1182,26 +1199,16 @@ def get_statistics_task_progress(task_id: str):
 # ===== MCP COMPLIANCE AND UTILITY TOOLS =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_mcp_compliance_status():
-    """Get MCP 2025-06-18 specification compliance status and configuration details.
+def _internal_get_mcp_compliance_status():
+    """Internal function to get MCP compliance status without decorators.
 
-    Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
+    This function can be called directly for testing purposes.
     """
     try:
         from datetime import datetime
 
         # Check if header validation middleware is active
-        header_validation_active = True
-        try:
-            # Try to check if middleware is installed
-            if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
-                header_validation_active = True
-            else:
-                header_validation_active = False
-        except:
-            header_validation_active = False
+        header_validation_active = MIDDLEWARE_ENABLED
 
         # Get FastMCP configuration details
         config_details = {
@@ -1279,6 +1286,20 @@ def get_mcp_compliance_status():
             "jsonrpc_batching_disabled": True,
             "compliance_status": "UNKNOWN",
         }
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_mcp_compliance_status():
+    """Get MCP 2025-06-18 specification compliance status and configuration details.
+
+    Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
+    """
+    return _internal_get_mcp_compliance_status()
+
+
+# Export the internal function for testing purposes
+get_mcp_compliance_status = _internal_get_mcp_compliance_status
 
 
 @mcp.tool()
