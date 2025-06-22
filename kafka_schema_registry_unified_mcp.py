@@ -59,10 +59,11 @@ SUPPORTED_MCP_VERSIONS = ["2025-06-18"]
 # Paths that are exempt from MCP-Protocol-Version header validation
 EXEMPT_PATHS = [
     "/health",
-    "/metrics", 
+    "/metrics",
     "/ready",
     "/.well-known",  # This will match all paths starting with /.well-known
 ]
+
 
 def is_exempt_path(path: str) -> bool:
     """Check if a request path is exempt from MCP-Protocol-Version header validation."""
@@ -71,13 +72,14 @@ def is_exempt_path(path: str) -> bool:
             return True
     return False
 
+
 async def validate_mcp_protocol_version_middleware(request, call_next):
     """
     Middleware to validate MCP-Protocol-Version header on all requests.
-    
+
     Per MCP 2025-06-18 specification, all HTTP requests after initialization
     must include the MCP-Protocol-Version header.
-    
+
     Exempt paths: /health, /metrics, /ready, /.well-known/*
     """
     # Import FastAPI components only when needed to avoid dependency issues
@@ -87,19 +89,19 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
         # If FastAPI is not available, skip validation (for compatibility)
         response = await call_next(request)
         return response
-    
+
     path = request.url.path
-    
+
     # Skip validation for exempt paths
     if is_exempt_path(path):
         response = await call_next(request)
         # Still add the header to exempt responses for consistency
         response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
         return response
-    
+
     # Check for MCP-Protocol-Version header
     protocol_version = request.headers.get("MCP-Protocol-Version")
-    
+
     if not protocol_version:
         return JSONResponse(
             status_code=400,
@@ -107,11 +109,11 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
                 "error": "Missing MCP-Protocol-Version header",
                 "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-06-18 specification",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "example": "MCP-Protocol-Version: 2025-06-18"
+                "example": "MCP-Protocol-Version: 2025-06-18",
             },
-            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION},
         )
-    
+
     # Validate protocol version
     if protocol_version not in SUPPORTED_MCP_VERSIONS:
         return JSONResponse(
@@ -120,18 +122,19 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
                 "error": "Unsupported MCP-Protocol-Version",
                 "details": f"Received version '{protocol_version}' is not supported",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "received_version": protocol_version
+                "received_version": protocol_version,
             },
-            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION}
+            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION},
         )
-    
+
     # Process the request
     response = await call_next(request)
-    
+
     # Add MCP-Protocol-Version header to all responses
     response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
-    
+
     return response
+
 
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
@@ -310,7 +313,11 @@ def list_registries():
             result[0]["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
         return result
     except Exception as e:
-        return {"error": str(e), "registry_mode": REGISTRY_MODE, "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+        return {
+            "error": str(e),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
 
 @mcp.tool()
@@ -331,7 +338,11 @@ def get_registry_info(registry_name: str = None):
         info["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
         return info
     except Exception as e:
-        return {"error": str(e), "registry_mode": REGISTRY_MODE, "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+        return {
+            "error": str(e),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
 
 @mcp.tool()
@@ -363,7 +374,11 @@ def test_registry_connection(registry_name: str = None):
 
         return result
     except Exception as e:
-        return {"error": str(e), "registry_mode": REGISTRY_MODE, "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+        return {
+            "error": str(e),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
 
 @mcp.tool()
@@ -393,7 +408,11 @@ async def test_all_registries():
                         "registry_mode": "single",
                         "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                     }
-            return {"error": "No registry configured", "registry_mode": "single", "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+            return {
+                "error": "No registry configured",
+                "registry_mode": "single",
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            }
         else:
             result = await registry_manager.test_all_registries_async()
             result["registry_mode"] = "multi"
@@ -413,7 +432,11 @@ async def test_all_registries():
 
             return result
     except Exception as e:
-        return {"error": str(e), "registry_mode": REGISTRY_MODE, "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+        return {
+            "error": str(e),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
 
 # ===== COMPARISON TOOLS =====
@@ -1173,7 +1196,7 @@ def get_mcp_compliance_status():
         header_validation_active = True
         try:
             # Try to check if middleware is installed
-            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+            if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
                 header_validation_active = True
             else:
                 header_validation_active = False
@@ -1569,7 +1592,11 @@ def get_operation_info_tool(operation_name: str = None):
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             }
     except Exception as e:
-        return {"error": str(e), "registry_mode": REGISTRY_MODE, "mcp_protocol_version": MCP_PROTOCOL_VERSION}
+        return {
+            "error": str(e),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
 
 # ===== RESOURCES =====
@@ -1587,17 +1614,17 @@ def get_registry_status():
         status_lines.append(
             "🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)"
         )
-        
+
         # Check if header validation is active
         header_validation_status = "ENABLED"
         try:
-            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+            if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
                 header_validation_status = "ENABLED"
             else:
                 header_validation_status = "DISABLED (compatibility mode)"
         except:
             header_validation_status = "UNKNOWN"
-            
+
         status_lines.append(
             f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
@@ -1631,7 +1658,7 @@ def get_registry_info_resource():
         # Check header validation status
         header_validation_active = True
         try:
-            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+            if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
                 header_validation_active = True
             else:
                 header_validation_active = False
@@ -1704,7 +1731,7 @@ def get_mode_info():
         # Check header validation status
         header_validation_active = True
         try:
-            if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+            if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
                 header_validation_active = True
             else:
                 header_validation_active = False
@@ -1792,7 +1819,7 @@ if __name__ == "__main__":
     # Check header validation status for startup message
     header_validation_status = "ENABLED"
     try:
-        if hasattr(mcp, 'app') and hasattr(mcp.app, 'middleware_stack'):
+        if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
             header_validation_status = "ENABLED"
         else:
             header_validation_status = "DISABLED (compatibility mode)"
@@ -1824,9 +1851,7 @@ if __name__ == "__main__":
     logger.info(
         f"✅ MCP-Protocol-Version header validation {header_validation_status.lower()} ({MCP_PROTOCOL_VERSION})"
     )
-    logger.info(
-        f"🚫 Exempt paths from header validation: {EXEMPT_PATHS}"
-    )
+    logger.info(f"🚫 Exempt paths from header validation: {EXEMPT_PATHS}")
     logger.info(
         "🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance"
     )
