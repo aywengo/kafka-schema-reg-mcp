@@ -1,6 +1,9 @@
 # FastMCP 2.8.0+ for MCP 2025-06-18 specification compliance - Issue #32
 fastmcp>=2.8.0
 
+# FastAPI for MCP-Protocol-Version header validation middleware
+fastapi>=0.100.0
+
 # Kafka Schema Registry integration
 requests==2.32.4
 python-dotenv==1.1.0
