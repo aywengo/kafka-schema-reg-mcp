@@ -564,13 +564,7 @@ def update_global_config_tool(
         )
 
 
-# Continue with other functions... (for brevity, showing key pattern)
-
-# ===== NON-DECORATED FUNCTIONS (Keep original implementations for compatibility) =====
-
-# Keep all other function implementations unchanged for now
-# These will be updated in subsequent iterations
-
+@structured_output("get_subject_config", fallback_on_error=True)
 def get_subject_config_tool(
     subject: str,
     registry_manager,
@@ -583,8 +577,14 @@ def get_subject_config_tool(
 ) -> Dict[str, Any]:
     """
     Get configuration settings for a specific subject.
-    
-    Note: This function will be updated with structured output in the next iteration.
+
+    Args:
+        subject: The subject name
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Dictionary containing subject configuration with structured validation
     """
     try:
         if registry_mode == "single":
@@ -596,16 +596,21 @@ def get_subject_config_tool(
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
+            
+            # Add structured output metadata
             result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
             return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {
-                    "error": f"Registry '{registry}' not found",
-                    "registry_mode": "multi",
-                }
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
 
             url = client.build_context_url(f"/config/{subject}", context)
 
@@ -614,33 +619,22 @@ def get_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
+            
+            # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
             return result
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(
+            str(e),
+            error_code="SUBJECT_CONFIG_RETRIEVAL_FAILED",
+            registry_mode=registry_mode
+        )
 
 
-# [Additional functions would follow the same pattern - truncated for brevity]
-# The remaining functions will be updated in subsequent commits to maintain
-# manageable change sets and allow for incremental testing.
-
-# For now, keeping original implementations of:
-# - update_subject_config_tool
-# - get_mode_tool
-# - update_mode_tool  
-# - get_subject_mode_tool
-# - update_subject_mode_tool
-# - list_contexts_tool
-# - create_context_tool
-# - delete_context_tool
-# - delete_subject_tool
-
-# These will be converted to use structured_output decorator in Phase 2
-
-
-# ===== ORIGINAL IMPLEMENTATIONS (Temporarily kept for backward compatibility) =====
-
+@structured_output("update_subject_config", fallback_on_error=True)
 def update_subject_config_tool(
     subject: str,
     compatibility: str,
@@ -652,11 +646,22 @@ def update_subject_config_tool(
     standard_headers=None,
     schema_registry_url: str = "",
 ) -> Dict[str, Any]:
-    """Update configuration settings for a specific subject."""
+    """
+    Update configuration settings for a specific subject.
+
+    Args:
+        subject: The subject name
+        compatibility: Compatibility level (BACKWARD, FORWARD, FULL, NONE, etc.)
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Updated configuration with structured validation
+    """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
     if readonly_check:
-        return readonly_check
+        return validate_registry_response(readonly_check, registry_mode)
 
     try:
         payload = {"compatibility": compatibility}
@@ -670,15 +675,20 @@ def update_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
+            
+            # Add structured output metadata
             result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
             return result
         else:
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {
-                    "error": f"Registry '{registry}' not found",
-                    "registry_mode": "multi",
-                }
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
 
             url = client.build_context_url(f"/config/{subject}", context)
             response = requests.put(
@@ -689,12 +699,567 @@ def update_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
+            
+            # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
             return result
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(
+            str(e),
+            error_code="SUBJECT_CONFIG_UPDATE_FAILED",
+            registry_mode=registry_mode
+        )
 
 
-# Continue with other original implementations...
-# (Truncated for brevity - the complete file would include all remaining functions)
+# ===== MODE MANAGEMENT TOOLS =====
+
+@structured_output("get_mode", fallback_on_error=True)
+def get_mode_tool(
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Get the current mode of the Schema Registry.
+
+    Args:
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Dictionary containing the current mode with structured validation
+    """
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            url = build_context_url_legacy("/mode", schema_registry_url, context)
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            url = client.build_context_url("/mode", context)
+
+            response = requests.get(
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="MODE_RETRIEVAL_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("update_mode", fallback_on_error=True)
+def update_mode_tool(
+    mode: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Update the mode of the Schema Registry.
+
+    Args:
+        mode: The mode to set (IMPORT, READONLY, READWRITE)
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Updated mode information with structured validation
+    """
+    # Check readonly mode
+    readonly_check = _check_readonly_mode(registry_manager, registry)
+    if readonly_check:
+        return validate_registry_response(readonly_check, registry_mode)
+
+    try:
+        payload = {"mode": mode}
+
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            url = build_context_url_legacy("/mode", schema_registry_url, context)
+
+            response = requests.put(
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            url = client.build_context_url("/mode", context)
+
+            response = requests.put(
+                url,
+                data=json.dumps(payload),
+                auth=client.auth,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="MODE_UPDATE_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("get_subject_mode", fallback_on_error=True)
+def get_subject_mode_tool(
+    subject: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Get the mode for a specific subject.
+
+    Args:
+        subject: The subject name
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Dictionary containing the subject mode with structured validation
+    """
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            url = build_context_url_legacy(
+                f"/mode/{subject}", schema_registry_url, context
+            )
+
+            response = requests.get(url, auth=auth, headers=standard_headers)
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            url = client.build_context_url(f"/mode/{subject}", context)
+
+            response = requests.get(
+                url, auth=client.auth, headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="SUBJECT_MODE_RETRIEVAL_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("update_subject_mode", fallback_on_error=True)
+def update_subject_mode_tool(
+    subject: str,
+    mode: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Update the mode for a specific subject.
+
+    Args:
+        subject: The subject name
+        mode: The mode to set (IMPORT, READONLY, READWRITE)
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Updated mode information with structured validation
+    """
+    # Check readonly mode
+    readonly_check = _check_readonly_mode(registry_manager, registry)
+    if readonly_check:
+        return validate_registry_response(readonly_check, registry_mode)
+
+    try:
+        payload = {"mode": mode}
+
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            url = build_context_url_legacy(
+                f"/mode/{subject}", schema_registry_url, context
+            )
+
+            response = requests.put(
+                url, data=json.dumps(payload), auth=auth, headers=standard_headers
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            url = client.build_context_url(f"/mode/{subject}", context)
+
+            response = requests.put(
+                url,
+                data=json.dumps(payload),
+                auth=client.auth,
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Add structured output metadata
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+            
+            return result
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="SUBJECT_MODE_UPDATE_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+# ===== CONTEXT AND SUBJECT MANAGEMENT =====
+
+@structured_output("list_contexts", fallback_on_error=True)
+def list_contexts_tool(
+    registry_manager,
+    registry_mode: str,
+    registry: Optional[str] = None,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> List[str]:
+    """
+    List all available schema contexts.
+
+    Args:
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        List of context names with structured validation
+    """
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            response = requests.get(
+                f"{schema_registry_url}/contexts", auth=auth, headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            return client.get_contexts()
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="CONTEXT_LIST_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("create_context", fallback_on_error=True)
+def create_context_tool(
+    context: str,
+    registry_manager,
+    registry_mode: str,
+    registry: Optional[str] = None,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Create a new schema context.
+
+    Args:
+        context: The context name to create
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Success message with structured validation
+    """
+    # Check readonly mode
+    readonly_check = _check_readonly_mode(registry_manager, registry)
+    if readonly_check:
+        return validate_registry_response(readonly_check, registry_mode)
+
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            response = requests.post(
+                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
+            )
+            response.raise_for_status()
+            return create_success_response(
+                f"Context '{context}' created successfully",
+                registry_mode="single"
+            )
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            response = requests.post(
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers,
+            )
+            response.raise_for_status()
+            return create_success_response(
+                f"Context '{context}' created successfully",
+                data={"registry": client.config.name},
+                registry_mode="multi"
+            )
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="CONTEXT_CREATE_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("delete_context", fallback_on_error=True)
+def delete_context_tool(
+    context: str,
+    registry_manager,
+    registry_mode: str,
+    registry: Optional[str] = None,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, str]:
+    """
+    Delete a schema context.
+
+    Args:
+        context: The context name to delete
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Success message with structured validation
+    """
+    # Check readonly mode
+    readonly_check = _check_readonly_mode(registry_manager, registry)
+    if readonly_check:
+        return validate_registry_response(readonly_check, registry_mode)
+
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            response = requests.delete(
+                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
+            )
+            response.raise_for_status()
+            return create_success_response(
+                f"Context '{context}' deleted successfully",
+                registry_mode="single"
+            )
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            response = requests.delete(
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers,
+            )
+            response.raise_for_status()
+            return create_success_response(
+                f"Context '{context}' deleted successfully",
+                data={"registry": client.config.name},
+                registry_mode="multi"
+            )
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="CONTEXT_DELETE_FAILED",
+            registry_mode=registry_mode
+        )
+
+
+@structured_output("delete_subject", fallback_on_error=True)
+async def delete_subject_tool(
+    subject: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    permanent: bool = False,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> List[int]:
+    """
+    Delete a subject and all its versions.
+
+    Args:
+        subject: The subject name to delete
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+        permanent: If True, perform a hard delete (removes all metadata including schema ID)
+
+    Returns:
+        List of deleted version numbers with structured validation
+    """
+    # Check readonly mode
+    readonly_check = _check_readonly_mode(registry_manager, registry)
+    if readonly_check:
+        return validate_registry_response(readonly_check, registry_mode)
+
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use legacy approach
+            url = build_context_url_legacy(
+                f"/subjects/{subject}", schema_registry_url, context
+            )
+
+            # Add permanent parameter if specified
+            if permanent:
+                url += "?permanent=true"
+
+            response = requests.delete(url, auth=auth, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi"
+                )
+
+            url = client.build_context_url(f"/subjects/{subject}", context)
+
+            # Add permanent parameter if specified
+            if permanent:
+                url += "?permanent=true"
+
+            # Use aiohttp for async HTTP requests
+            async with aiohttp.ClientSession() as session:
+                async with session.delete(url, headers=client.headers) as response:
+                    response.raise_for_status()
+                    return await response.json()
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="SUBJECT_DELETE_FAILED",
+            registry_mode=registry_mode
+        )
