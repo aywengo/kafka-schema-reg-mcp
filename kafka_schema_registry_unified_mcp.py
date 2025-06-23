@@ -271,11 +271,10 @@ from schema_registry_common import (  # noqa: E402
 
 # Import schema validation utilities for structured output
 from schema_validation import (  # noqa: E402
-    structured_output,
     create_error_response,
     create_success_response,
+    structured_output,
 )
-
 from statistics_tools import (  # noqa: E402
     count_contexts_tool,
     count_schema_versions_tool,
@@ -1009,20 +1008,18 @@ def get_task_status_tool(task_id: str):
             return create_error_response(
                 f"Task '{task_id}' not found",
                 error_code="TASK_NOT_FOUND",
-                registry_mode=REGISTRY_MODE
+                registry_mode=REGISTRY_MODE,
             )
-        
+
         result = task.to_dict()
         # Add structured output metadata
         result["registry_mode"] = REGISTRY_MODE
         result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
-        
+
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="TASK_STATUS_FAILED",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="TASK_STATUS_FAILED", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1032,7 +1029,7 @@ def get_task_progress_tool(task_id: str):
     task_status = get_task_status_tool(task_id)
     if "error" in task_status:
         return task_status
-    
+
     # Transform to progress-focused response
     result = {
         "task_id": task_id,
@@ -1043,9 +1040,9 @@ def get_task_progress_tool(task_id: str):
         "error": task_status["error"],
         "result": task_status["result"],
         "registry_mode": REGISTRY_MODE,
-        "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
     }
-    
+
     return result
 
 
@@ -1061,15 +1058,13 @@ def list_active_tasks_tool():
                 [t for t in tasks if t.status.value in ["pending", "running"]]
             ),
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
-        
+
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="TASK_LIST_FAILED",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="TASK_LIST_FAILED", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1082,19 +1077,17 @@ async def cancel_task_tool(task_id: str):
             return create_success_response(
                 f"Task '{task_id}' cancelled successfully",
                 data={"task_id": task_id, "cancelled": True},
-                registry_mode=REGISTRY_MODE
+                registry_mode=REGISTRY_MODE,
             )
         else:
             return create_error_response(
                 f"Could not cancel task '{task_id}' (may already be completed)",
                 error_code="TASK_CANCEL_FAILED",
-                registry_mode=REGISTRY_MODE
+                registry_mode=REGISTRY_MODE,
             )
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="TASK_CANCEL_ERROR",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="TASK_CANCEL_ERROR", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1112,15 +1105,15 @@ def list_statistics_tasks_tool():
                 [t for t in tasks if t.status.value in ["pending", "running"]]
             ),
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
-        
+
         return result
     except Exception as e:
         return create_error_response(
             str(e),
             error_code="STATISTICS_TASK_LIST_FAILED",
-            registry_mode=REGISTRY_MODE
+            registry_mode=REGISTRY_MODE,
         )
 
 
@@ -1133,7 +1126,7 @@ def get_statistics_task_progress_tool(task_id: str):
             return create_error_response(
                 f"Task '{task_id}' not found",
                 error_code="TASK_NOT_FOUND",
-                registry_mode=REGISTRY_MODE
+                registry_mode=REGISTRY_MODE,
             )
 
         task_dict = task.to_dict()
@@ -1182,7 +1175,7 @@ def get_statistics_task_progress_tool(task_id: str):
         return create_error_response(
             str(e),
             error_code="STATISTICS_TASK_PROGRESS_FAILED",
-            registry_mode=REGISTRY_MODE
+            registry_mode=REGISTRY_MODE,
         )
 
 
@@ -1329,7 +1322,7 @@ def _internal_get_mcp_compliance_status():
                 ],
             },
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
 
         return config_details
@@ -1338,7 +1331,7 @@ def _internal_get_mcp_compliance_status():
         return create_error_response(
             f"Failed to get compliance status: {str(e)}",
             error_code="COMPLIANCE_STATUS_FAILED",
-            registry_mode=REGISTRY_MODE
+            registry_mode=REGISTRY_MODE,
         )
 
 
@@ -1375,7 +1368,7 @@ def set_default_registry_tool(registry_name: str):
                     )
                 },
                 error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-                registry_mode="single"
+                registry_mode="single",
             )
 
         if registry_manager.set_default_registry(registry_name):
@@ -1383,21 +1376,25 @@ def set_default_registry_tool(registry_name: str):
                 f"Default registry set to '{registry_name}'",
                 data={
                     "default_registry": registry_name,
-                    "previous_default": registry_manager.get_previous_default() if hasattr(registry_manager, "get_previous_default") else None
+                    "previous_default": (
+                        registry_manager.get_previous_default()
+                        if hasattr(registry_manager, "get_previous_default")
+                        else None
+                    ),
                 },
-                registry_mode="multi"
+                registry_mode="multi",
             )
         else:
             return create_error_response(
                 f"Registry '{registry_name}' not found",
                 error_code="REGISTRY_NOT_FOUND",
-                registry_mode="multi"
+                registry_mode="multi",
             )
     except Exception as e:
         return create_error_response(
             str(e),
-            error_code="SET_DEFAULT_REGISTRY_FAILED", 
-            registry_mode=REGISTRY_MODE
+            error_code="SET_DEFAULT_REGISTRY_FAILED",
+            registry_mode=REGISTRY_MODE,
         )
 
 
@@ -1433,13 +1430,13 @@ def get_default_registry_tool():
                 return create_error_response(
                     "No default registry configured",
                     error_code="NO_DEFAULT_REGISTRY",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
     except Exception as e:
         return create_error_response(
             str(e),
             error_code="GET_DEFAULT_REGISTRY_FAILED",
-            registry_mode=REGISTRY_MODE
+            registry_mode=REGISTRY_MODE,
         )
 
 
@@ -1448,42 +1445,40 @@ def check_readonly_mode_tool(registry: str = None):
     """Check if a registry is in readonly mode with structured output validation."""
     try:
         result = _check_readonly_mode(registry_manager, registry)
-        
+
         # If the original function returns an error dict, pass it through
         if isinstance(result, dict) and "error" in result:
             # Add structured output metadata to error response
             result["registry_mode"] = REGISTRY_MODE
             result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
             return result
-        
+
         # If it returns a boolean or other simple result, structure it
         if isinstance(result, bool):
             return {
                 "readonly": result,
                 "registry": registry or "default",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             }
-        
+
         # If it's already a dict (successful response), add metadata
         if isinstance(result, dict):
             result["registry_mode"] = REGISTRY_MODE
             result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
             return result
-        
+
         # Default case
         return {
             "readonly": False,
             "registry": registry or "default",
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
-        
+
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="READONLY_MODE_CHECK_FAILED",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="READONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1492,7 +1487,7 @@ def get_oauth_scopes_info_tool_wrapper():
     """Get information about OAuth scopes and permissions with structured output validation."""
     try:
         result = get_oauth_scopes_info()
-        
+
         # Ensure the result is structured properly
         if isinstance(result, dict):
             # Add structured output metadata
@@ -1504,14 +1499,12 @@ def get_oauth_scopes_info_tool_wrapper():
             return {
                 "oauth_scopes": result,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             }
-            
+
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="OAUTH_SCOPES_INFO_FAILED",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="OAUTH_SCOPES_INFO_FAILED", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1535,7 +1528,7 @@ def get_operation_info_tool_wrapper(operation_name: str = None):
                     f"Operation '{operation_name}' not found",
                     details={"available_operations": list(OPERATION_METADATA.keys())},
                     error_code="OPERATION_NOT_FOUND",
-                    registry_mode=REGISTRY_MODE
+                    registry_mode=REGISTRY_MODE,
                 )
         else:
             # Return all operations
@@ -1547,9 +1540,7 @@ def get_operation_info_tool_wrapper(operation_name: str = None):
             }
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="OPERATION_INFO_FAILED",
-            registry_mode=REGISTRY_MODE
+            str(e), error_code="OPERATION_INFO_FAILED", registry_mode=REGISTRY_MODE
         )
 
 
@@ -1816,9 +1807,7 @@ def get_registry_status():
         status_lines.append(
             f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
-        status_lines.append(
-            "🎯 Structured Tool Output: 100% Complete (48/48 tools)"
-        )
+        status_lines.append("🎯 Structured Tool Output: 100% Complete (48/48 tools)")
 
         for name in registries:
             client = registry_manager.get_registry(name)

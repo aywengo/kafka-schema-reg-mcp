@@ -17,9 +17,9 @@ from typing import Any, Dict, Optional
 
 from schema_registry_common import get_default_client
 from schema_validation import (
-    structured_output,
     create_error_response,
-    create_success_response
+    create_success_response,
+    structured_output,
 )
 from task_management import TaskType, task_manager
 
@@ -46,7 +46,7 @@ def count_contexts_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         contexts = client.get_contexts()
@@ -54,7 +54,7 @@ def count_contexts_tool(
             return create_error_response(
                 f"Failed to get contexts: {contexts.get('error')}",
                 error_code="CONTEXTS_RETRIEVAL_FAILED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Get registry metadata
@@ -69,7 +69,7 @@ def count_contexts_tool(
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add metadata information
@@ -78,9 +78,7 @@ def count_contexts_tool(
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_COUNT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_COUNT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -110,7 +108,7 @@ def count_schemas_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         subjects = client.get_subjects(context)
@@ -118,7 +116,7 @@ def count_schemas_tool(
             return create_error_response(
                 f"Failed to get subjects: {subjects.get('error')}",
                 error_code="SUBJECTS_RETRIEVAL_FAILED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Get registry metadata
@@ -134,7 +132,7 @@ def count_schemas_tool(
             "schemas": subjects,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add metadata information
@@ -143,9 +141,7 @@ def count_schemas_tool(
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SCHEMA_COUNT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SCHEMA_COUNT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -177,7 +173,7 @@ def count_schema_versions_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         # Import the function here to avoid circular imports
@@ -188,7 +184,7 @@ def count_schema_versions_tool(
             return create_error_response(
                 f"Failed to get schema versions: {versions.get('error')}",
                 error_code="SCHEMA_VERSIONS_RETRIEVAL_FAILED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Get registry metadata
@@ -205,7 +201,7 @@ def count_schema_versions_tool(
             "versions": versions,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add metadata information
@@ -214,9 +210,7 @@ def count_schema_versions_tool(
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="VERSION_COUNT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="VERSION_COUNT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -246,7 +240,7 @@ def get_registry_statistics_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         # Get all contexts
@@ -255,7 +249,7 @@ def get_registry_statistics_tool(
             return create_error_response(
                 f"Failed to get contexts: {contexts.get('error')}",
                 error_code="CONTEXTS_RETRIEVAL_FAILED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         total_schemas = 0
@@ -328,7 +322,7 @@ def get_registry_statistics_tool(
             "contexts": context_stats if include_context_details else None,
             "generated_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add metadata information
@@ -337,9 +331,7 @@ def get_registry_statistics_tool(
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="REGISTRY_STATISTICS_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="REGISTRY_STATISTICS_FAILED", registry_mode=registry_mode
         )
 
 
@@ -501,14 +493,12 @@ def count_schemas_task_queue_tool(
                 "registry_mode": registry_mode,
             },
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="TASK_CREATION_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode
         )
 
 
@@ -739,12 +729,10 @@ def get_registry_statistics_task_queue_tool(
                 "registry_mode": registry_mode,
             },
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="TASK_CREATION_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode
         )

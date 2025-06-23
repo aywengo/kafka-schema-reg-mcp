@@ -29,9 +29,9 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from schema_validation import (
-    structured_output,
     create_error_response,
-    create_success_response
+    create_success_response,
+    structured_output,
 )
 from task_management import TaskStatus, TaskType, task_manager
 
@@ -85,7 +85,7 @@ def clear_context_batch_tool(
                 return create_error_response(
                     "No registries available",
                     error_code="NO_REGISTRIES_AVAILABLE",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         # Validate registry exists
@@ -94,7 +94,7 @@ def clear_context_batch_tool(
             return create_error_response(
                 f"Registry '{registry}' not found",
                 error_code="REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Create async task with resolved registry name
@@ -162,19 +162,17 @@ def clear_context_batch_tool(
             "operation": "clear_context_batch",
             "dry_run": dry_run,
             "total_items": 1,  # One context
-            "successful": 0,   # Will be updated by task
-            "failed": 0,       # Will be updated by task
+            "successful": 0,  # Will be updated by task
+            "failed": 0,  # Will be updated by task
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
-        
+
         return result
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="BATCH_OPERATION_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode
         )
 
 
@@ -448,7 +446,7 @@ def clear_multiple_contexts_batch_tool(
                 return create_error_response(
                     "No registries available",
                     error_code="NO_REGISTRIES_AVAILABLE",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
         # Validate registry exists
@@ -457,7 +455,7 @@ def clear_multiple_contexts_batch_tool(
             return create_error_response(
                 f"Registry '{registry}' not found",
                 error_code="REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Create async task with resolved registry name
@@ -525,19 +523,17 @@ def clear_multiple_contexts_batch_tool(
             "operation": "clear_multiple_contexts_batch",
             "dry_run": dry_run,
             "total_items": len(contexts),
-            "successful": 0,   # Will be updated by task
-            "failed": 0,       # Will be updated by task
+            "successful": 0,  # Will be updated by task
+            "failed": 0,  # Will be updated by task
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
-        
+
         return result
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="BATCH_OPERATION_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode
         )
 
 

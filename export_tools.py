@@ -17,9 +17,9 @@ from schema_registry_common import export_schema as common_export_schema
 from schema_registry_common import export_subject as common_export_subject
 from schema_registry_common import get_default_client
 from schema_validation import (
-    structured_output,
     create_error_response,
-    create_success_response
+    create_success_response,
+    structured_output,
 )
 
 
@@ -56,16 +56,16 @@ def export_schema_tool(
             return create_error_response(
                 "No registry configured or registry not found",
                 error_code="REGISTRY_NOT_CONFIGURED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         result = common_export_schema(client, subject, version, context, format)
-        
+
         if isinstance(result, dict):
             # Add structured output metadata
             result["registry_mode"] = registry_mode
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             # Ensure required fields for export schema
             if "subject" not in result:
                 result["subject"] = subject
@@ -73,13 +73,11 @@ def export_schema_tool(
                 result["version"] = version if version != "latest" else 1
             if "format" not in result:
                 result["format"] = format
-        
+
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SCHEMA_EXPORT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SCHEMA_EXPORT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -118,29 +116,27 @@ def export_subject_tool(
             return create_error_response(
                 "No registry configured or registry not found",
                 error_code="REGISTRY_NOT_CONFIGURED",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         result = common_export_subject(
             client, subject, context, include_metadata, include_config, include_versions
         )
-        
+
         # Add structured output metadata
         result["registry_mode"] = registry_mode
         result["mcp_protocol_version"] = "2025-06-18"
-        
+
         # Ensure required fields for export subject
         if "subject" not in result:
             result["subject"] = subject
         if "versions" not in result:
             result["versions"] = []
-        
+
         return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SUBJECT_EXPORT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SUBJECT_EXPORT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -175,7 +171,7 @@ def export_context_tool(
                 return create_error_response(
                     "No default registry configured",
                     error_code="REGISTRY_NOT_CONFIGURED",
-                    registry_mode="single"
+                    registry_mode="single",
                 )
             result = common_export_context(
                 client, context, include_metadata, include_config, include_versions
@@ -190,7 +186,7 @@ def export_context_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             # Get all subjects in context
@@ -199,7 +195,7 @@ def export_context_tool(
                 return create_error_response(
                     f"Failed to get subjects for context '{context}': {subjects_list.get('error')}",
                     error_code="CONTEXT_SUBJECTS_RETRIEVAL_FAILED",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
             # Export each subject
@@ -223,7 +219,7 @@ def export_context_tool(
                 "subjects": subjects_data,
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             if include_config:
@@ -249,9 +245,7 @@ def export_context_tool(
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_EXPORT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_EXPORT_FAILED", registry_mode=registry_mode
         )
 
 
@@ -284,7 +278,7 @@ def export_global_tool(
                 return create_error_response(
                     "No default registry configured",
                     error_code="REGISTRY_NOT_CONFIGURED",
-                    registry_mode="single"
+                    registry_mode="single",
                 )
             result = common_export_global(
                 client, include_metadata, include_config, include_versions
@@ -299,7 +293,7 @@ def export_global_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             # Get all contexts
@@ -308,7 +302,7 @@ def export_global_tool(
                 return create_error_response(
                     f"Failed to get contexts: {contexts_list.get('error')}",
                     error_code="CONTEXTS_RETRIEVAL_FAILED",
-                    registry_mode=registry_mode
+                    registry_mode=registry_mode,
                 )
 
             # Export each context
@@ -344,7 +338,7 @@ def export_global_tool(
                 ),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             if include_config:
@@ -370,7 +364,5 @@ def export_global_tool(
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="GLOBAL_EXPORT_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="GLOBAL_EXPORT_FAILED", registry_mode=registry_mode
         )

@@ -13,9 +13,9 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from schema_validation import (
-    structured_output,
     create_error_response,
-    create_success_response
+    create_success_response,
+    structured_output,
 )
 
 
@@ -44,9 +44,11 @@ async def compare_registries_tool(
     if registry_mode == "single":
         return create_error_response(
             "Registry comparison is only available in multi-registry mode",
-            details={"suggestion": "Set REGISTRY_MODE=multi to enable registry comparison"},
+            details={
+                "suggestion": "Set REGISTRY_MODE=multi to enable registry comparison"
+            },
             error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
     try:
@@ -57,13 +59,13 @@ async def compare_registries_tool(
             return create_error_response(
                 f"Source registry '{source_registry}' not found",
                 error_code="SOURCE_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
         if not target_client:
             return create_error_response(
                 f"Target registry '{target_registry}' not found",
                 error_code="TARGET_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         comparison = {
@@ -72,7 +74,7 @@ async def compare_registries_tool(
             "timestamp": datetime.now().isoformat(),
             "differences": {},
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Compare subjects
@@ -128,9 +130,7 @@ async def compare_registries_tool(
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="REGISTRY_COMPARISON_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="REGISTRY_COMPARISON_FAILED", registry_mode=registry_mode
         )
 
 
@@ -161,7 +161,7 @@ async def compare_contexts_across_registries_tool(
             "Context comparison across registries is only available in multi-registry mode",
             details={"suggestion": "Set REGISTRY_MODE=multi to enable this feature"},
             error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
     try:
@@ -172,13 +172,13 @@ async def compare_contexts_across_registries_tool(
             return create_error_response(
                 f"Source registry '{source_registry}' not found",
                 error_code="SOURCE_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
         if not target_client:
             return create_error_response(
                 f"Target registry '{target_registry}' not found",
                 error_code="TARGET_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Use source context for target if not specified
@@ -206,7 +206,7 @@ async def compare_contexts_across_registries_tool(
                 "in_both": list(source_subjects & target_subjects),
             },
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Compare schemas for common subjects
@@ -234,9 +234,7 @@ async def compare_contexts_across_registries_tool(
 
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_COMPARISON_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_COMPARISON_FAILED", registry_mode=registry_mode
         )
 
 
@@ -265,7 +263,7 @@ async def find_missing_schemas_tool(
             "Finding missing schemas across registries is only available in multi-registry mode",
             details={"suggestion": "Set REGISTRY_MODE=multi to enable this feature"},
             error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
     try:
@@ -276,13 +274,13 @@ async def find_missing_schemas_tool(
             return create_error_response(
                 f"Source registry '{source_registry}' not found",
                 error_code="SOURCE_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
         if not target_client:
             return create_error_response(
                 f"Target registry '{target_registry}' not found",
                 error_code="TARGET_REGISTRY_NOT_FOUND",
-                registry_mode=registry_mode
+                registry_mode=registry_mode,
             )
 
         # Get subjects based on context
@@ -304,7 +302,7 @@ async def find_missing_schemas_tool(
             "missing_count": len(missing_subjects),
             "details": [],
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Get details for each missing subject
@@ -332,5 +330,5 @@ async def find_missing_schemas_tool(
         return create_error_response(
             str(e),
             error_code="MISSING_SCHEMA_SEARCH_FAILED",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )

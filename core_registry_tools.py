@@ -17,10 +17,10 @@ import requests
 
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
 from schema_validation import (
+    create_error_response,
+    create_success_response,
     structured_output,
     validate_registry_response,
-    create_error_response,
-    create_success_response
 )
 
 
@@ -34,6 +34,7 @@ def build_context_url_legacy(
 
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
+
 
 @structured_output("register_schema", fallback_on_error=True)
 def register_schema_tool(
@@ -83,12 +84,12 @@ def register_schema_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["subject"] = subject
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -97,7 +98,7 @@ def register_schema_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             payload = {
@@ -112,19 +113,17 @@ def register_schema_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["subject"] = subject
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e), 
-            error_code="REGISTRATION_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="REGISTRATION_FAILED", registry_mode=registry_mode
         )
 
 
@@ -162,7 +161,7 @@ def get_schema_tool(
             response = requests.get(url, auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Ensure schema is parsed as JSON object if it's a string
             if isinstance(result.get("schema"), str):
                 try:
@@ -170,11 +169,11 @@ def get_schema_tool(
                 except (json.JSONDecodeError, TypeError):
                     # Keep as string if not valid JSON
                     pass
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -183,7 +182,7 @@ def get_schema_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(
@@ -193,7 +192,7 @@ def get_schema_tool(
             response = requests.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Ensure schema is parsed as JSON object if it's a string
             if isinstance(result.get("schema"), str):
                 try:
@@ -201,18 +200,16 @@ def get_schema_tool(
                 except (json.JSONDecodeError, TypeError):
                     # Keep as string if not valid JSON
                     pass
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SCHEMA_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SCHEMA_RETRIEVAL_FAILED", registry_mode=registry_mode
         )
 
 
@@ -260,7 +257,7 @@ def get_schema_versions_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
@@ -275,9 +272,7 @@ def get_schema_versions_tool(
             return response.json()
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="VERSION_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="VERSION_RETRIEVAL_FAILED", registry_mode=registry_mode
         )
 
 
@@ -316,15 +311,13 @@ def list_subjects_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             return client.get_subjects(context)
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SUBJECT_LIST_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SUBJECT_LIST_FAILED", registry_mode=registry_mode
         )
 
 
@@ -370,14 +363,14 @@ def check_compatibility_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata and normalize field names
             if "is_compatible" not in result and "isCompatible" in result:
                 result["is_compatible"] = result.pop("isCompatible")
-            
+
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -386,7 +379,7 @@ def check_compatibility_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(
@@ -398,25 +391,24 @@ def check_compatibility_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata and normalize field names
             if "is_compatible" not in result and "isCompatible" in result:
                 result["is_compatible"] = result.pop("isCompatible")
-            
+
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="COMPATIBILITY_CHECK_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="COMPATIBILITY_CHECK_FAILED", registry_mode=registry_mode
         )
 
 
 # ===== CONFIGURATION MANAGEMENT TOOLS =====
+
 
 @structured_output("get_global_config", fallback_on_error=True)
 def get_global_config_tool(
@@ -446,11 +438,11 @@ def get_global_config_tool(
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -459,7 +451,7 @@ def get_global_config_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url("/config", context)
@@ -469,18 +461,16 @@ def get_global_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONFIG_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONFIG_RETRIEVAL_FAILED", registry_mode=registry_mode
         )
 
 
@@ -523,11 +513,11 @@ def update_global_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -536,7 +526,7 @@ def update_global_config_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url("/config", context)
@@ -549,18 +539,16 @@ def update_global_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONFIG_UPDATE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONFIG_UPDATE_FAILED", registry_mode=registry_mode
         )
 
 
@@ -596,11 +584,11 @@ def get_subject_config_tool(
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -609,7 +597,7 @@ def get_subject_config_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/config/{subject}", context)
@@ -619,18 +607,18 @@ def get_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
             str(e),
             error_code="SUBJECT_CONFIG_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
 
@@ -675,11 +663,11 @@ def update_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             client = registry_manager.get_registry(registry)
@@ -687,7 +675,7 @@ def update_subject_config_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/config/{subject}", context)
@@ -699,22 +687,23 @@ def update_subject_config_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
             str(e),
             error_code="SUBJECT_CONFIG_UPDATE_FAILED",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
 
 # ===== MODE MANAGEMENT TOOLS =====
+
 
 @structured_output("get_mode", fallback_on_error=True)
 def get_mode_tool(
@@ -744,11 +733,11 @@ def get_mode_tool(
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -757,7 +746,7 @@ def get_mode_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url("/mode", context)
@@ -767,18 +756,16 @@ def get_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="MODE_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="MODE_RETRIEVAL_FAILED", registry_mode=registry_mode
         )
 
 
@@ -821,11 +808,11 @@ def update_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -834,7 +821,7 @@ def update_mode_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url("/mode", context)
@@ -847,18 +834,16 @@ def update_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="MODE_UPDATE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="MODE_UPDATE_FAILED", registry_mode=registry_mode
         )
 
 
@@ -894,11 +879,11 @@ def get_subject_mode_tool(
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -907,7 +892,7 @@ def get_subject_mode_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/mode/{subject}", context)
@@ -917,18 +902,18 @@ def get_subject_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
             str(e),
             error_code="SUBJECT_MODE_RETRIEVAL_FAILED",
-            registry_mode=registry_mode
+            registry_mode=registry_mode,
         )
 
 
@@ -975,11 +960,11 @@ def update_subject_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -988,7 +973,7 @@ def update_subject_mode_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/mode/{subject}", context)
@@ -1001,22 +986,21 @@ def update_subject_mode_tool(
             )
             response.raise_for_status()
             result = response.json()
-            
+
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             return result
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SUBJECT_MODE_UPDATE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SUBJECT_MODE_UPDATE_FAILED", registry_mode=registry_mode
         )
 
 
 # ===== CONTEXT AND SUBJECT MANAGEMENT =====
+
 
 @structured_output("list_contexts", fallback_on_error=True)
 def list_contexts_tool(
@@ -1051,15 +1035,13 @@ def list_contexts_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             return client.get_contexts()
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_LIST_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_LIST_FAILED", registry_mode=registry_mode
         )
 
 
@@ -1096,8 +1078,7 @@ def create_context_tool(
             )
             response.raise_for_status()
             return create_success_response(
-                f"Context '{context}' created successfully",
-                registry_mode="single"
+                f"Context '{context}' created successfully", registry_mode="single"
             )
         else:
             # Multi-registry mode: use client approach
@@ -1106,7 +1087,7 @@ def create_context_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             response = requests.post(
@@ -1118,13 +1099,11 @@ def create_context_tool(
             return create_success_response(
                 f"Context '{context}' created successfully",
                 data={"registry": client.config.name},
-                registry_mode="multi"
+                registry_mode="multi",
             )
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_CREATE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_CREATE_FAILED", registry_mode=registry_mode
         )
 
 
@@ -1161,8 +1140,7 @@ def delete_context_tool(
             )
             response.raise_for_status()
             return create_success_response(
-                f"Context '{context}' deleted successfully",
-                registry_mode="single"
+                f"Context '{context}' deleted successfully", registry_mode="single"
             )
         else:
             # Multi-registry mode: use client approach
@@ -1171,7 +1149,7 @@ def delete_context_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             response = requests.delete(
@@ -1183,13 +1161,11 @@ def delete_context_tool(
             return create_success_response(
                 f"Context '{context}' deleted successfully",
                 data={"registry": client.config.name},
-                registry_mode="multi"
+                registry_mode="multi",
             )
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="CONTEXT_DELETE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="CONTEXT_DELETE_FAILED", registry_mode=registry_mode
         )
 
 
@@ -1243,7 +1219,7 @@ async def delete_subject_tool(
                 return create_error_response(
                     f"Registry '{registry}' not found",
                     error_code="REGISTRY_NOT_FOUND",
-                    registry_mode="multi"
+                    registry_mode="multi",
                 )
 
             url = client.build_context_url(f"/subjects/{subject}", context)
@@ -1259,7 +1235,5 @@ async def delete_subject_tool(
                     return await response.json()
     except Exception as e:
         return create_error_response(
-            str(e),
-            error_code="SUBJECT_DELETE_FAILED",
-            registry_mode=registry_mode
+            str(e), error_code="SUBJECT_DELETE_FAILED", registry_mode=registry_mode
         )
