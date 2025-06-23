@@ -59,28 +59,35 @@ def test_github_provider_config():
 
 
 def test_github_environment_variables():
-    """Test GitHub environment variable support (legacy compatibility)."""
-    print("🌍 Testing GitHub Environment Variables...")
+    """Test GitHub environment variable support with OAuth 2.1 generic approach."""
+    print("🌍 Testing GitHub OAuth 2.1 Configuration...")
 
     try:
-        from oauth_provider import AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_ORG
+        # Test the generic OAuth 2.1 approach for GitHub
+        import os
 
-        # Test legacy environment variables are still available for backward compatibility
-        assert AUTH_GITHUB_CLIENT_ID is not None, "AUTH_GITHUB_CLIENT_ID not available"
-        assert AUTH_GITHUB_ORG is not None, "AUTH_GITHUB_ORG not available"
+        # Set up GitHub OAuth 2.1 configuration
+        os.environ["AUTH_ISSUER_URL"] = "https://github.com"
+        os.environ["AUTH_AUDIENCE"] = "test-github-client-id"
 
-        # Test default values
-        print(f"   📋 AUTH_GITHUB_CLIENT_ID: {AUTH_GITHUB_CLIENT_ID}")
-        print(f"   📋 AUTH_GITHUB_ORG: {AUTH_GITHUB_ORG}")
+        from oauth_provider import AUTH_AUDIENCE, AUTH_ISSUER_URL
 
+        # Test generic OAuth 2.1 variables work for GitHub
+        assert AUTH_ISSUER_URL is not None, "AUTH_ISSUER_URL not available"
+        assert AUTH_AUDIENCE is not None, "AUTH_AUDIENCE not available"
+
+        # Test values
+        print(f"   📋 AUTH_ISSUER_URL: {AUTH_ISSUER_URL}")
+        print(f"   📋 AUTH_AUDIENCE: {AUTH_AUDIENCE}")
+
+        print("   ✅ GitHub OAuth 2.1 generic configuration working")
         print(
-            "   ✅ GitHub legacy environment variables are available for backward compatibility"
+            "   ℹ️  Note: GitHub uses fallback configuration (not fully OAuth 2.1 compliant)"
         )
-        print("   ℹ️  Note: New generic OAuth 2.1 configuration is recommended")
         return True
 
     except Exception as e:
-        print(f"   ❌ Error testing GitHub environment variables: {e}")
+        print(f"   ❌ Error testing GitHub OAuth 2.1 configuration: {e}")
         return False
 
 
@@ -284,6 +291,15 @@ async def main():
     passed = 0
     total = len(tests)
 
+    # Cleanup any existing sessions
+    import oauth_provider
+
+    if hasattr(oauth_provider, "token_validator") and oauth_provider.token_validator:
+        try:
+            await oauth_provider.token_validator.close()
+        except Exception:
+            pass
+
     for test_name, test_func in tests:
         print(f"\n🧪 Running: {test_name}")
         try:
@@ -295,6 +311,13 @@ async def main():
                 passed += 1
         except Exception as e:
             print(f"   ❌ Test failed with exception: {e}")
+
+    # Final cleanup
+    if hasattr(oauth_provider, "token_validator") and oauth_provider.token_validator:
+        try:
+            await oauth_provider.token_validator.close()
+        except Exception:
+            pass
 
     print("\n" + "=" * 50)
     print(f"📊 Test Results: {passed}/{total} tests passed")

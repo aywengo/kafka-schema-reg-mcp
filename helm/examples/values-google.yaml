@@ -12,16 +12,17 @@ replicaCount: 2
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "1.8.0"
+  tag: "2.0.0"
 
-# 🟨 Google OAuth 2.0 Authentication Configuration
+# 🟨 Google OAuth 2.0 Authentication Configuration (OAuth 2.1 Generic)
 auth:
   enabled: true
   oauth2:
     issuerUrl: "https://accounts.google.com"
-    validScopes: "openid,email,profile"
-    defaultScopes: "openid,email,profile"
-    requiredScopes: "openid,email"
+    audience: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+    validScopes: "read,write,admin"
+    defaultScopes: "read"
+    requiredScopes: "read"
     clientRegistrationEnabled: true
     revocationEnabled: true
   createSecret:

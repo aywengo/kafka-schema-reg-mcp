@@ -35,7 +35,6 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Optional, Set, Union
-from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
@@ -49,9 +48,6 @@ logger = logging.getLogger(__name__)
 try:
     import aiohttp
     import jwt
-    import requests
-    from cryptography.hazmat.primitives import serialization
-    from jwt.algorithms import RSAAlgorithm
     from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
     JWT_AVAILABLE = True
@@ -89,20 +85,11 @@ AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() i
 )
 
 # OAuth 2.1 Configuration (generic approach)
-# Note: AUTH_PROVIDER is kept for backward compatibility but not used in runtime
-AUTH_PROVIDER = os.getenv(
-    "AUTH_PROVIDER", "generic"
-).lower()  # Kept for backward compatibility
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
 
-# Legacy provider-specific environment variables (for backward compatibility)
-AUTH_AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
-AUTH_KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "")
-AUTH_OKTA_DOMAIN = os.getenv("OKTA_DOMAIN", "")
-AUTH_GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
-AUTH_GITHUB_ORG = os.getenv(
-    "GITHUB_ORG", ""
-)  # Optional: restrict to organization members
+# Legacy GitHub OAuth Configuration (for backward compatibility)
+AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
+AUTH_GITHUB_ORG = os.getenv("AUTH_GITHUB_ORG", "")
 
 # OAuth 2.1 Discovery Configuration
 OAUTH_DISCOVERY_CACHE_TTL = int(
@@ -121,90 +108,133 @@ RESOURCE_INDICATORS = [
 
 # PKCE Configuration (OAuth 2.1 requirement)
 REQUIRE_PKCE = os.getenv("REQUIRE_PKCE", "true").lower() in ("true", "1", "yes", "on")
-ALLOWED_CODE_CHALLENGE_METHODS = os.getenv(
-    "ALLOWED_CODE_CHALLENGE_METHODS", "S256"
-).split(",")
 
-# Token Security Configuration
-TOKEN_BINDING_ENABLED = os.getenv("TOKEN_BINDING_ENABLED", "true").lower() in (
+# Token Binding Configuration (OAuth 2.1 enhancement)
+TOKEN_BINDING_ENABLED = os.getenv("TOKEN_BINDING_ENABLED", "false").lower() in (
     "true",
     "1",
     "yes",
     "on",
 )
+
+# Token Introspection Configuration
 TOKEN_INTROSPECTION_ENABLED = os.getenv(
     "TOKEN_INTROSPECTION_ENABLED", "true"
 ).lower() in ("true", "1", "yes", "on")
+
+# Token Revocation Configuration
 TOKEN_REVOCATION_CHECK_ENABLED = os.getenv(
     "TOKEN_REVOCATION_CHECK_ENABLED", "true"
 ).lower() in ("true", "1", "yes", "on")
 
-# JWKS cache configuration with proper TTL management
+# JWKS Configuration
 JWKS_CACHE_TTL = int(os.getenv("JWKS_CACHE_TTL", "3600"))  # 1 hour default
 JWKS_CACHE_MAX_SIZE = int(os.getenv("JWKS_CACHE_MAX_SIZE", "10"))  # Max cached JWKS
-JWKS_CACHE = {}
-JWKS_CACHE_TIMESTAMPS = {}
+_jwks_cache = {}
+_jwks_cache_timestamps = {}
 JWKS_CACHE_ERRORS = {}
 
 # Revoked tokens cache (in production, use Redis or database)
 REVOKED_TOKENS_CACHE = set()
-REVOKED_TOKENS_CACHE_TTL = int(
-    os.getenv("REVOKED_TOKENS_CACHE_TTL", "86400")
-)  # 24 hours
 
-# Development environment detection (NEVER allow dev tokens in production)
-IS_DEVELOPMENT = os.getenv("ENVIRONMENT", "production").lower() in (
-    "development",
-    "dev",
-    "local",
+# Development and Testing Configuration
+ALLOW_DEV_TOKENS = os.getenv("ALLOW_DEV_TOKENS", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
 )
-ALLOW_DEV_TOKENS = IS_DEVELOPMENT and os.getenv(
-    "ALLOW_DEV_TOKENS", "false"
-).lower() in ("true", "1", "yes", "on")
 
-# Log security warning if dev tokens are enabled
-if ALLOW_DEV_TOKENS:
-    logger.warning(
-        "🚨 SECURITY WARNING: Development token bypass is ENABLED. This MUST be disabled in production!"
-    )
-    logger.warning(
-        "🚨 Set ENVIRONMENT=production and ALLOW_DEV_TOKENS=false for production deployments"
-    )
+# Disable development tokens in production
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    ALLOW_DEV_TOKENS = False
 
-# Scope definitions and hierarchy
+# Scope definitions for OAuth 2.1 authorization
 SCOPE_DEFINITIONS = {
     "read": {
-        "description": "Can view schemas, subjects, configurations",
-        "includes": [
-            "list_registries",
-            "get_subjects",
-            "get_schema",
-            "get_global_config",
-            "compare_registries",
-        ],
+        "description": "Read access to schemas, subjects, and configurations",
         "level": 1,
+        "includes": [
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+        ],
+        "permissions": ["view_schemas", "view_subjects", "view_configs"],
     },
     "write": {
-        "description": "Can register schemas, update configs (includes read permissions)",
-        "includes": [
-            "register_schema",
-            "update_global_config",
-            "update_subject_config",
-            "update_mode",
-        ],
-        "requires": ["read"],
+        "description": "Write access to schemas and configurations (includes read)",
         "level": 2,
+        "includes": [
+            # Read permissions
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+            # Write permissions
+            "register_schema",
+            "update_compatibility",
+            "set_compatibility_level",
+        ],
+        "permissions": [
+            "view_schemas",
+            "view_subjects",
+            "view_configs",
+            "create_schemas",
+            "update_schemas",
+            "update_configs",
+        ],
     },
     "admin": {
-        "description": "Can delete subjects, manage registries (includes write and read permissions)",
+        "description": "Administrative access (includes read, write, and delete)",
+        "level": 3,
         "includes": [
+            # Read permissions
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+            # Write permissions
+            "register_schema",
+            "update_compatibility",
+            "set_compatibility_level",
+            # Admin permissions
             "delete_subject",
+            "delete_schema_version",
             "clear_context_batch",
             "migrate_schema",
-            "migrate_context",
+            "bulk_migrate_schemas",
+            "compare_registries",
         ],
-        "requires": ["write", "read"],
-        "level": 3,
+        "permissions": [
+            "view_schemas",
+            "view_subjects",
+            "view_configs",
+            "create_schemas",
+            "update_schemas",
+            "update_configs",
+            "delete_subjects",
+            "delete_schemas",
+            "manage_compatibility",
+        ],
     },
 }
 
@@ -223,8 +253,8 @@ class OAuth21TokenValidator:
 
     def __init__(self):
         self.session = None
-        self.jwks_cache = JWKS_CACHE
-        self.jwks_timestamps = JWKS_CACHE_TIMESTAMPS
+        self.jwks_cache = _jwks_cache
+        self.jwks_timestamps = _jwks_cache_timestamps
 
     async def get_session(self):
         """Get or create aiohttp session."""
@@ -451,11 +481,11 @@ class OAuth21TokenValidator:
                 return {"valid": False, "error": "Missing key ID in JWT header"}
 
             # Get provider configuration
-            provider_config = self.get_provider_config(AUTH_PROVIDER)
+            provider_config = await self.get_provider_config()
             if not provider_config:
                 return {
                     "valid": False,
-                    "error": f"Unsupported provider: {AUTH_PROVIDER}",
+                    "error": "OAuth 2.1 provider configuration not available",
                 }
 
             jwks_uri = provider_config.get("jwks_uri")
@@ -623,11 +653,11 @@ class OAuth21TokenValidator:
     async def get_fallback_configuration(self, issuer_url: str) -> Dict[str, Any]:
         """
         Fallback configuration when OAuth 2.1 discovery fails.
-        This handles legacy providers that might not support standard discovery.
+        Only handles GitHub (not OAuth 2.1 compliant). All other providers must support RFC 8414 discovery.
         """
-        # Handle special cases where discovery might not be available
+        # Handle GitHub special case (not OAuth 2.1 compliant)
         if "github.com" in issuer_url or "api.github.com" in issuer_url:
-            # GitHub doesn't support standard OAuth 2.1 discovery
+            logger.info("Using GitHub fallback configuration (not OAuth 2.1 compliant)")
             return {
                 "issuer": "https://github.com",
                 "authorization_endpoint": "https://github.com/login/oauth/authorize",
@@ -638,39 +668,13 @@ class OAuth21TokenValidator:
                 "note": "GitHub OAuth has limited OAuth 2.1 support",
             }
 
-        # For other providers, try to construct standard endpoints
-        fallback_config = {
-            "issuer": issuer_url,
-            "authorization_endpoint": f"{issuer_url}/authorize",
-            "token_endpoint": f"{issuer_url}/token",
-            "jwks_uri": f"{issuer_url}/jwks",
-            "scope_claim": "scope",  # Standard claim name
-            "username_claim": "sub",  # Standard claim name
-            "oauth_2_1_compliant": None,  # Unknown
-            "note": "Fallback configuration - discovery failed",
-        }
-
-        # Try some common patterns for different providers
-        if "microsoftonline.com" in issuer_url:
-            fallback_config.update(
-                {
-                    "jwks_uri": f"{issuer_url}/discovery/v2.0/keys",
-                    "scope_claim": "scp",  # Azure uses "scp" instead of "scope"
-                    "username_claim": "upn",  # Azure preferred username claim
-                }
-            )
-        elif "keycloak" in issuer_url or "/realms/" in issuer_url:
-            fallback_config.update(
-                {
-                    "authorization_endpoint": f"{issuer_url}/protocol/openid-connect/auth",
-                    "token_endpoint": f"{issuer_url}/protocol/openid-connect/token",
-                    "jwks_uri": f"{issuer_url}/protocol/openid-connect/certs",
-                    "username_claim": "preferred_username",
-                }
-            )
-
-        logger.info(f"Using fallback configuration for {issuer_url}")
-        return fallback_config
+        # For all other providers, require OAuth 2.1 discovery
+        logger.error(
+            f"OAuth 2.1 discovery failed for {issuer_url}. Provider must support RFC 8414 discovery."
+        )
+        raise ValueError(
+            f"OAuth 2.1 discovery failed for {issuer_url}. Please ensure your provider supports RFC 8414 discovery endpoints."
+        )
 
     async def get_provider_config(self) -> Optional[Dict[str, Any]]:
         """Get OAuth configuration using standard OAuth 2.1 discovery."""
@@ -948,7 +952,7 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
         "jwt_available": JWT_AVAILABLE,
         "security_features": {
             "pkce_required": REQUIRE_PKCE,
-            "allowed_code_challenge_methods": ALLOWED_CODE_CHALLENGE_METHODS,
+            "allowed_code_challenge_methods": ["S256"],  # OAuth 2.1 requires S256
             "resource_indicator_validation": bool(RESOURCE_INDICATORS),
             "audience_validation": bool(AUTH_AUDIENCE or RESOURCE_INDICATORS),
             "token_binding": TOKEN_BINDING_ENABLED,
@@ -961,7 +965,8 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
             },
         },
         "development_mode": {
-            "is_development": IS_DEVELOPMENT,
+            "is_development": os.getenv("ENVIRONMENT", "development").lower()
+            == "development",
             "dev_tokens_allowed": ALLOW_DEV_TOKENS,
             "warning": (
                 "🚨 Development tokens MUST be disabled in production!"
@@ -1129,12 +1134,9 @@ __all__ = [
     "AUTH_CLIENT_REG_ENABLED",
     "AUTH_REVOCATION_ENABLED",
     "AUTH_AUDIENCE",
-    "OAUTH_DISCOVERY_CACHE_TTL",
-    "AUTH_AZURE_TENANT_ID",
-    "AUTH_KEYCLOAK_REALM",
-    "AUTH_OKTA_DOMAIN",
     "AUTH_GITHUB_CLIENT_ID",
     "AUTH_GITHUB_ORG",
+    "OAUTH_DISCOVERY_CACHE_TTL",
     "RESOURCE_INDICATORS",
     "REQUIRE_PKCE",
     "TOKEN_BINDING_ENABLED",

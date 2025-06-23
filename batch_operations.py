@@ -98,7 +98,7 @@ def clear_context_batch_tool(
         # Start async execution
         try:
             # Check if there's a running event loop
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(
                 task_manager.execute_task(
                     task,
@@ -438,7 +438,7 @@ def clear_multiple_contexts_batch_tool(
         # Start async execution
         try:
             # Check if there's a running event loop
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             asyncio.create_task(
                 task_manager.execute_task(
                     task,
@@ -614,7 +614,7 @@ def _execute_clear_multiple_contexts_batch(
 
                 # Context deletion not supported by Schema Registry API
                 if delete_contexts_after:
-                    context_deleted = False  # Not supported
+                    pass  # Context deletion not supported
 
                 update_progress(
                     context_progress_end,

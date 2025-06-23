@@ -784,55 +784,28 @@ async def oauth_authorization_server_metadata(request):
         base_url = f"{scheme}://{host}:{port}"
 
         # Get OAuth provider info
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        # Use generic OAuth 2.1 discovery approach
+        issuer_url = os.getenv("AUTH_ISSUER_URL", base_url)
 
-        # Provider-specific metadata with OAuth 2.1 compliance
-        provider_configs = {
-            "azure": {
-                "issuer": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
-                "authorization_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/authorize",
-                "token_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/token",
-                "jwks_uri": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
-                "token_introspection_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/introspect",
-                "revocation_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/revoke",
-            },
-            "google": {
-                "issuer": "https://accounts.google.com",
-                "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
-                "token_endpoint": "https://oauth2.googleapis.com/token",
-                "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
-                "token_introspection_endpoint": "https://oauth2.googleapis.com/introspect",
-                "revocation_endpoint": "https://oauth2.googleapis.com/revoke",
-            },
-            "okta": {
-                "issuer": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
-                "authorization_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/authorize",
-                "token_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/token",
-                "jwks_uri": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
-                "token_introspection_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/introspect",
-                "revocation_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/revoke",
-            },
-            "keycloak": {
-                "issuer": os.getenv(
-                    "AUTH_ISSUER_URL",
-                    f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}",
-                ),
-                "authorization_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/auth",
-                "token_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/token",
-                "jwks_uri": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
-                "token_introspection_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/token/introspect",
-                "revocation_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/revoke",
-            },
-            "github": {
+        # Special handling for GitHub (not OAuth 2.1 compliant)
+        if "github.com" in issuer_url:
+            provider_config = {
                 "issuer": "https://github.com",
                 "authorization_endpoint": "https://github.com/login/oauth/authorize",
                 "token_endpoint": "https://github.com/login/oauth/access_token",
                 "jwks_uri": "https://api.github.com/meta/public_keys/oauth",
                 # GitHub has limited OAuth 2.1 support
-            },
-        }
-
-        provider_config = provider_configs.get(auth_provider, {})
+            }
+        else:
+            # Generic OAuth 2.1 provider (endpoints discovered automatically)
+            provider_config = {
+                "issuer": issuer_url,
+                "authorization_endpoint": f"{issuer_url}/oauth2/authorize",
+                "token_endpoint": f"{issuer_url}/oauth2/token",
+                "jwks_uri": f"{issuer_url}/oauth2/jwks",
+                "token_introspection_endpoint": f"{issuer_url}/oauth2/introspect",
+                "revocation_endpoint": f"{issuer_url}/oauth2/revoke",
+            }
 
         # OAuth 2.1 compliant metadata
         metadata = {
@@ -977,21 +950,8 @@ async def oauth_protected_resource_metadata(request):
         )
         base_url = f"{scheme}://{host}:{port}"
 
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
-
-        # Get authorization server URL
-        auth_server_configs = {
-            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
-            "google": "https://accounts.google.com",
-            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
-            "keycloak": os.getenv(
-                "AUTH_ISSUER_URL",
-                f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}",
-            ),
-            "github": "https://github.com",
-        }
-
-        authorization_server = auth_server_configs.get(auth_provider, base_url)
+        # Get authorization server URL (generic OAuth 2.1)
+        authorization_server = os.getenv("AUTH_ISSUER_URL", base_url)
 
         # Resource indicators configuration
         resource_indicators = []
@@ -1030,17 +990,17 @@ async def oauth_protected_resource_metadata(request):
             # Token validation methods
             "token_validation_methods": (
                 ["jwt", "introspection"]
-                if auth_provider != "github"
+                if "github.com" not in authorization_server
                 else ["api_validation"]
             ),
             "token_introspection_endpoint": (
                 f"{authorization_server}/introspect"
-                if auth_provider not in ["github"]
+                if "github.com" not in authorization_server
                 else None
             ),
             "token_revocation_endpoint": (
                 f"{authorization_server}/revoke"
-                if auth_provider not in ["github"]
+                if "github.com" not in authorization_server
                 else None
             ),
             # OAuth 2.1 security features
@@ -1165,18 +1125,15 @@ async def jwks_endpoint(request):
                 headers=security_headers,
             )
 
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        # Get JWKS URL from issuer (generic OAuth 2.1)
+        issuer_url = os.getenv("AUTH_ISSUER_URL", "")
 
-        # For most providers, redirect to their JWKS endpoint
-        jwks_urls = {
-            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
-            "google": "https://www.googleapis.com/oauth2/v3/certs",
-            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
-            "keycloak": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
-            "github": "https://api.github.com/meta/public_keys/oauth",
-        }
-
-        jwks_url = jwks_urls.get(auth_provider)
+        # Special handling for GitHub
+        if "github.com" in issuer_url:
+            jwks_url = "https://api.github.com/meta/public_keys/oauth"
+        else:
+            # Generic OAuth 2.1 provider - use standard JWKS endpoint
+            jwks_url = f"{issuer_url}/oauth2/jwks"
 
         if jwks_url:
             # Proxy the request to the actual JWKS endpoint with caching
@@ -1225,7 +1182,7 @@ async def jwks_endpoint(request):
                 "note": f"JWKS available at provider endpoint: {jwks_url}",
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
-                "provider": auth_provider,
+                "provider": ("github" if "github.com" in issuer_url else "oauth2.1"),
             },
             headers=security_headers,
         )

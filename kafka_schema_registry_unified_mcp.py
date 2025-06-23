@@ -36,7 +36,6 @@ Features:
 import json
 import logging
 import os
-from datetime import datetime
 
 from dotenv import load_dotenv
 from fastmcp import FastMCP
@@ -1288,8 +1287,6 @@ def _internal_get_mcp_compliance_status():
         }
 
 
-@mcp.tool()
-@require_scopes("read")
 def get_mcp_compliance_status():
     """Get MCP 2025-06-18 specification compliance status and configuration details.
 
@@ -1298,8 +1295,14 @@ def get_mcp_compliance_status():
     return _internal_get_mcp_compliance_status()
 
 
-# Export the internal function for testing purposes
-get_mcp_compliance_status = _internal_get_mcp_compliance_status
+@mcp.tool()
+@require_scopes("read")
+def get_mcp_compliance_status_tool():
+    """Get MCP 2025-06-18 specification compliance status and configuration details.
+
+    Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
+    """
+    return _internal_get_mcp_compliance_status()
 
 
 @mcp.tool()
@@ -1379,7 +1382,9 @@ def check_readonly_mode(registry: str = None):
 @require_scopes("read")
 def get_oauth_scopes_info():
     """Get information about OAuth scopes and permissions."""
-    return get_oauth_scopes_info()
+    from oauth_provider import get_oauth_scopes_info as _get_oauth_scopes_info
+
+    return _get_oauth_scopes_info()
 
 
 @mcp.tool()
@@ -1575,7 +1580,7 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
         )
     else:
         results["summary"]["recommendations"].append(
-            f"⚠️ MCP-Protocol-Version header missing from some responses"
+            "⚠️ MCP-Protocol-Version header missing from some responses"
         )
 
     return results
