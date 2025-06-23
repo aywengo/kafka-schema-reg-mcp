@@ -21,6 +21,6 @@ jsonschema==4.24.0
 starlette>=0.27.0
 
 # Testing dependencies
-pytest==8.4.0
+pytest==8.4.1
 pytest-asyncio==1.0.0
 httpx>=0.27
