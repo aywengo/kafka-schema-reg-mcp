@@ -13,25 +13,16 @@ Test Categories:
 5. Performance and compatibility tests
 """
 
-import json
 import unittest
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import Mock, patch
 
 # Import the modules we're testing
 try:
     from schema_definitions import (
-        ERROR_RESPONSE_SCHEMA,
-        GET_SCHEMA_SCHEMA,
-        REGISTER_SCHEMA_SCHEMA,
-        TOOL_OUTPUT_SCHEMAS,
         get_all_schemas,
         get_tool_schema,
     )
     from schema_validation import (
-        SchemaValidationError,
         ValidationResult,
         check_schema_compatibility,
         create_error_response,
@@ -263,11 +254,13 @@ class TestToolIntegration(unittest.TestCase):
 
     @patch("core_registry_tools.requests")
     @patch("schema_registry_common.check_readonly_mode")
-    def test_register_schema_tool_structured_output(self, mock_readonly_check, mock_requests):
+    def test_register_schema_tool_structured_output(
+        self, mock_readonly_check, mock_requests
+    ):
         """Test register_schema tool with structured output."""
         # Mock readonly check to return None (not readonly)
         mock_readonly_check.return_value = None
-        
+
         # Mock successful response
         mock_response = Mock()
         mock_response.raise_for_status.return_value = None
@@ -391,7 +384,7 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
         expected_all_tools = [
             # Schema Operations
             "register_schema",
-            "get_schema", 
+            "get_schema",
             "get_schema_versions",
             "check_compatibility",
             "list_subjects",
@@ -450,32 +443,35 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
         ]
 
         all_schemas = get_all_schemas()
-        
+
         # Test that all expected tools have schemas
         for tool in expected_all_tools:
             self.assertIn(tool, all_schemas, f"Tool {tool} should have a schema")
-        
+
         # Test that we have the expected number of tools (should be 40+)
-        self.assertGreaterEqual(len(all_schemas), len(expected_all_tools), 
-                               f"Should have at least {len(expected_all_tools)} tool schemas")
-        
+        self.assertGreaterEqual(
+            len(all_schemas),
+            len(expected_all_tools),
+            f"Should have at least {len(expected_all_tools)} tool schemas",
+        )
+
         # Report schema coverage
-        print(f"\n📊 Schema Coverage Report:")
+        print("\n📊 Schema Coverage Report:")
         print(f"   Expected tools: {len(expected_all_tools)}")
         print(f"   Actual schemas: {len(all_schemas)}")
         print(f"   Coverage: {len(expected_all_tools)/len(all_schemas)*100:.1f}%")
-        
+
         # Check for any extra schemas not in our expected list
         extra_schemas = set(all_schemas.keys()) - set(expected_all_tools)
         if extra_schemas:
             print(f"   Extra schemas found: {sorted(extra_schemas)}")
-        
+
         # Check for any missing schemas
         missing_schemas = set(expected_all_tools) - set(all_schemas.keys())
         if missing_schemas:
             print(f"   Missing schemas: {sorted(missing_schemas)}")
         else:
-            print(f"   ✅ All expected tools have schemas!")
+            print("   ✅ All expected tools have schemas!")
 
     def test_schemas_are_valid_json_schema(self):
         """Test that all schemas are valid JSON Schema definitions."""
