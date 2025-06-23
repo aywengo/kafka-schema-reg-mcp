@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Statistics Tools Module
+Statistics Tools Module - Updated with Structured Output
 
-Handles counting and statistics operations for Schema Registry.
-Provides counting for contexts, schemas, versions, and comprehensive registry statistics.
+Handles counting and statistics operations for Schema Registry with structured tool output
+support per MCP 2025-06-18 specification.
+
+Provides counting for contexts, schemas, versions, and comprehensive registry statistics
+with JSON Schema validation and type-safe responses.
 """
 
 import asyncio
@@ -13,9 +16,15 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from schema_registry_common import get_default_client
+from schema_validation import (
+    structured_output,
+    create_error_response,
+    create_success_response
+)
 from task_management import TaskType, task_manager
 
 
+@structured_output("count_contexts", fallback_on_error=True)
 def count_contexts_tool(
     registry_manager, registry_mode: str, registry: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -26,7 +35,7 @@ def count_contexts_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing context count and details with registry metadata
+        Dictionary containing context count and details with registry metadata and structured validation
     """
     try:
         if registry_mode == "single":
@@ -34,11 +43,19 @@ def count_contexts_tool(
         else:
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found"}
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode=registry_mode
+                )
 
         contexts = client.get_contexts()
         if isinstance(contexts, dict) and "error" in contexts:
-            return contexts
+            return create_error_response(
+                f"Failed to get contexts: {contexts.get('error')}",
+                error_code="CONTEXTS_RETRIEVAL_FAILED",
+                registry_mode=registry_mode
+            )
 
         # Get registry metadata
         metadata = client.get_server_metadata()
@@ -47,9 +64,12 @@ def count_contexts_tool(
             "registry": (
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
-            "total_contexts": len(contexts),
+            "count": len(contexts),
+            "scope": "contexts",
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
         # Add metadata information
@@ -57,9 +77,14 @@ def count_contexts_tool(
 
         return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="CONTEXT_COUNT_FAILED",
+            registry_mode=registry_mode
+        )
 
 
+@structured_output("count_schemas", fallback_on_error=True)
 def count_schemas_tool(
     registry_manager,
     registry_mode: str,
@@ -74,7 +99,7 @@ def count_schemas_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing schema count and details with registry metadata
+        Dictionary containing schema count and details with registry metadata and structured validation
     """
     try:
         if registry_mode == "single":
@@ -82,11 +107,19 @@ def count_schemas_tool(
         else:
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found"}
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode=registry_mode
+                )
 
         subjects = client.get_subjects(context)
         if isinstance(subjects, dict) and "error" in subjects:
-            return subjects
+            return create_error_response(
+                f"Failed to get subjects: {subjects.get('error')}",
+                error_code="SUBJECTS_RETRIEVAL_FAILED",
+                registry_mode=registry_mode
+            )
 
         # Get registry metadata
         metadata = client.get_server_metadata()
@@ -96,9 +129,12 @@ def count_schemas_tool(
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
             "context": context or "default",
-            "total_schemas": len(subjects),
+            "count": len(subjects),
+            "scope": "schemas",
             "schemas": subjects,
             "counted_at": datetime.now().isoformat(),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
         # Add metadata information
@@ -106,9 +142,14 @@ def count_schemas_tool(
 
         return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="SCHEMA_COUNT_FAILED",
+            registry_mode=registry_mode
+        )
 
 
+@structured_output("count_schema_versions", fallback_on_error=True)
 def count_schema_versions_tool(
     subject: str,
     registry_manager,
@@ -125,7 +166,7 @@ def count_schema_versions_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing version count and details with registry metadata
+        Dictionary containing version count and details with registry metadata and structured validation
     """
     try:
         if registry_mode == "single":
@@ -133,14 +174,22 @@ def count_schema_versions_tool(
         else:
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found"}
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode=registry_mode
+                )
 
         # Import the function here to avoid circular imports
         from kafka_schema_registry_unified_mcp import get_schema_versions
 
         versions = get_schema_versions(subject, context, registry)
         if isinstance(versions, dict) and "error" in versions:
-            return versions
+            return create_error_response(
+                f"Failed to get schema versions: {versions.get('error')}",
+                error_code="SCHEMA_VERSIONS_RETRIEVAL_FAILED",
+                registry_mode=registry_mode
+            )
 
         # Get registry metadata
         metadata = client.get_server_metadata()
@@ -151,9 +200,12 @@ def count_schema_versions_tool(
             ),
             "context": context or "default",
             "subject": subject,
-            "total_versions": len(versions),
+            "count": len(versions),
+            "scope": "versions",
             "versions": versions,
             "counted_at": datetime.now().isoformat(),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
         # Add metadata information
@@ -161,9 +213,14 @@ def count_schema_versions_tool(
 
         return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="VERSION_COUNT_FAILED",
+            registry_mode=registry_mode
+        )
 
 
+@structured_output("get_registry_statistics", fallback_on_error=True)
 def get_registry_statistics_tool(
     registry_manager,
     registry_mode: str,
@@ -178,7 +235,7 @@ def get_registry_statistics_tool(
         include_context_details: Whether to include detailed context statistics
 
     Returns:
-        Dictionary containing registry statistics with metadata
+        Dictionary containing registry statistics with metadata and structured validation
     """
     try:
         if registry_mode == "single":
@@ -186,12 +243,20 @@ def get_registry_statistics_tool(
         else:
             client = registry_manager.get_registry(registry)
             if client is None:
-                return {"error": f"Registry '{registry}' not found"}
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode=registry_mode
+                )
 
         # Get all contexts
         contexts = client.get_contexts()
         if isinstance(contexts, dict) and "error" in contexts:
-            return contexts
+            return create_error_response(
+                f"Failed to get contexts: {contexts.get('error')}",
+                error_code="CONTEXTS_RETRIEVAL_FAILED",
+                registry_mode=registry_mode
+            )
 
         total_schemas = 0
         total_versions = 0
@@ -221,9 +286,9 @@ def get_registry_statistics_tool(
             if include_context_details:
                 context_stats.append(
                     {
-                        "context": context,
-                        "schemas": context_schemas,
-                        "versions": context_versions,
+                        "name": context,
+                        "subject_count": context_schemas,
+                        "schema_count": context_versions,
                     }
                 )
 
@@ -244,9 +309,9 @@ def get_registry_statistics_tool(
             if include_context_details:
                 context_stats.append(
                     {
-                        "context": "default",
-                        "schemas": default_schemas,
-                        "versions": default_versions,
+                        "name": "default",
+                        "subject_count": default_schemas,
+                        "schema_count": default_versions,
                     }
                 )
 
@@ -258,13 +323,12 @@ def get_registry_statistics_tool(
                 client.config.name if hasattr(client.config, "name") else "default"
             ),
             "total_contexts": len(contexts),
-            "total_schemas": total_schemas,
-            "total_versions": total_versions,
-            "average_versions_per_schema": round(
-                total_versions / max(total_schemas, 1), 2
-            ),
+            "total_subjects": total_schemas,
+            "total_schemas": total_versions,
             "contexts": context_stats if include_context_details else None,
-            "counted_at": datetime.now().isoformat(),
+            "generated_at": datetime.now().isoformat(),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
         # Add metadata information
@@ -272,7 +336,11 @@ def get_registry_statistics_tool(
 
         return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="REGISTRY_STATISTICS_FAILED",
+            registry_mode=registry_mode
+        )
 
 
 # ===== OPTIMIZED ASYNC STATISTICS FUNCTIONS =====
@@ -366,6 +434,7 @@ async def _count_schemas_async(
         return {"error": str(e)}
 
 
+@structured_output("count_schemas_task_queue", fallback_on_error=True)
 def count_schemas_task_queue_tool(
     registry_manager,
     registry_mode: str,
@@ -375,6 +444,9 @@ def count_schemas_task_queue_tool(
     """
     Task queue version of count_schemas for better performance on large registries.
     Returns task_id immediately for async execution.
+
+    Returns:
+        Task information with task_id for monitoring progress with structured validation
     """
     try:
         # Create async task
@@ -428,10 +500,16 @@ def count_schemas_task_queue_tool(
                 "guidance": "Long-running operation. Returns task_id immediately. Use get_task_status() to monitor progress.",
                 "registry_mode": registry_mode,
             },
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="TASK_CREATION_FAILED",
+            registry_mode=registry_mode
+        )
 
 
 async def _get_registry_statistics_async(
@@ -592,6 +670,7 @@ def _analyze_context_parallel(
         return {"error": str(e)}
 
 
+@structured_output("get_registry_statistics_task_queue", fallback_on_error=True)
 def get_registry_statistics_task_queue_tool(
     registry_manager,
     registry_mode: str,
@@ -601,6 +680,9 @@ def get_registry_statistics_task_queue_tool(
     """
     Task queue version of get_registry_statistics for better performance.
     Returns task_id immediately for async execution with progress tracking.
+
+    Returns:
+        Task information with task_id for monitoring progress with structured validation
     """
     try:
         # Create async task
@@ -656,7 +738,13 @@ def get_registry_statistics_task_queue_tool(
                 "guidance": "Long-running operation. Returns task_id immediately. Use get_task_status() to monitor progress.",
                 "registry_mode": registry_mode,
             },
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="TASK_CREATION_FAILED",
+            registry_mode=registry_mode
+        )
