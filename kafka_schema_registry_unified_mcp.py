@@ -1443,6 +1443,116 @@ def get_default_registry_tool():
         )
 
 
+@structured_output("check_readonly_mode", fallback_on_error=True)
+def check_readonly_mode_tool(registry: str = None):
+    """Check if a registry is in readonly mode with structured output validation."""
+    try:
+        result = _check_readonly_mode(registry_manager, registry)
+        
+        # If the original function returns an error dict, pass it through
+        if isinstance(result, dict) and "error" in result:
+            # Add structured output metadata to error response
+            result["registry_mode"] = REGISTRY_MODE
+            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+            return result
+        
+        # If it returns a boolean or other simple result, structure it
+        if isinstance(result, bool):
+            return {
+                "readonly": result,
+                "registry": registry or "default",
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+        
+        # If it's already a dict (successful response), add metadata
+        if isinstance(result, dict):
+            result["registry_mode"] = REGISTRY_MODE
+            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+            return result
+        
+        # Default case
+        return {
+            "readonly": False,
+            "registry": registry or "default",
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        }
+        
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="READONLY_MODE_CHECK_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@structured_output("get_oauth_scopes_info_tool", fallback_on_error=True)
+def get_oauth_scopes_info_tool_wrapper():
+    """Get information about OAuth scopes and permissions with structured output validation."""
+    try:
+        result = get_oauth_scopes_info()
+        
+        # Ensure the result is structured properly
+        if isinstance(result, dict):
+            # Add structured output metadata
+            result["registry_mode"] = REGISTRY_MODE
+            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+            return result
+        else:
+            # If result is not a dict, structure it
+            return {
+                "oauth_scopes": result,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+            
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="OAUTH_SCOPES_INFO_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@structured_output("get_operation_info_tool", fallback_on_error=True)
+def get_operation_info_tool_wrapper(operation_name: str = None):
+    """Get detailed information about MCP operations and their metadata with structured output validation."""
+    try:
+        from task_management import OPERATION_METADATA
+
+        if operation_name:
+            # Get specific operation info
+            if operation_name in OPERATION_METADATA:
+                return {
+                    "operation": operation_name,
+                    "metadata": OPERATION_METADATA[operation_name],
+                    "registry_mode": REGISTRY_MODE,
+                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                }
+            else:
+                return create_error_response(
+                    f"Operation '{operation_name}' not found",
+                    details={"available_operations": list(OPERATION_METADATA.keys())},
+                    error_code="OPERATION_NOT_FOUND",
+                    registry_mode=REGISTRY_MODE
+                )
+        else:
+            # Return all operations
+            return {
+                "operations": OPERATION_METADATA,
+                "total_operations": len(OPERATION_METADATA),
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            }
+    except Exception as e:
+        return create_error_response(
+            str(e),
+            error_code="OPERATION_INFO_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
+
+
 @mcp.tool()
 @require_scopes("admin")
 def set_default_registry(registry_name: str):
@@ -1461,14 +1571,14 @@ def get_default_registry():
 @require_scopes("read")
 def check_readonly_mode(registry: str = None):
     """Check if a registry is in readonly mode."""
-    return _check_readonly_mode(registry_manager, registry)
+    return check_readonly_mode_tool(registry)
 
 
 @mcp.tool()
 @require_scopes("read")
 def get_oauth_scopes_info_tool():
     """Get information about OAuth scopes and permissions."""
-    return get_oauth_scopes_info()
+    return get_oauth_scopes_info_tool_wrapper()
 
 
 @mcp.tool()
@@ -1674,39 +1784,7 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
 @require_scopes("read")
 def get_operation_info_tool(operation_name: str = None):
     """Get detailed information about MCP operations and their metadata."""
-    try:
-        from task_management import OPERATION_METADATA
-
-        if operation_name:
-            # Get specific operation info
-            if operation_name in OPERATION_METADATA:
-                return {
-                    "operation": operation_name,
-                    "metadata": OPERATION_METADATA[operation_name],
-                    "registry_mode": REGISTRY_MODE,
-                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                }
-            else:
-                return {
-                    "error": f"Operation '{operation_name}' not found",
-                    "available_operations": list(OPERATION_METADATA.keys()),
-                    "registry_mode": REGISTRY_MODE,
-                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                }
-        else:
-            # Return all operations
-            return {
-                "operations": OPERATION_METADATA,
-                "total_operations": len(OPERATION_METADATA),
-                "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-        }
+    return get_operation_info_tool_wrapper(operation_name)
 
 
 # ===== RESOURCES =====
