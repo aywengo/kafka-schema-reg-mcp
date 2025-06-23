@@ -516,14 +516,14 @@ def run_comprehensive_tests():
         )
         print(f"Current working directory: {os.getcwd()}")
         print(f"Python path: {sys.path}")
-        
+
         # Try to list files in current directory and parent directory
         try:
             print(f"Files in current directory: {os.listdir('.')}")
             print(f"Files in parent directory: {os.listdir('..')}")
         except Exception as e:
             print(f"Could not list directory contents: {e}")
-        
+
         # Return True to indicate the test "passed" but was skipped due to missing modules
         # This prevents CI failure when modules are genuinely not available
         print("⚠️  Test skipped due to missing dependencies")
