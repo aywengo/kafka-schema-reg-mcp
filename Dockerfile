@@ -76,6 +76,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code with proper ownership
 COPY --chown=mcp:mcp oauth_provider.py .
 COPY --chown=mcp:mcp schema_registry_common.py .
+COPY --chown=mcp:mcp schema_definitions.py .
+COPY --chown=mcp:mcp schema_validation.py .
 COPY --chown=mcp:mcp core_registry_tools.py .
 COPY --chown=mcp:mcp task_management.py .
 COPY --chown=mcp:mcp batch_operations.py .
@@ -83,6 +85,7 @@ COPY --chown=mcp:mcp statistics_tools.py .
 COPY --chown=mcp:mcp export_tools.py .
 COPY --chown=mcp:mcp comparison_tools.py .
 COPY --chown=mcp:mcp migration_tools.py .
+COPY --chown=mcp:mcp registry_management_tools.py .
 COPY --chown=mcp:mcp mcp_prompts.py .
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .
