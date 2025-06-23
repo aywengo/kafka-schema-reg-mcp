@@ -45,10 +45,68 @@ class SparseVersionMigrationTest:
         self.dev_url = DEV_REGISTRY_URL
         self.prod_url = PROD_REGISTRY_URL
 
-        # Use default context "." to avoid context prefix issues
-        self.source_context = "."
-        self.target_context = "."
+        # Use dynamic context names to avoid contamination between test runs
+        test_id = uuid.uuid4().hex[:8]
+        self.source_context = f"sparse-test-src-{test_id}"
+        self.target_context = f"sparse-test-tgt-{test_id}"
         self.test_subjects = []
+        self.created_contexts = []
+
+    def verify_registries_accessible(self):
+        """Verify that both registries are accessible"""
+        print("\n=== Verifying Registry Accessibility ===")
+
+        try:
+            response = requests.get(f"{self.dev_url}/subjects", timeout=10)
+            if response.status_code != 200:
+                raise Exception(f"DEV registry not accessible: {response.status_code}")
+            print(f"✓ DEV registry accessible at {self.dev_url}")
+        except Exception as e:
+            raise Exception(f"DEV registry connection failed: {e}")
+
+        try:
+            response = requests.get(f"{self.prod_url}/subjects", timeout=10)
+            if response.status_code != 200:
+                raise Exception(f"PROD registry not accessible: {response.status_code}")
+            print(f"✓ PROD registry accessible at {self.prod_url}")
+        except Exception as e:
+            raise Exception(f"PROD registry connection failed: {e}")
+
+    def cleanup_existing_subjects(self):
+        """Clean up any existing test subjects before starting to avoid contamination"""
+        print("\n=== Pre-test Cleanup ===")
+
+        for registry_url, registry_name in [
+            (self.dev_url, "DEV"),
+            (self.prod_url, "PROD"),
+        ]:
+            try:
+                response = requests.get(f"{registry_url}/subjects", timeout=10)
+                if response.status_code == 200:
+                    subjects = response.json()
+                    test_subjects = [s for s in subjects if "sparse-test-" in s]
+
+                    for subject in test_subjects:
+                        try:
+                            # Two-step deletion
+                            requests.delete(
+                                f"{registry_url}/subjects/{subject}", timeout=10
+                            )
+                            requests.delete(
+                                f"{registry_url}/subjects/{subject}?permanent=true",
+                                timeout=10,
+                            )
+                            print(f"  ✓ Cleaned up {subject} from {registry_name}")
+                        except Exception as e:
+                            print(
+                                f"  Warning: Could not clean {subject} from {registry_name}: {e}"
+                            )
+
+                    if not test_subjects:
+                        print(f"  ✓ No test subjects to clean in {registry_name}")
+
+            except Exception as e:
+                print(f"  Warning: Could not check {registry_name} for cleanup: {e}")
 
     def setup_test_environment(self):
         """Setup environment and reload registry manager"""
@@ -77,10 +135,45 @@ class SparseVersionMigrationTest:
         mcp_server.registry_manager._load_multi_registries()
 
     def setup_test_contexts(self):
-        """No need to create contexts when using default context."""
-        print("\n=== Using Default Contexts ===")
-        print(f"✓ Source context: {self.source_context} (default)")
-        print(f"✓ Target context: {self.target_context} (default)")
+        """Create dynamic test contexts to avoid contamination."""
+        print("\n=== Creating Dynamic Test Contexts ===")
+        print(f"Source context: {self.source_context}")
+        print(f"Target context: {self.target_context}")
+
+        # Create source context in DEV registry
+        try:
+            response = requests.put(
+                f"{self.dev_url}/contexts/{self.source_context}",
+                headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+                timeout=10,
+            )
+            if response.status_code in [200, 409]:  # 409 = already exists
+                print(f"✓ Created source context: {self.source_context}")
+                self.created_contexts.append((self.dev_url, self.source_context))
+            else:
+                print(
+                    f"Warning: Could not create source context: {response.status_code} - {response.text}"
+                )
+        except Exception as e:
+            print(f"Warning: Error creating source context: {e}")
+
+        # Create target context in PROD registry
+        try:
+            response = requests.put(
+                f"{self.prod_url}/contexts/{self.target_context}",
+                headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
+                timeout=10,
+            )
+            if response.status_code in [200, 409]:  # 409 = already exists
+                print(f"✓ Created target context: {self.target_context}")
+                self.created_contexts.append((self.prod_url, self.target_context))
+            else:
+                print(
+                    f"Warning: Could not create target context: {response.status_code} - {response.text}"
+                )
+        except Exception as e:
+            print(f"Warning: Error creating target context: {e}")
+
         return True
 
     def create_sparse_version_schema(self, subject: str):
@@ -276,7 +369,7 @@ class SparseVersionMigrationTest:
         return True
 
     def cleanup_test_subjects(self):
-        """Clean up test subjects from both registries using proper two-step deletion."""
+        """Clean up test subjects and contexts from both registries."""
         print("\n=== Cleaning Up Test Subjects ===")
 
         for subject in self.test_subjects:
@@ -332,25 +425,94 @@ class SparseVersionMigrationTest:
             except Exception as e:
                 print(f"Warning: Failed to delete {subject} from prod: {e}")
 
+        # Clean up dynamic contexts
+        print("\n=== Cleaning Up Test Contexts ===")
+        for registry_url, context_name in self.created_contexts:
+            try:
+                response = requests.delete(
+                    f"{registry_url}/contexts/{context_name}", timeout=10
+                )
+                if response.status_code in [200, 404]:  # 404 = already deleted
+                    print(f"✓ Cleaned up context {context_name}")
+                else:
+                    print(
+                        f"Warning: Could not delete context {context_name}: {response.status_code}"
+                    )
+            except Exception as e:
+                print(f"Warning: Error deleting context {context_name}: {e}")
+
     def run_all_tests(self):
         """Run all sparse version migration tests."""
         print("🧪 Starting Sparse Version Migration Tests")
         print("=" * 50)
 
         try:
+            # Setup phase
+            self.verify_registries_accessible()
+            self.cleanup_existing_subjects()
             self.setup_test_environment()
             self.setup_test_contexts()
+
+            # Test execution
             self.test_sparse_version_migration()
+
             print("\n✅ All tests passed!")
             return True
         except Exception as e:
             print(f"\n❌ Test failed: {e}")
             import traceback
 
+            print("\nFull error traceback:")
             traceback.print_exc()
+
+            # Add debug information for CI
+            print("\n=== DEBUG INFO ===")
+            print(f"Source context: {self.source_context}")
+            print(f"Target context: {self.target_context}")
+            print(f"Created contexts: {self.created_contexts}")
+            print(f"Test subjects: {self.test_subjects}")
+
             return False
         finally:
-            self.cleanup_test_subjects()
+            try:
+                self.cleanup_test_subjects()
+            except Exception as cleanup_error:
+                print(f"Warning: Cleanup failed: {cleanup_error}")
+
+
+def cleanup_all_test_subjects():
+    """Clean up any leftover test subjects from previous runs"""
+    print("🧹 Cleaning up any leftover test subjects...")
+
+    for registry_url, registry_name in [
+        (DEV_REGISTRY_URL, "DEV"),
+        (PROD_REGISTRY_URL, "PROD"),
+    ]:
+        try:
+            response = requests.get(f"{registry_url}/subjects", timeout=5)
+            if response.status_code == 200:
+                subjects = response.json()
+                test_subjects = [s for s in subjects if s.startswith("sparse-test-")]
+
+                for subject in test_subjects:
+                    try:
+                        # Soft delete
+                        requests.delete(f"{registry_url}/subjects/{subject}")
+                        # Permanent delete
+                        requests.delete(
+                            f"{registry_url}/subjects/{subject}?permanent=true"
+                        )
+                        print(f"  ✓ Cleaned up {subject} from {registry_name}")
+                    except Exception as e:
+                        print(
+                            f"  Warning: Could not clean {subject} from {registry_name}: {e}"
+                        )
+
+                if not test_subjects:
+                    print(f"  ✓ No test subjects to clean in {registry_name}")
+
+        except Exception as e:
+            print(f"  Warning: Could not check {registry_name} for cleanup: {e}")
 
 
 def test_registry_connectivity():
@@ -377,6 +539,9 @@ def main():
     try:
         # Check connectivity first
         test_registry_connectivity()
+
+        # Clean up any leftover test subjects from previous runs
+        cleanup_all_test_subjects()
 
         # Run the test
         test = SparseVersionMigrationTest()
