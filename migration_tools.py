@@ -19,7 +19,6 @@ import requests
 
 from schema_validation import (
     create_error_response,
-    create_success_response,
     structured_output,
 )
 from task_management import TaskStatus, TaskType, task_manager
@@ -210,9 +209,6 @@ def _execute_schema_migration(
         )
         logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}")
 
-        # For source operations, use the subject as-is
-        source_subject = subject
-
         # For target operations, we may need to extract the bare subject name
         # if we're migrating to a different context
         target_subject_name = subject
@@ -316,29 +312,44 @@ def _execute_schema_migration(
                 )
                 if mode_response.status_code == 200:
                     original_target_mode = mode_response.json().get("mode", "READWRITE")
-                    
+
                     # Set target registry to IMPORT mode for ID preservation
                     if original_target_mode != "IMPORT":
-                        logger.info(f"Setting target registry to IMPORT mode for ID preservation (was {original_target_mode})")
+                        logger.info(
+                            f"Setting target registry to IMPORT mode for ID preservation "
+                            f"(was {original_target_mode})"
+                        )
                         import_response = requests.put(
                             f"{target_client.config.url}/mode",
                             json={"mode": "IMPORT"},
                             auth=target_client.auth,
-                            headers={**target_client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+                            headers={
+                                **target_client.headers,
+                                "Content-Type": "application/vnd.schemaregistry.v1+json",
+                            },
                             timeout=10,
                         )
                         if import_response.status_code != 200:
-                            logger.warning(f"Failed to set IMPORT mode: {import_response.text}. Will try migration without ID preservation.")
+                            logger.warning(
+                                f"Failed to set IMPORT mode: {import_response.text}. "
+                                f"Will try migration without ID preservation."
+                            )
                             preserve_ids = False  # Disable ID preservation if can't set IMPORT mode
                         else:
                             logger.info("✅ Target registry set to IMPORT mode")
                     else:
                         logger.info("✅ Target registry already in IMPORT mode")
                 else:
-                    logger.warning(f"Could not get target registry mode: {mode_response.text}. Will try migration without ID preservation.")
+                    logger.warning(
+                        f"Could not get target registry mode: {mode_response.text}. "
+                        f"Will try migration without ID preservation."
+                    )
                     preserve_ids = False
             except Exception as e:
-                logger.warning(f"Error setting IMPORT mode: {str(e)}. Will try migration without ID preservation.")
+                logger.warning(
+                    f"Error setting IMPORT mode: {str(e)}. "
+                    f"Will try migration without ID preservation."
+                )
                 preserve_ids = False
 
         # Migrate each version
@@ -353,7 +364,9 @@ def _execute_schema_migration(
                     logger.info(f"Processing version {version} of subject '{subject}'")
 
                     if dry_run:
-                        logger.info(f"[DRY RUN] Would migrate {subject} version {version}")
+                        logger.info(
+                            f"[DRY RUN] Would migrate {subject} version {version}"
+                        )
                         successful_count += 1
                         migration_details.append(
                             {
@@ -366,7 +379,10 @@ def _execute_schema_migration(
 
                     # Get schema from source registry
                     if source_context and source_context != ".":
-                        schema_url = f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions/{version}"
+                        schema_url = (
+                            f"{source_client.config.url}/contexts/{source_context}/"
+                            f"subjects/{subject}/versions/{version}"
+                        )
                     else:
                         schema_url = f"{source_client.config.url}/subjects/{subject}/versions/{version}"
 
@@ -378,14 +394,19 @@ def _execute_schema_migration(
                     )
 
                     if schema_response.status_code != 200:
-                        raise Exception(f"Failed to get schema: HTTP {schema_response.status_code}")
+                        raise Exception(
+                            f"Failed to get schema: HTTP {schema_response.status_code}"
+                        )
 
                     schema_data = schema_response.json()
                     schema_definition = json.loads(schema_data["schema"])
-                    
+
                     # Register schema in target registry
                     if target_context and target_context != ".":
-                        target_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
+                        target_url = (
+                            f"{target_client.config.url}/contexts/{target_context}/"
+                            f"subjects/{target_subject_name}/versions"
+                        )
                     else:
                         target_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
 
@@ -406,55 +427,93 @@ def _execute_schema_migration(
                         payload_with_id["id"] = schema_data["id"]
                         # Also preserve version number in IMPORT mode
                         payload_with_id["version"] = version
-                        
+
                         target_response = requests.post(
                             target_url,
                             json=payload_with_id,
                             auth=target_client.auth,
-                            headers={**target_client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+                            headers={
+                                **target_client.headers,
+                                "Content-Type": "application/vnd.schemaregistry.v1+json",
+                            },
                             timeout=10,
                         )
-                        
-                        if target_response.status_code in [200, 409]:  # Success with ID preservation
-                            target_id = target_response.json().get("id") if target_response.status_code == 200 else "existing"
+
+                        if target_response.status_code in [
+                            200,
+                            409,
+                        ]:  # Success with ID preservation
+                            target_id = (
+                                target_response.json().get("id")
+                                if target_response.status_code == 200
+                                else "existing"
+                            )
                             successful_count += 1
-                            migration_details.append({
-                                "version": version,
-                                "status": "migrated",
-                                "source_id": schema_data.get("id"),
-                                "target_id": target_id,
-                                "preserved_version": True,
-                            })
+                            migration_details.append(
+                                {
+                                    "version": version,
+                                    "status": "migrated",
+                                    "source_id": schema_data.get("id"),
+                                    "target_id": target_id,
+                                    "preserved_version": True,
+                                }
+                            )
                             continue
-                        elif target_response.status_code == 422 and "import mode" in target_response.text.lower():
+                        elif (
+                            target_response.status_code == 422
+                            and "import mode" in target_response.text.lower()
+                        ):
                             # Import mode required for ID preservation - fall back to normal registration
-                            logger.warning(f"ID preservation requires IMPORT mode for version {version}, falling back to normal registration")
+                            logger.warning(
+                                f"ID preservation requires IMPORT mode for version {version}, "
+                                f"falling back to normal registration"
+                            )
                         else:
                             # Other error - try without ID preservation
-                            logger.warning(f"ID preservation failed for version {version}: {target_response.text}, trying without ID")
+                            logger.warning(
+                                f"ID preservation failed for version {version}: {target_response.text}, trying without ID"
+                            )
 
                     # Fallback: register without ID preservation
                     target_response = requests.post(
                         target_url,
                         json=payload,
                         auth=target_client.auth,
-                        headers={**target_client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+                        headers={
+                            **target_client.headers,
+                            "Content-Type": "application/vnd.schemaregistry.v1+json",
+                        },
                         timeout=10,
                     )
 
-                    if target_response.status_code in [200, 409]:  # 409 = already exists
-                        target_id = target_response.json().get("id") if target_response.status_code == 200 else "existing"
+                    if target_response.status_code in [
+                        200,
+                        409,
+                    ]:  # 409 = already exists
+                        target_id = (
+                            target_response.json().get("id")
+                            if target_response.status_code == 200
+                            else "existing"
+                        )
                         successful_count += 1
-                        migration_details.append({
-                            "version": version,
-                            "status": "migrated",
-                            "source_id": schema_data.get("id"),
-                            "target_id": target_id,
-                            "preserved_version": False,  # ID was not preserved
-                            "note": "ID preservation skipped (registry not in IMPORT mode)" if preserve_ids else None,
-                        })
+                        migration_details.append(
+                            {
+                                "version": version,
+                                "status": "migrated",
+                                "source_id": schema_data.get("id"),
+                                "target_id": target_id,
+                                "preserved_version": False,  # ID was not preserved
+                                "note": (
+                                    "ID preservation skipped (registry not in IMPORT mode)"
+                                    if preserve_ids
+                                    else None
+                                ),
+                            }
+                        )
                     else:
-                        raise Exception(f"Failed to register schema: HTTP {target_response.status_code} - {target_response.text}")
+                        raise Exception(
+                            f"Failed to register schema: HTTP {target_response.status_code} - {target_response.text}"
+                        )
 
                 except Exception as e:
                     logger.error(f"Error migrating version {version}: {e}")
@@ -471,18 +530,27 @@ def _execute_schema_migration(
             # Restore original target registry mode
             if original_target_mode and original_target_mode != "IMPORT":
                 try:
-                    logger.info(f"Restoring target registry to original mode: {original_target_mode}")
+                    logger.info(
+                        f"Restoring target registry to original mode: {original_target_mode}"
+                    )
                     restore_response = requests.put(
                         f"{target_client.config.url}/mode",
                         json={"mode": original_target_mode},
                         auth=target_client.auth,
-                        headers={**target_client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+                        headers={
+                            **target_client.headers,
+                            "Content-Type": "application/vnd.schemaregistry.v1+json",
+                        },
                         timeout=10,
                     )
                     if restore_response.status_code == 200:
-                        logger.info(f"✅ Target registry restored to {original_target_mode} mode")
+                        logger.info(
+                            f"✅ Target registry restored to {original_target_mode} mode"
+                        )
                     else:
-                        logger.warning(f"Failed to restore registry mode: {restore_response.text}")
+                        logger.warning(
+                            f"Failed to restore registry mode: {restore_response.text}"
+                        )
                 except Exception as e:
                     logger.warning(f"Error restoring registry mode: {str(e)}")
 
@@ -735,7 +803,10 @@ async def migrate_context_tool(
 
         result = {
             "message": "Context migration requires the external kafka-schema-reg-migrator tool",
-            "reason": "This MCP only supports single schema migration. For context migration, use the specialized external tool.",
+            "reason": (
+                "This MCP only supports single schema migration. "
+                "For context migration, use the specialized external tool."
+            ),
             "tool": "kafka-schema-reg-migrator",
             "documentation": "https://github.com/aywengo/kafka-schema-reg-migrator",
             "docker_hub": "https://hub.docker.com/r/aywengo/kafka-schema-reg-migrator",
@@ -775,7 +846,14 @@ async def migrate_context_tool(
             "warnings": [
                 "⚠️  This will use an external Docker container for migration",
                 "⚠️  Ensure Docker is installed and running",
-                f"⚠️  {'This is a DRY RUN - no actual changes will be made' if dry_run else 'This will perform actual data migration'}",
+                (
+                    "⚠️  "
+                    + (
+                        "This is a DRY RUN - no actual changes will be made"
+                        if dry_run
+                        else "This will perform actual data migration"
+                    )
+                ),
                 "⚠️  Review the documentation for advanced configuration options",
             ],
             "status": "completed",  # For schema compatibility
