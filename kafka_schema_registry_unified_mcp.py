@@ -44,7 +44,7 @@ from fastmcp import FastMCP
 load_dotenv()
 
 # Import OAuth functionality
-from oauth_provider import (
+from oauth_provider import (  # noqa: E402
     ENABLE_AUTH,
     get_fastmcp_config,
     get_oauth_scopes_info,
@@ -89,17 +89,42 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
         response = await call_next(request)
         return response
 
-    path = request.url.path
+    # Handle different request types - some may not have a url attribute
+    try:
+        # Try to get the path from the request
+        if hasattr(request, "url") and hasattr(request.url, "path"):
+            path = request.url.path
+        elif hasattr(request, "path"):
+            path = request.path
+        else:
+            # If we can't determine the path, skip validation
+            response = await call_next(request)
+            return response
+    except AttributeError:
+        # If request doesn't have expected attributes, skip validation
+        response = await call_next(request)
+        return response
 
     # Skip validation for exempt paths
     if is_exempt_path(path):
         response = await call_next(request)
         # Still add the header to exempt responses for consistency
-        response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
+        if hasattr(response, "headers"):
+            response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
         return response
 
     # Check for MCP-Protocol-Version header
-    protocol_version = request.headers.get("MCP-Protocol-Version")
+    try:
+        if hasattr(request, "headers"):
+            protocol_version = request.headers.get("MCP-Protocol-Version")
+        else:
+            # If request doesn't have headers, skip validation
+            response = await call_next(request)
+            return response
+    except (AttributeError, TypeError):
+        # If we can't access headers, skip validation
+        response = await call_next(request)
+        return response
 
     if not protocol_version:
         return JSONResponse(
@@ -130,7 +155,8 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
     response = await call_next(request)
 
     # Add MCP-Protocol-Version header to all responses
-    response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
+    if hasattr(response, "headers"):
+        response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
 
     return response
 
@@ -142,6 +168,9 @@ mcp = FastMCP(**mcp_config)
 # Add MCP-Protocol-Version validation middleware (with error handling)
 MIDDLEWARE_ENABLED = False
 try:
+    # Check if we're in an HTTP context where middleware makes sense
+    # For MCP clients using stdio or in-memory transport, middleware isn't needed
+
     # Try different middleware installation approaches for different FastMCP versions
     if hasattr(mcp, "app") and hasattr(mcp.app, "middleware"):
         mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
@@ -158,13 +187,15 @@ try:
         )
     else:
         logger = logging.getLogger(__name__)
-        logger.warning(
-            "⚠️ FastMCP middleware interface not available - running in compatibility mode"
+        logger.info(
+            "ℹ️ FastMCP middleware interface not available - running in compatibility mode (normal for MCP clients)"
         )
 except Exception as e:
     # If middleware fails to install, log warning but continue
     logger = logging.getLogger(__name__)
-    logger.warning(f"⚠️ Could not install MCP header validation middleware: {e}")
+    logger.info(
+        f"ℹ️ MCP header validation middleware not installed: {e} (normal for MCP clients and testing)"
+    )
 
 # Configure logging
 logging.basicConfig(
@@ -172,16 +203,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from batch_operations import (
+from batch_operations import (  # noqa: E402
     clear_context_batch_tool,
     clear_multiple_contexts_batch_tool,
 )
-from comparison_tools import (
+from comparison_tools import (  # noqa: E402
     compare_contexts_across_registries_tool,
     compare_registries_tool,
     find_missing_schemas_tool,
 )
-from core_registry_tools import (
+from core_registry_tools import (  # noqa: E402
     check_compatibility_tool,
     create_context_tool,
     delete_context_tool,
@@ -200,13 +231,16 @@ from core_registry_tools import (
     update_subject_config_tool,
     update_subject_mode_tool,
 )
-from export_tools import (
+from export_tools import (  # noqa: E402
     export_context_tool,
     export_global_tool,
     export_schema_tool,
     export_subject_tool,
 )
-from migration_tools import (
+
+# Import prompts from external module
+from mcp_prompts import PROMPT_REGISTRY  # noqa: E402
+from migration_tools import (  # noqa: E402
     get_migration_status_tool,
     list_migrations_tool,
     migrate_context_tool,
@@ -214,7 +248,7 @@ from migration_tools import (
 )
 
 # Import common library functionality
-from schema_registry_common import (
+from schema_registry_common import (  # noqa: E402
     SINGLE_READONLY,
     SINGLE_REGISTRY_PASSWORD,
     SINGLE_REGISTRY_URL,
@@ -222,8 +256,10 @@ from schema_registry_common import (
     LegacyRegistryManager,
     MultiRegistryManager,
 )
-from schema_registry_common import check_readonly_mode as _check_readonly_mode
-from statistics_tools import (
+from schema_registry_common import (  # noqa: E402
+    check_readonly_mode as _check_readonly_mode,
+)
+from statistics_tools import (  # noqa: E402
     count_contexts_tool,
     count_schema_versions_tool,
     count_schemas_task_queue_tool,
@@ -232,7 +268,7 @@ from statistics_tools import (
 )
 
 # Import specialized modules
-from task_management import task_manager
+from task_management import task_manager  # noqa: E402
 
 
 # Auto-detection of registry mode
@@ -1267,7 +1303,7 @@ def _internal_get_mcp_compliance_status():
                 "compliance_notes": [
                     f"MCP-Protocol-Version header validation {'enabled' if header_validation_active else 'disabled (compatibility mode)'}",
                     "JSON-RPC batching explicitly disabled in FastMCP configuration",
-                    "Application-level batching uses individual requests internally",
+                    "Application-level batching uses individual requests",
                     "All operations maintain backward compatibility except JSON-RPC batching",
                     "Performance optimized through parallel processing and task queuing",
                     f"Exempt paths: {EXEMPT_PATHS}",
@@ -1380,11 +1416,9 @@ def check_readonly_mode(registry: str = None):
 
 @mcp.tool()
 @require_scopes("read")
-def get_oauth_scopes_info():
+def get_oauth_scopes_info_tool():
     """Get information about OAuth scopes and permissions."""
-    from oauth_provider import get_oauth_scopes_info as _get_oauth_scopes_info
-
-    return _get_oauth_scopes_info()
+    return get_oauth_scopes_info()
 
 
 @mcp.tool()
@@ -1648,7 +1682,7 @@ def get_registry_status():
                 header_validation_status = "ENABLED"
             else:
                 header_validation_status = "DISABLED (compatibility mode)"
-        except:
+        except (AttributeError, TypeError):
             header_validation_status = "UNKNOWN"
 
         status_lines.append(
@@ -1688,7 +1722,7 @@ def get_registry_info_resource():
                 header_validation_active = True
             else:
                 header_validation_active = False
-        except:
+        except (AttributeError, TypeError):
             header_validation_active = False
 
         overall_info = {
@@ -1761,7 +1795,7 @@ def get_mode_info():
                 header_validation_active = True
             else:
                 header_validation_active = False
-        except:
+        except (AttributeError, TypeError):
             header_validation_active = False
 
         detection_info = {
@@ -1813,9 +1847,6 @@ def get_mode_info():
 
 # ===== MCP PROMPTS =====
 
-# Import prompts from external module
-from mcp_prompts import PROMPT_REGISTRY
-
 
 # Register all prompts with the MCP server
 def register_prompt(name, func):
@@ -1849,7 +1880,7 @@ if __name__ == "__main__":
             header_validation_status = "ENABLED"
         else:
             header_validation_status = "DISABLED (compatibility mode)"
-    except:
+    except (AttributeError, TypeError):
         header_validation_status = "UNKNOWN"
 
     print(
