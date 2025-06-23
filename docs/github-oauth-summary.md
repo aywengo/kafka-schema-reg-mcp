@@ -1,37 +1,129 @@
-# 🔓 GitHub OAuth Integration Summary
+# 🔓 GitHub OAuth 2.1 Integration Summary
 
-GitHub OAuth support has been successfully added to the Kafka Schema Registry MCP Server, making it the 5th supported OAuth provider alongside Azure AD, Google, Keycloak, and Okta.
+**Major Update**: GitHub OAuth is now handled through the **generic OAuth 2.1 discovery system** rather than as a provider-specific integration. This represents a significant architectural improvement that simplifies configuration and improves maintainability.
 
-## 🚀 Implementation Overview
+## 🎯 New Architecture: Generic OAuth 2.1 Approach
 
-### GitHub OAuth Provider Features
+### **Before (Provider-Specific - v1.x)**
+```bash
+# Required multiple GitHub-specific variables
+export AUTH_PROVIDER=github
+export GITHUB_CLIENT_ID=your_client_id
+export GITHUB_CLIENT_SECRET=your_client_secret
+export GITHUB_ORG=your-organization
+export AUTH_ISSUER_URL=https://api.github.com
+# ... many more variables
+```
 
-- **✅ GitHub OAuth 2.0 Support**: Standard OAuth flow with GitHub
-- **✅ GitHub Apps Support**: JWT-based authentication for GitHub Apps
-- **✅ API-based Token Validation**: Uses GitHub API for token verification
-- **✅ Organization Restriction**: Optional org-only access control
-- **✅ Scope Mapping**: GitHub scopes to MCP permission mapping
-- **✅ Auto-detection**: Automatic provider detection from tokens
-- **✅ Hybrid Validation**: Supports both JWT and access token validation
+### **After (Generic OAuth 2.1 - v2.x)**
+```bash
+# Just 2 core variables for GitHub!
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-github-client-id"
+```
 
-### Token Support
+## 🚀 Simplified Configuration
 
-GitHub OAuth integration supports multiple token types:
+### Basic GitHub OAuth 2.1 Setup
+```bash
+# Enable OAuth 2.1 authentication
+export ENABLE_AUTH=true
 
-| Token Type | Format | Validation Method | Use Case |
-|------------|--------|-------------------|----------|
-| **Personal Access Token** | `ghp_*` | GitHub API | Development/Testing |
-| **OAuth App Token** | `gho_*` | GitHub API | Standard OAuth flow |
-| **User Access Token** | `ghu_*` | GitHub API | User-specific access |
-| **Server Token** | `ghs_*` | GitHub API | Server-to-server |
-| **Refresh Token** | `ghr_*` | GitHub API | Token refresh |
-| **GitHub App JWT** | JWT format | JWKS validation | GitHub Apps |
+# GitHub configuration (generic approach)
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-github-client-id"
 
-## 🎯 Scope Mapping
+# Optional: Configure scopes
+export AUTH_VALID_SCOPES="read,write,admin"
+export AUTH_DEFAULT_SCOPES="read"
+export AUTH_REQUIRED_SCOPES="read"
+```
+
+### **GitHub OAuth 2.1 Features**
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Generic Discovery** | ✅ | Uses universal OAuth 2.1 configuration |
+| **Automatic Fallback** | ✅ | Handles GitHub's limited OAuth 2.1 support |
+| **Token Validation** | ✅ | GitHub API-based validation |
+| **Scope Mapping** | ✅ | GitHub scopes → MCP permission mapping |
+| **Organization Control** | ✅ | Optional org-only access restriction |
+| **Multi-Token Support** | ✅ | PAT, OAuth, GitHub Apps tokens |
+
+## 🔍 GitHub's OAuth 2.1 Limitations & Fallback Handling
+
+GitHub has **limited OAuth 2.1 support**, so the server automatically applies fallback configuration:
+
+### **Automatic Detection & Fallback**
+1. **Discovery Attempt**: Server tries `https://github.com/.well-known/oauth-authorization-server`
+2. **Fallback Trigger**: When discovery fails, GitHub fallback is activated
+3. **Hardcoded Endpoints**: Uses known GitHub API endpoints
+4. **Seamless Operation**: No configuration changes needed
+
+### **GitHub-Specific Endpoints (Automatic)**
+```json
+{
+  "issuer": "https://github.com",
+  "authorization_endpoint": "https://github.com/login/oauth/authorize",
+  "token_endpoint": "https://github.com/login/oauth/access_token",
+  "userinfo_endpoint": "https://api.github.com/user",
+  "revocation_endpoint": "https://github.com/settings/connections/applications/{client_id}",
+  "fallback_mode": true,
+  "oauth_2_1_limited": true
+}
+```
+
+## 🎯 Token Support & Validation
+
+### **Supported GitHub Token Types**
+
+| Token Type | Format | Validation Method | OAuth 2.1 Support |
+|------------|--------|-------------------|-------------------|
+| **Personal Access Token** | `ghp_*` | GitHub API | ✅ Supported |
+| **OAuth App Token** | `gho_*` | GitHub API | ✅ Supported |
+| **User Access Token** | `ghu_*` | GitHub API | ✅ Supported |
+| **Server Token** | `ghs_*` | GitHub API | ✅ Supported |
+| **Refresh Token** | `ghr_*` | GitHub API | ✅ Supported |
+| **GitHub App JWT** | JWT format | API + Claims | ✅ Supported |
+
+### **Token Validation Flow**
+1. **Token Detection**: Automatic GitHub token recognition
+2. **API Validation**: Calls GitHub API for token verification
+3. **Scope Extraction**: Maps GitHub scopes to MCP permissions
+4. **Organization Check**: Verifies org membership (if configured)
+
+## 🔧 Migration from Provider-Specific Setup
+
+### **Automatic Migration**
+Legacy GitHub configurations are automatically detected and migrated:
+
+```bash
+# OLD (v1.x) - Still works but deprecated
+export AUTH_PROVIDER=github
+export GITHUB_CLIENT_ID=your_client_id
+export GITHUB_CLIENT_SECRET=your_client_secret
+export GITHUB_ORG=your-organization
+
+# NEW (v2.x) - Recommended generic approach
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your_client_id"
+```
+
+### **Configuration Benefits**
+
+| Aspect | Provider-Specific (v1.x) | Generic OAuth 2.1 (v2.x) |
+|--------|---------------------------|---------------------------|
+| **Variables** | 8+ GitHub-specific | 2 universal |
+| **Maintenance** | GitHub-specific bugs | Generic OAuth 2.1 handling |
+| **Updates** | Manual code changes | Automatic via discovery |
+| **Compatibility** | GitHub only | Any OAuth 2.1 provider |
+| **Standards** | Custom implementation | RFC 8414 compliance |
+
+## 🎯 Scope Mapping (Unchanged)
 
 GitHub scopes are automatically mapped to MCP permissions:
 
-### GitHub → MCP Scope Mapping
+### **GitHub → MCP Scope Mapping**
 
 | GitHub Scope | MCP Permission | Description |
 |--------------|----------------|-------------|
@@ -42,227 +134,181 @@ GitHub scopes are automatically mapped to MCP permissions:
 | `admin:org` | `admin` | Organization administration |
 | `admin:repo_hook` | `admin` | Repository webhook administration |
 
-### Permission Hierarchy
-
+### **Permission Hierarchy**
 - **`admin`** includes `write` and `read`
 - **`write`** includes `read`
 - **`read`** is the minimum required permission
 
-## 🔧 Configuration
+## 🏗️ GitHub App Integration
 
-### Environment Variables
+GitHub Apps are automatically supported through the generic OAuth 2.1 approach:
 
+### **GitHub App Configuration**
 ```bash
-# GitHub OAuth Configuration
-ENABLE_AUTH=true
-AUTH_PROVIDER=github
-AUTH_ISSUER_URL=https://api.github.com
-AUTH_AUDIENCE=your_github_client_id
-AUTH_VALID_SCOPES=read:user,user:email,read:org,repo,admin:org
-AUTH_DEFAULT_SCOPES=read:user,user:email
-AUTH_REQUIRED_SCOPES=read:user
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
-GITHUB_ORG=your-organization  # Optional: restrict to org members
+# GitHub App with OAuth 2.1 (v2.x)
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-github-app-id"
+
+# GitHub App environment (optional)
+export GITHUB_APP_ID="your_app_id"
+export GITHUB_APP_PRIVATE_KEY_PATH="/path/to/private-key.pem"
 ```
 
-### Helm Configuration
+### **JWT Token Validation**
+- **Automatic Detection**: GitHub App JWT tokens are automatically recognized
+- **Claims Validation**: Standard JWT claims validation
+- **Scope Extraction**: GitHub App permissions mapped to MCP scopes
+- **Installation Validation**: Verifies GitHub App installation
 
-```yaml
-# helm/values-github.yaml
-auth:
-  enabled: true
-  oauth2:
-    issuerUrl: "https://api.github.com"
-    validScopes: "read:user,user:email,read:org,repo,admin:org"
-    defaultScopes: "read:user,user:email"
-    requiredScopes: "read:user"
+## 🔒 Organization-Based Access Control
 
-github:
-  organization: "your-org-name"  # Optional
-  scopes:
-    read: ["read:user", "user:email", "read:org"]
-    write: ["repo"]
-    admin: ["admin:org", "admin:repo_hook"]
-```
+Organization restriction is maintained through the generic approach:
 
-## 🏗️ Implementation Details
-
-### Core Components Added
-
-1. **Provider Configuration** (`oauth_provider.py`)
-   - GitHub provider config in `get_provider_config()`
-   - GitHub detection in `detect_provider_from_token()`
-   - GitHub scope extraction in `extract_scopes_from_jwt()`
-
-2. **Token Validation** (`oauth_provider.py`)
-   - `validate_github_token()` method for API-based validation
-   - Hybrid validation supporting both JWT and access tokens
-   - Organization membership verification
-
-3. **Environment Variables** (`oauth_provider.py`)
-   - `AUTH_GITHUB_CLIENT_ID`
-   - `AUTH_GITHUB_ORG`
-
-4. **Provider Registry** (`oauth_provider.py`)
-   - GitHub added to `get_oauth_provider_configs()`
-   - Complete setup documentation and examples
-
-### Files Modified
-
-| File | Changes | Description |
-|------|---------|-------------|
-| `oauth_provider.py` | Core implementation | Added GitHub provider support |
-| `docs/oauth-providers-guide.md` | Documentation | Complete GitHub OAuth setup guide |
-| `helm/examples/values-github.yaml` | Configuration | GitHub-specific Helm values |
-| `helm/examples/README.md` | Documentation | Added GitHub to provider list |
-| `tests/test_github_oauth.py` | Testing | Comprehensive GitHub OAuth tests |
-| `tests/test_provider_configs_only.py` | Testing | Updated for 5 providers |
-
-## 🧪 Testing
-
-### Test Coverage
-
-Created comprehensive test suite with 6 test categories:
-
-1. **Provider Configuration** - Validates GitHub config structure
-2. **Environment Variables** - Tests GitHub-specific env vars
-3. **Scope Extraction** - Tests GitHub scope → MCP mapping
-4. **Provider Detection** - Tests auto-detection from tokens
-5. **Token Validation** - Tests GitHub API validation
-6. **OAuth Exports** - Tests module exports
-
-### Test Results
-
+### **Organization Configuration**
 ```bash
-$ python tests/test_github_oauth.py
-🔓 GitHub OAuth Integration Test Suite
-==================================================
-📊 Test Results: 6/6 tests passed
-🎉 ALL GITHUB OAUTH TESTS PASSED!
-✅ GitHub OAuth integration is ready for use
+# Generic OAuth 2.1 with organization restriction
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-client-id"
+export GITHUB_ORG="your-organization"  # Optional restriction
 ```
 
-### Integration with Existing Tests
+### **Organization Validation**
+1. **Token Validation**: Standard GitHub API token validation
+2. **User Information**: Retrieves user profile and organization membership
+3. **Membership Check**: Verifies user is member of specified organization
+4. **Access Decision**: Grants/denies access based on membership
 
-GitHub OAuth is now included in:
-- Provider configuration tests
-- OAuth provider enumeration tests
-- End-to-end OAuth testing workflows
+## 🧪 Testing GitHub OAuth 2.1
 
-## 🌟 Unique Features
-
-### Organization-Based Access Control
-
-GitHub OAuth supports organization-restricted access:
-
+### **Discovery Testing**
 ```bash
-# Restrict to organization members only
-export GITHUB_ORG=my-company
+# Test OAuth 2.1 discovery (will show GitHub fallback)
+curl http://localhost:8000/.well-known/oauth-authorization-server | jq
+
+# Example response showing GitHub fallback
+{
+  "issuer": "https://github.com",
+  "fallback_mode": true,
+  "oauth_2_1_limited": true,
+  "note": "GitHub has limited OAuth 2.1 support - using fallback configuration"
+}
 ```
 
-When enabled:
-- Users must be members of the specified organization
-- Organization membership is verified via GitHub API
-- Non-members are rejected during authentication
-
-### Hybrid Token Validation
-
-GitHub OAuth supports both validation approaches:
-
-1. **API-based Validation** (Default)
-   - Calls GitHub API to validate tokens
-   - Works with all GitHub token types
-   - Provides real-time validation
-
-2. **JWT Validation** (GitHub Apps)
-   - Uses JWKS for GitHub App JWT tokens
-   - Offline validation capability
-   - Higher performance for GitHub Apps
-
-### Auto-Detection Logic
-
-The provider automatically detects GitHub tokens by:
-
-1. **Token prefix detection**: Recognizes `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` prefixes
-2. **JWT issuer detection**: Checks for GitHub-related issuers in JWT tokens
-3. **API response detection**: Identifies GitHub API response format
-
-## 🔍 Usage Examples
-
-### Basic Setup
-
-```bash
-# 1. Create GitHub OAuth App
-# Visit: https://github.com/settings/applications/new
-
-# 2. Configure environment
-export GITHUB_CLIENT_ID=your_client_id
-export GITHUB_CLIENT_SECRET=your_client_secret
-export AUTH_PROVIDER=github
-
-# 3. Deploy with GitHub OAuth
-helm install mcp-server ./helm/examples/values-github.yaml
-```
-
-### Testing Authentication
-
+### **Token Testing**
 ```bash
 # Test with GitHub Personal Access Token
-GITHUB_TOKEN="ghp_your_personal_access_token"
+export OAUTH_TOKEN="ghp_your_personal_access_token"
 
-curl -H "Authorization: Bearer $GITHUB_TOKEN" \
-     https://your-mcp-server.com/api/registries
+# Test with development token
+export OAUTH_TOKEN="dev-token-read,write,admin"
+
+# Test API access
+curl -H "Authorization: Bearer $OAUTH_TOKEN" \
+     http://localhost:8000/.well-known/oauth-protected-resource
 ```
 
-### Organization Restriction
-
+### **MCP Client Testing**
 ```bash
-# Restrict to organization members
-export GITHUB_ORG=my-company
-
-# Only members of 'my-company' can access the MCP server
+# Test GitHub OAuth through MCP
+"Test the OAuth discovery endpoints for GitHub"
+"Show me GitHub OAuth configuration and token validation"
+"List all schema contexts using GitHub authentication"
 ```
 
-## 📊 Comparison with Other Providers
+## 📊 GitHub vs Other OAuth 2.1 Providers
 
-| Feature | Azure AD | Google | Keycloak | Okta | GitHub |
-|---------|----------|---------|----------|------|---------|
-| **JWT Validation** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **API Validation** | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature | Azure AD | Google | Okta | Keycloak | GitHub |
+|---------|----------|---------|------|----------|--------|
+| **OAuth 2.1 Discovery** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ⚠️ Fallback |
+| **RFC 8414 Support** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **PKCE Support** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Resource Indicators** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Generic Configuration** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **API Token Validation** | ❌ | ❌ | ❌ | ❌ | ✅ |
 | **Organization Control** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Scope Mapping** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Auto-detection** | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Hybrid Validation** | ❌ | ❌ | ❌ | ❌ | ✅ |
 
-## 🔮 Future Enhancements
+**Note**: GitHub's fallback mode provides the same functionality as full OAuth 2.1 providers, just without standards-based discovery.
 
-Potential future improvements for GitHub OAuth:
+## 🔮 Future GitHub OAuth 2.1 Improvements
 
-1. **GitHub Team-based Access**: Role assignment based on team membership
-2. **Repository-specific Permissions**: Schema access based on repo permissions
-3. **GitHub Actions Integration**: CI/CD pipeline authentication
-4. **Enhanced Caching**: Token validation result caching
-5. **Webhook Validation**: GitHub webhook signature verification
+### **When GitHub Adds Full OAuth 2.1 Support**
+- **Automatic Detection**: Server will automatically detect and use native discovery
+- **No Configuration Changes**: Existing configurations will work unchanged
+- **Enhanced Features**: Full Resource Indicators and advanced OAuth 2.1 features
+- **Improved Performance**: Native discovery instead of fallback mode
 
-## 📚 Documentation
+### **Potential GitHub Enhancements**
+1. **RFC 8414 Discovery**: Standard `.well-known/oauth-authorization-server` endpoint
+2. **Resource Indicators**: RFC 8707 support for resource-specific tokens
+3. **Enhanced PKCE**: Improved Proof Key for Code Exchange implementation
+4. **Token Introspection**: RFC 7662 token introspection endpoint
 
-Complete documentation is available in:
-- **[OAuth Providers Guide](oauth-providers-guide.md)** - Complete setup instructions
-- **[Helm Examples](../helm/examples/)** - Ready-to-use configurations
-- **[GitHub OAuth Values](../helm/examples/values-github.yaml)** - GitHub-specific config
+## 📚 Quick Setup Guide
 
-## ✅ Verification Checklist
+### **1. Create GitHub OAuth App**
+```bash
+# Visit: https://github.com/settings/applications/new
+# Configure redirect URI: https://your-mcp-server.com/auth/callback
+```
 
-- [x] GitHub OAuth 2.0 support implemented
-- [x] GitHub Apps JWT support implemented
-- [x] API-based token validation working
-- [x] Organization restriction functional
-- [x] Scope mapping implemented
-- [x] Auto-detection working
-- [x] Helm charts updated
-- [x] Documentation complete
-- [x] Tests passing (6/6)
-- [x] Integration verified
+### **2. Generic OAuth 2.1 Configuration**
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-github-client-id"
+```
 
-GitHub OAuth integration is **production-ready** and fully tested! 🚀🔐 
+### **3. Optional Organization Restriction**
+```bash
+export GITHUB_ORG="your-organization"
+```
+
+### **4. Deploy and Test**
+```bash
+# Test discovery
+curl http://localhost:8000/.well-known/oauth-authorization-server
+
+# Test with MCP client
+"Test GitHub OAuth authentication and show me the configuration"
+```
+
+## ✅ Benefits of Generic GitHub OAuth 2.1
+
+### **🚀 Simplified Configuration**
+- **75% fewer variables** (2 vs 8+ GitHub-specific variables)
+- **Universal approach** consistent with other providers
+- **No GitHub-specific knowledge** required
+
+### **🔧 Easier Maintenance**
+- **No GitHub-specific bugs** - handled through generic OAuth 2.1 system
+- **Automatic updates** when GitHub improves OAuth 2.1 support
+- **Consistent behavior** across all OAuth providers
+
+### **🔮 Future-Proof**
+- **Automatic migration** when GitHub adds full OAuth 2.1 support
+- **Standards compliance** where possible
+- **Graceful fallback** for GitHub's current limitations
+
+### **🛡️ Same Security Features**
+- **Token validation** through GitHub API
+- **Organization restrictions** maintained
+- **Scope mapping** unchanged
+- **PKCE support** where available
+
+---
+
+## 📋 Migration Checklist
+
+- [ ] **Update Configuration**: Replace `AUTH_PROVIDER=github` with `AUTH_ISSUER_URL="https://github.com"`
+- [ ] **Set Audience**: Configure `AUTH_AUDIENCE="your-github-client-id"`
+- [ ] **Remove Legacy Variables**: Clean up `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` (optional)
+- [ ] **Test Discovery**: Verify `/.well-known/oauth-authorization-server` endpoint
+- [ ] **Test Authentication**: Confirm GitHub tokens still work
+- [ ] **Test Organization Control**: Verify organization restrictions (if used)
+- [ ] **Update Documentation**: Update internal docs to reflect generic approach
+
+---
+
+> **🎉 GitHub OAuth 2.1 integration through the generic discovery system represents a major architectural improvement**. While GitHub's OAuth 2.1 support is limited, the server's intelligent fallback system provides seamless functionality with dramatically simplified configuration! 🚀
+
+**The future is generic OAuth 2.1 - no more provider-specific configurations needed!** 🔐 

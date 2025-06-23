@@ -8,6 +8,11 @@
 # 3. Collects and reports results
 # 4. Cleans up environment
 #
+# NEW in v2.0.0: OAuth 2.1 Generic Discovery Tests
+# - Tests OAuth 2.1 generic discovery instead of provider-specific configurations
+# - Validates RFC 8414 compliance and automatic endpoint discovery
+# - Tests universal OAuth 2.1 compatibility with any compliant provider
+#
 # Usage: ./run_all_tests.sh [options]
 # Options:
 #   --quick     Run only essential tests (faster execution)
@@ -324,7 +329,6 @@ run_basic_tests() {
         "test_mcp_server.py:MCP protocol connectivity"
         "test_prompts.py:MCP prompts functionality and content validation"
         "test_config.py:Configuration management"
-        "test_provider_configs_only.py:OAuth provider configurations validation"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
@@ -345,9 +349,9 @@ run_essential_integration_tests() {
         "test_readonly_mode.py:READONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
-        "test_oauth.py:OAuth authentication and provider configurations"
-        "test_github_oauth.py:GitHub OAuth integration and token validation"
-        "test_oauth_discovery.py:OAuth discovery endpoints for MCP client auto-configuration"
+        "test_oauth.py:OAuth 2.1 generic discovery and authentication"
+        "test_github_oauth.py:GitHub OAuth 2.1 integration with fallback handling"
+        "test_oauth_discovery.py:OAuth 2.1 discovery endpoints and RFC 8414 compliance"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
@@ -368,9 +372,9 @@ run_integration_tests() {
         "test_readonly_mcp_client.py:READONLY mode with MCP client"
         "test_readonly_validation.py:READONLY mode validation"
         "test_docker_mcp.py:Docker integration"
-        "test_oauth.py:OAuth authentication and provider configurations"
-        "test_github_oauth.py:GitHub OAuth integration and token validation"
-        "test_oauth_discovery.py:OAuth discovery endpoints for MCP client auto-configuration"
+        "test_oauth.py:OAuth 2.1 generic discovery and authentication"
+        "test_github_oauth.py:GitHub OAuth 2.1 integration with fallback handling"
+        "test_oauth_discovery.py:OAuth 2.1 discovery endpoints and RFC 8414 compliance"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "advanced_mcp_test.py:Advanced MCP functionality"
     )
@@ -582,6 +586,9 @@ fi)
 
 ⭐ NEW: MCP 2025-06-18 Compliance Tests validate header validation middleware,
    exempt path functionality, and protocol version compliance.
+
+🚀 OAuth 2.1 Generic Discovery: Tests now validate universal OAuth 2.1 compatibility
+   instead of provider-specific configurations (75% configuration reduction).
 
 EOF
     

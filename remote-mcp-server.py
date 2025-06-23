@@ -193,7 +193,9 @@ class RemoteMCPMetrics:
 
                         # Count total schemas across all subjects
                         total_schemas = 0
-                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
+                        for subject in (subjects or [])[
+                            :50
+                        ]:  # Limit to first 50 for performance
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
@@ -257,20 +259,24 @@ class RemoteMCPMetrics:
         for method, count in self.request_count.items():
             metrics.append(f'mcp_requests_total{{method="{method}"}} {count}')
 
-        metrics.extend([
-            "",
-            "# HELP mcp_request_errors_total Total number of MCP request errors",
-            "# TYPE mcp_request_errors_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_request_errors_total Total number of MCP request errors",
+                "# TYPE mcp_request_errors_total counter",
+            ]
+        )
 
         for method, count in self.error_count.items():
             metrics.append(f'mcp_request_errors_total{{method="{method}"}} {count}')
 
-        metrics.extend([
-            "",
-            "# HELP mcp_request_duration_seconds Request duration in seconds",
-            "# TYPE mcp_request_duration_seconds histogram",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_request_duration_seconds Request duration in seconds",
+                "# TYPE mcp_request_duration_seconds histogram",
+            ]
+        )
 
         for method, times in self.response_times.items():
             if times:
@@ -288,112 +294,122 @@ class RemoteMCPMetrics:
                 )
 
         # OAuth 2.1 metrics
-        metrics.extend([
-            "",
-            "# HELP mcp_oauth_validations_total Total OAuth token validations",
-            "# TYPE mcp_oauth_validations_total counter",
-            f"mcp_oauth_validations_total {self.oauth_token_validations}",
-            "",
-            "# HELP mcp_oauth_validation_errors_total OAuth validation errors",
-            "# TYPE mcp_oauth_validation_errors_total counter",
-            f"mcp_oauth_validation_errors_total {self.oauth_validation_errors}",
-            "",
-            "# HELP mcp_oauth_pkce_validation_attempts_total PKCE validation attempts",
-            "# TYPE mcp_oauth_pkce_validation_attempts_total counter",
-            f"mcp_oauth_pkce_validation_attempts_total {self.pkce_validation_attempts}",
-            "",
-            "# HELP mcp_oauth_pkce_validation_failures_total PKCE validation failures",
-            "# TYPE mcp_oauth_pkce_validation_failures_total counter",
-            f"mcp_oauth_pkce_validation_failures_total {self.pkce_validation_failures}",
-            "",
-            "# HELP mcp_oauth_resource_indicator_validations_total Resource indicator validations",
-            "# TYPE mcp_oauth_resource_indicator_validations_total counter",
-            f"mcp_oauth_resource_indicator_validations_total {self.resource_indicator_validations}",
-            "",
-            "# HELP mcp_oauth_resource_indicator_failures_total Resource indicator validation failures",
-            "# TYPE mcp_oauth_resource_indicator_failures_total counter",
-            f"mcp_oauth_resource_indicator_failures_total {self.resource_indicator_failures}",
-            "",
-            "# HELP mcp_oauth_audience_validation_failures_total Audience validation failures",
-            "# TYPE mcp_oauth_audience_validation_failures_total counter",
-            f"mcp_oauth_audience_validation_failures_total {self.audience_validation_failures}",
-            "",
-            "# HELP mcp_oauth_token_revocation_checks_total Token revocation checks",
-            "# TYPE mcp_oauth_token_revocation_checks_total counter",
-            f"mcp_oauth_token_revocation_checks_total {self.token_revocation_checks}",
-            "",
-            "# HELP mcp_oauth_jwks_cache_hits_total JWKS cache hits",
-            "# TYPE mcp_oauth_jwks_cache_hits_total counter",
-            f"mcp_oauth_jwks_cache_hits_total {self.jwks_cache_hits}",
-            "",
-            "# HELP mcp_oauth_jwks_cache_misses_total JWKS cache misses",
-            "# TYPE mcp_oauth_jwks_cache_misses_total counter",
-            f"mcp_oauth_jwks_cache_misses_total {self.jwks_cache_misses}",
-            "",
-            "# HELP mcp_protocol_header_validations_total MCP-Protocol-Version header validation attempts",
-            "# TYPE mcp_protocol_header_validations_total counter",
-            f"mcp_protocol_header_validations_total {self.mcp_header_validation_attempts}",
-            "",
-            "# HELP mcp_protocol_header_validation_failures_total MCP-Protocol-Version header validation failures",
-            "# TYPE mcp_protocol_header_validation_failures_total counter",
-            f"mcp_protocol_header_validation_failures_total {self.mcp_header_validation_failures}",
-            "",
-            "# HELP mcp_protocol_header_validation_successes_total MCP-Protocol-Version header validation successes",
-            "# TYPE mcp_protocol_header_validation_successes_total counter",
-            f"mcp_protocol_header_validation_successes_total {self.mcp_header_validation_successes}",
-            "",
-            "# HELP mcp_registry_health_checks_total Registry health checks performed",
-            "# TYPE mcp_registry_health_checks_total counter",
-            f"mcp_registry_health_checks_total {self.registry_health_checks}",
-            "",
-            "# HELP mcp_registry_mode_info Registry mode information",
-            "# TYPE mcp_registry_mode_info gauge",
-            f'mcp_registry_mode_info{{mode="{REGISTRY_MODE}"}} 1',
-            "",
-            "# HELP mcp_protocol_version_info MCP Protocol Version information",
-            "# TYPE mcp_protocol_version_info gauge",
-            f'mcp_protocol_version_info{{version="{MCP_PROTOCOL_VERSION}"}} 1',
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_oauth_validations_total Total OAuth token validations",
+                "# TYPE mcp_oauth_validations_total counter",
+                f"mcp_oauth_validations_total {self.oauth_token_validations}",
+                "",
+                "# HELP mcp_oauth_validation_errors_total OAuth validation errors",
+                "# TYPE mcp_oauth_validation_errors_total counter",
+                f"mcp_oauth_validation_errors_total {self.oauth_validation_errors}",
+                "",
+                "# HELP mcp_oauth_pkce_validation_attempts_total PKCE validation attempts",
+                "# TYPE mcp_oauth_pkce_validation_attempts_total counter",
+                f"mcp_oauth_pkce_validation_attempts_total {self.pkce_validation_attempts}",
+                "",
+                "# HELP mcp_oauth_pkce_validation_failures_total PKCE validation failures",
+                "# TYPE mcp_oauth_pkce_validation_failures_total counter",
+                f"mcp_oauth_pkce_validation_failures_total {self.pkce_validation_failures}",
+                "",
+                "# HELP mcp_oauth_resource_indicator_validations_total Resource indicator validations",
+                "# TYPE mcp_oauth_resource_indicator_validations_total counter",
+                f"mcp_oauth_resource_indicator_validations_total {self.resource_indicator_validations}",
+                "",
+                "# HELP mcp_oauth_resource_indicator_failures_total Resource indicator validation failures",
+                "# TYPE mcp_oauth_resource_indicator_failures_total counter",
+                f"mcp_oauth_resource_indicator_failures_total {self.resource_indicator_failures}",
+                "",
+                "# HELP mcp_oauth_audience_validation_failures_total Audience validation failures",
+                "# TYPE mcp_oauth_audience_validation_failures_total counter",
+                f"mcp_oauth_audience_validation_failures_total {self.audience_validation_failures}",
+                "",
+                "# HELP mcp_oauth_token_revocation_checks_total Token revocation checks",
+                "# TYPE mcp_oauth_token_revocation_checks_total counter",
+                f"mcp_oauth_token_revocation_checks_total {self.token_revocation_checks}",
+                "",
+                "# HELP mcp_oauth_jwks_cache_hits_total JWKS cache hits",
+                "# TYPE mcp_oauth_jwks_cache_hits_total counter",
+                f"mcp_oauth_jwks_cache_hits_total {self.jwks_cache_hits}",
+                "",
+                "# HELP mcp_oauth_jwks_cache_misses_total JWKS cache misses",
+                "# TYPE mcp_oauth_jwks_cache_misses_total counter",
+                f"mcp_oauth_jwks_cache_misses_total {self.jwks_cache_misses}",
+                "",
+                "# HELP mcp_protocol_header_validations_total MCP-Protocol-Version header validation attempts",
+                "# TYPE mcp_protocol_header_validations_total counter",
+                f"mcp_protocol_header_validations_total {self.mcp_header_validation_attempts}",
+                "",
+                "# HELP mcp_protocol_header_validation_failures_total MCP-Protocol-Version header validation failures",
+                "# TYPE mcp_protocol_header_validation_failures_total counter",
+                f"mcp_protocol_header_validation_failures_total {self.mcp_header_validation_failures}",
+                "",
+                "# HELP mcp_protocol_header_validation_successes_total MCP-Protocol-Version header validation successes",
+                "# TYPE mcp_protocol_header_validation_successes_total counter",
+                f"mcp_protocol_header_validation_successes_total {self.mcp_header_validation_successes}",
+                "",
+                "# HELP mcp_registry_health_checks_total Registry health checks performed",
+                "# TYPE mcp_registry_health_checks_total counter",
+                f"mcp_registry_health_checks_total {self.registry_health_checks}",
+                "",
+                "# HELP mcp_registry_mode_info Registry mode information",
+                "# TYPE mcp_registry_mode_info gauge",
+                f'mcp_registry_mode_info{{mode="{REGISTRY_MODE}"}} 1',
+                "",
+                "# HELP mcp_protocol_version_info MCP Protocol Version information",
+                "# TYPE mcp_protocol_version_info gauge",
+                f'mcp_protocol_version_info{{version="{MCP_PROTOCOL_VERSION}"}} 1',
+            ]
+        )
 
         # Schema Registry specific metrics
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_operations_total Total schema registry operations by type",
-            "# TYPE mcp_schema_registry_operations_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_operations_total Total schema registry operations by type",
+                "# TYPE mcp_schema_registry_operations_total counter",
+            ]
+        )
 
         for operation, count in self.schema_operations.items():
             metrics.append(
                 f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_operations_by_registry_total Operations by registry",
-            "# TYPE mcp_schema_registry_operations_by_registry_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_operations_by_registry_total Operations by registry",
+                "# TYPE mcp_schema_registry_operations_by_registry_total counter",
+            ]
+        )
 
         for registry, count in self.registry_operations.items():
             metrics.append(
                 f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_errors_total Registry operation errors",
-            "# TYPE mcp_schema_registry_errors_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_errors_total Registry operation errors",
+                "# TYPE mcp_schema_registry_errors_total counter",
+            ]
+        )
 
         for registry, count in self.registry_errors.items():
             metrics.append(
                 f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_response_time_seconds Registry response times",
-            "# TYPE mcp_schema_registry_response_time_seconds histogram",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_response_time_seconds Registry response times",
+                "# TYPE mcp_schema_registry_response_time_seconds histogram",
+            ]
+        )
 
         for registry, times in self.registry_response_times.items():
             if times:
@@ -410,33 +426,39 @@ class RemoteMCPMetrics:
                     f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}'
                 )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_registrations_total Schema registrations by registry",
-            "# TYPE mcp_schema_registry_registrations_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_registrations_total Schema registrations by registry",
+                "# TYPE mcp_schema_registry_registrations_total counter",
+            ]
+        )
 
         for registry, count in self.schema_registrations.items():
             metrics.append(
                 f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_compatibility_checks_total Compatibility checks by registry",
-            "# TYPE mcp_schema_registry_compatibility_checks_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_compatibility_checks_total Compatibility checks by registry",
+                "# TYPE mcp_schema_registry_compatibility_checks_total counter",
+            ]
+        )
 
         for registry, count in self.schema_compatibility_checks.items():
             metrics.append(
                 f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_exports_total Schema exports by registry",
-            "# TYPE mcp_schema_registry_exports_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_exports_total Schema exports by registry",
+                "# TYPE mcp_schema_registry_exports_total counter",
+            ]
+        )
 
         for registry, count in self.schema_exports.items():
             metrics.append(
@@ -446,44 +468,52 @@ class RemoteMCPMetrics:
         # Current registry statistics (from cache)
         registry_stats = self.get_registry_stats()
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_subjects Current number of subjects per registry",
-            "# TYPE mcp_schema_registry_subjects gauge",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_subjects Current number of subjects per registry",
+                "# TYPE mcp_schema_registry_subjects gauge",
+            ]
+        )
 
         for registry, stats in registry_stats.items():
             metrics.append(
                 f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_schemas Current number of schemas per registry",
-            "# TYPE mcp_schema_registry_schemas gauge",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_schemas Current number of schemas per registry",
+                "# TYPE mcp_schema_registry_schemas gauge",
+            ]
+        )
 
         for registry, stats in registry_stats.items():
             metrics.append(
                 f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_contexts Current number of contexts per registry",
-            "# TYPE mcp_schema_registry_contexts gauge",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_contexts Current number of contexts per registry",
+                "# TYPE mcp_schema_registry_contexts gauge",
+            ]
+        )
 
         for registry, stats in registry_stats.items():
             metrics.append(
                 f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_status Registry health status (1=healthy, 0=unhealthy)",
-            "# TYPE mcp_schema_registry_status gauge",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_status Registry health status (1=healthy, 0=unhealthy)",
+                "# TYPE mcp_schema_registry_status gauge",
+            ]
+        )
 
         for registry, stats in registry_stats.items():
             status_value = 1 if stats.get("status") == "healthy" else 0
@@ -491,11 +521,13 @@ class RemoteMCPMetrics:
                 f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}'
             )
 
-        metrics.extend([
-            "",
-            "# HELP mcp_schema_registry_context_operations_total Operations by context",
-            "# TYPE mcp_schema_registry_context_operations_total counter",
-        ])
+        metrics.extend(
+            [
+                "",
+                "# HELP mcp_schema_registry_context_operations_total Operations by context",
+                "# TYPE mcp_schema_registry_context_operations_total counter",
+            ]
+        )
 
         for context_key, count in self.context_operations.items():
             if "_" in context_key:
@@ -520,12 +552,15 @@ def get_security_headers() -> dict:
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Cache-Control": "no-store, no-cache, must-revalidate",
         "Pragma": "no-cache",
-        "Strict-Transport-Security": "max-age=31536000; includeSubDomains" 
-            if os.getenv("TLS_ENABLED", "false").lower() == "true" else "",
+        "Strict-Transport-Security": (
+            "max-age=31536000; includeSubDomains"
+            if os.getenv("TLS_ENABLED", "false").lower() == "true"
+            else ""
+        ),
         "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none';",
         "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
         "OAuth-Version": "2.1",
-        "MCP-Specification": "MCP 2025-06-18"
+        "MCP-Specification": "MCP 2025-06-18",
     }
 
 
@@ -554,8 +589,8 @@ async def health_check(request):
                     "resource_indicators": True,
                     "audience_validation": True,
                     "token_binding": True,
-                    "revocation_checking": True
-                }
+                    "revocation_checking": True,
+                },
             },
         }
 
@@ -641,7 +676,7 @@ async def health_check(request):
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": str(e),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                "oauth_2_1_compliant": True
+                "oauth_2_1_compliant": True,
             },
             status_code=503,
             headers=security_headers,
@@ -699,7 +734,7 @@ async def readiness_check(request):
                 "timestamp": datetime.utcnow().isoformat(),
                 "uptime_seconds": metrics.get_uptime(),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                "oauth_2_1_compliant": True
+                "oauth_2_1_compliant": True,
             },
             headers=security_headers,
         )
@@ -713,7 +748,7 @@ async def readiness_check(request):
                 "status": "not_ready",
                 "error": str(e),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                "oauth_2_1_compliant": True
+                "oauth_2_1_compliant": True,
             },
             status_code=503,
             headers=security_headers,
@@ -724,7 +759,7 @@ async def readiness_check(request):
 async def oauth_authorization_server_metadata(request):
     """
     OAuth 2.1 Authorization Server Metadata (RFC 8414) - FIXED ENDPOINT PATH.
-    
+
     This endpoint provides OAuth 2.1 compliant authorization server metadata
     with mandatory PKCE support and other OAuth 2.1 features.
     """
@@ -805,13 +840,14 @@ async def oauth_authorization_server_metadata(request):
             "authorization_endpoint": provider_config.get("authorization_endpoint"),
             "token_endpoint": provider_config.get("token_endpoint"),
             "jwks_uri": provider_config.get("jwks_uri"),
-            "token_introspection_endpoint": provider_config.get("token_introspection_endpoint"),
+            "token_introspection_endpoint": provider_config.get(
+                "token_introspection_endpoint"
+            ),
             "revocation_endpoint": provider_config.get("revocation_endpoint"),
-            
             # OAuth 2.1 required features
             "scopes_supported": [
                 "read",
-                "write", 
+                "write",
                 "admin",
                 "openid",
                 "email",
@@ -824,17 +860,15 @@ async def oauth_authorization_server_metadata(request):
                 "client_secret_post",
                 "private_key_jwt",  # OAuth 2.1 enhancement
             ],
-            
             # PKCE (mandatory in OAuth 2.1)
             "code_challenge_methods_supported": ["S256"],  # Only S256 in OAuth 2.1
             "require_pkce": True,  # Mandatory per OAuth 2.1
-            
             # OAuth 2.1 security enhancements
             "subject_types_supported": ["public"],
             "id_token_signing_alg_values_supported": ["RS256", "ES256"],
             "claims_supported": [
                 "sub",
-                "iss", 
+                "iss",
                 "aud",
                 "exp",
                 "iat",
@@ -843,23 +877,19 @@ async def oauth_authorization_server_metadata(request):
                 "preferred_username",
                 "groups",
             ],
-            
             # Resource indicators support (RFC 8707)
             "resource_documentation": f"{base_url}/.well-known/oauth-protected-resource",
             "resource_indicators_supported": True,
-            
             # Token introspection (RFC 7662)
             "introspection_endpoint_auth_methods_supported": [
                 "client_secret_basic",
                 "client_secret_post",
             ],
-            
             # Token revocation (RFC 7009)
             "revocation_endpoint_auth_methods_supported": [
-                "client_secret_basic", 
+                "client_secret_basic",
                 "client_secret_post",
             ],
-            
             # MCP-specific extensions
             "mcp_server_version": "2.0.0",
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
@@ -875,7 +905,6 @@ async def oauth_authorization_server_metadata(request):
                 "jsonrpc_batching_disabled": True,
                 "oauth_2_1_compliant": True,
             },
-            
             # OAuth 2.1 version indicator
             "oauth_version": "2.1",
             "oauth_2_1_features": {
@@ -883,19 +912,21 @@ async def oauth_authorization_server_metadata(request):
                 "implicit_flow_disabled": True,
                 "resource_indicators": True,
                 "token_binding": True,
-                "enhanced_security": True
-            }
+                "enhanced_security": True,
+            },
         }
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}
 
         security_headers = get_security_headers()
-        security_headers.update({
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=3600",
-        })
+        security_headers.update(
+            {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=3600",
+            }
+        )
 
         return JSONResponse(
             metadata,
@@ -911,7 +942,7 @@ async def oauth_authorization_server_metadata(request):
         return JSONResponse(
             {
                 "error": "Failed to generate OAuth metadata",
-                "oauth_2_1_compliant": False
+                "oauth_2_1_compliant": False,
             },
             status_code=500,
             headers=security_headers,
@@ -922,7 +953,7 @@ async def oauth_authorization_server_metadata(request):
 async def oauth_protected_resource_metadata(request):
     """
     OAuth 2.0 Protected Resource Metadata (RFC 8692) - Enhanced for OAuth 2.1.
-    
+
     This endpoint provides comprehensive resource server metadata including
     OAuth 2.1 features like resource indicators and enhanced security.
     """
@@ -966,10 +997,11 @@ async def oauth_protected_resource_metadata(request):
         resource_indicators = []
         if os.getenv("RESOURCE_INDICATORS"):
             resource_indicators = [
-                url.strip() for url in os.getenv("RESOURCE_INDICATORS").split(",") 
+                url.strip()
+                for url in os.getenv("RESOURCE_INDICATORS").split(",")
                 if url.strip()
             ]
-        
+
         # Default resource indicator is our server URL
         if not resource_indicators:
             resource_indicators = [base_url]
@@ -982,11 +1014,9 @@ async def oauth_protected_resource_metadata(request):
             "jwks_uri": f"{base_url}/.well-known/jwks.json",
             "bearer_methods_supported": ["header"],  # Only header method per OAuth 2.1
             "resource_documentation": f"{base_url}/docs",
-            
             # Resource indicators (RFC 8707)
             "resource_indicators": resource_indicators,
             "resource_indicators_supported": True,
-            
             # Scopes and permissions
             "scopes_supported": ["read", "write", "admin"],
             "scope_descriptions": {
@@ -994,13 +1024,15 @@ async def oauth_protected_resource_metadata(request):
                 "write": "Can register schemas, update configs (includes read permissions)",
                 "admin": "Can delete subjects, manage registries (includes write and read permissions)",
             },
-            
             # Audience validation
             "audience_supported": True,
             "audience_values": [base_url] + resource_indicators,
-            
             # Token validation methods
-            "token_validation_methods": ["jwt", "introspection"] if auth_provider != "github" else ["api_validation"],
+            "token_validation_methods": (
+                ["jwt", "introspection"]
+                if auth_provider != "github"
+                else ["api_validation"]
+            ),
             "token_introspection_endpoint": (
                 f"{authorization_server}/introspect"
                 if auth_provider not in ["github"]
@@ -1011,7 +1043,6 @@ async def oauth_protected_resource_metadata(request):
                 if auth_provider not in ["github"]
                 else None
             ),
-            
             # OAuth 2.1 security features
             "oauth_version": "2.1",
             "oauth_2_1_features": {
@@ -1020,12 +1051,12 @@ async def oauth_protected_resource_metadata(request):
                 "audience_validation": True,
                 "token_binding_support": True,
                 "enhanced_token_validation": True,
-                "implicit_flow_disabled": True
+                "implicit_flow_disabled": True,
             },
-            
             # Token binding (if supported)
-            "token_binding_methods_supported": ["tls-server-end-point"] if scheme == "https" else [],
-            
+            "token_binding_methods_supported": (
+                ["tls-server-end-point"] if scheme == "https" else []
+            ),
             # MCP-specific resource information
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
@@ -1041,14 +1072,12 @@ async def oauth_protected_resource_metadata(request):
                     "oauth_2_1_compliant": True,
                 },
             },
-            
             # Protected endpoints requiring OAuth
             "protected_endpoints": {
                 "mcp": f"{base_url}/mcp",
                 "tools": f"{base_url}/mcp",
                 "resources": f"{base_url}/mcp",
             },
-            
             # Public endpoints (no OAuth required)
             "public_endpoints": {
                 "health": f"{base_url}/health",
@@ -1057,49 +1086,48 @@ async def oauth_protected_resource_metadata(request):
                 "resource_metadata": f"{base_url}/.well-known/oauth-protected-resource",
                 "jwks": f"{base_url}/.well-known/jwks.json",
             },
-            
             # PKCE requirements (mandatory per OAuth 2.1)
             "require_pkce": True,
             "pkce_code_challenge_methods": ["S256"],  # Only S256 in OAuth 2.1
             "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows per OAuth 2.1",
-            
             # MCP Protocol Version requirements
             "mcp_protocol_requirements": {
                 "required_header": "MCP-Protocol-Version",
                 "supported_versions": [MCP_PROTOCOL_VERSION],
                 "header_validation": "Enforced for all MCP endpoints",
             },
-            
             # Security policies
             "security_policies": {
                 "token_lifetime_max": 3600,  # 1 hour max
                 "refresh_token_rotation": True,
                 "scope_validation": "strict",
                 "audience_validation": "mandatory",
-                "resource_indicator_validation": "enabled"
+                "resource_indicator_validation": "enabled",
             },
-            
             # Supported algorithms
             "token_signing_alg_values_supported": ["RS256", "ES256"],
-            "token_encryption_alg_values_supported": ["RSA-OAEP", "A256KW"] if scheme == "https" else [],
-            
+            "token_encryption_alg_values_supported": (
+                ["RSA-OAEP", "A256KW"] if scheme == "https" else []
+            ),
             # Error handling
             "error_uris": {
                 "invalid_token": f"{base_url}/docs/errors#invalid_token",
                 "insufficient_scope": f"{base_url}/docs/errors#insufficient_scope",
-                "invalid_audience": f"{base_url}/docs/errors#invalid_audience"
-            }
+                "invalid_audience": f"{base_url}/docs/errors#invalid_audience",
+            },
         }
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}
 
         security_headers = get_security_headers()
-        security_headers.update({
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=3600",
-        })
+        security_headers.update(
+            {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=3600",
+            }
+        )
 
         return JSONResponse(
             metadata,
@@ -1115,7 +1143,7 @@ async def oauth_protected_resource_metadata(request):
         return JSONResponse(
             {
                 "error": "Failed to generate protected resource metadata",
-                "oauth_2_1_compliant": False
+                "oauth_2_1_compliant": False,
             },
             status_code=500,
             headers=security_headers,
@@ -1156,23 +1184,25 @@ async def jwks_endpoint(request):
 
             try:
                 metrics.record_oauth_2_1_validation("jwks_miss", True)
-                
+
                 async with aiohttp.ClientSession() as session:
                     async with session.get(jwks_url, timeout=10) as response:
                         if response.status == 200:
                             jwks_data = await response.json()
-                            
+
                             # Add OAuth 2.1 compliance information
                             jwks_data["oauth_2_1_compliant"] = True
                             jwks_data["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
-                            
+
                             security_headers = get_security_headers()
-                            security_headers.update({
-                                "Content-Type": "application/json",
-                                "Access-Control-Allow-Origin": "*",
-                                "Cache-Control": "public, max-age=3600",
-                            })
-                            
+                            security_headers.update(
+                                {
+                                    "Content-Type": "application/json",
+                                    "Access-Control-Allow-Origin": "*",
+                                    "Cache-Control": "public, max-age=3600",
+                                }
+                            )
+
                             return JSONResponse(
                                 jwks_data,
                                 headers=security_headers,
@@ -1182,10 +1212,12 @@ async def jwks_endpoint(request):
 
         # Fallback: return empty JWKS with OAuth 2.1 compliance info
         security_headers = get_security_headers()
-        security_headers.update({
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-        })
+        security_headers.update(
+            {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
 
         return JSONResponse(
             {
@@ -1193,7 +1225,7 @@ async def jwks_endpoint(request):
                 "note": f"JWKS available at provider endpoint: {jwks_url}",
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
-                "provider": auth_provider
+                "provider": auth_provider,
             },
             headers=security_headers,
         )
@@ -1209,7 +1241,7 @@ async def jwks_endpoint(request):
                 "keys": [],
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": False,
-                "error": str(e)
+                "error": str(e),
             },
             status_code=500,
             headers=security_headers,
@@ -1247,7 +1279,7 @@ def main():
     metrics_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/metrics"
     oauth_metadata_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/.well-known/oauth-authorization-server"
     resource_metadata_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/.well-known/oauth-protected-resource"
-    
+
     logger.info(f"🏥 Health Check URL: {health_url}")
     logger.info(f"📊 Metrics URL: {metrics_url}")
     logger.info(f"🔐 OAuth Metadata URL: {oauth_metadata_url}")

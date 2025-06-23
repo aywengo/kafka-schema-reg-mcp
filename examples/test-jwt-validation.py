@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-JWT Validation Test for OAuth Providers
+JWT Validation Test for OAuth 2.1 Providers
 
 This script demonstrates how to configure and test JWT token validation
-for Azure AD, Google, Keycloak, and Okta providers.
+using the generic OAuth 2.1 discovery approach that works with any
+OAuth 2.1 compliant provider.
 
 Usage:
-    python examples/test-jwt-validation.py [provider] [token]
+    python examples/test-jwt-validation.py [issuer_url] [audience] [token]
 
 Examples:
-    python examples/test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
-    python examples/test-jwt-validation.py google "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."
-    python examples/test-jwt-validation.py auto "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+    python examples/test-jwt-validation.py "https://login.microsoftonline.com/tenant-id/v2.0" "your-client-id" "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+    python examples/test-jwt-validation.py "https://accounts.google.com" "client-id.apps.googleusercontent.com" "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."
+    python examples/test-jwt-validation.py "https://your-domain.okta.com/oauth2/default" "api://your-api" "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
 """
 
 import asyncio
@@ -25,71 +26,24 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["ENABLE_AUTH"] = "true"
 
 
-def setup_azure_config():
-    """Configure environment for Azure AD JWT validation."""
+def setup_oauth21_config(issuer_url: str, audience: str):
+    """Configure environment for OAuth 2.1 generic discovery."""
     os.environ.update(
         {
-            "AUTH_PROVIDER": "azure",
-            "AUTH_ISSUER_URL": "https://login.microsoftonline.com/your-tenant-id/v2.0",
-            "AZURE_TENANT_ID": "your-tenant-id",
-            "AUTH_AUDIENCE": "api://your-app-id",
+            "AUTH_ISSUER_URL": issuer_url,
+            "AUTH_AUDIENCE": audience,
             "AUTH_VALID_SCOPES": "read,write,admin",
-        }
-    )
-
-
-def setup_google_config():
-    """Configure environment for Google OAuth JWT validation."""
-    os.environ.update(
-        {
-            "AUTH_PROVIDER": "google",
-            "AUTH_ISSUER_URL": "https://accounts.google.com",
-            "AUTH_AUDIENCE": "your-client-id.apps.googleusercontent.com",
-            "AUTH_VALID_SCOPES": "read,write,admin",
-        }
-    )
-
-
-def setup_keycloak_config():
-    """Configure environment for Keycloak JWT validation."""
-    os.environ.update(
-        {
-            "AUTH_PROVIDER": "keycloak",
-            "AUTH_ISSUER_URL": "https://keycloak.company.com/realms/production",
-            "KEYCLOAK_REALM": "production",
-            "AUTH_AUDIENCE": "mcp-client",
-            "AUTH_VALID_SCOPES": "read,write,admin",
-        }
-    )
-
-
-def setup_okta_config():
-    """Configure environment for Okta JWT validation."""
-    os.environ.update(
-        {
-            "AUTH_PROVIDER": "okta",
-            "AUTH_ISSUER_URL": "https://your-domain.okta.com/oauth2/default",
-            "OKTA_DOMAIN": "your-domain.okta.com",
-            "AUTH_AUDIENCE": "api://mcp-schema-registry",
-            "AUTH_VALID_SCOPES": "read,write,admin",
-        }
-    )
-
-
-def setup_auto_config():
-    """Configure environment for automatic provider detection."""
-    os.environ.update(
-        {
-            "AUTH_PROVIDER": "auto",
-            "AUTH_VALID_SCOPES": "read,write,admin",
+            "AUTH_DEFAULT_SCOPES": "read",
+            "AUTH_REQUIRED_SCOPES": "read",
+            "REQUIRE_PKCE": "true",
             "JWKS_CACHE_TTL": "300",  # 5 minutes for testing
         }
     )
 
 
-async def test_jwt_validation(provider: str, token: str):
-    """Test JWT validation for a specific provider."""
-    print(f"🔐 Testing JWT Validation for {provider.upper()}")
+async def test_jwt_validation(issuer_url: str, audience: str, token: str):
+    """Test JWT validation using OAuth 2.1 generic discovery."""
+    print(f"🚀 Testing OAuth 2.1 JWT Validation")
     print("=" * 60)
 
     try:
@@ -100,29 +54,17 @@ async def test_jwt_validation(provider: str, token: str):
             print("Install with: pip install PyJWT aiohttp cryptography")
             return False
 
-        # Setup provider-specific configuration
-        if provider == "azure":
-            setup_azure_config()
-        elif provider == "google":
-            setup_google_config()
-        elif provider == "keycloak":
-            setup_keycloak_config()
-        elif provider == "okta":
-            setup_okta_config()
-        elif provider == "auto":
-            setup_auto_config()
-        else:
-            print(f"❌ Unknown provider: {provider}")
-            return False
+        # Setup OAuth 2.1 generic configuration
+        setup_oauth21_config(issuer_url, audience)
 
         # Initialize OAuth provider
         oauth_provider = KafkaSchemaRegistryOAuthProvider()
 
         # Test JWT validation
         print(f"📝 Token (first 50 chars): {token[:50]}...")
-        print(f"🔧 Provider: {os.getenv('AUTH_PROVIDER')}")
-        print(f"🌐 Issuer: {os.getenv('AUTH_ISSUER_URL')}")
-        print(f"👥 Audience: {os.getenv('AUTH_AUDIENCE')}")
+        print(f"🌐 Issuer URL: {issuer_url}")
+        print(f"👥 Audience: {audience}")
+        print(f"🔍 Discovery: Using OAuth 2.1 RFC 8414 discovery")
         print()
 
         # Validate the token
@@ -160,6 +102,7 @@ async def test_jwt_validation(provider: str, token: str):
             print("   • Wrong issuer or audience")
             print("   • Malformed token")
             print("   • Network error fetching JWKS")
+            print("   • OAuth 2.1 discovery failed")
             return False
 
     except ImportError:
@@ -170,61 +113,121 @@ async def test_jwt_validation(provider: str, token: str):
         return False
 
 
-def print_configuration_examples():
-    """Print configuration examples for each provider."""
-    print("🔧 JWT Validation Configuration Examples")
+def print_oauth21_examples():
+    """Print OAuth 2.1 configuration examples for various providers."""
+    print("🚀 OAuth 2.1 Generic Configuration Examples")
     print("=" * 60)
 
-    examples = {
-        "Azure AD": {
-            "AUTH_PROVIDER": "azure",
-            "AZURE_TENANT_ID": "your-tenant-id",
-            "AUTH_ISSUER_URL": "https://login.microsoftonline.com/your-tenant-id/v2.0",
-            "AUTH_AUDIENCE": "api://your-app-id",
-            "AUTH_VALID_SCOPES": "read,write,admin",
+    examples = [
+        {
+            "name": "🟦 Azure AD / Entra ID",
+            "issuer_url": "https://login.microsoftonline.com/your-tenant-id/v2.0",
+            "audience": "your-azure-client-id",
+            "description": "Microsoft's enterprise identity platform",
         },
-        "Google OAuth": {
-            "AUTH_PROVIDER": "google",
-            "AUTH_ISSUER_URL": "https://accounts.google.com",
-            "AUTH_AUDIENCE": "your-client-id.apps.googleusercontent.com",
-            "AUTH_VALID_SCOPES": "read,write,admin",
+        {
+            "name": "🟨 Google OAuth 2.0",
+            "issuer_url": "https://accounts.google.com",
+            "audience": "your-client-id.apps.googleusercontent.com",
+            "description": "Google's identity and access management",
         },
-        "Keycloak": {
-            "AUTH_PROVIDER": "keycloak",
-            "AUTH_ISSUER_URL": "https://keycloak.company.com/realms/production",
-            "KEYCLOAK_REALM": "production",
-            "AUTH_AUDIENCE": "mcp-client",
-            "AUTH_VALID_SCOPES": "read,write,admin",
+        {
+            "name": "🟥 Keycloak",
+            "issuer_url": "https://your-keycloak-server.com/realms/your-realm",
+            "audience": "your-keycloak-client-id",
+            "description": "Open-source identity and access management",
         },
-        "Okta": {
-            "AUTH_PROVIDER": "okta",
-            "OKTA_DOMAIN": "your-domain.okta.com",
-            "AUTH_ISSUER_URL": "https://your-domain.okta.com/oauth2/default",
-            "AUTH_AUDIENCE": "api://mcp-schema-registry",
-            "AUTH_VALID_SCOPES": "read,write,admin",
+        {
+            "name": "🟧 Okta",
+            "issuer_url": "https://your-domain.okta.com/oauth2/default",
+            "audience": "api://your-api-identifier",
+            "description": "Enterprise identity and access management",
         },
-    }
+        {
+            "name": "⚫ GitHub (Limited Support)",
+            "issuer_url": "https://github.com",
+            "audience": "your-github-client-id",
+            "description": "GitHub OAuth with automatic fallback configuration",
+        },
+        {
+            "name": "🟪 Any OAuth 2.1 Provider",
+            "issuer_url": "https://your-oauth-provider.com",
+            "audience": "your-client-id-or-api-identifier",
+            "description": "Any RFC 8414 compliant OAuth 2.1 provider",
+        },
+    ]
 
-    for provider, config in examples.items():
-        print(f"\n🔵 {provider} Configuration:")
-        for key, value in config.items():
-            print(f"   export {key}={value}")
+    for example in examples:
+        print(f"\n{example['name']} - {example['description']}")
+        print(f"   Issuer URL: {example['issuer_url']}")
+        print(f"   Audience: {example['audience']}")
+        print(f"   Environment Variables:")
+        print(f"     export AUTH_ISSUER_URL=\"{example['issuer_url']}\"")
+        print(f"     export AUTH_AUDIENCE=\"{example['audience']}\"")
+
+
+def print_oauth21_benefits():
+    """Print the benefits of OAuth 2.1 generic discovery."""
+    print("\n🎯 Benefits of OAuth 2.1 Generic Discovery")
+    print("=" * 60)
+
+    print(
+        """
+🚀 Simplified Configuration:
+   - 75% fewer environment variables (2 vs 8+ per provider)
+   - No provider-specific knowledge required
+   - Universal configuration works with any OAuth 2.1 provider
+
+🔮 Future-Proof Architecture:
+   - New providers work automatically without code changes
+   - Standards-based approach using RFC 8414 discovery
+   - Automatic endpoint updates when providers change URLs
+
+🛡️ Enhanced Security:
+   - OAuth 2.1 compliance with PKCE, Resource Indicators
+   - Automatic security feature detection from discovery metadata
+   - Better token validation with proper audience checking
+
+🔧 Easier Maintenance:
+   - No provider-specific bugs to fix
+   - Reduced complexity in codebase (~75% less provider code)
+   - Self-healing configuration via discovery refresh
+"""
+    )
 
 
 def print_production_deployment():
-    """Print production deployment examples."""
-    print("\n🚀 Production Deployment Examples")
+    """Print production deployment examples using OAuth 2.1."""
+    print("\n🚀 Production Deployment Examples (OAuth 2.1)")
     print("=" * 60)
 
     print("\n📦 Docker Deployment:")
     print(
         """
+# Azure AD
 docker run -d \\
   -e ENABLE_AUTH=true \\
-  -e AUTH_PROVIDER=azure \\
-  -e AZURE_TENANT_ID=your-tenant-id \\
-  -e AUTH_AUDIENCE=api://your-app-id \\
-  -e AUTH_VALID_SCOPES=read,write,admin \\
+  -e AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0" \\
+  -e AUTH_AUDIENCE="your-azure-client-id" \\
+  -e AUTH_VALID_SCOPES="read,write,admin" \\
+  -p 8000:8000 \\
+  aywengo/kafka-schema-reg-mcp:stable
+
+# Google OAuth 2.0
+docker run -d \\
+  -e ENABLE_AUTH=true \\
+  -e AUTH_ISSUER_URL="https://accounts.google.com" \\
+  -e AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com" \\
+  -e AUTH_VALID_SCOPES="read,write,admin" \\
+  -p 8000:8000 \\
+  aywengo/kafka-schema-reg-mcp:stable
+
+# Any OAuth 2.1 Provider
+docker run -d \\
+  -e ENABLE_AUTH=true \\
+  -e AUTH_ISSUER_URL="https://your-oauth-provider.com" \\
+  -e AUTH_AUDIENCE="your-client-id-or-api-identifier" \\
+  -e AUTH_VALID_SCOPES="read,write,admin" \\
   -p 8000:8000 \\
   aywengo/kafka-schema-reg-mcp:stable
 """
@@ -233,105 +236,111 @@ docker run -d \\
     print("\n☸️  Kubernetes Deployment:")
     print(
         """
-# Create secret with OAuth configuration
-kubectl create secret generic mcp-oauth-config \\
-  --from-literal=AUTH_PROVIDER=azure \\
-  --from-literal=AZURE_TENANT_ID=your-tenant-id \\
-  --from-literal=AUTH_AUDIENCE=api://your-app-id
+# Create secret with OAuth 2.1 configuration
+kubectl create secret generic mcp-oauth21-config \\
+  --from-literal=AUTH_ISSUER_URL="https://your-oauth-provider.com" \\
+  --from-literal=AUTH_AUDIENCE="your-client-id"
 
 # Deploy with Helm
 helm upgrade --install mcp-server ./helm \\
-  --set oauth.enabled=true \\
-  --set oauth.provider=azure \\
-  --set-string oauth.configSecret=mcp-oauth-config
+  --set auth.enabled=true \\
+  --set auth.oauth2.issuerUrl="https://your-oauth-provider.com" \\
+  --set auth.oauth2.audience="your-client-id" \\
+  --set-string auth.existingSecret.name=mcp-oauth21-config
 """
     )
 
 
 def print_testing_guide():
-    """Print testing guide for JWT validation."""
-    print("\n🧪 Testing Guide")
+    """Print testing guide for OAuth 2.1 JWT validation."""
+    print("\n🧪 Testing Guide (OAuth 2.1)")
     print("=" * 60)
 
     print(
         """
-1. **Get a real JWT token from your OAuth provider:**
+1. **Test OAuth 2.1 Discovery:**
+   
+   # Test discovery endpoint
+   curl https://your-oauth-provider.com/.well-known/oauth-authorization-server | jq
+   
+   # Test MCP server discovery
+   curl http://localhost:8000/.well-known/oauth-authorization-server | jq
+
+2. **Get a real JWT token from your OAuth 2.1 provider:**
    
    Azure AD:
    curl -X POST https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\
-     -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&scope=api://your-app-id/.default"
+     -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&scope=your-client-id/.default"
    
    Google:
-   Use Google OAuth Playground: https://developers.google.com/oauthplayground
+   # Use Google OAuth Playground: https://developers.google.com/oauthplayground
    
    Keycloak:
-   curl -X POST https://keycloak.company.com/realms/production/protocol/openid-connect/token \\
+   curl -X POST https://keycloak.example.com/realms/your-realm/protocol/openid-connect/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\
      -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET"
    
-   Okta:
-   curl -X POST https://your-domain.okta.com/oauth2/default/v1/token \\
+   Any OAuth 2.1 Provider:
+   curl -X POST https://your-oauth-provider.com/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\
-     -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&scope=api://mcp-schema-registry"
+     -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&scope=your-scopes"
 
-2. **Test JWT validation:**
-   python examples/test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+3. **Test JWT validation:**
+   python examples/test-jwt-validation.py "https://your-oauth-provider.com" "your-audience" "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
 
-3. **Use with MCP server:**
+4. **Use with MCP server:**
    curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \\
-     http://localhost:8000/mcp/tools/list_subjects
+     http://localhost:8000/.well-known/oauth-protected-resource
 
-4. **Debug issues:**
-   - Check token expiration: jwt.io
-   - Verify issuer and audience match configuration
-   - Ensure JWKS endpoint is accessible
-   - Check network connectivity and firewalls
+5. **Debug issues:**
+   - Check OAuth 2.1 discovery: /.well-known/oauth-authorization-server
+   - Verify token expiration: jwt.io
+   - Ensure issuer and audience match configuration
+   - Check JWKS endpoint accessibility
+   - Test with MCP discovery endpoint tool
 """
     )
 
 
 async def main():
-    """Main function to run JWT validation tests."""
-    if len(sys.argv) < 2:
-        print("🔐 JWT Validation Test for OAuth Providers")
+    """Main function to run OAuth 2.1 JWT validation tests."""
+    if len(sys.argv) < 4:
+        print("🚀 OAuth 2.1 JWT Validation Test")
         print("=" * 60)
-        print("Usage: python test-jwt-validation.py [provider] [token]")
-        print()
-        print("Providers: azure, google, keycloak, okta, auto")
+        print("Usage: python test-jwt-validation.py [issuer_url] [audience] [token]")
         print()
         print("Examples:")
         print(
-            '   python test-jwt-validation.py azure "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."'
+            '   python test-jwt-validation.py "https://login.microsoftonline.com/tenant-id/v2.0" "your-client-id" "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."'
         )
         print(
-            '   python test-jwt-validation.py auto "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."'
+            '   python test-jwt-validation.py "https://accounts.google.com" "client-id.apps.googleusercontent.com" "eyJhbGciOiJSUzI1NiIsImtpZCI6IjE2NzA..."'
+        )
+        print(
+            '   python test-jwt-validation.py "https://your-domain.okta.com/oauth2/default" "api://your-api" "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."'
         )
         print()
 
-        print_configuration_examples()
+        print_oauth21_examples()
+        print_oauth21_benefits()
         print_production_deployment()
         print_testing_guide()
         return
 
-    provider = sys.argv[1].lower()
-
-    if len(sys.argv) < 3:
-        print(f"❌ Missing JWT token for {provider} provider")
-        print(f'Usage: python test-jwt-validation.py {provider} "YOUR_JWT_TOKEN"')
-        return
-
-    token = sys.argv[2]
+    issuer_url = sys.argv[1]
+    audience = sys.argv[2]
+    token = sys.argv[3]
 
     # Test JWT validation
-    success = await test_jwt_validation(provider, token)
+    success = await test_jwt_validation(issuer_url, audience, token)
 
     if success:
-        print("\n🎉 JWT validation test completed successfully!")
-        print("Ready for production deployment with real JWT tokens.")
+        print("\n🎉 OAuth 2.1 JWT validation test completed successfully!")
+        print("Ready for production deployment with OAuth 2.1 generic discovery.")
     else:
-        print("\n❌ JWT validation test failed.")
-        print("Check configuration and token validity.")
+        print("\n❌ OAuth 2.1 JWT validation test failed.")
+        print("Check OAuth 2.1 discovery endpoint and token validity.")
 
 
 if __name__ == "__main__":

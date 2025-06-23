@@ -13,11 +13,13 @@ This guide helps teams migrate from the current stable version (v1.8.3) to test 
 ## 🔄 Migration Overview
 
 ### What's Changed in v2.0.0
+- **🚀 OAuth 2.1 Generic Discovery**: Major authentication overhaul from provider-specific to universal compatibility
+- **75% Less Configuration**: Simplified from 8+ provider variables to just 2 core variables (`AUTH_ISSUER_URL` + `AUTH_AUDIENCE`)
+- **RFC 8414 Compliance**: Automatic endpoint discovery - no hardcoded provider configurations needed
+- **Enhanced Security**: PKCE enforcement, Resource Indicators (RFC 8707), improved token validation
+- **Future-Proof Architecture**: Works with any OAuth 2.1 compliant provider without code changes
 - **FastMCP 2.8.0+ Framework**: Complete migration from legacy `mcp[cli]==1.9.4`
 - **MCP 2025-06-18 Compliance**: Full support for latest MCP specification
-- **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0
-- **Improved Client API**: Modern FastMCP client interface
-- **Better Performance**: Enhanced reliability and error handling
 
 ### What Stays the Same
 - ✅ **All 48 MCP Tools**: Identical functionality and API
@@ -73,23 +75,70 @@ python tests/diagnose_test_environment.py
    Human: "Test the FastMCP connection"
    ```
 
-## 🔐 OAuth Authentication Testing
+## 🚀 OAuth 2.1 Generic Configuration Testing
 
-### Azure AD Setup (v2.0.0)
+### Simplified Universal Setup (v2.0.0)
 ```bash
-# Configure OAuth environment
+# NEW: Generic OAuth 2.1 - Works with ANY provider!
 export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://your-oauth-provider.com"
+export AUTH_AUDIENCE="your-client-id-or-api-identifier"
+```
+
+### Provider Examples
+
+**Azure AD:**
+```bash
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
+```
+
+**Google OAuth 2.0:**
+```bash
+export AUTH_ISSUER_URL="https://accounts.google.com"
+export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
+```
+
+**Okta:**
+```bash
+export AUTH_ISSUER_URL="https://your-domain.okta.com/oauth2/default"
+export AUTH_AUDIENCE="your-okta-client-id"
+```
+
+**Any OAuth 2.1 Provider:**
+```bash
+export AUTH_ISSUER_URL="https://your-oauth-provider.com"
+export AUTH_AUDIENCE="your-client-id"
+```
+
+### Migration from v1.x Provider-Specific Configuration
+```bash
+# OLD (v1.x) - Deprecated but still works
 export AUTH_PROVIDER=azure
-export AUTH_ISSUER_URL=https://login.microsoftonline.com/YOUR_TENANT/v2.0
-export AZURE_CLIENT_ID=your_client_id
-export AZURE_CLIENT_SECRET=your_client_secret
+export AZURE_TENANT_ID=your-tenant
+export AZURE_CLIENT_ID=your-client-id
+export AZURE_CLIENT_SECRET=your-client-secret
+
+# NEW (v2.x) - Recommended generic approach
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant/v2.0"
+export AUTH_AUDIENCE="your-client-id"
 ```
 
 ### Development Token Testing
 ```bash
-# Test with development tokens
+# Test with development tokens (unchanged)
 export OAUTH_TOKEN="dev-token-read,write,admin"  # Full access
 export OAUTH_TOKEN="dev-token-read"              # Read-only
+```
+
+### Testing OAuth 2.1 Discovery
+```bash
+# Test discovery endpoints (new in v2.0.0)
+curl http://localhost:8000/.well-known/oauth-authorization-server | jq
+curl http://localhost:8000/.well-known/oauth-protected-resource | jq
+
+# MCP tool testing
+"Test the OAuth discovery endpoints and show me what providers are supported"
 ```
 
 ## 🔄 Rolling Back
@@ -114,11 +163,15 @@ python tests/test_mcp_server.py
 |---------|-----------------|-------------------|
 | **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 2.8.0+ |
 | **MCP Specification** | Pre-2025 | ✅ MCP 2025-06-18 |
-| **Authentication** | Basic | ✅ FastMCP BearerAuth + OAuth |
+| **Authentication** | Provider-specific OAuth | ✅ Generic OAuth 2.1 Discovery |
+| **OAuth Configuration** | 8+ variables per provider | ✅ 2 variables (universal) |
+| **OAuth Standards** | Custom implementations | ✅ RFC 8414 + RFC 8692 + RFC 8707 |
+| **Provider Support** | 5 hardcoded providers | ✅ Any OAuth 2.1 compliant provider |
+| **PKCE Enforcement** | Optional | ✅ Mandatory (OAuth 2.1) |
+| **Discovery Endpoints** | None | ✅ Auto-discovery + Fallback |
 | **Client API** | Legacy ClientSession | ✅ Modern FastMCP Client |
 | **Performance** | Standard | ✅ Enhanced |
 | **Error Handling** | Basic | ✅ Improved |
-| **OAuth Providers** | 0 | ✅ 5 (Azure, Google, Keycloak, Okta, GitHub) |
 | **Tools Count** | 48 | 48 (same) |
 | **Configuration** | Same | Same |
 | **Production Ready** | ✅ Yes | ⚠️ Testing Only |

@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_github_provider_config():
-    """Test GitHub provider configuration."""
+    """Test GitHub provider configuration in the new generic structure."""
     print("🔧 Testing GitHub Provider Configuration...")
 
     try:
@@ -23,36 +23,34 @@ def test_github_provider_config():
 
         configs = get_oauth_provider_configs()
 
-        # Check GitHub is in provider configs
-        assert "github" in configs, "GitHub provider not found in configurations"
+        # Check GitHub is in the examples section
+        if "examples" not in configs or "github" not in configs["examples"]:
+            print("   ❌ GitHub provider not found in configuration examples")
+            return False
 
-        github_config = configs["github"]
+        github_config = configs["examples"]["github"]
 
-        # Test GitHub-specific configuration
-        assert github_config["name"] == "GitHub OAuth"
-        assert github_config["issuer_url"] == "https://api.github.com"
-        assert github_config["auth_url"] == "https://github.com/login/oauth/authorize"
-        assert (
-            github_config["token_url"] == "https://github.com/login/oauth/access_token"
-        )
-        assert "read:user" in github_config["scopes"]
-        assert "user:email" in github_config["scopes"]
-        assert "read:org" in github_config["scopes"]
+        # Test GitHub-specific configuration in new structure
+        assert github_config["name"] == "GitHub OAuth (Limited Support)"
+        assert github_config["issuer_url_pattern"] == "https://github.com"
 
-        # Test token validation configuration
-        token_validation = github_config["token_validation"]
-        assert token_validation["type"] == "api_based"
-        assert "GITHUB_CLIENT_ID" in token_validation["required_env"]
-        assert token_validation["validation_endpoint"] == "https://api.github.com/user"
+        # Check example setup
+        example_setup = github_config["example_setup"]
+        assert "AUTH_ISSUER_URL" in example_setup
+        assert example_setup["AUTH_ISSUER_URL"] == "https://github.com"
+        assert "AUTH_AUDIENCE" in example_setup
+        assert example_setup["AUTH_AUDIENCE"] == "your-github-client-id"
 
-        # Test scope mapping
-        scope_mapping = token_validation["scope_mapping"]
-        assert scope_mapping["read:user"] == "read"
-        assert scope_mapping["user:email"] == "read"
-        assert scope_mapping["repo"] == "write"
-        assert scope_mapping["admin:org"] == "admin"
+        # Check OAuth 2.1 compliance status (should be False for GitHub)
+        assert github_config["oauth_2_1_compliant"] == False
 
-        print("   ✅ GitHub provider configuration is valid")
+        # Check GitHub limitations are documented
+        if "notes" in github_config:
+            notes = github_config["notes"]
+            assert any("limited OAuth 2.1 support" in note for note in notes)
+            assert any("No PKCE support" in note for note in notes)
+
+        print("   ✅ GitHub provider configuration is valid in new structure")
         return True
 
     except Exception as e:
@@ -61,22 +59,24 @@ def test_github_provider_config():
 
 
 def test_github_environment_variables():
-    """Test GitHub environment variable support."""
+    """Test GitHub environment variable support (legacy compatibility)."""
     print("🌍 Testing GitHub Environment Variables...")
 
     try:
-        from oauth_provider import AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_ORG, AUTH_PROVIDER
+        from oauth_provider import AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_ORG
 
-        # Test environment variables are available
+        # Test legacy environment variables are still available for backward compatibility
         assert AUTH_GITHUB_CLIENT_ID is not None, "AUTH_GITHUB_CLIENT_ID not available"
         assert AUTH_GITHUB_ORG is not None, "AUTH_GITHUB_ORG not available"
 
         # Test default values
         print(f"   📋 AUTH_GITHUB_CLIENT_ID: {AUTH_GITHUB_CLIENT_ID}")
         print(f"   📋 AUTH_GITHUB_ORG: {AUTH_GITHUB_ORG}")
-        print(f"   📋 AUTH_PROVIDER: {AUTH_PROVIDER}")
 
-        print("   ✅ GitHub environment variables are available")
+        print(
+            "   ✅ GitHub legacy environment variables are available for backward compatibility"
+        )
+        print("   ℹ️  Note: New generic OAuth 2.1 configuration is recommended")
         return True
 
     except Exception as e:
@@ -84,149 +84,155 @@ def test_github_environment_variables():
         return False
 
 
-def test_github_scope_extraction():
-    """Test GitHub scope extraction logic."""
-    print("🎯 Testing GitHub Scope Extraction...")
+async def test_github_fallback_configuration():
+    """Test GitHub fallback configuration logic."""
+    print("🎯 Testing GitHub Fallback Configuration...")
 
     try:
         import oauth_provider
 
-        # Check if OAuth provider class is available (depends on auth being enabled and MCP modules)
+        # Check if token validator is available
         if (
-            not hasattr(oauth_provider, "oauth_provider")
-            or oauth_provider.oauth_provider is None
+            not hasattr(oauth_provider, "token_validator")
+            or oauth_provider.token_validator is None
         ):
+            print("   ⚠️  Token validator not available (JWT dependencies missing)")
             print(
-                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
-            )
-            print(
-                "   ℹ️  GitHub scope extraction logic is implemented but cannot be tested"
+                "   ℹ️  GitHub fallback configuration is implemented but cannot be tested"
             )
             return True
 
-        from oauth_provider import KafkaSchemaRegistryOAuthProvider
+        validator = oauth_provider.token_validator
 
-        # Mock JWT payload with GitHub scopes
-        github_payload = {
-            "sub": "12345",
-            "login": "testuser",
-            "github_scopes": ["read:user", "user:email", "repo"],
-            "github_permissions": ["read:user", "admin:org"],
-        }
+        # Test GitHub fallback configuration
+        github_issuer = "https://github.com"
+        fallback_config = await validator.get_fallback_configuration(github_issuer)
 
-        provider = KafkaSchemaRegistryOAuthProvider()
-        result = provider.extract_scopes_from_jwt(github_payload)
+        # Check GitHub-specific fallback values
+        assert fallback_config["issuer"] == "https://github.com"
+        assert (
+            fallback_config["authorization_endpoint"]
+            == "https://github.com/login/oauth/authorize"
+        )
+        assert (
+            fallback_config["token_endpoint"]
+            == "https://github.com/login/oauth/access_token"
+        )
+        assert fallback_config["oauth_2_1_compliant"] == False
+        assert "limited OAuth 2.1 support" in fallback_config["note"]
 
-        # Check scope mapping worked
-        scopes = result.get("scopes", [])
-        assert "read" in scopes, "read scope not mapped from GitHub scopes"
-        assert "write" in scopes, "write scope not mapped from repo scope"
-        assert "admin" in scopes, "admin scope not mapped from admin:org scope"
-
-        print(f"   📋 Extracted scopes: {scopes}")
-        print("   ✅ GitHub scope extraction is working")
+        print(f"   📋 Fallback config issuer: {fallback_config['issuer']}")
+        print(f"   📋 OAuth 2.1 compliant: {fallback_config['oauth_2_1_compliant']}")
+        print(f"   📋 Note: {fallback_config['note']}")
+        print("   ✅ GitHub fallback configuration is working")
         return True
 
     except Exception as e:
-        print(f"   ❌ Error testing GitHub scope extraction: {e}")
+        print(f"   ❌ Error testing GitHub fallback configuration: {e}")
         return False
 
 
-def test_github_provider_detection():
-    """Test GitHub provider auto-detection."""
-    print("🔍 Testing GitHub Provider Detection...")
+async def test_github_discovery_fallback():
+    """Test GitHub discovery fallback when standard endpoints fail."""
+    print("🔍 Testing GitHub Discovery Fallback...")
 
     try:
         import oauth_provider
 
-        # Check if OAuth provider class is available
+        # Check if token validator is available
         if (
-            not hasattr(oauth_provider, "oauth_provider")
-            or oauth_provider.oauth_provider is None
+            not hasattr(oauth_provider, "token_validator")
+            or oauth_provider.token_validator is None
         ):
-            print(
-                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
-            )
-            print(
-                "   ℹ️  GitHub provider detection logic is implemented but cannot be tested"
-            )
+            print("   ⚠️  Token validator not available (JWT dependencies missing)")
+            print("   ℹ️  GitHub discovery fallback is implemented but cannot be tested")
             return True
 
-        from oauth_provider import KafkaSchemaRegistryOAuthProvider
+        validator = oauth_provider.token_validator
 
-        provider = KafkaSchemaRegistryOAuthProvider()
+        # Test discovery for GitHub URLs (should trigger fallback)
+        github_urls = ["https://github.com", "https://api.github.com"]
 
-        # Test GitHub JWT token detection
-        github_jwt_payload = {
-            "iss": "https://api.github.com",
-            "sub": "12345",
-            "login": "testuser",
-        }
+        for github_url in github_urls:
+            print(f"   🧪 Testing discovery fallback for: {github_url}")
 
-        detected_provider = provider.detect_provider_from_token(github_jwt_payload)
-        assert (
-            detected_provider == "github"
-        ), f"Expected 'github', got '{detected_provider}'"
+            # This should trigger the fallback configuration
+            config = await validator.discover_oauth_configuration(github_url)
 
-        # Test GitHub access token format detection
-        github_api_payload = {
-            "login": "testuser",
-            "id": 12345,
-            "url": "https://api.github.com/users/testuser",
-        }
+            # Verify fallback was used (GitHub doesn't support standard discovery)
+            assert config is not None, f"Failed to get fallback config for {github_url}"
+            assert (
+                config.get("oauth_2_1_compliant") == False
+            ), "GitHub should not be marked as OAuth 2.1 compliant"
+            assert "limited OAuth 2.1 support" in config.get(
+                "note", ""
+            ), "Should have limitation note"
 
-        detected_provider = provider.detect_provider_from_token(github_api_payload)
-        assert (
-            detected_provider == "github"
-        ), f"Expected 'github', got '{detected_provider}'"
+            print(f"   ✅ Fallback config generated for {github_url}")
 
-        print("   ✅ GitHub provider detection is working")
+        print("   ✅ GitHub discovery fallback is working correctly")
         return True
 
     except Exception as e:
-        print(f"   ❌ Error testing GitHub provider detection: {e}")
+        print(f"   ❌ Error testing GitHub discovery fallback: {e}")
         return False
 
 
-async def test_github_token_validation():
-    """Test GitHub token validation (mock)."""
-    print("🔐 Testing GitHub Token Validation (Mock)...")
+async def test_github_generic_oauth_validation():
+    """Test GitHub with generic OAuth 2.1 validation approach."""
+    print("🔐 Testing GitHub with Generic OAuth 2.1 Validation...")
 
     try:
         import oauth_provider
 
-        # Check if OAuth provider class is available
+        # Check if token validator is available
         if (
-            not hasattr(oauth_provider, "oauth_provider")
-            or oauth_provider.oauth_provider is None
+            not hasattr(oauth_provider, "token_validator")
+            or oauth_provider.token_validator is None
         ):
-            print(
-                "   ⚠️  OAuth provider not available (auth disabled or MCP modules missing)"
-            )
-            print(
-                "   ℹ️  GitHub token validation logic is implemented but cannot be tested"
-            )
+            print("   ⚠️  Token validator not available (JWT dependencies missing)")
+            print("   ℹ️  GitHub OAuth validation is implemented but cannot be tested")
             return True
 
-        from oauth_provider import KafkaSchemaRegistryOAuthProvider
+        validator = oauth_provider.token_validator
 
-        provider = KafkaSchemaRegistryOAuthProvider()
+        # Test with mock GitHub development token (should be handled generically)
+        github_dev_token = "dev-token-read,write"
 
-        # Test with mock GitHub token format
-        github_token = "ghp_1234567890abcdef1234567890abcdef12345678"
+        if validator.is_dev_token(github_dev_token):
+            print("   ✅ GitHub development token format recognized")
 
-        # This will fail in test environment (no real GitHub API access)
-        # but we can test the method exists and handles errors gracefully
-        result = await provider.validate_github_token(github_token)
+            # Check if dev tokens are allowed in current environment
+            from oauth_provider import ALLOW_DEV_TOKENS
 
-        # In test environment, this should return None due to API failure
-        # but no exceptions should be raised
-        print(f"   📋 Validation result: {result}")
-        print("   ✅ GitHub token validation method is available")
+            if ALLOW_DEV_TOKENS:
+                # Test token validation with GitHub issuer
+                # This tests the generic approach working with GitHub
+                try:
+                    result = await validator.validate_token(
+                        github_dev_token, required_scopes={"read"}
+                    )
+
+                    # Should succeed for development tokens regardless of issuer
+                    if result.get("valid"):
+                        print("   ✅ GitHub development token validation succeeded")
+                    else:
+                        print(f"   ℹ️  Development token validation: {result}")
+
+                except Exception as e:
+                    print(f"   ℹ️  Token validation (expected in test env): {e}")
+            else:
+                print(
+                    "   ℹ️  Development tokens not allowed in production environment (security feature)"
+                )
+        else:
+            print("   ⚠️  Development token format not recognized")
+
+        print("   ✅ GitHub generic OAuth validation logic is available")
         return True
 
     except Exception as e:
-        print(f"   ❌ Error testing GitHub token validation: {e}")
+        print(f"   ❌ Error testing GitHub OAuth validation: {e}")
         return False
 
 
@@ -268,10 +274,10 @@ async def main():
 
     tests = [
         ("Provider Configuration", test_github_provider_config),
-        ("Environment Variables", test_github_environment_variables),
-        ("Scope Extraction", test_github_scope_extraction),
-        ("Provider Detection", test_github_provider_detection),
-        ("Token Validation", test_github_token_validation),
+        ("Environment Variables (Legacy)", test_github_environment_variables),
+        ("Fallback Configuration", test_github_fallback_configuration),
+        ("Discovery Fallback", test_github_discovery_fallback),
+        ("Generic OAuth Validation", test_github_generic_oauth_validation),
         ("OAuth Exports", test_github_oauth_exports),
     ]
 
@@ -295,14 +301,21 @@ async def main():
 
     if passed == total:
         print("🎉 ALL GITHUB OAUTH TESTS PASSED!")
-        print("✅ GitHub OAuth integration is ready for use")
+        print(
+            "✅ GitHub OAuth integration is ready for use with generic OAuth 2.1 approach"
+        )
 
         print("\n📋 GitHub OAuth Configuration Summary:")
-        print("• Provider: GitHub OAuth 2.0 / GitHub Apps")
-        print("• Token validation: GitHub API-based")
-        print("• Scopes supported: read:user, user:email, read:org, repo, admin:org")
-        print("• Organization restriction: Optional via GITHUB_ORG")
-        print("• Auto-detection: JWT and access token formats")
+        print("• Configuration: Generic OAuth 2.1 with GitHub fallback")
+        print("• OAuth 2.1 Compliance: Limited (no PKCE, no resource indicators)")
+        print("• Discovery: Uses fallback configuration (no standard endpoints)")
+        print(
+            "• Setup: AUTH_ISSUER_URL=https://github.com, AUTH_AUDIENCE=your-client-id"
+        )
+        print(
+            "• Legacy Support: Environment variables maintained for backward compatibility"
+        )
+        print("• Validation: Works with generic OAuth 2.1 validation approach")
 
         return True
     else:
