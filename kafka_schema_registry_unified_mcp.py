@@ -259,6 +259,14 @@ from schema_registry_common import (  # noqa: E402
 from schema_registry_common import (  # noqa: E402
     check_readonly_mode as _check_readonly_mode,
 )
+
+# Import schema validation utilities for structured output
+from schema_validation import (  # noqa: E402
+    structured_output,
+    create_error_response,
+    create_success_response,
+)
+
 from statistics_tools import (  # noqa: E402
     count_contexts_tool,
     count_schema_versions_tool,
@@ -1093,30 +1101,44 @@ def get_registry_statistics(registry: str = None, include_context_details: bool 
     )
 
 
-# ===== TASK MANAGEMENT TOOLS =====
+# ===== TASK MANAGEMENT TOOLS (Updated with Structured Output) =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_task_status(task_id: str):
-    """Get the status and progress of an async task."""
+@structured_output("get_task_status", fallback_on_error=True)
+def get_task_status_tool(task_id: str):
+    """Get the status and progress of an async task with structured validation."""
     try:
         task = task_manager.get_task(task_id)
         if task is None:
-            return {"error": f"Task '{task_id}' not found"}
-        return task.to_dict()
+            return create_error_response(
+                f"Task '{task_id}' not found",
+                error_code="TASK_NOT_FOUND",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        result = task.to_dict()
+        # Add structured output metadata
+        result["registry_mode"] = REGISTRY_MODE
+        result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+        
+        return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="TASK_STATUS_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_task_progress(task_id: str):
-    """Get the progress of an async task (alias for get_task_status)."""
-    task_status = get_task_status(task_id)
+@structured_output("get_task_progress", fallback_on_error=True)
+def get_task_progress_tool(task_id: str):
+    """Get the progress of an async task (alias for get_task_status) with structured validation."""
+    task_status = get_task_status_tool(task_id)
     if "error" in task_status:
         return task_status
-    return {
+    
+    # Transform to progress-focused response
+    result = {
         "task_id": task_id,
         "status": task_status["status"],
         "progress_percent": task_status["progress"],
@@ -1124,70 +1146,99 @@ def get_task_progress(task_id: str):
         "completed_at": task_status["completed_at"],
         "error": task_status["error"],
         "result": task_status["result"],
+        "registry_mode": REGISTRY_MODE,
+        "mcp_protocol_version": MCP_PROTOCOL_VERSION
     }
+    
+    return result
 
 
-@mcp.tool()
-@require_scopes("read")
-def list_active_tasks():
-    """List all active tasks in the system."""
+@structured_output("list_active_tasks", fallback_on_error=True)
+def list_active_tasks_tool():
+    """List all active tasks in the system with structured validation."""
     try:
         tasks = task_manager.list_tasks()
-        return {
+        result = {
             "tasks": [task.to_dict() for task in tasks],
             "total_tasks": len(tasks),
             "active_tasks": len(
                 [t for t in tasks if t.status.value in ["pending", "running"]]
             ),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
         }
+        
+        return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="TASK_LIST_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
 
 
-@mcp.tool()
-@require_scopes("admin")
-async def cancel_task(task_id: str):
-    """Cancel a running task."""
+@structured_output("cancel_task", fallback_on_error=True)
+async def cancel_task_tool(task_id: str):
+    """Cancel a running task with structured validation."""
     try:
         cancelled = await task_manager.cancel_task(task_id)
         if cancelled:
-            return {"message": f"Task '{task_id}' cancelled successfully"}
+            return create_success_response(
+                f"Task '{task_id}' cancelled successfully",
+                data={"task_id": task_id, "cancelled": True},
+                registry_mode=REGISTRY_MODE
+            )
         else:
-            return {
-                "error": f"Could not cancel task '{task_id}' (may already be completed)"
-            }
+            return create_error_response(
+                f"Could not cancel task '{task_id}' (may already be completed)",
+                error_code="TASK_CANCEL_FAILED",
+                registry_mode=REGISTRY_MODE
+            )
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="TASK_CANCEL_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
 
 
-@mcp.tool()
-@require_scopes("read")
-def list_statistics_tasks():
-    """List all statistics-related tasks."""
+@structured_output("list_statistics_tasks", fallback_on_error=True)
+def list_statistics_tasks_tool():
+    """List all statistics-related tasks with structured validation."""
     try:
         from task_management import TaskType
 
         tasks = task_manager.list_tasks(task_type=TaskType.STATISTICS)
-        return {
+        result = {
             "statistics_tasks": [task.to_dict() for task in tasks],
             "total_tasks": len(tasks),
             "active_tasks": len(
                 [t for t in tasks if t.status.value in ["pending", "running"]]
             ),
             "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
         }
+        
+        return result
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="STATISTICS_TASK_LIST_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_statistics_task_progress(task_id: str):
-    """Get detailed progress for a statistics task."""
+@structured_output("get_statistics_task_progress", fallback_on_error=True)
+def get_statistics_task_progress_tool(task_id: str):
+    """Get detailed progress for a statistics task with structured validation."""
     try:
         task = task_manager.get_task(task_id)
         if task is None:
-            return {"error": f"Task '{task_id}' not found"}
+            return create_error_response(
+                f"Task '{task_id}' not found",
+                error_code="TASK_NOT_FOUND",
+                registry_mode=REGISTRY_MODE
+            )
 
         task_dict = task.to_dict()
 
@@ -1226,9 +1277,60 @@ def get_statistics_task_progress(task_id: str):
 
             task_dict["progress_stage"] = progress_stage
 
+        # Add structured output metadata
+        task_dict["registry_mode"] = REGISTRY_MODE
+        task_dict["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+
         return task_dict
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="STATISTICS_TASK_PROGRESS_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+# MCP tool wrappers that call the structured tool functions
+@mcp.tool()
+@require_scopes("read")
+def get_task_status(task_id: str):
+    """Get the status and progress of an async task."""
+    return get_task_status_tool(task_id)
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_task_progress(task_id: str):
+    """Get the progress of an async task (alias for get_task_status)."""
+    return get_task_progress_tool(task_id)
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_active_tasks():
+    """List all active tasks in the system."""
+    return list_active_tasks_tool()
+
+
+@mcp.tool()
+@require_scopes("admin")
+async def cancel_task(task_id: str):
+    """Cancel a running task."""
+    return await cancel_task_tool(task_id)
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_statistics_tasks():
+    """List all statistics-related tasks."""
+    return list_statistics_tasks_tool()
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_statistics_task_progress(task_id: str):
+    """Get detailed progress for a statistics task."""
+    return get_statistics_task_progress_tool(task_id)
 
 
 # ===== MCP COMPLIANCE AND UTILITY TOOLS =====
