@@ -276,12 +276,23 @@ class SparseVersionMigrationTest:
         return True
 
     def cleanup_test_subjects(self):
-        """Clean up test subjects from both registries."""
+        """Clean up test subjects from both registries using proper two-step deletion."""
         print("\n=== Cleaning Up Test Subjects ===")
 
         for subject in self.test_subjects:
-            # Clean up from dev registry
+            # Clean up from dev registry (two-step deletion)
             try:
+                # Step 1: Soft delete
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="dev",
+                        permanent=False,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
+                    )
+                )
+                # Step 2: Permanent delete
                 result = asyncio.run(
                     delete_subject_tool(
                         subject=subject,
@@ -295,8 +306,19 @@ class SparseVersionMigrationTest:
             except Exception as e:
                 print(f"Warning: Failed to delete {subject} from dev: {e}")
 
-            # Clean up from prod registry
+            # Clean up from prod registry (two-step deletion)
             try:
+                # Step 1: Soft delete
+                result = asyncio.run(
+                    delete_subject_tool(
+                        subject=subject,
+                        registry="prod",
+                        permanent=False,
+                        registry_manager=mcp_server.registry_manager,
+                        registry_mode=mcp_server.REGISTRY_MODE,
+                    )
+                )
+                # Step 2: Permanent delete
                 result = asyncio.run(
                     delete_subject_tool(
                         subject=subject,
