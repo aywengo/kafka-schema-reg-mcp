@@ -61,17 +61,13 @@ env:
   MCP_PATH: "/mcp"
   TLS_ENABLED: "true"
   
-  # OAuth configuration
+  # OAuth 2.1 Configuration (Generic)
   ENABLE_AUTH: "true"
-  AUTH_PROVIDER: "azure"
-  AUTH_ISSUER_URL: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
-  AUTH_AUDIENCE: "${AZURE_CLIENT_ID}"
+  AUTH_ISSUER_URL: "${AUTH_ISSUER_URL}"
+  AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
   AUTH_VALID_SCOPES: "read,write,admin"
   AUTH_DEFAULT_SCOPES: "read"
   AUTH_REQUIRED_SCOPES: "read"
-  
-  # Azure AD specific
-  AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
   
   # JWT validation
   JWKS_CACHE_TTL: "3600"

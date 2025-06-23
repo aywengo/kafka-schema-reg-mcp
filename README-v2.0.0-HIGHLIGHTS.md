@@ -12,12 +12,12 @@ This **major version release** represents the upgrade to **FastMCP 2.8.0+** and 
 - **Improved Transport Layer**: Native support for stdio, SSE, and Streamable HTTP transports
 - **Modern Client API**: Updated client interface for better performance and reliability
 
-### 🔐 **FastMCP Authentication System**
-- **BearerAuthProvider**: Native FastMCP 2.8+ authentication with scope-based authorization
-- **OAuth 2.0 Integration**: Support for Azure AD, Google, Keycloak, Okta, and GitHub providers
-- **JWT Validation**: Cryptographic token verification with JWKS support
-- **Scope-Based Permissions**: `read`, `write`, `admin` permissions mapped to MCP tools
-- **Development Tokens**: Safe testing tokens for development and debugging
+### 🚀 **OAuth 2.1 Generic Discovery System**
+- **Universal Compatibility**: Works with **any OAuth 2.1 compliant provider** without provider-specific configuration
+- **75% Configuration Reduction**: Simplified from 8+ variables to just 2 core variables (`AUTH_ISSUER_URL` + `AUTH_AUDIENCE`)
+- **RFC 8414 Discovery**: Automatic endpoint discovery - no hardcoded provider configurations
+- **Enhanced Security**: PKCE enforcement, Resource Indicators (RFC 8707), improved token validation
+- **Future-Proof**: Automatic support for new OAuth 2.1 providers without code changes
 
 ### 🏗️ **Enhanced Architecture**
 - **Dependency Injection**: FastMCP's modern dependency system for access tokens
@@ -31,37 +31,57 @@ This **major version release** represents the upgrade to **FastMCP 2.8.0+** and 
 |---------|------|--------|
 | **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 2.8.0+ |
 | **MCP Specification** | Pre-2025 | ✅ MCP 2025-06-18 |
-| **Authentication** | Basic OAuth attempt | ✅ FastMCP BearerAuth |
+| **Authentication** | Provider-specific OAuth | ✅ Generic OAuth 2.1 Discovery |
+| **OAuth Configuration** | 8+ variables per provider | ✅ 2 universal variables |
+| **Provider Support** | 5 hardcoded providers | ✅ Any OAuth 2.1 compliant provider |
+| **OAuth Standards** | Custom implementations | ✅ RFC 8414 + RFC 8692 + RFC 8707 |
+| **PKCE Enforcement** | Optional | ✅ Mandatory (OAuth 2.1) |
 | **Transport Layer** | stdio only | ✅ stdio + SSE + HTTP |
 | **Client API** | Legacy mcp.ClientSession | ✅ FastMCP Client |
-| **OAuth Providers** | Experimental | ✅ 5 Production-Ready |
 | **JWT Validation** | Custom implementation | ✅ FastMCP Built-in |
 | **Error Handling** | Basic | ✅ Enhanced FastMCP |
 | **Development Experience** | Complex setup | ✅ Simplified config |
 
 ## 🚀 Quick Start Examples
 
-### Local Development with Authentication
+### Local Development with OAuth 2.1 Authentication
 ```bash
-# Enable OAuth authentication
+# Enable OAuth 2.1 (works with ANY provider!)
 export ENABLE_AUTH=true
-export AUTH_PROVIDER=azure
-export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0
-export AZURE_CLIENT_ID=your_client_id
-export AZURE_CLIENT_SECRET=your_client_secret
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
 
 # Run with FastMCP 2.8.0+
 python kafka_schema_registry_unified_mcp.py
 ```
 
+### Universal OAuth 2.1 Examples
+```bash
+# Azure AD
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
+
+# Google OAuth 2.0
+export AUTH_ISSUER_URL="https://accounts.google.com"
+export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
+
+# Okta
+export AUTH_ISSUER_URL="https://your-domain.okta.com/oauth2/default"
+export AUTH_AUDIENCE="your-okta-client-id"
+
+# Any OAuth 2.1 Provider
+export AUTH_ISSUER_URL="https://your-oauth-provider.com"
+export AUTH_AUDIENCE="your-client-id-or-api-identifier"
+```
+
 ### Remote Deployment
 ```bash
-# Deploy as remote MCP server with authentication
+# Deploy as remote MCP server with generic OAuth 2.1
 docker run -d -p 8000:8000 \
   -e MCP_TRANSPORT=streamable-http \
   -e ENABLE_AUTH=true \
-  -e AUTH_PROVIDER=google \
-  -e GOOGLE_CLIENT_ID=your_client_id \
+  -e AUTH_ISSUER_URL="https://accounts.google.com" \
+  -e AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com" \
   aywengo/kafka-schema-reg-mcp:2.0.0 \
   python remote-mcp-server.py
 ```
@@ -119,14 +139,21 @@ from fastmcp import FastMCP
 from fastmcp import Client
 ```
 
-### 🆕 **Enhanced Authentication (Optional)**
+### 🚀 **OAuth 2.1 Generic Configuration (Simplified!)**
 ```bash
-# New OAuth configuration (optional upgrade)
-export ENABLE_AUTH=true
-export AUTH_PROVIDER=azure  # or google, keycloak, okta, github
-export AUTH_ISSUER_URL=https://login.microsoftonline.com/tenant/v2.0
+# OLD (v1.x) - Provider-specific (still works but deprecated)
+export AUTH_PROVIDER=azure
+export AZURE_TENANT_ID=your-tenant
 export AZURE_CLIENT_ID=your_client_id
 export AZURE_CLIENT_SECRET=your_client_secret
+export AZURE_AUTHORITY=https://login.microsoftonline.com/your-tenant
+# ... 8+ variables per provider
+
+# NEW (v2.x) - Generic OAuth 2.1 (recommended)
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
+# Just 2 variables for ANY OAuth 2.1 provider!
 ```
 
 ### 🔧 **Test Updates**
@@ -168,12 +195,13 @@ async with client:
 
 ## 🔐 FastMCP Authentication Features
 
-### **Supported OAuth Providers**
-- **Azure AD / Entra ID**: Enterprise identity integration
-- **Google OAuth 2.0**: Google Workspace and Cloud integration  
-- **Keycloak**: Self-hosted open-source identity management
-- **Okta**: Enterprise SaaS identity platform
-- **GitHub OAuth**: GitHub and GitHub Apps authentication
+### **Universal OAuth 2.1 Compatibility**
+- **🟦 Azure AD / Entra ID**: Full OAuth 2.1 compliance with automatic discovery
+- **🟨 Google OAuth 2.0**: OAuth 2.1 compatible with discovery support
+- **🟥 Keycloak**: Complete OAuth 2.1 support with RFC 8414 discovery
+- **🟧 Okta**: OAuth 2.1 compliant with enhanced security features
+- **⚫ GitHub OAuth**: Limited support (automatic fallback configuration)
+- **🟪 Any OAuth 2.1 Provider**: Works automatically with RFC 8414 discovery
 
 ### **Authentication Capabilities**
 - **Bearer Token Authentication**: FastMCP's native BearerAuthProvider

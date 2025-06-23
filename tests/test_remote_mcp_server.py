@@ -103,21 +103,22 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
                     os.environ.pop(key, None)
 
     def test_oauth_configuration(self):
-        """Test OAuth configuration for remote deployment."""
+        """Test OAuth 2.1 generic configuration for remote deployment."""
         oauth_env = {
             "ENABLE_AUTH": "true",
-            "AUTH_PROVIDER": "azure",
-            "AZURE_TENANT_ID": "test-tenant-id",
+            "AUTH_ISSUER_URL": "https://login.microsoftonline.com/test-tenant-id/v2.0",
             "AUTH_AUDIENCE": "test-client-id",
         }
 
         for key, value in oauth_env.items():
             os.environ[key] = value
 
-        # Test that OAuth is properly configured
+        # Test that OAuth 2.1 is properly configured
         self.assertEqual(os.getenv("ENABLE_AUTH"), "true")
-        self.assertEqual(os.getenv("AUTH_PROVIDER"), "azure")
-        self.assertEqual(os.getenv("AZURE_TENANT_ID"), "test-tenant-id")
+        self.assertEqual(
+            os.getenv("AUTH_ISSUER_URL"),
+            "https://login.microsoftonline.com/test-tenant-id/v2.0",
+        )
         self.assertEqual(os.getenv("AUTH_AUDIENCE"), "test-client-id")
 
 

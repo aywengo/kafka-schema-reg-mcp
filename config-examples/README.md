@@ -18,7 +18,7 @@ This directory contains example Claude Desktop configuration files for different
 
 #### FastMCP 2.8.0+ Configurations (v2.0.0)
 - **`claude_desktop_v2_config.json`** - FastMCP 2.8.0+ framework (v2.0.0)
-- **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth authentication
+- **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth 2.1 generic discovery
 - **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
 
 ### Multi-Registry Configurations

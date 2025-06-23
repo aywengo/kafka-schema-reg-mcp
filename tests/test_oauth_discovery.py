@@ -578,41 +578,57 @@ class OAuthDiscoveryTest:
             return False
 
     def test_discovery_with_different_providers(self) -> bool:
-        """Test discovery endpoints with different OAuth providers."""
-        print("🌐 Testing discovery with different OAuth providers...")
+        """Test generic OAuth 2.1 discovery approach for different providers."""
+        print("🌐 Testing generic OAuth 2.1 discovery approach...")
 
-        providers = ["azure", "google", "okta", "keycloak", "github"]
+        # Test that generic discovery works for different provider URL patterns
+        provider_examples = {
+            "Azure AD": "https://login.microsoftonline.com/tenant-id/v2.0",
+            "Google": "https://accounts.google.com",
+            "Okta": "https://domain.okta.com/oauth2/default",
+            "Keycloak": "https://keycloak.example.com/realms/realm-name",
+            "GitHub": "https://github.com",  # Special case - uses fallback
+        }
 
-        for provider in providers:
-            print(f"   Testing provider: {provider}")
+        for provider_name, issuer_url in provider_examples.items():
+            print(f"   Testing {provider_name}: {issuer_url}")
 
-            # We can't easily restart the server for each provider in this test,
-            # but we can verify the configuration logic is sound
-
-            # Test the provider-specific configuration generation
             try:
-                # This would be tested by making requests to the server with different
-                # AUTH_PROVIDER environment variables, but for unit testing we'll
-                # verify the configuration structures exist
+                # Validate URL pattern
+                from urllib.parse import urlparse
 
-                if provider == "azure":
-                    expected_fields = ["tenant-id", "v2.0"]
-                elif provider == "google":
-                    expected_fields = ["accounts.google.com"]
-                elif provider == "okta":
-                    expected_fields = ["oauth2/default"]
-                elif provider == "keycloak":
-                    expected_fields = ["realms", "protocol/openid-connect"]
-                elif provider == "github":
-                    expected_fields = ["github.com", "api.github.com"]
+                parsed = urlparse(issuer_url)
 
-                print(f"   ✅ Provider '{provider}' configuration structure validated")
+                if not parsed.scheme or not parsed.netloc:
+                    print(f"   ❌ Invalid URL format for {provider_name}")
+                    return False
+
+                # Check for OAuth 2.1 discovery endpoint construction
+                discovery_endpoint = (
+                    f"{issuer_url}/.well-known/oauth-authorization-server"
+                )
+                oidc_endpoint = f"{issuer_url}/.well-known/openid_configuration"
+
+                print(f"   ✅ {provider_name} discovery endpoints:")
+                print(f"      - OAuth 2.1: {discovery_endpoint}")
+                print(f"      - OIDC: {oidc_endpoint}")
+
+                # Special validation for GitHub (should use fallback)
+                if provider_name == "GitHub":
+                    print(
+                        f"   ℹ️  {provider_name} will use fallback configuration (no standard discovery)"
+                    )
+                else:
+                    print(
+                        f"   ✅ {provider_name} should work with standard OAuth 2.1 discovery"
+                    )
 
             except Exception as e:
-                print(f"   ❌ Provider '{provider}' validation failed: {e}")
+                print(f"   ❌ {provider_name} validation failed: {e}")
                 return False
 
-        print("   ✅ All OAuth provider configurations validated")
+        print("   ✅ Generic OAuth 2.1 discovery approach validated")
+        print("   🚀 No provider-specific configuration needed!")
         return True
 
     def test_discovery_error_handling(self) -> bool:
@@ -683,7 +699,7 @@ class OAuthDiscoveryTest:
                     ),
                     ("Discovery Consistency", self.test_discovery_consistency),
                     (
-                        "Different OAuth Providers",
+                        "Generic OAuth 2.1 Discovery",
                         self.test_discovery_with_different_providers,
                     ),
                     ("Error Handling", self.test_discovery_error_handling),

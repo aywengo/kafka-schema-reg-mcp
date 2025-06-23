@@ -556,13 +556,12 @@ There are two types of authentication in this project:
 | `SCHEMA_REGISTRY_PASSWORD` | Password for backend Schema Registry | *(empty)* | Schema Registry (backend) |
 | `SCHEMA_REGISTRY_USER_X` | Username for multi-registry backend | *(empty)* | Schema Registry (backend) |
 | `SCHEMA_REGISTRY_PASSWORD_X` | Password for multi-registry backend | *(empty)* | Schema Registry (backend) |
-| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | `false` | MCP Server (frontend) |
-| `AUTH_ISSUER_URL` | OAuth2 issuer URL | `https://example.com` | MCP Server (frontend) |
-| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `myscope` | MCP Server (frontend) |
-| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `myscope` | MCP Server (frontend) |
-| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `myscope` | MCP Server (frontend) |
-| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` | MCP Server (frontend) |
-| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` | MCP Server (frontend) |
+| `ENABLE_AUTH` | Enable OAuth 2.1 authentication/authorization | `false` | MCP Server (frontend) |
+| `AUTH_ISSUER_URL` | OAuth 2.1 issuer URL (uses automatic discovery) | `https://example.com` | MCP Server (frontend) |
+| `AUTH_AUDIENCE` | OAuth client ID or API identifier | *(empty)* | MCP Server (frontend) |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `read,write,admin` | MCP Server (frontend) |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `read` | MCP Server (frontend) |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `read` | MCP Server (frontend) |
 
 ## 🔐 OAuth Scopes & Authorization
 
@@ -621,30 +620,74 @@ export OAUTH_TOKEN="dev-token-read"              # Read-only access
 export OAUTH_TOKEN="dev-token-write"             # Read + Write access
 ```
 
-### **🔧 OAuth Configuration Examples**
+### **🚀 OAuth 2.1 Generic Configuration (Simplified!)**
 
-#### Development Environment (Permissive)
+With OAuth 2.1 discovery, configuration is now **dramatically simplified**. Works with **any OAuth 2.1 compliant provider**:
+
+#### Basic Configuration (Any OAuth 2.1 Provider)
 ```bash
 export ENABLE_AUTH=true
-export AUTH_ISSUER_URL="https://dev-auth.example.com"
+export AUTH_ISSUER_URL="https://your-oauth-provider.com"
+export AUTH_AUDIENCE="your-client-id-or-api-identifier"
+```
+
+#### Optional OAuth 2.1 Features
+```bash
+export REQUIRE_PKCE=true                     # PKCE enforcement (default: true)
+export RESOURCE_INDICATORS="https://api.com" # Resource validation
+export TOKEN_BINDING_ENABLED=true            # Token binding support
+```
+
+#### Provider Examples (Using Generic Configuration)
+
+**Azure AD:**
+```bash
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
+```
+
+**Google OAuth 2.0:**
+```bash
+export AUTH_ISSUER_URL="https://accounts.google.com"
+export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
+```
+
+**Okta:**
+```bash
+export AUTH_ISSUER_URL="https://your-domain.okta.com/oauth2/default"
+export AUTH_AUDIENCE="api://your-api-identifier"
+```
+
+**Keycloak:**
+```bash
+export AUTH_ISSUER_URL="https://keycloak.example.com/realms/your-realm"
+export AUTH_AUDIENCE="your-keycloak-client-id"
+```
+
+**GitHub (Limited OAuth 2.1 Support):**
+```bash
+export AUTH_ISSUER_URL="https://github.com"
+export AUTH_AUDIENCE="your-github-client-id"
+```
+
+#### Environment-Specific Scope Configuration
+
+**Development Environment (Permissive):**
+```bash
 export AUTH_VALID_SCOPES="read,write,admin"
 export AUTH_DEFAULT_SCOPES="read"
 export AUTH_REQUIRED_SCOPES="read"
 ```
 
-#### Production Environment (Restrictive)
+**Production Environment (Restrictive):**
 ```bash
-export ENABLE_AUTH=true
-export AUTH_ISSUER_URL="https://prod-auth.example.com"  
 export AUTH_VALID_SCOPES="read,write"
 export AUTH_DEFAULT_SCOPES="read"
 export AUTH_REQUIRED_SCOPES="read,write"
 ```
 
-#### Read-Only Environment (Analytics/Monitoring)
+**Read-Only Environment (Analytics/Monitoring):**
 ```bash
-export ENABLE_AUTH=true
-export AUTH_ISSUER_URL="https://auth.example.com"
 export AUTH_VALID_SCOPES="read"
 export AUTH_DEFAULT_SCOPES="read"
 export AUTH_REQUIRED_SCOPES="read"
@@ -665,9 +708,9 @@ Use the `get_oauth_scopes_info` MCP tool to discover:
 "Which tools require admin access?"
 ```
 
-### **🔍 OAuth Discovery Endpoints**
+### **🔍 OAuth 2.1 Discovery Endpoints**
 
-The MCP server implements OAuth 2.0 discovery endpoints for seamless MCP client integration:
+The MCP server implements **OAuth 2.1 compliant discovery** for seamless integration with any OAuth 2.1 provider:
 
 #### **Available Discovery Endpoints**
 
@@ -677,14 +720,15 @@ The MCP server implements OAuth 2.0 discovery endpoints for seamless MCP client 
 | `/.well-known/oauth-protected-resource` | Protected resource metadata | RFC 8692 |
 | `/.well-known/jwks.json` | JSON Web Key Set for token validation | RFC 7517 |
 
-#### **Discovery Features**
+#### **🚀 OAuth 2.1 Discovery Features**
 
-- **🔍 Auto-Configuration**: MCP clients can discover OAuth configuration automatically
-- **🌐 Provider Support**: Azure AD, Google, Keycloak, Okta, GitHub configurations
-- **🚀 MCP Extensions**: Additional metadata for MCP-specific features
-- **🔒 Security**: JWKS proxying with caching for optimal performance
-- **📊 Server Info**: Exposes MCP server capabilities and endpoints
-- **🛡️ PKCE Mandatory**: Proof Key for Code Exchange (PKCE) is required per MCP specification
+- **🔍 Automatic Discovery**: Uses standard OAuth 2.1 discovery (RFC 8414) - **no provider-specific configuration needed**
+- **🌐 Universal Compatibility**: Works with **any** OAuth 2.1 compliant provider
+- **🛡️ Enhanced Security**: PKCE enforcement, Resource Indicators (RFC 8707), Audience validation
+- **🚀 MCP Extensions**: Additional metadata for MCP-specific features and capabilities
+- **🔒 Security**: JWKS proxying with intelligent caching and TTL management  
+- **📊 Server Info**: Exposes MCP server capabilities, tools, and endpoint information
+- **⚡ Fallback Support**: Graceful handling for providers with limited OAuth 2.1 support (e.g., GitHub)
 
 #### **Testing Discovery Endpoints**
 
@@ -703,43 +747,62 @@ curl -X POST http://localhost:8000/mcp \
 "Check if my server is properly configured for MCP client discovery"
 ```
 
-#### **Discovery Endpoint Responses**
+#### **🔄 Generic Discovery Approach**
+
+**Key Benefits:**
+- **🚀 Simplified Setup**: Just set `AUTH_ISSUER_URL` and `AUTH_AUDIENCE` - endpoints discovered automatically
+- **🔄 Future-Proof**: Works with new OAuth 2.1 providers without code changes
+- **🛡️ Standards Compliant**: Uses RFC 8414 discovery, not provider-specific hardcoded endpoints
+- **⚡ Automatic Updates**: Providers can update endpoints and the server adapts automatically
+
+#### **Discovery Endpoint Response Examples**
 
 **Authorization Server Metadata** (`/.well-known/oauth-authorization-server`):
 ```json
 {
-  "issuer": "https://login.microsoftonline.com/TENANT_ID/v2.0",
-  "authorization_endpoint": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/authorize",
-  "token_endpoint": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token",
-  "jwks_uri": "https://login.microsoftonline.com/TENANT_ID/discovery/v2.0/keys",
+  "issuer": "https://your-oauth-provider.com",
+  "authorization_endpoint": "https://your-oauth-provider.com/oauth2/authorize",
+  "token_endpoint": "https://your-oauth-provider.com/oauth2/token",
+  "jwks_uri": "https://your-oauth-provider.com/oauth2/jwks",
+  "token_introspection_endpoint": "https://your-oauth-provider.com/oauth2/introspect",
+  "revocation_endpoint": "https://your-oauth-provider.com/oauth2/revoke",
   "scopes_supported": ["read", "write", "admin", "openid", "email", "profile"],
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code", "client_credentials"],
+  "code_challenge_methods_supported": ["S256"],
+  "require_pkce": true,
   "mcp_server_version": "2.0.0",
   "mcp_transport": "streamable-http",
-  "mcp_endpoints": {
-    "mcp": "https://your-server.com/mcp",
-    "health": "https://your-server.com/health",
-    "metrics": "https://your-server.com/metrics"
-  }
+  "oauth_2_1_compliant": true
 }
 ```
 
 **Protected Resource Metadata** (`/.well-known/oauth-protected-resource`):
 ```json
 {
-  "resource": "https://your-server.com",
-  "authorization_servers": ["https://login.microsoftonline.com/TENANT_ID/v2.0"],
+  "resource": "https://your-mcp-server.com",
+  "authorization_servers": ["https://your-oauth-provider.com"],
   "scopes_supported": ["read", "write", "admin"],
   "scope_descriptions": {
     "read": "Can view schemas, subjects, configurations",
     "write": "Can register schemas, update configs (includes read permissions)",
     "admin": "Can delete subjects, manage registries (includes write and read permissions)"
   },
+  "require_pkce": true,
+  "pkce_code_challenge_methods": ["S256"],
+  "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory per OAuth 2.1",
+  "oauth_2_1_features": {
+    "resource_indicators": true,
+    "pkce_required": true,
+    "audience_validation": true,
+    "discovery_method": "RFC 8414"
+  },
   "mcp_server_info": {
     "name": "Kafka Schema Registry MCP Server",
     "version": "2.0.0",
     "transport": "streamable-http",
     "tools_count": 48,
-    "supported_registries": ["confluent", "apicurio", "hortonworks"]
+    "discovery_method": "Generic OAuth 2.1 (RFC 8414)"
   }
 }
 ```
@@ -778,10 +841,13 @@ def validate_pkce(code_verifier, stored_challenge):
 #### **Benefits for MCP Clients**
 
 - **🤖 Automatic Configuration**: Clients discover OAuth settings without manual configuration
-- **⚡ Reduced Setup**: No need to hardcode authorization server URLs
-- **🔄 Dynamic Updates**: Clients can adapt to server configuration changes
-- **🛡️ Security Validation**: Proper JWT validation with JWKS discovery
-- **📊 Capability Discovery**: Clients learn about server features and tools
+- **⚡ Reduced Setup**: No need to hardcode authorization server URLs or provider-specific configurations
+- **🔄 Dynamic Updates**: Clients can adapt to server configuration changes automatically
+- **🛡️ Security Validation**: Proper JWT validation with JWKS discovery and caching
+- **📊 Capability Discovery**: Clients learn about server features, tools, and OAuth 2.1 compliance
+- **🚀 Provider Agnostic**: Works with any OAuth 2.1 compliant provider - no special handling needed
+
+> **🎯 Migration from Provider-Specific**: Old configurations using `AUTH_PROVIDER=azure/google/okta` are automatically migrated to the generic OAuth 2.1 approach. Simply update to use `AUTH_ISSUER_URL` and `AUTH_AUDIENCE` for a cleaner, more maintainable setup.
 
 > **💡 Note**: Discovery endpoints return 404 when OAuth is disabled (`ENABLE_AUTH=false`), which is the expected behavior for MCP clients.
 
@@ -970,13 +1036,16 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
 
 **📖 Integration Details**: [Use Cases - Schema Registry Integration](docs/use-cases.md#-schema-registry-integration)
 
-## 🆕 What's New in v1.8.x
+## 🆕 What's New in v2.0.x
 
-- **Optional OAuth2 Authentication & Authorization**: Enable with `ENABLE_AUTH=true` and configure via environment variables:
-  - `AUTH_ISSUER_URL`, `AUTH_VALID_SCOPES`, `AUTH_DEFAULT_SCOPES`, `AUTH_REQUIRED_SCOPES`, `AUTH_CLIENT_REG_ENABLED`, `AUTH_REVOCATION_ENABLED`
-- **Configurable AuthSettings**: All OAuth2 settings are now configurable via environment variables for both single and multi-registry modes.
-- **Unit Tests for Auth Config**: Added tests for both single and multi-registry auth configuration.
-- **Upgraded MCP SDK**: Now using `mcp[cli]==1.9.2` with full authorization support.
+- **🚀 OAuth 2.1 Generic Discovery**: Major architecture overhaul from provider-specific to universal OAuth 2.1 compatibility
+  - **75% Less Configuration**: Just 2 variables (`AUTH_ISSUER_URL` + `AUTH_AUDIENCE`) instead of 8+ provider-specific ones
+  - **RFC 8414 Discovery**: Automatic endpoint discovery - no hardcoded provider configurations
+  - **Future-Proof**: Works with any OAuth 2.1 compliant provider without code changes
+  - **Standards Compliant**: PKCE enforcement, Resource Indicators (RFC 8707), Audience validation
+- **Simplified Environment Variables**: Streamlined from complex provider-specific setup to generic OAuth 2.1
+- **Enhanced Security**: PKCE mandatory, improved token validation, better JWKS caching
+- **Backward Compatibility**: Legacy provider configurations automatically migrated
 - **Schema Statistics & Counting**: New tools for monitoring registry usage:
   - `count_contexts`: Track context distribution
   - `count_schemas`: Monitor schema growth
@@ -984,31 +1053,41 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
   - `get_registry_statistics`: Comprehensive registry analytics
   [📖 Details](docs/mcp-tools-reference.md#schema-statistics-and-counting-tools)
 
-### Environment Variables (Authentication & Authorization)
+### Environment Variables (OAuth 2.1 Authentication)
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ENABLE_AUTH` | Enable OAuth2 authentication/authorization | `false` |
-| `AUTH_ISSUER_URL` | OAuth2 issuer URL | `https://example.com` |
-| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `myscope` |
-| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `myscope` |
-| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `myscope` |
-| `AUTH_CLIENT_REG_ENABLED` | Enable dynamic client registration | `true` |
-| `AUTH_REVOCATION_ENABLED` | Enable token revocation endpoint | `true` |
+| `ENABLE_AUTH` | Enable OAuth 2.1 authentication/authorization | `false` |
+| `AUTH_ISSUER_URL` | OAuth 2.1 issuer URL (automatic discovery) | `https://example.com` |
+| `AUTH_AUDIENCE` | OAuth client ID or API identifier | *(required when auth enabled)* |
+| `AUTH_VALID_SCOPES` | Comma-separated list of valid scopes | `read,write,admin` |
+| `AUTH_DEFAULT_SCOPES` | Comma-separated list of default scopes | `read` |
+| `AUTH_REQUIRED_SCOPES` | Comma-separated list of required scopes | `read` |
 
-**Example usage:**
+### OAuth 2.1 Configuration Examples
+
+**Azure AD:**
 ```bash
 export ENABLE_AUTH=true
-export AUTH_ISSUER_URL="https://auth.example.com"
-export AUTH_VALID_SCOPES="myscope,otherscope"
-export AUTH_DEFAULT_SCOPES="myscope"
-export AUTH_REQUIRED_SCOPES="myscope"
-export AUTH_CLIENT_REG_ENABLED=true
-export AUTH_REVOCATION_ENABLED=true
+export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
+export AUTH_AUDIENCE="your-azure-client-id"
 ```
 
-- If `ENABLE_AUTH` is not set or is false, the server runs with no authentication (backward compatible).
-- All settings apply to both single and multi-registry modes.
+**Google OAuth 2.0:**
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://accounts.google.com"
+export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
+```
+
+**Any OAuth 2.1 Provider:**
+```bash
+export ENABLE_AUTH=true
+export AUTH_ISSUER_URL="https://your-oauth-provider.com"
+export AUTH_AUDIENCE="your-client-id-or-api-identifier"
+```
+
+> **🔧 Migration from v1.x**: Replace `AUTH_PROVIDER=azure/google/etc` with `AUTH_ISSUER_URL` + `AUTH_AUDIENCE`. The server handles endpoint discovery automatically using OAuth 2.1 standards.
 
 ## 🎉 Production Ready - True MCP Implementation
 
