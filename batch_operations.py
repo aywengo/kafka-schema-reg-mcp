@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Application-Level Batch Operations Module
+Application-Level Batch Operations Module - Updated with Structured Output
 
 ⚠️  IMPORTANT: These are APPLICATION-LEVEL batch operations, NOT JSON-RPC batching.
 
@@ -8,7 +8,9 @@ Application-Level Batch Operations Module
     These functions perform application-level batching by making individual JSON-RPC
     requests for each operation, providing client-side request queuing for performance.
 
-Handles batch cleanup operations for Schema Registry contexts.
+Handles batch cleanup operations for Schema Registry contexts with structured tool output
+support per MCP 2025-06-18 specification.
+
 Provides clear_context_batch and clear_multiple_contexts_batch functionality.
 
 Migration from JSON-RPC Batching:
@@ -26,12 +28,18 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from schema_validation import (
+    structured_output,
+    create_error_response,
+    create_success_response
+)
 from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
+@structured_output("clear_context_batch", fallback_on_error=True)
 def clear_context_batch_tool(
     context: str,
     registry_manager,
@@ -62,7 +70,7 @@ def clear_context_batch_tool(
         dry_run: If True, only simulate the operation without making changes
 
     Returns:
-        Task information with task_id for monitoring progress
+        Task information with task_id for monitoring progress with structured validation
     """
     try:
         # Resolve registry name BEFORE creating task (critical for task lookup)
@@ -74,12 +82,20 @@ def clear_context_batch_tool(
                     0
                 ]  # list_registries() returns list of strings
             else:
-                return {"error": "No registries available"}
+                return create_error_response(
+                    "No registries available",
+                    error_code="NO_REGISTRIES_AVAILABLE",
+                    registry_mode=registry_mode
+                )
 
         # Validate registry exists
         registry_client = registry_manager.get_registry(registry)
         if not registry_client:
-            return {"error": f"Registry '{registry}' not found"}
+            return create_error_response(
+                f"Registry '{registry}' not found",
+                error_code="REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode
+            )
 
         # Create async task with resolved registry name
         task = task_manager.create_task(
@@ -128,7 +144,8 @@ def clear_context_batch_tool(
             thread = threading.Thread(target=run_task)
             thread.start()
 
-        return {
+        # Return structured response
+        result = {
             "message": "Context cleanup started as async task (application-level batching)",
             "task_id": task.id,
             "task": task.to_dict(),
@@ -142,10 +159,23 @@ def clear_context_batch_tool(
                 "registry_mode": registry_mode,
                 "performance_note": "Uses parallel individual requests instead of JSON-RPC batching for MCP 2025-06-18 compliance",
             },
+            "operation": "clear_context_batch",
+            "dry_run": dry_run,
+            "total_items": 1,  # One context
+            "successful": 0,   # Will be updated by task
+            "failed": 0,       # Will be updated by task
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
+        
+        return result
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="BATCH_OPERATION_FAILED",
+            registry_mode=registry_mode
+        )
 
 
 def _execute_clear_context_batch(
@@ -372,6 +402,7 @@ def _delete_subject_from_context(
         return False
 
 
+@structured_output("clear_multiple_contexts_batch", fallback_on_error=True)
 def clear_multiple_contexts_batch_tool(
     contexts: List[str],
     registry_manager,
@@ -402,7 +433,7 @@ def clear_multiple_contexts_batch_tool(
         dry_run: If True, only simulate the operation without making changes
 
     Returns:
-        Task information with task_id for monitoring progress
+        Task information with task_id for monitoring progress with structured validation
     """
     try:
         # Resolve registry name BEFORE creating task (critical for task lookup)
@@ -414,12 +445,20 @@ def clear_multiple_contexts_batch_tool(
                     0
                 ]  # list_registries() returns list of strings
             else:
-                return {"error": "No registries available"}
+                return create_error_response(
+                    "No registries available",
+                    error_code="NO_REGISTRIES_AVAILABLE",
+                    registry_mode=registry_mode
+                )
 
         # Validate registry exists
         registry_client = registry_manager.get_registry(registry)
         if not registry_client:
-            return {"error": f"Registry '{registry}' not found"}
+            return create_error_response(
+                f"Registry '{registry}' not found",
+                error_code="REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode
+            )
 
         # Create async task with resolved registry name
         task = task_manager.create_task(
@@ -468,7 +507,8 @@ def clear_multiple_contexts_batch_tool(
             thread = threading.Thread(target=run_task)
             thread.start()
 
-        return {
+        # Return structured response
+        result = {
             "message": "Multiple contexts cleanup started as async task (application-level batching)",
             "task_id": task.id,
             "task": task.to_dict(),
@@ -482,10 +522,23 @@ def clear_multiple_contexts_batch_tool(
                 "registry_mode": registry_mode,
                 "performance_note": "Uses parallel individual requests instead of JSON-RPC batching for MCP 2025-06-18 compliance",
             },
+            "operation": "clear_multiple_contexts_batch",
+            "dry_run": dry_run,
+            "total_items": len(contexts),
+            "successful": 0,   # Will be updated by task
+            "failed": 0,       # Will be updated by task
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
         }
+        
+        return result
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="BATCH_OPERATION_FAILED",
+            registry_mode=registry_mode
+        )
 
 
 def _execute_clear_multiple_contexts_batch(
