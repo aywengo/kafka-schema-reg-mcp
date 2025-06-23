@@ -417,6 +417,7 @@ run_mcp_compliance_tests() {
     # Use the test file in the tests directory
     local tests=(
         "test_mcp_compliance.py:MCP-Protocol-Version header validation and compliance verification"
+        "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
     )
     
     run_test_list "${tests[@]}"

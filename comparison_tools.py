@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """
-Comparison Tools Module
+Comparison Tools Module - Updated with Structured Output
 
-Handles registry comparison operations.
-Provides registry comparison, context comparison, and missing schema detection.
+Handles registry comparison operations with structured tool output
+support per MCP 2025-06-18 specification.
+
+Provides registry comparison, context comparison, and missing schema detection
+with JSON Schema validation and type-safe responses.
 """
 
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from schema_validation import (
+    create_error_response,
+    create_success_response,
+    structured_output,
+)
 
+
+@structured_output("compare_registries", fallback_on_error=True)
 async def compare_registries_tool(
     source_registry: str,
     target_registry: str,
@@ -29,28 +39,42 @@ async def compare_registries_tool(
         include_configs: Include configuration comparison
 
     Returns:
-        Comparison results or error if in single-registry mode
+        Comparison results with structured validation or error if in single-registry mode
     """
     if registry_mode == "single":
-        return {
-            "error": "Registry comparison is only available in multi-registry mode",
-            "suggestion": "Set REGISTRY_MODE=multi to enable registry comparison",
-        }
+        return create_error_response(
+            "Registry comparison is only available in multi-registry mode",
+            details={
+                "suggestion": "Set REGISTRY_MODE=multi to enable registry comparison"
+            },
+            error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+            registry_mode=registry_mode,
+        )
 
     try:
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
         if not source_client:
-            return {"error": f"Source registry '{source_registry}' not found"}
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
         if not target_client:
-            return {"error": f"Target registry '{target_registry}' not found"}
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
 
         comparison = {
             "source_registry": source_registry,
             "target_registry": target_registry,
             "timestamp": datetime.now().isoformat(),
             "differences": {},
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Compare subjects
@@ -105,9 +129,12 @@ async def compare_registries_tool(
         return comparison
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e), error_code="REGISTRY_COMPARISON_FAILED", registry_mode=registry_mode
+        )
 
 
+@structured_output("compare_contexts_across_registries", fallback_on_error=True)
 async def compare_contexts_across_registries_tool(
     source_registry: str,
     target_registry: str,
@@ -127,22 +154,32 @@ async def compare_contexts_across_registries_tool(
         target_context: Target context name (defaults to source_context)
 
     Returns:
-        Context comparison results
+        Context comparison results with structured validation
     """
     if registry_mode == "single":
-        return {
-            "error": "Context comparison across registries is only available in multi-registry mode",
-            "suggestion": "Set REGISTRY_MODE=multi to enable this feature",
-        }
+        return create_error_response(
+            "Context comparison across registries is only available in multi-registry mode",
+            details={"suggestion": "Set REGISTRY_MODE=multi to enable this feature"},
+            error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+            registry_mode=registry_mode,
+        )
 
     try:
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
         if not source_client:
-            return {"error": f"Source registry '{source_registry}' not found"}
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
         if not target_client:
-            return {"error": f"Target registry '{target_registry}' not found"}
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
 
         # Use source context for target if not specified
         if target_context is None:
@@ -168,6 +205,8 @@ async def compare_contexts_across_registries_tool(
                 "only_in_target": list(target_subjects - source_subjects),
                 "in_both": list(source_subjects & target_subjects),
             },
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Compare schemas for common subjects
@@ -194,9 +233,12 @@ async def compare_contexts_across_registries_tool(
         return comparison
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e), error_code="CONTEXT_COMPARISON_FAILED", registry_mode=registry_mode
+        )
 
 
+@structured_output("find_missing_schemas", fallback_on_error=True)
 async def find_missing_schemas_tool(
     source_registry: str,
     target_registry: str,
@@ -214,22 +256,32 @@ async def find_missing_schemas_tool(
         context: Optional context to limit the search
 
     Returns:
-        List of missing schemas
+        List of missing schemas with structured validation
     """
     if registry_mode == "single":
-        return {
-            "error": "Finding missing schemas across registries is only available in multi-registry mode",
-            "suggestion": "Set REGISTRY_MODE=multi to enable this feature",
-        }
+        return create_error_response(
+            "Finding missing schemas across registries is only available in multi-registry mode",
+            details={"suggestion": "Set REGISTRY_MODE=multi to enable this feature"},
+            error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+            registry_mode=registry_mode,
+        )
 
     try:
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
         if not source_client:
-            return {"error": f"Source registry '{source_registry}' not found"}
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
         if not target_client:
-            return {"error": f"Target registry '{target_registry}' not found"}
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
 
         # Get subjects based on context
         if context:
@@ -249,6 +301,8 @@ async def find_missing_schemas_tool(
             "missing_subjects": list(missing_subjects),
             "missing_count": len(missing_subjects),
             "details": [],
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Get details for each missing subject
@@ -273,4 +327,8 @@ async def find_missing_schemas_tool(
         return result
 
     except Exception as e:
-        return {"error": str(e)}
+        return create_error_response(
+            str(e),
+            error_code="MISSING_SCHEMA_SEARCH_FAILED",
+            registry_mode=registry_mode,
+        )
