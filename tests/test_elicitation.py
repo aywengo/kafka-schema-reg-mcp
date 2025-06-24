@@ -16,34 +16,34 @@ Tests cover:
 
 import asyncio
 import json
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
+import pytest
+
 # Import elicitation modules
 from elicitation import (
+    ElicitationField,
     ElicitationManager,
+    ElicitationPriority,
     ElicitationRequest,
     ElicitationResponse,
     ElicitationType,
-    ElicitationPriority,
-    ElicitationField,
-    create_schema_field_elicitation,
-    create_migration_preferences_elicitation,
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
-    mock_elicit,
-    is_elicitation_supported,
+    create_migration_preferences_elicitation,
+    create_schema_field_elicitation,
     elicit_with_fallback,
+    is_elicitation_supported,
+    mock_elicit,
 )
-
 from interactive_tools import (
-    register_schema_interactive,
-    migrate_context_interactive,
     check_compatibility_interactive,
     create_context_interactive,
     export_global_interactive,
+    migrate_context_interactive,
+    register_schema_interactive,
 )
 
 
@@ -738,10 +738,10 @@ class TestElicitationIntegration:
         # For now, we'll test the function signatures and basic structure
 
         from kafka_schema_registry_unified_mcp import (
-            list_elicitation_requests,
-            get_elicitation_request,
             cancel_elicitation_request,
+            get_elicitation_request,
             get_elicitation_status,
+            list_elicitation_requests,
         )
 
         # Test that functions exist and are callable

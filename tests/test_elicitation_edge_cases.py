@@ -7,31 +7,30 @@ performance scenarios in the elicitation system.
 """
 
 import asyncio
-import pytest
 import time
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from elicitation import (
+    ElicitationField,
     ElicitationManager,
     ElicitationRequest,
     ElicitationResponse,
     ElicitationType,
-    ElicitationField,
     elicitation_manager,
     mock_elicit,
 )
-
 from elicitation_mcp_integration import (
-    real_mcp_elicit,
-    handle_elicitation_response,
-    register_elicitation_handlers,
     enhanced_elicit_with_fallback,
+    handle_elicitation_response,
+    real_mcp_elicit,
+    register_elicitation_handlers,
 )
-
 from interactive_tools import (
-    register_schema_interactive,
     _build_schema_from_elicitation,
+    register_schema_interactive,
 )
 
 

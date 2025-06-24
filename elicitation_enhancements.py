@@ -9,15 +9,15 @@ for the elicitation system to ensure production readiness.
 import asyncio
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set
 
 from elicitation import (
     ElicitationField,
+    ElicitationManager,
     ElicitationRequest,
     ElicitationResponse,
-    ElicitationManager,
 )
 
 logger = logging.getLogger(__name__)

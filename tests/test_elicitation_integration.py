@@ -18,37 +18,36 @@ Test Coverage:
 import asyncio
 import json
 import logging
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+
 # Import elicitation modules
 from elicitation import (
+    ElicitationField,
     ElicitationManager,
+    ElicitationPriority,
     ElicitationRequest,
     ElicitationResponse,
     ElicitationType,
-    ElicitationPriority,
-    ElicitationField,
-    create_schema_field_elicitation,
     create_migration_preferences_elicitation,
+    create_schema_field_elicitation,
     elicitation_manager,
 )
-
 from elicitation_mcp_integration import (
-    register_elicitation_handlers,
-    update_elicitation_implementation,
+    enhanced_elicit_with_fallback,
     handle_elicitation_response,
     real_mcp_elicit,
-    enhanced_elicit_with_fallback,
+    register_elicitation_handlers,
+    update_elicitation_implementation,
 )
-
 from interactive_tools import (
-    register_schema_interactive,
-    migrate_context_interactive,
     check_compatibility_interactive,
     create_context_interactive,
     export_global_interactive,
+    migrate_context_interactive,
+    register_schema_interactive,
 )
 
 # Import main server components for integration testing
@@ -568,7 +567,7 @@ class TestElicitationIntegration:
         """Test real MCP protocol elicitation integration."""
         # Test scenario: Verify MCP protocol integration works correctly
 
-        from elicitation_mcp_integration import set_mcp_instance, real_mcp_elicit
+        from elicitation_mcp_integration import real_mcp_elicit, set_mcp_instance
 
         # Set up mock MCP instance
         set_mcp_instance(self.mock_mcp)
