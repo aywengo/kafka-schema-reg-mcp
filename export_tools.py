@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Export Tools Module - Updated with Structured Output
+Export Tools Module - Updated with Resource Linking
 
 Handles schema export operations in various formats with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-06-18 specification including resource linking.
 
 Provides schema, subject, context, and global export functionality
-with JSON Schema validation and type-safe responses.
+with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 from typing import Any, Dict, Optional, Union
 
+from resource_linking import add_links_to_response
 from schema_registry_common import export_context as common_export_context
 from schema_registry_common import export_global as common_export_global
 from schema_registry_common import export_schema as common_export_schema
@@ -21,6 +22,18 @@ from schema_validation import (
     create_success_response,
     structured_output,
 )
+
+
+def _get_registry_name_for_linking(registry_mode: str, client=None, registry: Optional[str] = None) -> str:
+    """Helper function to get registry name for linking."""
+    if registry_mode == "single":
+        return "default"
+    elif client and hasattr(client, 'config'):
+        return client.config.name
+    elif registry:
+        return registry
+    else:
+        return "unknown"
 
 
 @structured_output("export_schema", fallback_on_error=True)
@@ -44,7 +57,7 @@ def export_schema_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Exported schema data with structured validation
+        Exported schema data with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -73,6 +86,13 @@ def export_schema_tool(
                 result["version"] = version if version != "latest" else 1
             if "format" not in result:
                 result["format"] = format
+
+            # Add resource links for dictionary results
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(
+                result, "schema", registry_name,
+                subject=subject, version=version, context=context
+            )
 
         return result
     except Exception as e:
@@ -104,7 +124,7 @@ def export_subject_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing subject export data with structured validation
+        Dictionary containing subject export data with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -132,6 +152,13 @@ def export_subject_tool(
             result["subject"] = subject
         if "versions" not in result:
             result["versions"] = []
+
+        # Add resource links
+        registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+        result = add_links_to_response(
+            result, "subject", registry_name,
+            subject=subject, context=context
+        )
 
         return result
     except Exception as e:
@@ -161,7 +188,7 @@ def export_context_tool(
         include_versions: Which versions to include (all, latest)
 
     Returns:
-        Dictionary containing context export data with structured validation
+        Dictionary containing context export data with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -178,6 +205,13 @@ def export_context_tool(
             )
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+            
+            # Add resource links
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(
+                result, "context", registry_name, context=context
+            )
+            
             return result
         else:
             # Multi-registry mode: use client approach
@@ -217,6 +251,7 @@ def export_context_tool(
             result = {
                 "context": context,
                 "subjects": subjects_data,
+                "subject_count": len(subjects_data),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
                 "mcp_protocol_version": "2025-06-18",
@@ -241,6 +276,12 @@ def export_context_tool(
                     "export_version": "2.0.0",
                     "registry_mode": "multi",
                 }
+
+            # Add resource links
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(
+                result, "context", registry_name, context=context
+            )
 
             return result
     except Exception as e:
@@ -268,7 +309,7 @@ def export_global_tool(
         include_versions: Which versions to include (all, latest)
 
     Returns:
-        Dictionary containing global export data with structured validation
+        Dictionary containing global export data with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -285,6 +326,13 @@ def export_global_tool(
             )
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+            
+            # Add resource links
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(
+                result, "registry", registry_name
+            )
+            
             return result
         else:
             # Multi-registry mode: use client approach
@@ -333,6 +381,7 @@ def export_global_tool(
 
             result = {
                 "contexts": contexts_data,
+                "contexts_count": len(contexts_data),
                 "default_context": (
                     default_export if "error" not in default_export else None
                 ),
@@ -359,7 +408,17 @@ def export_global_tool(
                     "registry_name": client.config.name,
                     "export_version": "2.0.0",
                     "registry_mode": "multi",
+                    "total_contexts": len(contexts_data),
+                    "total_subjects": sum(
+                        len(ctx.get("subjects", [])) for ctx in contexts_data
+                    ),
                 }
+
+            # Add resource links
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(
+                result, "registry", registry_name
+            )
 
             return result
     except Exception as e:
