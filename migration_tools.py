@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Migration Tools Module - Updated with Structured Output
+Migration Tools Module - Updated with Resource Linking
 
 Handles schema and context migration operations between registries with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-06-18 specification including resource linking.
 
 Provides schema migration, context migration, and migration status tracking
-with JSON Schema validation and type-safe responses.
+with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 import json
@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
     structured_output,
@@ -25,6 +26,16 @@ from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[str] = None) -> str:
+    """Helper function to get registry name for linking."""
+    if registry_mode == "single":
+        return "default"
+    elif registry_name:
+        return registry_name
+    else:
+        return "unknown"
 
 
 @structured_output("migrate_schema", fallback_on_error=True)
@@ -62,7 +73,7 @@ def migrate_schema_tool(
 
     Returns:
         Task information with task_id for monitoring progress (multi-registry mode)
-        or simple result (single-registry mode) with structured validation
+        or simple result (single-registry mode) with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -157,6 +168,14 @@ def migrate_schema_tool(
                     "registry_mode": "multi",
                     "mcp_protocol_version": "2025-06-18",
                 }
+            )
+
+            # Add resource links
+            migration_result = add_links_to_response(
+                migration_result, "migration", source_registry,
+                migration_id=task.id,
+                source_registry=source_registry,
+                target_registry=target_registry
             )
 
             return migration_result
@@ -590,7 +609,7 @@ def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
     Only available in multi-registry mode.
 
     Returns:
-        List of migration tasks with their status and progress with structured validation
+        Dictionary containing migration tasks with their status and progress, including resource links
     """
     try:
         if registry_mode == "single":
@@ -621,10 +640,21 @@ def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
             }
             migrations.append(migration_info)
 
-        # Core business logic: return the list of migrations
-        # The structured_output decorator will wrap this for MCP compliance
-        # but the base business logic should return what the function name suggests
-        return migrations
+        # Convert to enhanced response format
+        result = {
+            "migrations": migrations,
+            "total_migrations": len(migrations),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18"
+        }
+
+        # Add resource links
+        registry_name = _get_registry_name_for_linking(registry_mode)
+        result = add_links_to_response(
+            result, "migrations_list", registry_name
+        )
+
+        return result
 
     except Exception as e:
         return create_error_response(
@@ -642,7 +672,7 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
         migration_id: The migration task ID to query
 
     Returns:
-        Detailed migration status and progress information with structured validation
+        Detailed migration status and progress information with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -691,6 +721,18 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
                     estimated_remaining, 1
                 )
 
+        # Add resource links - extract registry names from metadata
+        metadata = task.metadata or {}
+        source_registry = metadata.get("source_registry", "unknown")
+        target_registry = metadata.get("target_registry", "unknown")
+        
+        migration_status = add_links_to_response(
+            migration_status, "migration", source_registry,
+            migration_id=migration_id,
+            source_registry=source_registry,
+            target_registry=target_registry
+        )
+
         return migration_status
 
     except Exception as e:
@@ -726,7 +768,7 @@ async def migrate_context_tool(
         migrate_all_versions: Migrate all versions or just latest
 
     Returns:
-        Docker command and instructions for running the external migration tool with structured validation
+        Docker command and instructions for running the external migration tool with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -863,6 +905,13 @@ async def migrate_context_tool(
             "registry_mode": "multi",
             "mcp_protocol_version": "2025-06-18",
         }
+
+        # Add resource links
+        result = add_links_to_response(
+            result, "comparison", source_registry,
+            source_registry=source_registry,
+            target_registry=target_registry
+        )
 
         return result
 
