@@ -25,6 +25,7 @@ This modular version splits functionality across specialized modules:
 - core_registry_tools: Basic CRUD operations
 - elicitation: Interactive workflow support (NEW)
 - interactive_tools: Elicitation-enabled tool variants (NEW)
+- elicitation_mcp_integration: Real MCP protocol integration (NEW)
 
 Features:
 - Automatic mode detection
@@ -249,6 +250,13 @@ from elicitation import (  # noqa: E402
     elicitation_manager,
     is_elicitation_supported,
 )
+
+# Import elicitation MCP integration
+from elicitation_mcp_integration import (  # noqa: E402
+    register_elicitation_handlers,
+    update_elicitation_implementation,
+)
+
 from export_tools import (  # noqa: E402
     export_context_tool,
     export_global_tool,
@@ -388,6 +396,22 @@ else:
     auth = None
     headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
     standard_headers = {"Content-Type": "application/json"}
+
+# Initialize elicitation MCP integration
+try:
+    # Register elicitation handlers with the MCP instance
+    elicitation_handlers_registered = register_elicitation_handlers(mcp)
+    if elicitation_handlers_registered:
+        logger.info("✅ Elicitation handlers registered with MCP server")
+        
+        # Update the elicitation implementation to use real MCP protocol
+        update_elicitation_implementation()
+        logger.info("✅ Enhanced elicitation implementation activated")
+    else:
+        logger.warning("⚠️ Failed to register elicitation handlers, using fallback implementation")
+except Exception as e:
+    logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
+    logger.info("📝 Falling back to mock elicitation implementation")
 
 # ===== UNIFIED REGISTRY MANAGEMENT TOOLS =====
 
@@ -1284,6 +1308,36 @@ def get_elicitation_status():
         )
 
 
+# Add an elicitation response tool for clients to submit responses
+@mcp.tool()
+@require_scopes("write")
+async def submit_elicitation_response(request_id: str, response_data: dict):
+    """Submit an elicitation response from the client."""
+    try:
+        from elicitation_mcp_integration import handle_elicitation_response
+        
+        success = await handle_elicitation_response(request_id, response_data)
+        
+        if success:
+            return create_success_response(
+                f"Elicitation response submitted successfully for request '{request_id}'",
+                data={"request_id": request_id, "processed": True},
+                registry_mode=REGISTRY_MODE,
+            )
+        else:
+            return create_error_response(
+                f"Failed to process elicitation response for request '{request_id}'",
+                error_code="ELICITATION_RESPONSE_FAILED",
+                registry_mode=REGISTRY_MODE,
+            )
+    except Exception as e:
+        return create_error_response(
+            f"Error submitting elicitation response: {str(e)}",
+            error_code="ELICITATION_RESPONSE_ERROR",
+            registry_mode=REGISTRY_MODE,
+        )
+
+
 # ===== TASK MANAGEMENT TOOLS (Updated with Structured Output) =====
 
 
@@ -1597,7 +1651,8 @@ def _internal_get_mcp_compliance_status():
                     "list_elicitation_requests",
                     "get_elicitation_request", 
                     "cancel_elicitation_request",
-                    "get_elicitation_status"
+                    "get_elicitation_status",
+                    "submit_elicitation_response"
                 ]
             },
             "migration_info": {
@@ -1639,6 +1694,7 @@ def _internal_get_mcp_compliance_status():
                     "Graceful fallback on validation failures",
                     "Elicitation capability implemented per MCP 2025-06-18 specification",
                     "Interactive workflow support with fallback mechanisms",
+                    "Real MCP protocol integration for elicitation with fallback to mock",
                 ],
             },
             "registry_mode": REGISTRY_MODE,
@@ -2299,6 +2355,7 @@ def get_mode_info():
                 "registry_management_tools",
                 "elicitation",
                 "interactive_tools",
+                "elicitation_mcp_integration",
             ],
             "structured_output": {
                 "implementation_status": "100% Complete",
@@ -2328,7 +2385,8 @@ def get_mode_info():
                     "list_elicitation_requests",
                     "get_elicitation_request", 
                     "cancel_elicitation_request",
-                    "get_elicitation_status"
+                    "get_elicitation_status",
+                    "submit_elicitation_response"
                 ],
                 "features": [
                     "Interactive schema field definition",
@@ -2338,7 +2396,8 @@ def get_mode_info():
                     "Export format preference selection",
                     "Multi-round conversation support",
                     "Timeout handling and validation",
-                    "Graceful fallback for non-supporting clients"
+                    "Graceful fallback for non-supporting clients",
+                    "Real MCP protocol integration with mock fallback"
                 ]
             },
             "mcp_compliance": {
@@ -2360,6 +2419,7 @@ def get_mode_info():
                     "Graceful fallback on validation failures",
                     "🎭 Elicitation capability implemented per MCP 2025-06-18 specification",
                     "Interactive workflow support with fallback mechanisms",
+                    "Real MCP protocol integration for elicitation with intelligent fallback",
                 ],
             },
         }
@@ -2416,10 +2476,11 @@ if __name__ == "__main__":
 🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 Compliance)
 ✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})
 💼 Application Batching: ENABLED (clear_context_batch, etc.)
-📦 Architecture: Modular (10 specialized modules)
+📦 Architecture: Modular (11 specialized modules)
 💬 Prompts: 6 comprehensive guides available
 🎯 Structured Tool Output: 100% Complete (All tools)
 🎭 Elicitation Capability: ENABLED (Interactive Workflows)
+🔗 Real MCP Elicitation Protocol: INTEGRATED (with fallback)
     """,
         file=sys.stderr,
     )
@@ -2446,6 +2507,9 @@ if __name__ == "__main__":
     )
     logger.info(
         f"🎭 Elicitation capability: {'ENABLED' if is_elicitation_supported() else 'DISABLED'} - Interactive workflows per MCP 2025-06-18"
+    )
+    logger.info(
+        "🔗 Real MCP elicitation protocol integrated with intelligent fallback to mock"
     )
     logger.info(
         "Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows"
