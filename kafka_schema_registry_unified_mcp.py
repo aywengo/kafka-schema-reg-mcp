@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Kafka Schema Registry Unified MCP Server - Modular Version
+Kafka Schema Registry Unified MCP Server - Modular Version with Elicitation Support
 
 A comprehensive Message Control Protocol (MCP) server that automatically detects
 and supports both single and multi-registry modes based on environment variables.
+
+🎯 NEW: ELICITATION CAPABILITY - Interactive workflow support per MCP 2025-06-18 specification.
+    Tools can now interactively request missing information from users for guided workflows.
 
 🚫 JSON-RPC BATCHING DISABLED: Per MCP 2025-06-18 specification compliance.
     Application-level batch operations (clear_context_batch, etc.) remain available
@@ -20,10 +23,17 @@ This modular version splits functionality across specialized modules:
 - batch_operations: Application-level batch cleanup operations
 - statistics_tools: Counting and statistics
 - core_registry_tools: Basic CRUD operations
+- elicitation: Interactive workflow support (NEW)
+- interactive_tools: Elicitation-enabled tool variants (NEW)
 
 Features:
 - Automatic mode detection
-- 48 MCP Tools (all original tools + multi-registry extensions)
+- 53+ MCP Tools (all original tools + elicitation-enabled variants)
+- Interactive Schema Registration with guided field definition
+- Interactive Migration with preference elicitation
+- Interactive Compatibility Resolution
+- Interactive Context Creation with metadata collection
+- Interactive Export with format preference selection
 - Cross-Registry Comparison and Migration
 - Schema Export/Import with multiple formats
 - Async Task Queue for long-running operations
@@ -31,7 +41,8 @@ Features:
 - OAuth scopes support
 - MCP 2025-06-18 specification compliance (JSON-RPC batching disabled)
 - MCP-Protocol-Version header validation
-- Structured tool output for all 48 tools (100% complete)
+- Structured tool output for all tools (100% complete)
+- Elicitation capability for interactive workflows
 """
 
 import json
@@ -232,11 +243,26 @@ from core_registry_tools import (  # noqa: E402
     update_subject_config_tool,
     update_subject_mode_tool,
 )
+
+# Import elicitation functionality
+from elicitation import (  # noqa: E402
+    elicitation_manager,
+    is_elicitation_supported,
+)
 from export_tools import (  # noqa: E402
     export_context_tool,
     export_global_tool,
     export_schema_tool,
     export_subject_tool,
+)
+
+# Import interactive tools
+from interactive_tools import (  # noqa: E402
+    check_compatibility_interactive,
+    create_context_interactive,
+    export_global_interactive,
+    migrate_context_interactive,
+    register_schema_interactive,
 )
 
 # Import prompts from external module
@@ -474,6 +500,36 @@ def register_schema(
 
 
 @mcp.tool()
+@require_scopes("write")
+async def register_schema_interactive(
+    subject: str,
+    schema_definition: dict = None,
+    schema_type: str = "AVRO",
+    context: str = None,
+    registry: str = None,
+):
+    """
+    Interactive schema registration with elicitation for missing field definitions.
+    
+    When schema_definition is incomplete or missing fields, this tool will
+    elicit the required information from the user interactively.
+    """
+    return await register_schema_interactive(
+        subject=subject,
+        schema_definition=schema_definition,
+        schema_type=schema_type,
+        context=context,
+        registry=registry,
+        register_schema_tool=register_schema_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
 @require_scopes("read")
 def get_schema(
     subject: str, version: str = "latest", context: str = None, registry: str = None
@@ -544,6 +600,36 @@ def check_compatibility(
         auth,
         headers,
         SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
+@require_scopes("read")
+async def check_compatibility_interactive(
+    subject: str,
+    schema_definition: dict,
+    schema_type: str = "AVRO",
+    context: str = None,
+    registry: str = None,
+):
+    """
+    Interactive compatibility checking with elicitation for resolution options.
+    
+    When compatibility issues are found, this tool will elicit resolution
+    preferences from the user.
+    """
+    return await check_compatibility_interactive(
+        subject=subject,
+        schema_definition=schema_definition,
+        schema_type=schema_type,
+        context=context,
+        registry=registry,
+        check_compatibility_tool=check_compatibility_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
     )
 
 
@@ -713,6 +799,38 @@ def create_context(context: str, registry: str = None):
 
 
 @mcp.tool()
+@require_scopes("write")
+async def create_context_interactive(
+    context: str,
+    registry: str = None,
+    description: str = None,
+    owner: str = None,
+    environment: str = None,
+    tags: list = None,
+):
+    """
+    Interactive context creation with elicitation for metadata.
+    
+    When context metadata is not provided, this tool will elicit
+    organizational information from the user.
+    """
+    return await create_context_interactive(
+        context=context,
+        registry=registry,
+        description=description,
+        owner=owner,
+        environment=environment,
+        tags=tags,
+        create_context_tool=create_context_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
 @require_scopes("admin")
 def delete_context(context: str, registry: str = None):
     """Delete a schema context."""
@@ -834,6 +952,35 @@ def export_global(
     )
 
 
+@mcp.tool()
+@require_scopes("read")
+async def export_global_interactive(
+    registry: str = None,
+    include_metadata: bool = None,
+    include_config: bool = None,
+    include_versions: str = None,
+    format: str = None,
+    compression: str = None,
+):
+    """
+    Interactive global export with elicitation for export preferences.
+    
+    When export preferences are not specified, this tool will elicit
+    the required configuration from the user.
+    """
+    return await export_global_interactive(
+        registry=registry,
+        include_metadata=include_metadata,
+        include_config=include_config,
+        include_versions=include_versions,
+        format=format,
+        compression=compression,
+        export_global_tool=export_global_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+    )
+
+
 # ===== MIGRATION TOOLS =====
 
 
@@ -902,6 +1049,37 @@ async def migrate_context(
         preserve_ids,
         dry_run,
         migrate_all_versions,
+    )
+
+
+@mcp.tool()
+@require_scopes("admin")
+async def migrate_context_interactive(
+    source_registry: str,
+    target_registry: str,
+    context: str = None,
+    target_context: str = None,
+    preserve_ids: bool = None,
+    dry_run: bool = None,
+    migrate_all_versions: bool = None,
+):
+    """
+    Interactive context migration with elicitation for missing preferences.
+    
+    When migration preferences are not specified, this tool will elicit
+    the required configuration from the user.
+    """
+    return await migrate_context_interactive(
+        source_registry=source_registry,
+        target_registry=target_registry,
+        context=context,
+        target_context=target_context,
+        preserve_ids=preserve_ids,
+        dry_run=dry_run,
+        migrate_all_versions=migrate_all_versions,
+        migrate_context_tool=migrate_context_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
     )
 
 
@@ -994,6 +1172,116 @@ def get_registry_statistics(registry: str = None, include_context_details: bool 
     return get_registry_statistics_task_queue_tool(
         registry_manager, REGISTRY_MODE, registry, include_context_details
     )
+
+
+# ===== ELICITATION MANAGEMENT TOOLS =====
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_elicitation_requests():
+    """List all pending elicitation requests."""
+    try:
+        requests = elicitation_manager.list_pending_requests()
+        return {
+            "pending_requests": [req.to_dict() for req in requests],
+            "total_pending": len(requests),
+            "elicitation_supported": is_elicitation_supported(),
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to list elicitation requests: {str(e)}",
+            error_code="ELICITATION_LIST_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_elicitation_request(request_id: str):
+    """Get details of a specific elicitation request."""
+    try:
+        request = elicitation_manager.get_request(request_id)
+        if not request:
+            return create_error_response(
+                f"Elicitation request '{request_id}' not found",
+                error_code="ELICITATION_REQUEST_NOT_FOUND",
+                registry_mode=REGISTRY_MODE,
+            )
+        
+        response = elicitation_manager.get_response(request_id)
+        
+        return {
+            "request": request.to_dict(),
+            "response": response.to_dict() if response else None,
+            "status": "completed" if response else ("expired" if request.is_expired() else "pending"),
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to get elicitation request: {str(e)}",
+            error_code="ELICITATION_GET_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
+
+
+@mcp.tool()
+@require_scopes("admin")
+def cancel_elicitation_request(request_id: str):
+    """Cancel a pending elicitation request."""
+    try:
+        cancelled = elicitation_manager.cancel_request(request_id)
+        if cancelled:
+            return create_success_response(
+                f"Elicitation request '{request_id}' cancelled successfully",
+                data={"request_id": request_id, "cancelled": True},
+                registry_mode=REGISTRY_MODE,
+            )
+        else:
+            return create_error_response(
+                f"Elicitation request '{request_id}' not found or already completed",
+                error_code="ELICITATION_REQUEST_NOT_FOUND",
+                registry_mode=REGISTRY_MODE,
+            )
+    except Exception as e:
+        return create_error_response(
+            f"Failed to cancel elicitation request: {str(e)}",
+            error_code="ELICITATION_CANCEL_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_elicitation_status():
+    """Get the status of the elicitation system."""
+    try:
+        pending_requests = elicitation_manager.list_pending_requests()
+        return {
+            "elicitation_supported": is_elicitation_supported(),
+            "total_pending_requests": len(pending_requests),
+            "request_details": [
+                {
+                    "id": req.id,
+                    "title": req.title,
+                    "type": req.type.value,
+                    "priority": req.priority.value,
+                    "created_at": req.created_at.isoformat(),
+                    "expires_at": req.expires_at.isoformat() if req.expires_at else None,
+                    "expired": req.is_expired(),
+                }
+                for req in pending_requests
+            ],
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "registry_mode": REGISTRY_MODE,
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to get elicitation status: {str(e)}",
+            error_code="ELICITATION_STATUS_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
 
 
 # ===== TASK MANAGEMENT TOOLS (Updated with Structured Output) =====
@@ -1247,10 +1535,11 @@ def _internal_get_mcp_compliance_status():
             "last_verified": datetime.utcnow().isoformat(),
             "server_info": {
                 "name": "Kafka Schema Registry Unified MCP Server",
-                "version": "2.0.0-mcp-2025-06-18-compliant",
+                "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation",
                 "architecture": "modular",
                 "registry_mode": REGISTRY_MODE,
-                "structured_output_implementation": "100% Complete - All 48 tools",
+                "structured_output_implementation": "100% Complete - All tools",
+                "elicitation_capability": "Enabled - MCP 2025-06-18 Interactive Workflows",
             },
             "header_validation": {
                 "required_header": "MCP-Protocol-Version",
@@ -1271,18 +1560,45 @@ def _internal_get_mcp_compliance_status():
             },
             "structured_output": {
                 "implementation_status": "100% Complete",
-                "total_tools": 48,
-                "tools_with_structured_output": 48,
+                "total_tools": "53+",
+                "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "validation_framework": "JSON Schema with fallback support",
                 "features": [
-                    "Type-safe responses for all 48 tools",
+                    "Type-safe responses for all tools",
                     "Runtime validation with graceful fallback",
                     "Standardized error codes and structures",
                     "Comprehensive metadata in all responses",
                     "Zero breaking changes - backward compatible",
                 ],
+            },
+            "elicitation_capability": {
+                "implementation_status": "Complete - MCP 2025-06-18 Specification",
+                "interactive_tools": [
+                    "register_schema_interactive",
+                    "migrate_context_interactive", 
+                    "check_compatibility_interactive",
+                    "create_context_interactive",
+                    "export_global_interactive"
+                ],
+                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "features": [
+                    "Interactive schema field definition",
+                    "Migration preference collection",
+                    "Compatibility resolution guidance",
+                    "Context metadata elicitation",
+                    "Export format preference selection",
+                    "Multi-round conversation support",
+                    "Timeout handling and validation",
+                    "Graceful fallback for non-supporting clients"
+                ],
+                "management_tools": [
+                    "list_elicitation_requests",
+                    "get_elicitation_request", 
+                    "cancel_elicitation_request",
+                    "get_elicitation_status"
+                ]
             },
             "migration_info": {
                 "breaking_change": True,
@@ -1293,6 +1609,7 @@ def _internal_get_mcp_compliance_status():
                     "Implement client-side request queuing",
                     "Use parallel individual requests for performance",
                     "Ensure all MCP clients send MCP-Protocol-Version header",
+                    "Use interactive tools for guided workflows",
                 ],
                 "performance_impact": "Minimal - parallel processing maintains efficiency",
             },
@@ -1303,7 +1620,8 @@ def _internal_get_mcp_compliance_status():
                     "clear_multiple_contexts_batch",
                 ],
                 "async_task_queue": "Long-running operations use task queue pattern",
-                "structured_output": "All 48 tools have validated structured responses",
+                "structured_output": "All tools have validated structured responses",
+                "interactive_workflows": "Elicitation-enabled tools for guided user experiences",
             },
             "compliance_verification": {
                 "fastmcp_version": "2.8.0+",
@@ -1316,9 +1634,11 @@ def _internal_get_mcp_compliance_status():
                     "All operations maintain backward compatibility except JSON-RPC batching",
                     "Performance optimized through parallel processing and task queuing",
                     f"Exempt paths: {EXEMPT_PATHS}",
-                    "Structured tool output implemented for all 48 tools (100% complete)",
+                    "Structured tool output implemented for all tools (100% complete)",
                     "Type-safe responses with JSON Schema validation",
                     "Graceful fallback on validation failures",
+                    "Elicitation capability implemented per MCP 2025-06-18 specification",
+                    "Interactive workflow support with fallback mechanisms",
                 ],
             },
             "registry_mode": REGISTRY_MODE,
@@ -1807,7 +2127,8 @@ def get_registry_status():
         status_lines.append(
             f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
-        status_lines.append("🎯 Structured Tool Output: 100% Complete (48/48 tools)")
+        status_lines.append("🎯 Structured Tool Output: 100% Complete (All tools)")
+        status_lines.append("🎭 Elicitation Capability: ENABLED (Interactive Workflows)")
 
         for name in registries:
             client = registry_manager.get_registry(name)
@@ -1855,13 +2176,19 @@ def get_registry_info_resource():
                 else None
             ),
             "readonly_mode": READONLY if REGISTRY_MODE == "single" else False,
-            "server_version": "2.0.0-mcp-2025-06-18-compliant",
+            "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation",
             "structured_output": {
                 "implementation_status": "100% Complete",
-                "total_tools": 48,
-                "tools_with_structured_output": 48,
+                "total_tools": "53+",
+                "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
                 "validation_framework": "JSON Schema with graceful fallback",
+            },
+            "elicitation_capability": {
+                "implementation_status": "Complete - MCP 2025-06-18 Specification",
+                "supported": is_elicitation_supported(),
+                "interactive_tools": 5,
+                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
             },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
@@ -1871,6 +2198,7 @@ def get_registry_info_resource():
                 "jsonrpc_batching_disabled": True,
                 "compliance_status": "COMPLIANT",
                 "structured_output_complete": True,
+                "elicitation_capability_enabled": True,
             },
             "features": [
                 f"Unified {REGISTRY_MODE.title()} Registry Support",
@@ -1890,7 +2218,13 @@ def get_registry_info_resource():
                 "MCP 2025-06-18 Compliance (No JSON-RPC Batching)",
                 f"MCP-Protocol-Version Header Validation ({'enabled' if header_validation_active else 'compatibility mode'}) ({MCP_PROTOCOL_VERSION})",
                 "Application-Level Batch Operations",
-                "🎯 Structured Tool Output (100% Complete - All 48 tools)",
+                "🎯 Structured Tool Output (100% Complete - All tools)",
+                "🎭 Interactive Workflows with Elicitation Support",
+                "🚀 Guided Schema Registration",
+                "📋 Interactive Migration Configuration",
+                "🔧 Compatibility Resolution Guidance",
+                "📊 Context Metadata Collection",
+                "💾 Export Preference Selection",
             ],
         }
 
@@ -1902,8 +2236,12 @@ def get_registry_info_resource():
                 "registry_mode": REGISTRY_MODE,
                 "structured_output": {
                     "implementation_status": "100% Complete",
-                    "total_tools": 48,
+                    "total_tools": "53+",
                     "completion_percentage": 100.0,
+                },
+                "elicitation_capability": {
+                    "implementation_status": "Complete - MCP 2025-06-18 Specification",
+                    "supported": is_elicitation_supported(),
                 },
                 "mcp_compliance": {
                     "protocol_version": MCP_PROTOCOL_VERSION,
@@ -1913,6 +2251,7 @@ def get_registry_info_resource():
                     "jsonrpc_batching_disabled": True,
                     "compliance_status": "COMPLIANT",
                     "structured_output_complete": True,
+                    "elicitation_capability_enabled": True,
                 },
             },
             indent=2,
@@ -1958,11 +2297,13 @@ def get_mode_info():
                 "statistics_tools",
                 "core_registry_tools",
                 "registry_management_tools",
+                "elicitation",
+                "interactive_tools",
             ],
             "structured_output": {
                 "implementation_status": "100% Complete",
-                "total_tools": 48,
-                "tools_with_structured_output": 48,
+                "total_tools": "53+",
+                "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
                 "features": [
                     "JSON Schema validation for all tool responses",
@@ -1971,6 +2312,34 @@ def get_mode_info():
                     "Type-safe responses with metadata",
                     "Zero breaking changes - backward compatible",
                 ],
+            },
+            "elicitation_capability": {
+                "implementation_status": "Complete - MCP 2025-06-18 Specification",
+                "supported": is_elicitation_supported(),
+                "interactive_tools": [
+                    "register_schema_interactive",
+                    "migrate_context_interactive", 
+                    "check_compatibility_interactive",
+                    "create_context_interactive",
+                    "export_global_interactive"
+                ],
+                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "management_tools": [
+                    "list_elicitation_requests",
+                    "get_elicitation_request", 
+                    "cancel_elicitation_request",
+                    "get_elicitation_status"
+                ],
+                "features": [
+                    "Interactive schema field definition",
+                    "Migration preference collection",
+                    "Compatibility resolution guidance", 
+                    "Context metadata elicitation",
+                    "Export format preference selection",
+                    "Multi-round conversation support",
+                    "Timeout handling and validation",
+                    "Graceful fallback for non-supporting clients"
+                ]
             },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
@@ -1986,9 +2355,11 @@ def get_mode_info():
                     "All operations maintain backward compatibility except JSON-RPC batching",
                     "Performance maintained through parallel processing and task queuing",
                     f"Exempt paths for header validation: {EXEMPT_PATHS}",
-                    "🎯 Structured tool output implemented for all 48 tools (100% complete)",
+                    "🎯 Structured tool output implemented for all tools (100% complete)",
                     "Type-safe responses with JSON Schema validation",
                     "Graceful fallback on validation failures",
+                    "🎭 Elicitation capability implemented per MCP 2025-06-18 specification",
+                    "Interactive workflow support with fallback mechanisms",
                 ],
             },
         }
@@ -2038,23 +2409,24 @@ if __name__ == "__main__":
 
     print(
         f"""
-🚀 Kafka Schema Registry Unified MCP Server Starting (Modular)
+🚀 Kafka Schema Registry Unified MCP Server Starting (Modular + Elicitation)
 📡 Mode: {REGISTRY_MODE.upper()}
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 Compliance)
 ✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})
 💼 Application Batching: ENABLED (clear_context_batch, etc.)
-📦 Architecture: Modular (8 specialized modules)
+📦 Architecture: Modular (10 specialized modules)
 💬 Prompts: 6 comprehensive guides available
-🎯 Structured Tool Output: 100% Complete (48/48 tools)
+🎯 Structured Tool Output: 100% Complete (All tools)
+🎭 Elicitation Capability: ENABLED (Interactive Workflows)
     """,
         file=sys.stderr,
     )
 
     # Log startup information
     logger.info(
-        f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture)"
+        f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation)"
     )
     logger.info(
         f"Detected {len(registry_manager.list_registries())} registry configurations"
@@ -2070,7 +2442,10 @@ if __name__ == "__main__":
         "💼 Application-level batch operations ENABLED with individual requests"
     )
     logger.info(
-        "🎯 Structured tool output: 100% Complete - All 48 tools have JSON Schema validation"
+        "🎯 Structured tool output: 100% Complete - All tools have JSON Schema validation"
+    )
+    logger.info(
+        f"🎭 Elicitation capability: {'ENABLED' if is_elicitation_supported() else 'DISABLED'} - Interactive workflows per MCP 2025-06-18"
     )
     logger.info(
         "Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows"
