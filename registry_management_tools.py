@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-Registry Management Tools Module - Updated with Structured Output
+Registry Management Tools Module - Updated with Resource Linking
 
 Handles registry management operations with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-06-18 specification including resource linking.
 
 Provides registry listing, connection testing, and information retrieval
-with JSON Schema validation and type-safe responses.
+with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 from typing import Any, Dict, List, Optional
 
+from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
     create_success_response,
@@ -18,43 +19,64 @@ from schema_validation import (
 )
 
 
+def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[str] = None) -> str:
+    """Helper function to get registry name for linking."""
+    if registry_mode == "single":
+        return "default"
+    elif registry_name:
+        return registry_name
+    else:
+        return "unknown"
+
+
 @structured_output("list_registries", fallback_on_error=True)
-def list_registries_tool(registry_manager, registry_mode: str) -> List[Dict[str, Any]]:
+def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]:
     """
-    List all configured Schema Registry instances with structured validation.
+    List all configured Schema Registry instances with structured validation and resource links.
 
     Args:
         registry_manager: The registry manager instance
         registry_mode: Current registry mode (single/multi)
 
     Returns:
-        List of registry information dictionaries with structured validation
+        Dictionary containing registry information with structured validation and navigation links
     """
     try:
-        result = []
+        registries_list = []
         for name in registry_manager.list_registries():
             info = registry_manager.get_registry_info(name)
             if info:
                 # Add structured output metadata
                 info["registry_mode"] = registry_mode
                 info["mcp_protocol_version"] = "2025-06-18"
-                result.append(info)
+                
+                # Add resource links for each registry
+                info = add_links_to_response(
+                    info, "registry", name
+                )
+                
+                registries_list.append(info)
 
-        # If no registries found, return empty list with metadata
-        if not result:
-            return create_success_response(
-                "No registries configured",
-                data={"registries": [], "total_count": 0},
-                registry_mode=registry_mode,
-            )
+        # Convert to enhanced response format
+        result = {
+            "registries": registries_list,
+            "total_count": len(registries_list),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
+        }
 
-        # Add summary metadata to first registry for overall information
-        if result:
-            result[0]["_summary"] = {
-                "total_registries": len(result),
-                "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-06-18",
+        # If no registries found, add helpful message
+        if not registries_list:
+            result["message"] = "No registries configured"
+            result["help"] = {
+                "single_mode": "Set SCHEMA_REGISTRY_URL environment variable",
+                "multi_mode": "Set SCHEMA_REGISTRY_NAME_1, SCHEMA_REGISTRY_URL_1 environment variables"
             }
+
+        # Add default registry information
+        default_registry = registry_manager.get_default_registry()
+        if default_registry:
+            result["default_registry"] = default_registry
 
         return result
     except Exception as e:
@@ -68,7 +90,7 @@ def get_registry_info_tool(
     registry_manager, registry_mode: str, registry_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Get detailed information about a specific registry with structured validation.
+    Get detailed information about a specific registry with structured validation and resource links.
 
     Args:
         registry_manager: The registry manager instance
@@ -76,7 +98,7 @@ def get_registry_info_tool(
         registry_name: Optional registry name
 
     Returns:
-        Dictionary containing detailed registry information with structured validation
+        Dictionary containing detailed registry information with structured validation and navigation links
     """
     try:
         if registry_mode == "single" and not registry_name:
@@ -101,6 +123,12 @@ def get_registry_info_tool(
             "query_timestamp": __import__("datetime").datetime.now().isoformat(),
         }
 
+        # Add resource links
+        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
+        info = add_links_to_response(
+            info, "registry", registry_name_for_linking
+        )
+
         return info
     except Exception as e:
         return create_error_response(
@@ -113,7 +141,7 @@ def test_registry_connection_tool(
     registry_manager, registry_mode: str, registry_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Test connection to a specific registry with comprehensive information including metadata.
+    Test connection to a specific registry with comprehensive information including metadata and resource links.
 
     Args:
         registry_manager: The registry manager instance
@@ -121,7 +149,7 @@ def test_registry_connection_tool(
         registry_name: Optional registry name
 
     Returns:
-        Dictionary containing connection test results with structured validation
+        Dictionary containing connection test results with structured validation and navigation links
     """
     try:
         if registry_mode == "single" and not registry_name:
@@ -160,6 +188,19 @@ def test_registry_connection_tool(
             "has_authentication": bool(client.config.user and client.config.password),
         }
 
+        # Add connection health assessment
+        result["health_assessment"] = {
+            "status": "healthy" if result.get("status") == "connected" else "unhealthy",
+            "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
+            "readonly_mode": client.config.readonly,
+        }
+
+        # Add resource links
+        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
+        result = add_links_to_response(
+            result, "registry", registry_name_for_linking
+        )
+
         return result
     except Exception as e:
         return create_error_response(
@@ -174,14 +215,14 @@ async def test_all_registries_tool(
     registry_manager, registry_mode: str
 ) -> Dict[str, Any]:
     """
-    Test connections to all configured registries with comprehensive metadata.
+    Test connections to all configured registries with comprehensive metadata and resource links.
 
     Args:
         registry_manager: The registry manager instance
         registry_mode: Current registry mode (single/multi)
 
     Returns:
-        Dictionary containing test results for all registries with structured validation
+        Dictionary containing test results for all registries with structured validation and navigation links
     """
     try:
         if registry_mode == "single":
@@ -198,21 +239,35 @@ async def test_all_registries_tool(
                     except Exception as e:
                         result["metadata_error"] = str(e)
 
-                    return create_success_response(
-                        "Single registry connection test completed",
-                        data={
-                            "registry_tests": {default_registry: result},
-                            "total_registries": 1,
-                            "connected": (
-                                1 if result.get("status") == "connected" else 0
-                            ),
-                            "failed": 0 if result.get("status") == "connected" else 1,
-                            "test_timestamp": __import__("datetime")
-                            .datetime.now()
-                            .isoformat(),
-                        },
-                        registry_mode="single",
+                    # Add health assessment
+                    result["health_assessment"] = {
+                        "status": "healthy" if result.get("status") == "connected" else "unhealthy",
+                        "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
+                        "readonly_mode": client.config.readonly,
+                    }
+
+                    # Convert to enhanced response format
+                    response = {
+                        "registry_tests": {default_registry: result},
+                        "total_registries": 1,
+                        "connected": (
+                            1 if result.get("status") == "connected" else 0
+                        ),
+                        "failed": 0 if result.get("status") == "connected" else 1,
+                        "test_timestamp": __import__("datetime")
+                        .datetime.now()
+                        .isoformat(),
+                        "registry_mode": "single",
+                        "mcp_protocol_version": "2025-06-18",
+                    }
+
+                    # Add resource links
+                    registry_name_for_linking = _get_registry_name_for_linking(registry_mode, default_registry)
+                    response = add_links_to_response(
+                        response, "registry", registry_name_for_linking
                     )
+
+                    return response
 
             return create_error_response(
                 "No registry configured",
@@ -248,6 +303,13 @@ async def test_all_registries_tool(
                                         client.config.user and client.config.password
                                     ),
                                 }
+
+                                # Add health assessment
+                                test_result["health_assessment"] = {
+                                    "status": "healthy" if test_result.get("status") == "connected" else "unhealthy",
+                                    "can_perform_operations": test_result.get("status") == "connected" and not client.config.readonly,
+                                    "readonly_mode": client.config.readonly,
+                                }
                         except Exception as e:
                             test_result["metadata_error"] = str(e)
 
@@ -273,6 +335,27 @@ async def test_all_registries_tool(
                         if result["registry_tests"]
                         else "0%"
                     ),
+                    "total_registries": len(result["registry_tests"]),
+                    "operational_registries": len([
+                        name for name, test in result["registry_tests"].items()
+                        if test.get("status") == "connected" and 
+                        test.get("health_assessment", {}).get("can_perform_operations", False)
+                    ]),
+                }
+
+            # Add resource links - use first connected registry or default
+            first_registry = None
+            if "registry_tests" in result and result["registry_tests"]:
+                # Prefer connected registries
+                connected = [name for name, test in result["registry_tests"].items() 
+                           if test.get("status") == "connected"]
+                first_registry = connected[0] if connected else list(result["registry_tests"].keys())[0]
+            
+            if first_registry:
+                # Add links to the overall test results, pointing to a representative registry
+                result["_links"] = {
+                    "registries": f"registry://{first_registry}/info",
+                    "example_registry": f"registry://{first_registry}"
                 }
 
             return result
