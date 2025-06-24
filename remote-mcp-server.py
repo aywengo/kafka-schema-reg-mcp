@@ -1217,7 +1217,9 @@ def main():
     path = os.getenv("MCP_PATH", "/mcp")  # Always use /mcp for streamable-http
 
     logger.info("🚀 Starting Kafka Schema Registry Remote MCP Server")
-    logger.info(f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)")
+    logger.info(
+        f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)"
+    )
     logger.info(f"🌐 Host: {host}")
     logger.info(f"🔌 Port: {port}")
     logger.info(f"📍 Path: {path}")
