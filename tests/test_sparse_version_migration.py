@@ -169,8 +169,8 @@ class SparseVersionMigrationTest:
                 raise Exception(
                     f"Failed to register schema version {i+1}: {result['error']}"
                 )
-            
-            version_id = result.get("id", i+1)  # Some versions might return ID
+
+            version_id = result.get("id", i + 1)  # Some versions might return ID
             version_ids.append(version_id)
             print(f"✓ Registered schema version {i+1} (ID: {version_id})")
 
@@ -216,6 +216,7 @@ class SparseVersionMigrationTest:
 
         # Wait a moment for deletion to take effect
         import time
+
         time.sleep(2)
 
         # Check what versions remain
@@ -229,22 +230,30 @@ class SparseVersionMigrationTest:
         if isinstance(final_versions, dict) and "error" in final_versions:
             raise Exception(f"Error getting final versions: {final_versions['error']}")
 
-        print(f"✓ Final source versions after deletion attempt: {sorted(final_versions)}")
+        print(
+            f"✓ Final source versions after deletion attempt: {sorted(final_versions)}"
+        )
 
         # Check if we successfully created sparse versions
         # If version deletion worked, we should have [3, 4, 5]
         # If not, we'll have [1, 2, 3, 4, 5] and test different migration behavior
         expected_sparse = [3, 4, 5]
         if sorted(final_versions) == expected_sparse:
-            print(f"✓ Successfully created sparse version set: {sorted(final_versions)}")
+            print(
+                f"✓ Successfully created sparse version set: {sorted(final_versions)}"
+            )
             return final_versions
         else:
             print(f"ℹ️  Schema Registry doesn't support individual version deletion")
-            print(f"   Using alternate approach: migrating subset of versions {expected_sparse}")
+            print(
+                f"   Using alternate approach: migrating subset of versions {expected_sparse}"
+            )
             # Return the sparse subset we want to migrate instead
             return expected_sparse
 
-    def verify_sparse_versions_preserved(self, subject: str, expected_versions: list, strict: bool = True):
+    def verify_sparse_versions_preserved(
+        self, subject: str, expected_versions: list, strict: bool = True
+    ):
         """Verify that the target registry has the correct version numbers."""
         target_versions = get_schema_versions_tool(
             subject=subject,
@@ -290,9 +299,7 @@ class SparseVersionMigrationTest:
 
         # Create sparse version schema in source
         sparse_versions = self.create_sparse_version_schema(subject)
-        print(
-            f"✓ Target sparse versions for migration: {sorted(sparse_versions)}"
-        )
+        print(f"✓ Target sparse versions for migration: {sorted(sparse_versions)}")
 
         # Migrate the schema with specific versions
         print(f"\n--- Migrating sparse schema {subject} ---")
