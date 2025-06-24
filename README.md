@@ -14,7 +14,7 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: This server uses the modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**, communicating via JSON-RPC over stdio and supporting advanced transports like SSE and HTTP. It's fully compatible with Claude Desktop and other MCP clients.
+> **🎯 True MCP Implementation**: This server uses the modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**, communicating via JSON-RPC over stdio and supporting the modern streamable-http transport. It's fully compatible with Claude Desktop and other MCP clients.
 </td>
 </tr>
 </table>
@@ -67,7 +67,7 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 - **Unified Server Design**: Single `kafka_schema_registry_unified_mcp.py` that auto-detects single vs multi-registry mode
 - **FastMCP 2.8.0+ Framework**: Modern MCP architecture with MCP 2025-06-18 specification compliance
 - **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 support for 5 identity platforms
-- **Multi-Transport Support**: stdio, SSE, and Streamable HTTP transports via FastMCP
+- **Modern Transport Support**: streamable-http transport via FastMCP (SSE transport deprecated per MCP 2025-06-18)
 - **Kafka Schema Registry Integration**: Backend for schema storage and management  
 - **KRaft Mode Support**: Works with modern Kafka without Zookeeper dependency
 - **Context-Aware Operations**: All tools support optional context parameters
@@ -446,7 +446,7 @@ Claude: Let me show you the schema-compatibility prompt which covers compatibili
 ### **🛠️ Role-Based Recommendations**
 
 | Role | Recommended Prompts |
-|------|-------------------|
+|------|---------------------|
 | **Developers** | `schema-registration`, `schema-compatibility` |
 | **DevOps Engineers** | `multi-registry`, `advanced-workflows` |
 | **Data Engineers** | `schema-export`, `context-management` |
@@ -1046,6 +1046,10 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
 - **Simplified Environment Variables**: Streamlined from complex provider-specific setup to generic OAuth 2.1
 - **Enhanced Security**: PKCE mandatory, improved token validation, better JWKS caching
 - **Backward Compatibility**: Legacy provider configurations automatically migrated
+- **SSE Transport Deprecation**: Removed deprecated SSE transport support per MCP 2025-06-18 specification
+  - **Modern Transport Only**: Uses streamable-http transport exclusively
+  - **Migration Guide**: Existing SSE clients should migrate to streamable-http transport
+  - **Breaking Change**: SSE transport endpoints no longer available
 - **Schema Statistics & Counting**: New tools for monitoring registry usage:
   - `count_contexts`: Track context distribution
   - `count_schemas`: Monitor schema growth

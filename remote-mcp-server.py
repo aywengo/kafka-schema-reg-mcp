@@ -11,6 +11,8 @@ making it compatible with Anthropic's remote MCP server ecosystem and OAuth 2.1 
 ✅ OAuth 2.1 COMPLIANT: Implements RFC 8692 (Protected Resource), RFC 8707 (Resource Indicators),
    PKCE enforcement, and proper security headers.
 
+✅ TRANSPORT: Uses modern streamable-http transport only (SSE transport deprecated per MCP 2025-06-18)
+
 Remote MCP servers typically expose endpoints like:
 - https://your-domain.com/mcp (for MCP protocol)
 - https://your-domain.com/health (for health checks)
@@ -578,7 +580,7 @@ async def health_check(request):
             "registry_mode": REGISTRY_MODE,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
             "oauth_2_1_compliant": True,
-            "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "transport": "streamable-http",  # Only supported transport
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             "mcp_compliance": {
                 "header_validation_enabled": True,
@@ -866,7 +868,7 @@ async def oauth_authorization_server_metadata(request):
             # MCP-specific extensions
             "mcp_server_version": "2.0.0",
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            "mcp_transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "mcp_transport": "streamable-http",  # Only supported transport
             "mcp_endpoints": {
                 "mcp": f"{base_url}/mcp",
                 "health": f"{base_url}/health",
@@ -1022,7 +1024,7 @@ async def oauth_protected_resource_metadata(request):
                 "name": "Kafka Schema Registry MCP Server",
                 "version": "2.0.0",
                 "protocol_version": MCP_PROTOCOL_VERSION,
-                "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+                "transport": "streamable-http",  # Only supported transport
                 "tools_count": 48,
                 "supported_registries": ["confluent", "apicurio", "hortonworks"],
                 "compliance": {
@@ -1206,16 +1208,18 @@ async def jwks_endpoint(request):
 
 
 def main():
-    """Run MCP server with remote transport configuration and OAuth 2.1 compliance."""
+    """Run MCP server with streamable-http transport only (MCP 2025-06-18 compliant)."""
 
-    # Get transport configuration from environment
-    transport = os.getenv("MCP_TRANSPORT", "streamable-http")  # Default to modern HTTP
+    # Force streamable-http transport only (SSE deprecated per MCP 2025-06-18)
+    transport = "streamable-http"
     host = os.getenv("MCP_HOST", "0.0.0.0")  # Bind to all interfaces for containers
     port = int(os.getenv("MCP_PORT", "8000"))
-    path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
+    path = os.getenv("MCP_PATH", "/mcp")  # Always use /mcp for streamable-http
 
     logger.info("🚀 Starting Kafka Schema Registry Remote MCP Server")
-    logger.info(f"📡 Transport: {transport}")
+    logger.info(
+        f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)"
+    )
     logger.info(f"🌐 Host: {host}")
     logger.info(f"🔌 Port: {port}")
     logger.info(f"📍 Path: {path}")
@@ -1247,16 +1251,9 @@ def main():
         os.environ["UVICORN_HOST"] = host
         os.environ["UVICORN_PORT"] = str(port)
 
-        if transport == "streamable-http":
-            # Modern HTTP transport (recommended)
-            mcp.run(transport="streamable-http")
-        elif transport == "sse":
-            # SSE transport (compatible with existing SSE clients)
-            mcp.run(transport="sse")
-        else:
-            logger.error(f"Unsupported transport: {transport}")
-            logger.info("Supported transports: streamable-http, sse")
-            return 1
+        # Only streamable-http transport is supported (SSE deprecated per MCP 2025-06-18)
+        logger.info("🚀 Starting MCP server with streamable-http transport")
+        mcp.run(transport="streamable-http")
 
     except Exception as e:
         logger.error(f"Failed to start remote MCP server: {e}")
