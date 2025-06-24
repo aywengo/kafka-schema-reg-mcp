@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Core Registry Tools Module - Updated with Structured Output
+Core Registry Tools Module - Updated with Resource Linking
 
 Handles basic CRUD operations for Schema Registry with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-06-18 specification including resource linking.
 
 Provides schema, subject, configuration, and mode management functionality
-with JSON Schema validation and type-safe responses.
+with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 import json
@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 import aiohttp
 import requests
 
+from resource_linking import add_links_to_response, create_registry_linker
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
 from schema_validation import (
     create_error_response,
@@ -31,6 +32,19 @@ def build_context_url_legacy(
     if context and context != ".":
         return f"{schema_registry_url}/contexts/{context}{base_url}"
     return f"{schema_registry_url}{base_url}"
+
+
+def _get_registry_name(registry_mode: str, registry: Optional[str] = None, 
+                      client=None) -> str:
+    """Helper function to get registry name for linking."""
+    if registry_mode == "single":
+        return "default"
+    elif client and hasattr(client, 'config'):
+        return client.config.name
+    elif registry:
+        return registry
+    else:
+        return "unknown"
 
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
@@ -60,7 +74,7 @@ def register_schema_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing the schema ID with structured validation
+        Dictionary containing the schema ID with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -89,6 +103,16 @@ def register_schema_tool(
             result["subject"] = subject
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            if "id" in result:
+                # Use the returned version or assume latest
+                version = result.get("version", "latest")
+                result = add_links_to_response(
+                    result, "schema", registry_name,
+                    subject=subject, version=version, context=context
+                )
 
             return result
         else:
@@ -120,6 +144,15 @@ def register_schema_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            if "id" in result:
+                # Use the returned version or assume latest
+                version = result.get("version", "latest")
+                result = add_links_to_response(
+                    result, "schema", client.config.name,
+                    subject=subject, version=version, context=context
+                )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -149,7 +182,7 @@ def get_schema_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing schema information with structured validation
+        Dictionary containing schema information with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -173,6 +206,13 @@ def get_schema_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "schema", registry_name,
+                subject=subject, version=version, context=context
+            )
 
             return result
         else:
@@ -206,6 +246,12 @@ def get_schema_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            result = add_links_to_response(
+                result, "schema", client.config.name,
+                subject=subject, version=version, context=context
+            )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -223,7 +269,7 @@ def get_schema_versions_tool(
     auth=None,
     headers=None,
     schema_registry_url: str = "",
-) -> List[int]:
+) -> Dict[str, Any]:
     """
     Get all versions of a schema for a subject.
 
@@ -233,7 +279,7 @@ def get_schema_versions_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        List of version numbers with structured validation
+        Dictionary containing version numbers with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -246,10 +292,27 @@ def get_schema_versions_tool(
 
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
-                return []
+                versions_list = []
+            else:
+                response.raise_for_status()
+                versions_list = response.json()
 
-            response.raise_for_status()
-            return response.json()
+            # Convert to enhanced response format
+            result = {
+                "subject": subject,
+                "versions": versions_list,
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "schema_versions", registry_name,
+                subject=subject, context=context
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -266,10 +329,27 @@ def get_schema_versions_tool(
 
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
-                return []
+                versions_list = []
+            else:
+                response.raise_for_status()
+                versions_list = response.json()
 
-            response.raise_for_status()
-            return response.json()
+            # Convert to enhanced response format
+            result = {
+                "subject": subject,
+                "versions": versions_list,
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "schema_versions", client.config.name,
+                subject=subject, context=context
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="VERSION_RETRIEVAL_FAILED", registry_mode=registry_mode
@@ -285,7 +365,7 @@ def list_subjects_tool(
     auth=None,
     headers=None,
     schema_registry_url: str = "",
-) -> List[str]:
+) -> Dict[str, Any]:
     """
     List all subjects, optionally filtered by context.
 
@@ -294,7 +374,7 @@ def list_subjects_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        List of subject names with structured validation
+        Dictionary containing subject names with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -303,7 +383,23 @@ def list_subjects_tool(
 
             response = requests.get(url, auth=auth, headers=headers)
             response.raise_for_status()
-            return response.json()
+            subjects_list = response.json()
+
+            # Convert to enhanced response format
+            result = {
+                "subjects": subjects_list,
+                "context": context,
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "subjects_list", registry_name, context=context
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -314,7 +410,23 @@ def list_subjects_tool(
                     registry_mode="multi",
                 )
 
-            return client.get_subjects(context)
+            subjects_list = client.get_subjects(context)
+
+            # Convert to enhanced response format
+            result = {
+                "subjects": subjects_list,
+                "context": context,
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "subjects_list", client.config.name, context=context
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="SUBJECT_LIST_FAILED", registry_mode=registry_mode
@@ -345,7 +457,7 @@ def check_compatibility_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Compatibility check result with structured validation
+        Compatibility check result with structured validation and resource links
     """
     try:
         payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
@@ -370,6 +482,13 @@ def check_compatibility_tool(
 
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "compatibility", registry_name,
+                subject=subject, context=context
+            )
 
             return result
         else:
@@ -400,6 +519,12 @@ def check_compatibility_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            result = add_links_to_response(
+                result, "compatibility", client.config.name,
+                subject=subject, context=context
+            )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -428,7 +553,7 @@ def get_global_config_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing configuration with structured validation
+        Dictionary containing configuration with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -442,6 +567,12 @@ def get_global_config_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "config", registry_name, context=context
+            )
 
             return result
         else:
@@ -466,6 +597,11 @@ def get_global_config_tool(
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "config", client.config.name, context=context
+            )
 
             return result
     except Exception as e:
@@ -494,7 +630,7 @@ def update_global_config_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Updated configuration with structured validation
+        Updated configuration with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -517,6 +653,12 @@ def update_global_config_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "config", registry_name, context=context
+            )
 
             return result
         else:
@@ -545,6 +687,11 @@ def update_global_config_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            result = add_links_to_response(
+                result, "config", client.config.name, context=context
+            )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -572,7 +719,7 @@ def get_subject_config_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing subject configuration with structured validation
+        Dictionary containing subject configuration with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -588,6 +735,12 @@ def get_subject_config_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "config", registry_name, subject=subject, context=context
+            )
 
             return result
         else:
@@ -612,6 +765,11 @@ def get_subject_config_tool(
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "config", client.config.name, subject=subject, context=context
+            )
 
             return result
     except Exception as e:
@@ -644,7 +802,7 @@ def update_subject_config_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Updated configuration with structured validation
+        Updated configuration with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -667,6 +825,12 @@ def update_subject_config_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "config", registry_name, subject=subject, context=context
+            )
 
             return result
         else:
@@ -692,6 +856,11 @@ def update_subject_config_tool(
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "config", client.config.name, subject=subject, context=context
+            )
 
             return result
     except Exception as e:
@@ -723,7 +892,7 @@ def get_mode_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing the current mode with structured validation
+        Dictionary containing the current mode with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -737,6 +906,12 @@ def get_mode_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "mode", registry_name, context=context
+            )
 
             return result
         else:
@@ -761,6 +936,11 @@ def get_mode_tool(
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "mode", client.config.name, context=context
+            )
 
             return result
     except Exception as e:
@@ -789,7 +969,7 @@ def update_mode_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Updated mode information with structured validation
+        Updated mode information with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -812,6 +992,12 @@ def update_mode_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "mode", registry_name, context=context
+            )
 
             return result
         else:
@@ -840,6 +1026,11 @@ def update_mode_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            result = add_links_to_response(
+                result, "mode", client.config.name, context=context
+            )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -867,7 +1058,7 @@ def get_subject_mode_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Dictionary containing the subject mode with structured validation
+        Dictionary containing the subject mode with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -883,6 +1074,12 @@ def get_subject_mode_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "mode", registry_name, subject=subject, context=context
+            )
 
             return result
         else:
@@ -907,6 +1104,11 @@ def get_subject_mode_tool(
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "mode", client.config.name, subject=subject, context=context
+            )
 
             return result
     except Exception as e:
@@ -939,7 +1141,7 @@ def update_subject_mode_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Updated mode information with structured validation
+        Updated mode information with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -964,6 +1166,12 @@ def update_subject_mode_tool(
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "mode", registry_name, subject=subject, context=context
+            )
 
             return result
         else:
@@ -992,6 +1200,11 @@ def update_subject_mode_tool(
             result["registry_mode"] = "multi"
             result["mcp_protocol_version"] = "2025-06-18"
 
+            # Add resource links
+            result = add_links_to_response(
+                result, "mode", client.config.name, subject=subject, context=context
+            )
+
             return result
     except Exception as e:
         return create_error_response(
@@ -1010,7 +1223,7 @@ def list_contexts_tool(
     auth=None,
     headers=None,
     schema_registry_url: str = "",
-) -> List[str]:
+) -> Dict[str, Any]:
     """
     List all available schema contexts.
 
@@ -1018,7 +1231,7 @@ def list_contexts_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        List of context names with structured validation
+        Dictionary containing context names with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -1027,7 +1240,22 @@ def list_contexts_tool(
                 f"{schema_registry_url}/contexts", auth=auth, headers=headers
             )
             response.raise_for_status()
-            return response.json()
+            contexts_list = response.json()
+
+            # Convert to enhanced response format
+            result = {
+                "contexts": contexts_list,
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "contexts_list", registry_name
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -1038,7 +1266,22 @@ def list_contexts_tool(
                     registry_mode="multi",
                 )
 
-            return client.get_contexts()
+            contexts_list = client.get_contexts()
+
+            # Convert to enhanced response format
+            result = {
+                "contexts": contexts_list,
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "contexts_list", client.config.name
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="CONTEXT_LIST_FAILED", registry_mode=registry_mode
@@ -1063,7 +1306,7 @@ def create_context_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Success message with structured validation
+        Success message with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -1077,9 +1320,17 @@ def create_context_tool(
                 f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
             )
             response.raise_for_status()
-            return create_success_response(
+            result = create_success_response(
                 f"Context '{context}' created successfully", registry_mode="single"
             )
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "context", registry_name, context=context
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -1096,11 +1347,18 @@ def create_context_tool(
                 headers=client.headers,
             )
             response.raise_for_status()
-            return create_success_response(
+            result = create_success_response(
                 f"Context '{context}' created successfully",
                 data={"registry": client.config.name},
                 registry_mode="multi",
             )
+
+            # Add resource links
+            result = add_links_to_response(
+                result, "context", client.config.name, context=context
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="CONTEXT_CREATE_FAILED", registry_mode=registry_mode
@@ -1125,7 +1383,7 @@ def delete_context_tool(
         registry: Optional registry name (ignored in single-registry mode)
 
     Returns:
-        Success message with structured validation
+        Success message with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -1139,9 +1397,17 @@ def delete_context_tool(
                 f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
             )
             response.raise_for_status()
-            return create_success_response(
+            result = create_success_response(
                 f"Context '{context}' deleted successfully", registry_mode="single"
             )
+
+            # Add links to contexts list since the specific context is now deleted
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "contexts_list", registry_name
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -1158,11 +1424,18 @@ def delete_context_tool(
                 headers=client.headers,
             )
             response.raise_for_status()
-            return create_success_response(
+            result = create_success_response(
                 f"Context '{context}' deleted successfully",
                 data={"registry": client.config.name},
                 registry_mode="multi",
             )
+
+            # Add links to contexts list since the specific context is now deleted
+            result = add_links_to_response(
+                result, "contexts_list", client.config.name
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="CONTEXT_DELETE_FAILED", registry_mode=registry_mode
@@ -1180,7 +1453,7 @@ async def delete_subject_tool(
     auth=None,
     headers=None,
     schema_registry_url: str = "",
-) -> List[int]:
+) -> Dict[str, Any]:
     """
     Delete a subject and all its versions.
 
@@ -1191,7 +1464,7 @@ async def delete_subject_tool(
         permanent: If True, perform a hard delete (removes all metadata including schema ID)
 
     Returns:
-        List of deleted version numbers with structured validation
+        Dictionary containing deleted version numbers with structured validation and resource links
     """
     # Check readonly mode
     readonly_check = _check_readonly_mode(registry_manager, registry)
@@ -1211,7 +1484,25 @@ async def delete_subject_tool(
 
             response = requests.delete(url, auth=auth, headers=headers)
             response.raise_for_status()
-            return response.json()
+            deleted_versions = response.json()
+
+            # Convert to enhanced response format
+            result = {
+                "subject": subject,
+                "deleted_versions": deleted_versions,
+                "permanent": permanent,
+                "context": context,
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add links to subjects list since the specific subject is now deleted
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result, "subjects_list", registry_name, context=context
+            )
+
+            return result
         else:
             # Multi-registry mode: use client approach
             client = registry_manager.get_registry(registry)
@@ -1232,7 +1523,25 @@ async def delete_subject_tool(
             async with aiohttp.ClientSession() as session:
                 async with session.delete(url, headers=client.headers) as response:
                     response.raise_for_status()
-                    return await response.json()
+                    deleted_versions = await response.json()
+
+            # Convert to enhanced response format
+            result = {
+                "subject": subject,
+                "deleted_versions": deleted_versions,
+                "permanent": permanent,
+                "context": context,
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18"
+            }
+
+            # Add links to subjects list since the specific subject is now deleted
+            result = add_links_to_response(
+                result, "subjects_list", client.config.name, context=context
+            )
+
+            return result
     except Exception as e:
         return create_error_response(
             str(e), error_code="SUBJECT_DELETE_FAILED", registry_mode=registry_mode
