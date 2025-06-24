@@ -403,12 +403,14 @@ try:
     elicitation_handlers_registered = register_elicitation_handlers(mcp)
     if elicitation_handlers_registered:
         logger.info("✅ Elicitation handlers registered with MCP server")
-        
+
         # Update the elicitation implementation to use real MCP protocol
         update_elicitation_implementation()
         logger.info("✅ Enhanced elicitation implementation activated")
     else:
-        logger.warning("⚠️ Failed to register elicitation handlers, using fallback implementation")
+        logger.warning(
+            "⚠️ Failed to register elicitation handlers, using fallback implementation"
+        )
 except Exception as e:
     logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
     logger.info("📝 Falling back to mock elicitation implementation")
@@ -534,7 +536,7 @@ async def register_schema_interactive(
 ):
     """
     Interactive schema registration with elicitation for missing field definitions.
-    
+
     When schema_definition is incomplete or missing fields, this tool will
     elicit the required information from the user interactively.
     """
@@ -638,7 +640,7 @@ async def check_compatibility_interactive(
 ):
     """
     Interactive compatibility checking with elicitation for resolution options.
-    
+
     When compatibility issues are found, this tool will elicit resolution
     preferences from the user.
     """
@@ -834,7 +836,7 @@ async def create_context_interactive(
 ):
     """
     Interactive context creation with elicitation for metadata.
-    
+
     When context metadata is not provided, this tool will elicit
     organizational information from the user.
     """
@@ -988,7 +990,7 @@ async def export_global_interactive(
 ):
     """
     Interactive global export with elicitation for export preferences.
-    
+
     When export preferences are not specified, this tool will elicit
     the required configuration from the user.
     """
@@ -1089,7 +1091,7 @@ async def migrate_context_interactive(
 ):
     """
     Interactive context migration with elicitation for missing preferences.
-    
+
     When migration preferences are not specified, this tool will elicit
     the required configuration from the user.
     """
@@ -1233,13 +1235,17 @@ def get_elicitation_request(request_id: str):
                 error_code="ELICITATION_REQUEST_NOT_FOUND",
                 registry_mode=REGISTRY_MODE,
             )
-        
+
         response = elicitation_manager.get_response(request_id)
-        
+
         return {
             "request": request.to_dict(),
             "response": response.to_dict() if response else None,
-            "status": "completed" if response else ("expired" if request.is_expired() else "pending"),
+            "status": (
+                "completed"
+                if response
+                else ("expired" if request.is_expired() else "pending")
+            ),
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
     except Exception as e:
@@ -1292,7 +1298,9 @@ def get_elicitation_status():
                     "type": req.type.value,
                     "priority": req.priority.value,
                     "created_at": req.created_at.isoformat(),
-                    "expires_at": req.expires_at.isoformat() if req.expires_at else None,
+                    "expires_at": (
+                        req.expires_at.isoformat() if req.expires_at else None
+                    ),
                     "expired": req.is_expired(),
                 }
                 for req in pending_requests
@@ -1315,9 +1323,9 @@ async def submit_elicitation_response(request_id: str, response_data: dict):
     """Submit an elicitation response from the client."""
     try:
         from elicitation_mcp_integration import handle_elicitation_response
-        
+
         success = await handle_elicitation_response(request_id, response_data)
-        
+
         if success:
             return create_success_response(
                 f"Elicitation response submitted successfully for request '{request_id}'",
@@ -1631,12 +1639,18 @@ def _internal_get_mcp_compliance_status():
                 "implementation_status": "Complete - MCP 2025-06-18 Specification",
                 "interactive_tools": [
                     "register_schema_interactive",
-                    "migrate_context_interactive", 
+                    "migrate_context_interactive",
                     "check_compatibility_interactive",
                     "create_context_interactive",
-                    "export_global_interactive"
+                    "export_global_interactive",
                 ],
-                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "elicitation_types": [
+                    "text",
+                    "choice",
+                    "confirmation",
+                    "form",
+                    "multi_field",
+                ],
                 "features": [
                     "Interactive schema field definition",
                     "Migration preference collection",
@@ -1645,15 +1659,15 @@ def _internal_get_mcp_compliance_status():
                     "Export format preference selection",
                     "Multi-round conversation support",
                     "Timeout handling and validation",
-                    "Graceful fallback for non-supporting clients"
+                    "Graceful fallback for non-supporting clients",
                 ],
                 "management_tools": [
                     "list_elicitation_requests",
-                    "get_elicitation_request", 
+                    "get_elicitation_request",
                     "cancel_elicitation_request",
                     "get_elicitation_status",
-                    "submit_elicitation_response"
-                ]
+                    "submit_elicitation_response",
+                ],
             },
             "migration_info": {
                 "breaking_change": True,
@@ -2184,7 +2198,9 @@ def get_registry_status():
             f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
         status_lines.append("🎯 Structured Tool Output: 100% Complete (All tools)")
-        status_lines.append("🎭 Elicitation Capability: ENABLED (Interactive Workflows)")
+        status_lines.append(
+            "🎭 Elicitation Capability: ENABLED (Interactive Workflows)"
+        )
 
         for name in registries:
             client = registry_manager.get_registry(name)
@@ -2244,7 +2260,13 @@ def get_registry_info_resource():
                 "implementation_status": "Complete - MCP 2025-06-18 Specification",
                 "supported": is_elicitation_supported(),
                 "interactive_tools": 5,
-                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "elicitation_types": [
+                    "text",
+                    "choice",
+                    "confirmation",
+                    "form",
+                    "multi_field",
+                ],
             },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
@@ -2375,30 +2397,36 @@ def get_mode_info():
                 "supported": is_elicitation_supported(),
                 "interactive_tools": [
                     "register_schema_interactive",
-                    "migrate_context_interactive", 
+                    "migrate_context_interactive",
                     "check_compatibility_interactive",
                     "create_context_interactive",
-                    "export_global_interactive"
+                    "export_global_interactive",
                 ],
-                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "elicitation_types": [
+                    "text",
+                    "choice",
+                    "confirmation",
+                    "form",
+                    "multi_field",
+                ],
                 "management_tools": [
                     "list_elicitation_requests",
-                    "get_elicitation_request", 
+                    "get_elicitation_request",
                     "cancel_elicitation_request",
                     "get_elicitation_status",
-                    "submit_elicitation_response"
+                    "submit_elicitation_response",
                 ],
                 "features": [
                     "Interactive schema field definition",
                     "Migration preference collection",
-                    "Compatibility resolution guidance", 
+                    "Compatibility resolution guidance",
                     "Context metadata elicitation",
                     "Export format preference selection",
                     "Multi-round conversation support",
                     "Timeout handling and validation",
                     "Graceful fallback for non-supporting clients",
-                    "Real MCP protocol integration with mock fallback"
-                ]
+                    "Real MCP protocol integration with mock fallback",
+                ],
             },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 class ElicitationType(Enum):
     """Types of elicitation requests supported."""
+
     TEXT = "text"
     CHOICE = "choice"
     CONFIRMATION = "confirmation"
@@ -43,6 +44,7 @@ class ElicitationType(Enum):
 
 class ElicitationPriority(Enum):
     """Priority levels for elicitation requests."""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -51,6 +53,7 @@ class ElicitationPriority(Enum):
 @dataclass
 class ElicitationField:
     """Represents a single field in an elicitation request."""
+
     name: str
     type: str
     label: Optional[str] = None
@@ -65,6 +68,7 @@ class ElicitationField:
 @dataclass
 class ElicitationRequest:
     """Represents an elicitation request to the user."""
+
     id: str = field(default_factory=lambda: str(uuid4()))
     type: ElicitationType = ElicitationType.TEXT
     title: str = "Information Required"
@@ -121,6 +125,7 @@ class ElicitationRequest:
 @dataclass
 class ElicitationResponse:
     """Represents a user's response to an elicitation request."""
+
     request_id: str
     values: Dict[str, Any]
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -149,13 +154,13 @@ class ElicitationManager:
     async def create_request(self, request: ElicitationRequest) -> str:
         """Create a new elicitation request."""
         self.pending_requests[request.id] = request
-        
+
         # Set up timeout handling
         if request.timeout_seconds > 0:
             self.timeout_tasks[request.id] = asyncio.create_task(
                 self._handle_timeout(request.id, request.timeout_seconds)
             )
-        
+
         logger.info(f"Created elicitation request {request.id}: {request.title}")
         return request.id
 
@@ -178,11 +183,13 @@ class ElicitationManager:
         # Store response and clean up
         self.responses[response.request_id] = response
         self._cleanup_request(response.request_id)
-        
+
         logger.info(f"Received response for elicitation request {response.request_id}")
         return True
 
-    async def wait_for_response(self, request_id: str, timeout: Optional[float] = None) -> Optional[ElicitationResponse]:
+    async def wait_for_response(
+        self, request_id: str, timeout: Optional[float] = None
+    ) -> Optional[ElicitationResponse]:
         """Wait for a response to an elicitation request."""
         if request_id not in self.pending_requests:
             return None
@@ -194,11 +201,11 @@ class ElicitationManager:
         while datetime.utcnow() - start_time < timedelta(seconds=effective_timeout):
             if request_id in self.responses:
                 return self.responses[request_id]
-            
+
             if request.is_expired():
                 logger.warning(f"Request {request_id} expired while waiting")
                 break
-                
+
             await asyncio.sleep(0.1)  # Check every 100ms
 
         return None
@@ -237,24 +244,28 @@ class ElicitationManager:
             self.timeout_tasks[request_id].cancel()
             del self.timeout_tasks[request_id]
 
-    def _validate_response(self, request: ElicitationRequest, response: ElicitationResponse) -> bool:
+    def _validate_response(
+        self, request: ElicitationRequest, response: ElicitationResponse
+    ) -> bool:
         """Validate a response against the request requirements."""
         # Check required fields
         for field in request.fields:
             if field.required and field.name not in response.values:
                 logger.warning(f"Missing required field: {field.name}")
                 return False
-            
+
             # Validate field types and constraints
             if field.name in response.values:
                 value = response.values[field.name]
                 if field.options and value not in field.options:
                     logger.warning(f"Invalid option for field {field.name}: {value}")
                     return False
-                    
+
                 # Additional validation based on field type
                 if field.type == "email" and "@" not in str(value):
-                    logger.warning(f"Invalid email format for field {field.name}: {value}")
+                    logger.warning(
+                        f"Invalid email format for field {field.name}: {value}"
+                    )
                     return False
 
         return True
@@ -266,9 +277,9 @@ elicitation_manager = ElicitationManager()
 
 # Helper functions for common elicitation patterns
 
+
 def create_schema_field_elicitation(
-    context: Optional[str] = None,
-    existing_fields: Optional[List[str]] = None
+    context: Optional[str] = None, existing_fields: Optional[List[str]] = None
 ) -> ElicitationRequest:
     """Create an elicitation request for schema field definitions."""
     fields = [
@@ -278,7 +289,7 @@ def create_schema_field_elicitation(
             label="Field Name",
             description="Name of the schema field",
             required=True,
-            placeholder="e.g., user_id, email, timestamp"
+            placeholder="e.g., user_id, email, timestamp",
         ),
         ElicitationField(
             name="field_type",
@@ -286,8 +297,18 @@ def create_schema_field_elicitation(
             label="Field Type",
             description="Data type for the field",
             required=True,
-            options=["string", "int", "long", "float", "double", "boolean", "bytes", "array", "record"],
-            default="string"
+            options=[
+                "string",
+                "int",
+                "long",
+                "float",
+                "double",
+                "boolean",
+                "bytes",
+                "array",
+                "record",
+            ],
+            default="string",
         ),
         ElicitationField(
             name="nullable",
@@ -296,7 +317,7 @@ def create_schema_field_elicitation(
             description="Can this field be null?",
             required=True,
             options=["true", "false"],
-            default="false"
+            default="false",
         ),
         ElicitationField(
             name="default_value",
@@ -304,7 +325,7 @@ def create_schema_field_elicitation(
             label="Default Value",
             description="Default value for the field (optional)",
             required=False,
-            placeholder="Leave empty for no default"
+            placeholder="Leave empty for no default",
         ),
         ElicitationField(
             name="documentation",
@@ -312,8 +333,8 @@ def create_schema_field_elicitation(
             label="Documentation",
             description="Description of what this field represents",
             required=False,
-            placeholder="Brief description of the field purpose"
-        )
+            placeholder="Brief description of the field purpose",
+        ),
     ]
 
     context_info = {"existing_fields": existing_fields or []}
@@ -327,14 +348,12 @@ def create_schema_field_elicitation(
         fields=fields,
         allow_multiple=True,
         context=context_info,
-        timeout_seconds=600  # 10 minutes for schema design
+        timeout_seconds=600,  # 10 minutes for schema design
     )
 
 
 def create_migration_preferences_elicitation(
-    source_registry: str,
-    target_registry: str,
-    context: Optional[str] = None
+    source_registry: str, target_registry: str, context: Optional[str] = None
 ) -> ElicitationRequest:
     """Create an elicitation request for migration preferences."""
     fields = [
@@ -345,7 +364,7 @@ def create_migration_preferences_elicitation(
             description="Should schema IDs be preserved during migration?",
             required=True,
             options=["true", "false"],
-            default="true"
+            default="true",
         ),
         ElicitationField(
             name="migrate_all_versions",
@@ -354,7 +373,7 @@ def create_migration_preferences_elicitation(
             description="Migrate all schema versions or just the latest?",
             required=True,
             options=["true", "false"],
-            default="false"
+            default="false",
         ),
         ElicitationField(
             name="conflict_resolution",
@@ -363,7 +382,7 @@ def create_migration_preferences_elicitation(
             description="How to handle conflicts if schema already exists in target?",
             required=True,
             options=["skip", "overwrite", "merge", "prompt"],
-            default="prompt"
+            default="prompt",
         ),
         ElicitationField(
             name="batch_size",
@@ -372,7 +391,7 @@ def create_migration_preferences_elicitation(
             description="Number of schemas to migrate in each batch",
             required=False,
             default="10",
-            validation={"min": 1, "max": 100}
+            validation={"min": 1, "max": 100},
         ),
         ElicitationField(
             name="dry_run",
@@ -381,8 +400,8 @@ def create_migration_preferences_elicitation(
             description="Perform a dry run first to preview changes?",
             required=True,
             options=["true", "false"],
-            default="true"
-        )
+            default="true",
+        ),
     ]
 
     return ElicitationRequest(
@@ -393,15 +412,14 @@ def create_migration_preferences_elicitation(
         context={
             "source_registry": source_registry,
             "target_registry": target_registry,
-            "context": context
+            "context": context,
         },
-        timeout_seconds=300
+        timeout_seconds=300,
     )
 
 
 def create_compatibility_resolution_elicitation(
-    subject: str,
-    compatibility_errors: List[str]
+    subject: str, compatibility_errors: List[str]
 ) -> ElicitationRequest:
     """Create an elicitation request for compatibility issue resolution."""
     fields = [
@@ -416,8 +434,8 @@ def create_compatibility_resolution_elicitation(
                 "change_compatibility_level",
                 "add_default_values",
                 "make_fields_optional",
-                "skip_registration"
-            ]
+                "skip_registration",
+            ],
         ),
         ElicitationField(
             name="compatibility_level",
@@ -426,7 +444,7 @@ def create_compatibility_resolution_elicitation(
             description="Set a different compatibility level for this subject",
             required=False,
             options=["BACKWARD", "FORWARD", "FULL", "NONE"],
-            default="BACKWARD"
+            default="BACKWARD",
         ),
         ElicitationField(
             name="notes",
@@ -434,8 +452,8 @@ def create_compatibility_resolution_elicitation(
             label="Notes",
             description="Additional notes about this compatibility decision",
             required=False,
-            placeholder="Explain the reasoning for this change"
-        )
+            placeholder="Explain the reasoning for this change",
+        ),
     ]
 
     return ElicitationRequest(
@@ -443,17 +461,12 @@ def create_compatibility_resolution_elicitation(
         title="Resolve Compatibility Issues",
         description=f"Schema for subject '{subject}' has compatibility issues that need resolution",
         fields=fields,
-        context={
-            "subject": subject,
-            "compatibility_errors": compatibility_errors
-        },
-        timeout_seconds=300
+        context={"subject": subject, "compatibility_errors": compatibility_errors},
+        timeout_seconds=300,
     )
 
 
-def create_context_metadata_elicitation(
-    context_name: str
-) -> ElicitationRequest:
+def create_context_metadata_elicitation(context_name: str) -> ElicitationRequest:
     """Create an elicitation request for context metadata."""
     fields = [
         ElicitationField(
@@ -462,7 +475,7 @@ def create_context_metadata_elicitation(
             label="Context Description",
             description="What is this context used for?",
             required=False,
-            placeholder="e.g., User service schemas, Payment processing events"
+            placeholder="e.g., User service schemas, Payment processing events",
         ),
         ElicitationField(
             name="owner",
@@ -470,7 +483,7 @@ def create_context_metadata_elicitation(
             label="Owner",
             description="Team or person responsible for this context",
             required=False,
-            placeholder="e.g., data-platform-team"
+            placeholder="e.g., data-platform-team",
         ),
         ElicitationField(
             name="environment",
@@ -479,7 +492,7 @@ def create_context_metadata_elicitation(
             description="What environment is this context for?",
             required=False,
             options=["development", "staging", "production", "testing"],
-            default="development"
+            default="development",
         ),
         ElicitationField(
             name="tags",
@@ -487,8 +500,8 @@ def create_context_metadata_elicitation(
             label="Tags",
             description="Comma-separated tags for organization",
             required=False,
-            placeholder="e.g., microservice, events, user-data"
-        )
+            placeholder="e.g., microservice, events, user-data",
+        ),
     ]
 
     return ElicitationRequest(
@@ -497,13 +510,11 @@ def create_context_metadata_elicitation(
         description=f"Please provide metadata for the new context '{context_name}'",
         fields=fields,
         context={"context_name": context_name},
-        timeout_seconds=300
+        timeout_seconds=300,
     )
 
 
-def create_export_preferences_elicitation(
-    operation_type: str
-) -> ElicitationRequest:
+def create_export_preferences_elicitation(operation_type: str) -> ElicitationRequest:
     """Create an elicitation request for export preferences."""
     fields = [
         ElicitationField(
@@ -513,7 +524,7 @@ def create_export_preferences_elicitation(
             description="Which format would you like for the export?",
             required=True,
             options=["json", "avro_idl", "yaml", "csv"],
-            default="json"
+            default="json",
         ),
         ElicitationField(
             name="include_metadata",
@@ -522,7 +533,7 @@ def create_export_preferences_elicitation(
             description="Include schema metadata in the export?",
             required=True,
             options=["true", "false"],
-            default="true"
+            default="true",
         ),
         ElicitationField(
             name="include_versions",
@@ -531,7 +542,7 @@ def create_export_preferences_elicitation(
             description="Which schema versions to include?",
             required=True,
             options=["latest", "all", "specific"],
-            default="latest"
+            default="latest",
         ),
         ElicitationField(
             name="compression",
@@ -540,8 +551,8 @@ def create_export_preferences_elicitation(
             description="Compress the export file?",
             required=False,
             options=["none", "gzip", "zip"],
-            default="none"
-        )
+            default="none",
+        ),
     ]
 
     return ElicitationRequest(
@@ -550,7 +561,7 @@ def create_export_preferences_elicitation(
         description=f"Configure export settings for {operation_type}",
         fields=fields,
         context={"operation_type": operation_type},
-        timeout_seconds=300
+        timeout_seconds=300,
     )
 
 
@@ -561,10 +572,10 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
     This ensures graceful degradation when elicitation is not available.
     """
     logger.info(f"Mock elicitation for request: {request.title}")
-    
+
     # Generate reasonable defaults based on request type and context
     values = {}
-    
+
     for field in request.fields:
         if field.default is not None:
             values[field.name] = field.default
@@ -585,7 +596,7 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
                 values["field_type"] = "string"
             if "nullable" in values:
                 values["nullable"] = "false"
-        
+
         elif "migration" in request.context:
             # For migration, use safe defaults
             if "preserve_ids" in values:
@@ -597,7 +608,7 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
         request_id=request.id,
         values=values,
         complete=True,
-        metadata={"source": "mock_fallback", "auto_generated": True}
+        metadata={"source": "mock_fallback", "auto_generated": True},
     )
 
 
@@ -612,15 +623,21 @@ def is_elicitation_supported() -> bool:
     return True
 
 
-async def elicit_with_fallback(request: ElicitationRequest) -> Optional[ElicitationResponse]:
+async def elicit_with_fallback(
+    request: ElicitationRequest,
+) -> Optional[ElicitationResponse]:
     """
     Attempt elicitation with fallback to defaults if not supported.
     """
     if is_elicitation_supported():
         # In a real implementation, this would use the MCP elicitation protocol
         # For now, we'll simulate with the mock function
-        logger.info(f"Elicitation not yet implemented, using fallback for: {request.title}")
+        logger.info(
+            f"Elicitation not yet implemented, using fallback for: {request.title}"
+        )
         return await mock_elicit(request)
     else:
-        logger.info(f"Client doesn't support elicitation, using defaults for: {request.title}")
+        logger.info(
+            f"Client doesn't support elicitation, using defaults for: {request.title}"
+        )
         return await mock_elicit(request)
