@@ -472,6 +472,7 @@ run_advanced_feature_tests() {
         "test_metadata_integration.py:Consolidated metadata integration testing"
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
+        "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
     )
     
     run_test_list "${tests[@]}"
@@ -570,7 +571,7 @@ $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
 - MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐
-- Advanced Feature Tests (comparison, migration, workflows)")
+- Advanced Feature Tests (comparison, migration, workflows, resource linking)")
 
 Log Files:
 - Unified Log: $UNIFIED_LOG
@@ -587,6 +588,8 @@ fi)
 
 ⭐ NEW: MCP 2025-06-18 Compliance Tests validate header validation middleware,
    exempt path functionality, and protocol version compliance.
+
+🔗 Resource Linking Tests: URI navigation and link generation for enhanced MCP client experience.
 
 🚀 OAuth 2.1 Generic Discovery: Tests now validate universal OAuth 2.1 compatibility
    instead of provider-specific configurations (75% configuration reduction).
