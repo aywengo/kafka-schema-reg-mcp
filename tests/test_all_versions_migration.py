@@ -125,7 +125,7 @@ class AllVersionsMigrationTest:
         self, subject: str, registry: str, context: str, expected_versions: int
     ):
         """Verify that a schema has the expected number of versions."""
-        versions = get_schema_versions_tool(
+        versions_result = get_schema_versions_tool(
             subject=subject,
             context=context,
             registry=registry,
@@ -133,8 +133,16 @@ class AllVersionsMigrationTest:
             registry_mode=mcp_server.REGISTRY_MODE,
         )
 
-        if isinstance(versions, dict) and "error" in versions:
-            raise Exception(f"Error getting versions: {versions['error']}")
+        if isinstance(versions_result, dict):
+            if "error" in versions_result:
+                raise Exception(f"Error getting versions: {versions_result['error']}")
+            elif "versions" in versions_result:
+                versions = versions_result["versions"]
+            else:
+                versions = versions_result
+        else:
+            versions = versions_result
+
         if len(versions) != expected_versions:
             raise Exception(
                 f"Expected {expected_versions} versions, got {len(versions)}"
@@ -157,7 +165,7 @@ class AllVersionsMigrationTest:
         self.verify_schema_versions(subject, "dev", self.source_context, 3)
 
         # Get all versions
-        versions = get_schema_versions_tool(
+        versions_result = get_schema_versions_tool(
             subject=subject,
             context=self.source_context,
             registry="dev",
@@ -165,8 +173,15 @@ class AllVersionsMigrationTest:
             registry_mode=mcp_server.REGISTRY_MODE,
         )
 
-        if isinstance(versions, dict) and "error" in versions:
-            raise Exception(f"Failed to get versions: {versions['error']}")
+        if isinstance(versions_result, dict):
+            if "error" in versions_result:
+                raise Exception(f"Failed to get versions: {versions_result['error']}")
+            elif "versions" in versions_result:
+                versions = versions_result["versions"]
+            else:
+                versions = versions_result
+        else:
+            versions = versions_result
 
         print(f"✓ Found {len(versions)} versions to migrate: {versions}")
 

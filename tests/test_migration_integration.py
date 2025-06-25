@@ -197,7 +197,12 @@ async def test_migration_task_tracking(test_env):
 
     # Get migration count before
     migrations_before = list_migrations_tool(mcp_server.REGISTRY_MODE)
-    before_count = len(migrations_before) if isinstance(migrations_before, list) else 0
+    if isinstance(migrations_before, dict) and "migrations" in migrations_before:
+        before_count = len(migrations_before["migrations"])
+    elif isinstance(migrations_before, list):
+        before_count = len(migrations_before)
+    else:
+        before_count = 0
 
     test_subject = f"tracking-test-{uuid.uuid4().hex[:8]}"
 
@@ -230,7 +235,12 @@ async def test_migration_task_tracking(test_env):
 
         # Get migration count after
         migrations_after = list_migrations_tool(mcp_server.REGISTRY_MODE)
-        after_count = len(migrations_after) if isinstance(migrations_after, list) else 0
+        if isinstance(migrations_after, dict) and "migrations" in migrations_after:
+            after_count = len(migrations_after["migrations"])
+        elif isinstance(migrations_after, list):
+            after_count = len(migrations_after)
+        else:
+            after_count = 0
 
         assert (
             after_count > before_count

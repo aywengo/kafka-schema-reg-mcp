@@ -119,7 +119,13 @@ class ReadOnlyValidationTest:
 
                     print(f"   📋 Found registries: {registries}")
 
-                    if isinstance(registries, list):
+                    # Handle the structured response format
+                    if isinstance(registries, dict) and "registries" in registries:
+                        registry_list = registries["registries"]
+                        registry_names = [
+                            r.get("name") for r in registry_list if isinstance(r, dict)
+                        ]
+                    elif isinstance(registries, list):
                         registry_names = [
                             r.get("name") for r in registries if isinstance(r, dict)
                         ]
