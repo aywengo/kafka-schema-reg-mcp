@@ -496,48 +496,73 @@ def add_links_to_response(
     """
     linker = create_registry_linker(registry_name)
 
-    if link_type == "schema":
-        return linker.add_schema_links(
-            response, kwargs["subject"], kwargs["version"], kwargs.get("context")
-        )
-    elif link_type == "subject":
-        return linker.add_subject_links(
-            response, kwargs["subject"], kwargs.get("context")
-        )
-    elif link_type == "subjects_list":
-        return linker.add_subjects_list_links(response, kwargs.get("context"))
-    elif link_type == "schema_versions":
-        return linker.add_schema_versions_links(
-            response, kwargs["subject"], kwargs.get("context")
-        )
-    elif link_type == "context":
-        return linker.add_context_links(response, kwargs["context"])
-    elif link_type == "contexts_list":
-        return linker.add_contexts_list_links(response)
-    elif link_type == "config":
-        return linker.add_config_links(
-            response, kwargs.get("subject"), kwargs.get("context")
-        )
-    elif link_type == "mode":
-        return linker.add_mode_links(
-            response, kwargs.get("subject"), kwargs.get("context")
-        )
-    elif link_type == "compatibility":
-        return linker.add_compatibility_links(
-            response, kwargs["subject"], kwargs.get("context")
-        )
-    elif link_type == "migration":
-        return linker.add_migration_links(response, kwargs["migration_id"])
-    elif link_type == "migrations_list":
-        return linker.add_migrations_list_links(response)
-    elif link_type == "registry":
-        return linker.add_registry_links(response)
-    elif link_type == "comparison":
-        return linker.add_comparison_links(
-            response, kwargs["source_registry"], kwargs["target_registry"]
-        )
-    else:
-        # Unknown link type, return response unchanged
+    try:
+        if link_type == "schema":
+            # Schema links require subject and version
+            if "subject" not in kwargs or "version" not in kwargs:
+                return response
+            return linker.add_schema_links(
+                response, kwargs["subject"], kwargs["version"], kwargs.get("context")
+            )
+        elif link_type == "subject":
+            # Subject links require subject
+            if "subject" not in kwargs:
+                return response
+            return linker.add_subject_links(
+                response, kwargs["subject"], kwargs.get("context")
+            )
+        elif link_type == "subjects_list":
+            return linker.add_subjects_list_links(response, kwargs.get("context"))
+        elif link_type == "schema_versions":
+            # Schema versions links require subject
+            if "subject" not in kwargs:
+                return response
+            return linker.add_schema_versions_links(
+                response, kwargs["subject"], kwargs.get("context")
+            )
+        elif link_type == "context":
+            # Context links require context
+            if "context" not in kwargs:
+                return response
+            return linker.add_context_links(response, kwargs["context"])
+        elif link_type == "contexts_list":
+            return linker.add_contexts_list_links(response)
+        elif link_type == "config":
+            return linker.add_config_links(
+                response, kwargs.get("subject"), kwargs.get("context")
+            )
+        elif link_type == "mode":
+            return linker.add_mode_links(
+                response, kwargs.get("subject"), kwargs.get("context")
+            )
+        elif link_type == "compatibility":
+            # Compatibility links require subject
+            if "subject" not in kwargs:
+                return response
+            return linker.add_compatibility_links(
+                response, kwargs["subject"], kwargs.get("context")
+            )
+        elif link_type == "migration":
+            # Migration links require migration_id
+            if "migration_id" not in kwargs:
+                return response
+            return linker.add_migration_links(response, kwargs["migration_id"])
+        elif link_type == "migrations_list":
+            return linker.add_migrations_list_links(response)
+        elif link_type == "registry":
+            return linker.add_registry_links(response)
+        elif link_type == "comparison":
+            # Comparison links require source and target registries
+            if "source_registry" not in kwargs or "target_registry" not in kwargs:
+                return response
+            return linker.add_comparison_links(
+                response, kwargs["source_registry"], kwargs["target_registry"]
+            )
+        else:
+            # Unknown link type, return response unchanged
+            return response
+    except Exception:
+        # If any error occurs, return response unchanged
         return response
 
 
