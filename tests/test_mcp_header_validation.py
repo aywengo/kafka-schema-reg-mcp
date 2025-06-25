@@ -19,8 +19,8 @@ import json
 import os
 import sys
 import unittest
-from typing import Any, Dict
 from pathlib import Path
+from typing import Any, Dict
 
 # Add project root to Python path for CI compatibility
 project_root = str(Path(__file__).parent.parent)

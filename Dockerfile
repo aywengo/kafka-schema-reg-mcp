@@ -96,7 +96,6 @@ COPY --chown=mcp:mcp elicitation_enhancements.py .
 
 # Copy NEW resource linking modules (MCP 2025-06-18 resource linking)
 COPY --chown=mcp:mcp resource_linking.py .
-COPY --chown=mcp:mcp test_resource_linking.py .
 
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .

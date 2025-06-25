@@ -9,8 +9,8 @@ This module validates URI generation, link creation, and navigation
 helper functions.
 """
 
-import sys
 import os
+import sys
 import unittest
 
 # Add parent directory to path to import resource_linking module
