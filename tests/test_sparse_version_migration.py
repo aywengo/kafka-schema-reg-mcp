@@ -272,7 +272,9 @@ class SparseVersionMigrationTest:
 
         if isinstance(target_versions_result, dict):
             if "error" in target_versions_result:
-                raise Exception(f"Error getting target versions: {target_versions_result['error']}")
+                raise Exception(
+                    f"Error getting target versions: {target_versions_result['error']}"
+                )
             elif "versions" in target_versions_result:
                 target_versions = target_versions_result["versions"]
             else:
