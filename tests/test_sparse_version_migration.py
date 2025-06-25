@@ -175,15 +175,23 @@ class SparseVersionMigrationTest:
             print(f"✓ Registered schema version {i+1} (ID: {version_id})")
 
         # Verify we have 5 versions
-        versions = get_schema_versions_tool(
+        versions_result = get_schema_versions_tool(
             subject=subject,
             registry="dev",
             registry_manager=mcp_server.registry_manager,
             registry_mode=mcp_server.REGISTRY_MODE,
         )
 
-        if isinstance(versions, dict) and "error" in versions:
-            raise Exception(f"Error getting versions: {versions['error']}")
+        if isinstance(versions_result, dict):
+            if "error" in versions_result:
+                raise Exception(f"Error getting versions: {versions_result['error']}")
+            elif "versions" in versions_result:
+                versions = versions_result["versions"]
+            else:
+                versions = versions_result
+        else:
+            versions = versions_result
+
         if len(versions) != 5:
             raise Exception(f"Expected 5 versions, got {len(versions)}")
         print(f"✓ Confirmed 5 versions exist: {versions}")
@@ -255,17 +263,24 @@ class SparseVersionMigrationTest:
         self, subject: str, expected_versions: list, strict: bool = True
     ):
         """Verify that the target registry has the correct version numbers."""
-        target_versions = get_schema_versions_tool(
+        target_versions_result = get_schema_versions_tool(
             subject=subject,
             registry="prod",
             registry_manager=mcp_server.registry_manager,
             registry_mode=mcp_server.REGISTRY_MODE,
         )
 
-        if isinstance(target_versions, dict) and "error" in target_versions:
-            raise Exception(
-                f"Error getting target versions: {target_versions['error']}"
-            )
+        if isinstance(target_versions_result, dict):
+            if "error" in target_versions_result:
+                raise Exception(
+                    f"Error getting target versions: {target_versions_result['error']}"
+                )
+            elif "versions" in target_versions_result:
+                target_versions = target_versions_result["versions"]
+            else:
+                target_versions = target_versions_result
+        else:
+            target_versions = target_versions_result
 
         sorted_target = sorted(target_versions)
         sorted_expected = sorted(expected_versions)
