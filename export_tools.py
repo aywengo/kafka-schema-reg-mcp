@@ -19,16 +19,17 @@ from schema_registry_common import export_subject as common_export_subject
 from schema_registry_common import get_default_client
 from schema_validation import (
     create_error_response,
-    create_success_response,
     structured_output,
 )
 
 
-def _get_registry_name_for_linking(registry_mode: str, client=None, registry: Optional[str] = None) -> str:
+def _get_registry_name_for_linking(
+    registry_mode: str, client=None, registry: Optional[str] = None
+) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
-    elif client and hasattr(client, 'config'):
+    elif client and hasattr(client, "config"):
         return client.config.name
     elif registry:
         return registry
@@ -88,10 +89,16 @@ def export_schema_tool(
                 result["format"] = format
 
             # Add resource links for dictionary results
-            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            registry_name = _get_registry_name_for_linking(
+                registry_mode, client, registry
+            )
             result = add_links_to_response(
-                result, "schema", registry_name,
-                subject=subject, version=version, context=context
+                result,
+                "schema",
+                registry_name,
+                subject=subject,
+                version=version,
+                context=context,
             )
 
         return result
@@ -156,8 +163,7 @@ def export_subject_tool(
         # Add resource links
         registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
         result = add_links_to_response(
-            result, "subject", registry_name,
-            subject=subject, context=context
+            result, "subject", registry_name, subject=subject, context=context
         )
 
         return result
@@ -205,13 +211,15 @@ def export_context_tool(
             )
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             # Add resource links
-            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            registry_name = _get_registry_name_for_linking(
+                registry_mode, client, registry
+            )
             result = add_links_to_response(
                 result, "context", registry_name, context=context
             )
-            
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -278,7 +286,9 @@ def export_context_tool(
                 }
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            registry_name = _get_registry_name_for_linking(
+                registry_mode, client, registry
+            )
             result = add_links_to_response(
                 result, "context", registry_name, context=context
             )
@@ -326,13 +336,13 @@ def export_global_tool(
             )
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
-            
+
             # Add resource links
-            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
-            result = add_links_to_response(
-                result, "registry", registry_name
+            registry_name = _get_registry_name_for_linking(
+                registry_mode, client, registry
             )
-            
+            result = add_links_to_response(result, "registry", registry_name)
+
             return result
         else:
             # Multi-registry mode: use client approach
@@ -415,10 +425,10 @@ def export_global_tool(
                 }
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
-            result = add_links_to_response(
-                result, "registry", registry_name
+            registry_name = _get_registry_name_for_linking(
+                registry_mode, client, registry
             )
+            result = add_links_to_response(result, "registry", registry_name)
 
             return result
     except Exception as e:

@@ -15,7 +15,6 @@ from typing import Any, Dict, Optional
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
-    create_success_response,
     structured_output,
 )
 
@@ -103,8 +102,16 @@ async def compare_registries_tool(
                         "subject": subject,
                         "source_versions": source_versions,
                         "target_versions": target_versions,
-                        "source_version_count": len(source_versions) if isinstance(source_versions, list) else 0,
-                        "target_version_count": len(target_versions) if isinstance(target_versions, list) else 0,
+                        "source_version_count": (
+                            len(source_versions)
+                            if isinstance(source_versions, list)
+                            else 0
+                        ),
+                        "target_version_count": (
+                            len(target_versions)
+                            if isinstance(target_versions, list)
+                            else 0
+                        ),
                     }
                 )
 
@@ -133,38 +140,52 @@ async def compare_registries_tool(
             target_config = target_client.get_global_config()
 
             # Remove registry-specific fields for comparison
-            source_config_clean = {k: v for k, v in source_config.items() if k not in ['registry', 'error']}
-            target_config_clean = {k: v for k, v in target_config.items() if k not in ['registry', 'error']}
+            source_config_clean = {
+                k: v for k, v in source_config.items() if k not in ["registry", "error"]
+            }
+            target_config_clean = {
+                k: v for k, v in target_config.items() if k not in ["registry", "error"]
+            }
 
             comparison["differences"]["global_config"] = {
                 "source": source_config,
                 "target": target_config,
                 "match": source_config_clean == target_config_clean,
                 "differences": {
-                    k: {"source": source_config_clean.get(k), "target": target_config_clean.get(k)}
-                    for k in set(source_config_clean.keys()) | set(target_config_clean.keys())
+                    k: {
+                        "source": source_config_clean.get(k),
+                        "target": target_config_clean.get(k),
+                    }
+                    for k in set(source_config_clean.keys())
+                    | set(target_config_clean.keys())
                     if source_config_clean.get(k) != target_config_clean.get(k)
-                }
+                },
             }
 
         # Add summary statistics
         comparison["summary"] = {
-            "subjects_only_in_source": len(comparison["differences"]["subjects"]["only_in_source"]),
-            "subjects_only_in_target": len(comparison["differences"]["subjects"]["only_in_target"]),
+            "subjects_only_in_source": len(
+                comparison["differences"]["subjects"]["only_in_source"]
+            ),
+            "subjects_only_in_target": len(
+                comparison["differences"]["subjects"]["only_in_target"]
+            ),
             "subjects_in_both": len(comparison["differences"]["subjects"]["in_both"]),
             "schemas_with_differences": len(schema_differences),
             "registries_match": (
-                len(comparison["differences"]["subjects"]["only_in_source"]) == 0 and
-                len(comparison["differences"]["subjects"]["only_in_target"]) == 0 and
-                len(schema_differences) == 0
-            )
+                len(comparison["differences"]["subjects"]["only_in_source"]) == 0
+                and len(comparison["differences"]["subjects"]["only_in_target"]) == 0
+                and len(schema_differences) == 0
+            ),
         }
 
         # Add resource links
         comparison = add_links_to_response(
-            comparison, "comparison", source_registry,
+            comparison,
+            "comparison",
+            source_registry,
             source_registry=source_registry,
-            target_registry=target_registry
+            target_registry=target_registry,
         )
 
         return comparison
@@ -269,8 +290,16 @@ async def compare_contexts_across_registries_tool(
                         "subject": subject,
                         "source_versions": source_versions,
                         "target_versions": target_versions,
-                        "source_version_count": len(source_versions) if isinstance(source_versions, list) else 0,
-                        "target_version_count": len(target_versions) if isinstance(target_versions, list) else 0,
+                        "source_version_count": (
+                            len(source_versions)
+                            if isinstance(source_versions, list)
+                            else 0
+                        ),
+                        "target_version_count": (
+                            len(target_versions)
+                            if isinstance(target_versions, list)
+                            else 0
+                        ),
                     }
                 )
 
@@ -282,9 +311,9 @@ async def compare_contexts_across_registries_tool(
         # Add summary
         comparison["summary"] = {
             "contexts_match": (
-                len(comparison["differences"]["only_in_source"]) == 0 and
-                len(comparison["differences"]["only_in_target"]) == 0 and
-                len(schema_differences) == 0
+                len(comparison["differences"]["only_in_source"]) == 0
+                and len(comparison["differences"]["only_in_target"]) == 0
+                and len(schema_differences) == 0
             ),
             "subjects_only_in_source": len(comparison["differences"]["only_in_source"]),
             "subjects_only_in_target": len(comparison["differences"]["only_in_target"]),
@@ -294,9 +323,11 @@ async def compare_contexts_across_registries_tool(
 
         # Add resource links
         comparison = add_links_to_response(
-            comparison, "comparison", source_registry,
+            comparison,
+            "comparison",
+            source_registry,
             source_registry=source_registry,
-            target_registry=target_registry
+            target_registry=target_registry,
         )
 
         return comparison
@@ -384,7 +415,9 @@ async def find_missing_schemas_tool(
                 latest_schema = None
 
                 if versions:
-                    latest_version = max(versions) if isinstance(versions, list) else "latest"
+                    latest_version = (
+                        max(versions) if isinstance(versions, list) else "latest"
+                    )
                     latest_schema = source_client.get_schema(
                         subject, str(latest_version), context
                     )
@@ -393,10 +426,20 @@ async def find_missing_schemas_tool(
                     {
                         "subject": subject,
                         "versions": versions,
-                        "version_count": len(versions) if isinstance(versions, list) else 0,
+                        "version_count": (
+                            len(versions) if isinstance(versions, list) else 0
+                        ),
                         "latest_version": latest_version if versions else None,
-                        "latest_schema_id": latest_schema.get("id") if latest_schema and isinstance(latest_schema, dict) else None,
-                        "schema_type": latest_schema.get("schemaType", "AVRO") if latest_schema and isinstance(latest_schema, dict) else None,
+                        "latest_schema_id": (
+                            latest_schema.get("id")
+                            if latest_schema and isinstance(latest_schema, dict)
+                            else None
+                        ),
+                        "schema_type": (
+                            latest_schema.get("schemaType", "AVRO")
+                            if latest_schema and isinstance(latest_schema, dict)
+                            else None
+                        ),
                     }
                 )
             except Exception as e:
@@ -416,17 +459,22 @@ async def find_missing_schemas_tool(
             "total_versions_to_migrate": sum(
                 detail.get("version_count", 0) for detail in result["details"]
             ),
-            "subjects_with_multiple_versions": len([
-                detail for detail in result["details"] 
-                if detail.get("version_count", 0) > 1
-            ]),
+            "subjects_with_multiple_versions": len(
+                [
+                    detail
+                    for detail in result["details"]
+                    if detail.get("version_count", 0) > 1
+                ]
+            ),
         }
 
         # Add resource links
         result = add_links_to_response(
-            result, "comparison", source_registry,
+            result,
+            "comparison",
+            source_registry,
             source_registry=source_registry,
-            target_registry=target_registry
+            target_registry=target_registry,
         )
 
         return result

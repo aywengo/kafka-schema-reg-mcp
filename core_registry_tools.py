@@ -10,12 +10,12 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import aiohttp
 import requests
 
-from resource_linking import add_links_to_response, create_registry_linker
+from resource_linking import add_links_to_response
 from schema_registry_common import check_readonly_mode as _check_readonly_mode
 from schema_validation import (
     create_error_response,
@@ -34,12 +34,13 @@ def build_context_url_legacy(
     return f"{schema_registry_url}{base_url}"
 
 
-def _get_registry_name(registry_mode: str, registry: Optional[str] = None, 
-                      client=None) -> str:
+def _get_registry_name(
+    registry_mode: str, registry: Optional[str] = None, client=None
+) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
-    elif client and hasattr(client, 'config'):
+    elif client and hasattr(client, "config"):
         return client.config.name
     elif registry:
         return registry
@@ -110,8 +111,12 @@ def register_schema_tool(
                 # Use the returned version or assume latest
                 version = result.get("version", "latest")
                 result = add_links_to_response(
-                    result, "schema", registry_name,
-                    subject=subject, version=version, context=context
+                    result,
+                    "schema",
+                    registry_name,
+                    subject=subject,
+                    version=version,
+                    context=context,
                 )
 
             return result
@@ -149,8 +154,12 @@ def register_schema_tool(
                 # Use the returned version or assume latest
                 version = result.get("version", "latest")
                 result = add_links_to_response(
-                    result, "schema", client.config.name,
-                    subject=subject, version=version, context=context
+                    result,
+                    "schema",
+                    client.config.name,
+                    subject=subject,
+                    version=version,
+                    context=context,
                 )
 
             return result
@@ -210,8 +219,12 @@ def get_schema_tool(
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
             result = add_links_to_response(
-                result, "schema", registry_name,
-                subject=subject, version=version, context=context
+                result,
+                "schema",
+                registry_name,
+                subject=subject,
+                version=version,
+                context=context,
             )
 
             return result
@@ -248,8 +261,12 @@ def get_schema_tool(
 
             # Add resource links
             result = add_links_to_response(
-                result, "schema", client.config.name,
-                subject=subject, version=version, context=context
+                result,
+                "schema",
+                client.config.name,
+                subject=subject,
+                version=version,
+                context=context,
             )
 
             return result
@@ -302,14 +319,17 @@ def get_schema_versions_tool(
                 "subject": subject,
                 "versions": versions_list,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
             result = add_links_to_response(
-                result, "schema_versions", registry_name,
-                subject=subject, context=context
+                result,
+                "schema_versions",
+                registry_name,
+                subject=subject,
+                context=context,
             )
 
             return result
@@ -340,13 +360,16 @@ def get_schema_versions_tool(
                 "versions": versions_list,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
             result = add_links_to_response(
-                result, "schema_versions", client.config.name,
-                subject=subject, context=context
+                result,
+                "schema_versions",
+                client.config.name,
+                subject=subject,
+                context=context,
             )
 
             return result
@@ -390,7 +413,7 @@ def list_subjects_tool(
                 "subjects": subjects_list,
                 "context": context,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
@@ -418,7 +441,7 @@ def list_subjects_tool(
                 "context": context,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
@@ -486,8 +509,7 @@ def check_compatibility_tool(
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
             result = add_links_to_response(
-                result, "compatibility", registry_name,
-                subject=subject, context=context
+                result, "compatibility", registry_name, subject=subject, context=context
             )
 
             return result
@@ -521,8 +543,11 @@ def check_compatibility_tool(
 
             # Add resource links
             result = add_links_to_response(
-                result, "compatibility", client.config.name,
-                subject=subject, context=context
+                result,
+                "compatibility",
+                client.config.name,
+                subject=subject,
+                context=context,
             )
 
             return result
@@ -1246,14 +1271,12 @@ def list_contexts_tool(
             result = {
                 "contexts": contexts_list,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "contexts_list", registry_name
-            )
+            result = add_links_to_response(result, "contexts_list", registry_name)
 
             return result
         else:
@@ -1273,13 +1296,11 @@ def list_contexts_tool(
                 "contexts": contexts_list,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add resource links
-            result = add_links_to_response(
-                result, "contexts_list", client.config.name
-            )
+            result = add_links_to_response(result, "contexts_list", client.config.name)
 
             return result
     except Exception as e:
@@ -1403,9 +1424,7 @@ def delete_context_tool(
 
             # Add links to contexts list since the specific context is now deleted
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "contexts_list", registry_name
-            )
+            result = add_links_to_response(result, "contexts_list", registry_name)
 
             return result
         else:
@@ -1431,9 +1450,7 @@ def delete_context_tool(
             )
 
             # Add links to contexts list since the specific context is now deleted
-            result = add_links_to_response(
-                result, "contexts_list", client.config.name
-            )
+            result = add_links_to_response(result, "contexts_list", client.config.name)
 
             return result
     except Exception as e:
@@ -1493,7 +1510,7 @@ async def delete_subject_tool(
                 "permanent": permanent,
                 "context": context,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add links to subjects list since the specific subject is now deleted
@@ -1533,7 +1550,7 @@ async def delete_subject_tool(
                 "context": context,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18"
+                "mcp_protocol_version": "2025-06-18",
             }
 
             # Add links to subjects list since the specific subject is now deleted

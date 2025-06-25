@@ -28,7 +28,9 @@ from task_management import TaskStatus, TaskType, task_manager
 logger = logging.getLogger(__name__)
 
 
-def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[str] = None) -> str:
+def _get_registry_name_for_linking(
+    registry_mode: str, registry_name: Optional[str] = None
+) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
@@ -172,10 +174,12 @@ def migrate_schema_tool(
 
             # Add resource links
             migration_result = add_links_to_response(
-                migration_result, "migration", source_registry,
+                migration_result,
+                "migration",
+                source_registry,
                 migration_id=task.id,
                 source_registry=source_registry,
-                target_registry=target_registry
+                target_registry=target_registry,
             )
 
             return migration_result
@@ -645,14 +649,12 @@ def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
             "migrations": migrations,
             "total_migrations": len(migrations),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18"
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add resource links
         registry_name = _get_registry_name_for_linking(registry_mode)
-        result = add_links_to_response(
-            result, "migrations_list", registry_name
-        )
+        result = add_links_to_response(result, "migrations_list", registry_name)
 
         return result
 
@@ -725,12 +727,14 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
         metadata = task.metadata or {}
         source_registry = metadata.get("source_registry", "unknown")
         target_registry = metadata.get("target_registry", "unknown")
-        
+
         migration_status = add_links_to_response(
-            migration_status, "migration", source_registry,
+            migration_status,
+            "migration",
+            source_registry,
             migration_id=migration_id,
             source_registry=source_registry,
-            target_registry=target_registry
+            target_registry=target_registry,
         )
 
         return migration_status
@@ -908,9 +912,11 @@ async def migrate_context_tool(
 
         # Add resource links
         result = add_links_to_response(
-            result, "comparison", source_registry,
+            result,
+            "comparison",
+            source_registry,
             source_registry=source_registry,
-            target_registry=target_registry
+            target_registry=target_registry,
         )
 
         return result

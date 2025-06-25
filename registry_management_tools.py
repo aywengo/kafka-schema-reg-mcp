@@ -9,17 +9,18 @@ Provides registry listing, connection testing, and information retrieval
 with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
-    create_success_response,
     structured_output,
 )
 
 
-def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[str] = None) -> str:
+def _get_registry_name_for_linking(
+    registry_mode: str, registry_name: Optional[str] = None
+) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
@@ -49,12 +50,10 @@ def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]
                 # Add structured output metadata
                 info["registry_mode"] = registry_mode
                 info["mcp_protocol_version"] = "2025-06-18"
-                
+
                 # Add resource links for each registry
-                info = add_links_to_response(
-                    info, "registry", name
-                )
-                
+                info = add_links_to_response(info, "registry", name)
+
                 registries_list.append(info)
 
         # Convert to enhanced response format
@@ -70,7 +69,7 @@ def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]
             result["message"] = "No registries configured"
             result["help"] = {
                 "single_mode": "Set SCHEMA_REGISTRY_URL environment variable",
-                "multi_mode": "Set SCHEMA_REGISTRY_NAME_1, SCHEMA_REGISTRY_URL_1 environment variables"
+                "multi_mode": "Set SCHEMA_REGISTRY_NAME_1, SCHEMA_REGISTRY_URL_1 environment variables",
             }
 
         # Add default registry information
@@ -124,10 +123,10 @@ def get_registry_info_tool(
         }
 
         # Add resource links
-        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
-        info = add_links_to_response(
-            info, "registry", registry_name_for_linking
+        registry_name_for_linking = _get_registry_name_for_linking(
+            registry_mode, registry_name
         )
+        info = add_links_to_response(info, "registry", registry_name_for_linking)
 
         return info
     except Exception as e:
@@ -191,15 +190,16 @@ def test_registry_connection_tool(
         # Add connection health assessment
         result["health_assessment"] = {
             "status": "healthy" if result.get("status") == "connected" else "unhealthy",
-            "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
+            "can_perform_operations": result.get("status") == "connected"
+            and not client.config.readonly,
             "readonly_mode": client.config.readonly,
         }
 
         # Add resource links
-        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
-        result = add_links_to_response(
-            result, "registry", registry_name_for_linking
+        registry_name_for_linking = _get_registry_name_for_linking(
+            registry_mode, registry_name
         )
+        result = add_links_to_response(result, "registry", registry_name_for_linking)
 
         return result
     except Exception as e:
@@ -241,8 +241,13 @@ async def test_all_registries_tool(
 
                     # Add health assessment
                     result["health_assessment"] = {
-                        "status": "healthy" if result.get("status") == "connected" else "unhealthy",
-                        "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
+                        "status": (
+                            "healthy"
+                            if result.get("status") == "connected"
+                            else "unhealthy"
+                        ),
+                        "can_perform_operations": result.get("status") == "connected"
+                        and not client.config.readonly,
                         "readonly_mode": client.config.readonly,
                     }
 
@@ -250,9 +255,7 @@ async def test_all_registries_tool(
                     response = {
                         "registry_tests": {default_registry: result},
                         "total_registries": 1,
-                        "connected": (
-                            1 if result.get("status") == "connected" else 0
-                        ),
+                        "connected": (1 if result.get("status") == "connected" else 0),
                         "failed": 0 if result.get("status") == "connected" else 1,
                         "test_timestamp": __import__("datetime")
                         .datetime.now()
@@ -262,7 +265,9 @@ async def test_all_registries_tool(
                     }
 
                     # Add resource links
-                    registry_name_for_linking = _get_registry_name_for_linking(registry_mode, default_registry)
+                    registry_name_for_linking = _get_registry_name_for_linking(
+                        registry_mode, default_registry
+                    )
                     response = add_links_to_response(
                         response, "registry", registry_name_for_linking
                     )
@@ -306,8 +311,14 @@ async def test_all_registries_tool(
 
                                 # Add health assessment
                                 test_result["health_assessment"] = {
-                                    "status": "healthy" if test_result.get("status") == "connected" else "unhealthy",
-                                    "can_perform_operations": test_result.get("status") == "connected" and not client.config.readonly,
+                                    "status": (
+                                        "healthy"
+                                        if test_result.get("status") == "connected"
+                                        else "unhealthy"
+                                    ),
+                                    "can_perform_operations": test_result.get("status")
+                                    == "connected"
+                                    and not client.config.readonly,
                                     "readonly_mode": client.config.readonly,
                                 }
                         except Exception as e:
@@ -336,26 +347,38 @@ async def test_all_registries_tool(
                         else "0%"
                     ),
                     "total_registries": len(result["registry_tests"]),
-                    "operational_registries": len([
-                        name for name, test in result["registry_tests"].items()
-                        if test.get("status") == "connected" and 
-                        test.get("health_assessment", {}).get("can_perform_operations", False)
-                    ]),
+                    "operational_registries": len(
+                        [
+                            name
+                            for name, test in result["registry_tests"].items()
+                            if test.get("status") == "connected"
+                            and test.get("health_assessment", {}).get(
+                                "can_perform_operations", False
+                            )
+                        ]
+                    ),
                 }
 
             # Add resource links - use first connected registry or default
             first_registry = None
             if "registry_tests" in result and result["registry_tests"]:
                 # Prefer connected registries
-                connected = [name for name, test in result["registry_tests"].items() 
-                           if test.get("status") == "connected"]
-                first_registry = connected[0] if connected else list(result["registry_tests"].keys())[0]
-            
+                connected = [
+                    name
+                    for name, test in result["registry_tests"].items()
+                    if test.get("status") == "connected"
+                ]
+                first_registry = (
+                    connected[0]
+                    if connected
+                    else list(result["registry_tests"].keys())[0]
+                )
+
             if first_registry:
                 # Add links to the overall test results, pointing to a representative registry
                 result["_links"] = {
                     "registries": f"registry://{first_registry}/info",
-                    "example_registry": f"registry://{first_registry}"
+                    "example_registry": f"registry://{first_registry}",
                 }
 
             return result
