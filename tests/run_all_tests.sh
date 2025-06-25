@@ -161,10 +161,16 @@ check_prerequisites() {
         print_color $YELLOW "⚠️  MCP compliance test file not found in tests directory"
     fi
     
-    if [[ -f "$PROJECT_ROOT/test_mcp_header_validation.py" ]]; then
-        print_color $GREEN "✅ MCP header validation test file found (project root)"
+    if [[ -f "$SCRIPT_DIR/test_mcp_header_validation.py" ]]; then
+        print_color $GREEN "✅ MCP header validation test file found (tests directory)"
     else
-        print_color $YELLOW "⚠️  MCP header validation test file not found in project root"
+        print_color $YELLOW "⚠️  MCP header validation test file not found in tests directory"
+    fi
+    
+    if [[ -f "$SCRIPT_DIR/test_structured_output.py" ]]; then
+        print_color $GREEN "✅ MCP structured output test file found (tests directory)"
+    else
+        print_color $YELLOW "⚠️  MCP structured output test file not found in tests directory"
     fi
     
     print_color $GREEN "✅ All prerequisites satisfied"
@@ -410,13 +416,14 @@ run_multi_registry_tests() {
     run_test_list "${tests[@]}"
 }
 
-# Run MCP compliance tests (NEW CATEGORY)
+# Run MCP compliance tests (UPDATED CATEGORY)
 run_mcp_compliance_tests() {
     print_color $CYAN "🛡️  MCP 2025-06-18 Compliance Tests"
     
-    # Use the test file in the tests directory
+    # All MCP compliance tests are now in the tests directory
     local tests=(
         "test_mcp_compliance.py:MCP-Protocol-Version header validation and compliance verification"
+        "test_mcp_header_validation.py:MCP header validation middleware and exempt path functionality"
         "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
     )
     
@@ -593,6 +600,9 @@ fi)
 
 🚀 OAuth 2.1 Generic Discovery: Tests now validate universal OAuth 2.1 compatibility
    instead of provider-specific configurations (75% configuration reduction).
+
+📁 Test Organization: All MCP compliance tests are now properly organized in the tests directory
+   for better maintainability and CI/CD integration.
 
 EOF
     
