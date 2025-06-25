@@ -26,6 +26,7 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 - **MCP Tools**: 20+ tools for schema operations, context management, configuration, and export
 - **MCP Resources**: Real-time status and configuration information accessible to AI
 - **JSON-RPC Protocol**: Standard MCP communication over stdio
+- **🔗 Resource Linking**: HATEOAS navigation with `_links` in tool responses for enhanced discoverability and client integration
 
 ### **📋 Schema Management**
 - **Complete Schema Operations**: Register, retrieve, and manage Avro schemas via MCP tools
@@ -61,6 +62,7 @@ s Claude Desktop and other MCP clients with tools for Kafka Schema Registry oper
 - ✅ **Multi-Platform Support**: AMD64 and ARM64 architectures
 - ✅ **Stable Tag**: Use `:stable` for production deployments
 - ✅ **Schema Statistics**: Comprehensive counting and analysis tools for contexts, schemas, and versions
+- ✅ **🔗 Resource Linking**: URI navigation with `_links` sections for enhanced tool responses
 
 ## 🏗️ Architecture
 
@@ -155,7 +157,7 @@ export READONLY_2="true"                      # Production safety
 #### Environment Variables
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+|----------|-------------|---------|------------|
 | **Single Registry Mode** | | | |
 | `SCHEMA_REGISTRY_URL` | Schema Registry endpoint | `http://localhost:8081` | `http://schema-registry:8081` |
 | `SCHEMA_REGISTRY_USER` | Username for authentication | *(empty)* | `admin` |
@@ -317,6 +319,35 @@ The MCP server provides **20 comprehensive tools** and **2 resources** for all S
 ### **📦 Available Resources**
 - **`registry://status`**: Real-time Schema Registry connection status
 - **`registry://info`**: Detailed server configuration and capabilities
+
+### **🔗 Resource Linking (MCP 2025-06-18 Enhancement)**
+
+All tool responses now include `_links` sections with HATEOAS navigation capabilities:
+
+**Enhanced Tool Response Example:**
+```json
+{
+  "id": 123,
+  "version": 3,
+  "schema": {"type": "record", "name": "User"},
+  "subject": "user-events",
+  "_links": {
+    "self": "registry://production/contexts/default/subjects/user-events/versions/3",
+    "subject": "registry://production/contexts/default/subjects/user-events",
+    "context": "registry://production/contexts/default",
+    "versions": "registry://production/contexts/default/subjects/user-events/versions",
+    "compatibility": "registry://production/contexts/default/subjects/user-events/compatibility",
+    "previous": "registry://production/contexts/default/subjects/user-events/versions/2",
+    "next": "registry://production/contexts/default/subjects/user-events/versions/4"
+  }
+}
+```
+
+**Resource Linking Benefits:**
+- **📍 Enhanced Navigation**: Actionable URIs for related resources
+- **🔍 Self-Discovery**: Tool responses include all available actions
+- **🤝 Client Integration**: Standard HATEOAS links for rich UI development
+- **📱 Consistent Addressing**: Uniform URI scheme across all registries
 
 ### **Claude Desktop Usage Examples**
 With the MCP server connected to Claude Desktop, you can use natural language:
@@ -715,7 +746,7 @@ The MCP server implements **OAuth 2.1 compliant discovery** for seamless integra
 #### **Available Discovery Endpoints**
 
 | Endpoint | Purpose | RFC Standard |
-|----------|---------|--------------|
+|----------|---------|--------------| 
 | `/.well-known/oauth-authorization-server` | Authorization server metadata | RFC 8414 |
 | `/.well-known/oauth-protected-resource` | Protected resource metadata | RFC 8692 |
 | `/.well-known/jwks.json` | JSON Web Key Set for token validation | RFC 7517 |
@@ -1050,6 +1081,11 @@ Integrates with [Confluent Schema Registry](https://docs.confluent.io/platform/c
   - **Modern Transport Only**: Uses streamable-http transport exclusively
   - **Migration Guide**: Existing SSE clients should migrate to streamable-http transport
   - **Breaking Change**: SSE transport endpoints no longer available
+- **🔗 Resource Linking**: HATEOAS navigation with `_links` sections in tool responses
+  - **Enhanced Discoverability**: All tool responses include actionable URIs for related resources
+  - **Consistent URI Scheme**: Uniform addressing across all Schema Registry resources
+  - **Client Integration**: Standard HATEOAS links for rich UI development
+  - **Navigation Support**: Previous/next version links, cross-registry navigation
 - **Schema Statistics & Counting**: New tools for monitoring registry usage:
   - `count_contexts`: Track context distribution
   - `count_schemas`: Monitor schema growth
