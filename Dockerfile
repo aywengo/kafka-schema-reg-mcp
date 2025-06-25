@@ -43,7 +43,7 @@ RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
-      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 50+ tools, OAuth authentication, remote deployment support, context management, elicitation capability, and Claude Desktop integration" \
+      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 50+ tools, OAuth authentication, remote deployment support, context management, elicitation capability, resource linking, and Claude Desktop integration" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.revision="$VCS_REF" \
@@ -88,11 +88,15 @@ COPY --chown=mcp:mcp migration_tools.py .
 COPY --chown=mcp:mcp registry_management_tools.py .
 COPY --chown=mcp:mcp mcp_prompts.py .
 
-# Copy NEW elicitation modules (MCP 2025-06-18 interactive workflows)
+# Copy elicitation modules (MCP 2025-06-18 interactive workflows)
 COPY --chown=mcp:mcp elicitation.py .
 COPY --chown=mcp:mcp elicitation_mcp_integration.py .
 COPY --chown=mcp:mcp interactive_tools.py .
 COPY --chown=mcp:mcp elicitation_enhancements.py .
+
+# Copy NEW resource linking modules (MCP 2025-06-18 resource linking)
+COPY --chown=mcp:mcp resource_linking.py .
+COPY --chown=mcp:mcp test_resource_linking.py .
 
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
@@ -103,7 +107,7 @@ USER mcp
 
 # Add health check for MCP server (checks if Python process can import main module)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import kafka_schema_registry_unified_mcp; print('MCP server healthy')\" || exit 1
+    CMD python -c "import kafka_schema_registry_unified_mcp; print('MCP server healthy')" || exit 1
 
 # Security: Set environment variables for better security
 ENV PYTHONUNBUFFERED=1 \
