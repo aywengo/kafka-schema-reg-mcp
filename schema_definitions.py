@@ -138,9 +138,30 @@ GET_SCHEMA_SCHEMA = {
 
 # Schema versions list response
 GET_SCHEMA_VERSIONS_SCHEMA = {
-    "type": "array",
-    "items": {"type": "integer", "minimum": 1},
-    "description": "List of available schema versions",
+    "type": "object",
+    "properties": {
+        "subject": {
+            "type": "string",
+            "description": "Subject name for which versions are listed",
+        },
+        "versions": {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 1},
+            "description": "List of available schema versions",
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry name (multi-registry mode)",
+        },
+        "_links": {
+            "type": "object",
+            "description": "Navigation links to related resources",
+            "additionalProperties": True,
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["subject", "versions"],
+    "additionalProperties": True,
 }
 
 # Compatibility check response
@@ -181,9 +202,30 @@ CHECK_COMPATIBILITY_SCHEMA = {
 
 # Subject list response
 LIST_SUBJECTS_SCHEMA = {
-    "type": "array",
-    "items": {"type": "string"},
-    "description": "List of subject names",
+    "type": "object",
+    "properties": {
+        "subjects": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of subject names",
+        },
+        "context": {
+            "type": ["string", "null"],
+            "description": "Schema context filter used",
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry name (multi-registry mode)",
+        },
+        "_links": {
+            "type": "object",
+            "description": "Navigation links to related resources",
+            "additionalProperties": True,
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["subjects"],
+    "additionalProperties": True,
 }
 
 # ===== REGISTRY MANAGEMENT SCHEMAS =====
@@ -340,9 +382,26 @@ MODE_SCHEMA = {
 
 # Context list response
 LIST_CONTEXTS_SCHEMA = {
-    "type": "array",
-    "items": {"type": "string"},
-    "description": "List of context names",
+    "type": "object",
+    "properties": {
+        "contexts": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of context names",
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry name (multi-registry mode)",
+        },
+        "_links": {
+            "type": "object",
+            "description": "Navigation links to related resources",
+            "additionalProperties": True,
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["contexts"],
+    "additionalProperties": True,
 }
 
 # Context operation response (create/delete)
