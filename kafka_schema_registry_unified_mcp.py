@@ -1338,10 +1338,21 @@ def get_task_status_tool(task_id: str):
                 registry_mode=REGISTRY_MODE,
             )
 
-        result = task.to_dict()
-        # Add structured output metadata
-        result["registry_mode"] = REGISTRY_MODE
-        result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+        task_dict = task.to_dict()
+        # Transform the result to match the expected schema
+        result = {
+            "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
+            "status": task_dict["status"],
+            "progress": task_dict["progress"],
+            "started_at": task_dict["started_at"],
+            "completed_at": task_dict["completed_at"],
+            "error": task_dict["error"],
+            "result": task_dict["result"],
+            "metadata": task_dict["metadata"],
+            # Add structured output metadata
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
 
         return result
     except Exception as e:
@@ -1378,8 +1389,27 @@ def list_active_tasks_tool():
     """List all active tasks in the system with structured validation."""
     try:
         tasks = task_manager.list_tasks()
+
+        # Transform each task to match the expected schema
+        transformed_tasks = []
+        for task in tasks:
+            task_dict = task.to_dict()
+            transformed_task = {
+                "task_id": task_dict[
+                    "id"
+                ],  # Map "id" to "task_id" as expected by schema
+                "status": task_dict["status"],
+                "progress": task_dict["progress"],
+                "started_at": task_dict["started_at"],
+                "completed_at": task_dict["completed_at"],
+                "error": task_dict["error"],
+                "result": task_dict["result"],
+                "metadata": task_dict["metadata"],
+            }
+            transformed_tasks.append(transformed_task)
+
         result = {
-            "tasks": [task.to_dict() for task in tasks],
+            "tasks": transformed_tasks,  # Use "tasks" field name to match schema
             "total_tasks": len(tasks),
             "active_tasks": len(
                 [t for t in tasks if t.status.value in ["pending", "running"]]
@@ -1425,8 +1455,27 @@ def list_statistics_tasks_tool():
         from task_management import TaskType
 
         tasks = task_manager.list_tasks(task_type=TaskType.STATISTICS)
+
+        # Transform each task to match the expected schema
+        transformed_tasks = []
+        for task in tasks:
+            task_dict = task.to_dict()
+            transformed_task = {
+                "task_id": task_dict[
+                    "id"
+                ],  # Map "id" to "task_id" as expected by schema
+                "status": task_dict["status"],
+                "progress": task_dict["progress"],
+                "started_at": task_dict["started_at"],
+                "completed_at": task_dict["completed_at"],
+                "error": task_dict["error"],
+                "result": task_dict["result"],
+                "metadata": task_dict["metadata"],
+            }
+            transformed_tasks.append(transformed_task)
+
         result = {
-            "statistics_tasks": [task.to_dict() for task in tasks],
+            "tasks": transformed_tasks,  # Use "tasks" field name to match schema
             "total_tasks": len(tasks),
             "active_tasks": len(
                 [t for t in tasks if t.status.value in ["pending", "running"]]
@@ -1458,6 +1507,18 @@ def get_statistics_task_progress_tool(task_id: str):
 
         task_dict = task.to_dict()
 
+        # Transform the result to match the expected schema
+        result = {
+            "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
+            "status": task_dict["status"],
+            "progress": task_dict["progress"],
+            "started_at": task_dict["started_at"],
+            "completed_at": task_dict["completed_at"],
+            "error": task_dict["error"],
+            "result": task_dict["result"],
+            "metadata": task_dict["metadata"],
+        }
+
         # Add statistics-specific progress information
         if task.metadata and task.metadata.get("operation") in [
             "count_schemas",
@@ -1466,8 +1527,8 @@ def get_statistics_task_progress_tool(task_id: str):
             operation = task.metadata.get("operation")
             progress_stage = "Initializing"
 
-            if task_dict["status"] == "running":
-                progress = task_dict["progress"]
+            if result["status"] == "running":
+                progress = result["progress"]
                 if operation == "get_registry_statistics":
                     if progress < 20:
                         progress_stage = "Getting contexts list"
@@ -1486,18 +1547,18 @@ def get_statistics_task_progress_tool(task_id: str):
                         progress_stage = "Counting schemas across contexts"
                     else:
                         progress_stage = "Complete"
-            elif task_dict["status"] == "completed":
+            elif result["status"] == "completed":
                 progress_stage = "Complete"
-            elif task_dict["status"] == "failed":
+            elif result["status"] == "failed":
                 progress_stage = "Failed"
 
-            task_dict["progress_stage"] = progress_stage
+            result["progress_stage"] = progress_stage
 
         # Add structured output metadata
-        task_dict["registry_mode"] = REGISTRY_MODE
-        task_dict["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+        result["registry_mode"] = REGISTRY_MODE
+        result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
 
-        return task_dict
+        return result
     except Exception as e:
         return create_error_response(
             str(e),
