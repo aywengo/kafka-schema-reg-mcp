@@ -265,11 +265,19 @@ from export_tools import (  # noqa: E402
 
 # Import interactive tools
 from interactive_tools import (  # noqa: E402
-    check_compatibility_interactive,
-    create_context_interactive,
-    export_global_interactive,
-    migrate_context_interactive,
-    register_schema_interactive,
+    check_compatibility_interactive as check_compatibility_interactive_impl,
+)
+from interactive_tools import (
+    create_context_interactive as create_context_interactive_impl,
+)
+from interactive_tools import (
+    export_global_interactive as export_global_interactive_impl,
+)
+from interactive_tools import (
+    migrate_context_interactive as migrate_context_interactive_impl,
+)
+from interactive_tools import (
+    register_schema_interactive as register_schema_interactive_impl,
 )
 
 # Import prompts from external module
@@ -539,7 +547,7 @@ async def register_schema_interactive(
     When schema_definition is incomplete or missing fields, this tool will
     elicit the required information from the user interactively.
     """
-    return await register_schema_interactive(
+    return await register_schema_interactive_impl(
         subject=subject,
         schema_definition=schema_definition,
         schema_type=schema_type,
@@ -643,7 +651,7 @@ async def check_compatibility_interactive(
     When compatibility issues are found, this tool will elicit resolution
     preferences from the user.
     """
-    return await check_compatibility_interactive(
+    return await check_compatibility_interactive_impl(
         subject=subject,
         schema_definition=schema_definition,
         schema_type=schema_type,
@@ -839,7 +847,7 @@ async def create_context_interactive(
     When context metadata is not provided, this tool will elicit
     organizational information from the user.
     """
-    return await create_context_interactive(
+    return await create_context_interactive_impl(
         context=context,
         registry=registry,
         description=description,
@@ -993,7 +1001,7 @@ async def export_global_interactive(
     When export preferences are not specified, this tool will elicit
     the required configuration from the user.
     """
-    return await export_global_interactive(
+    return await export_global_interactive_impl(
         registry=registry,
         include_metadata=include_metadata,
         include_config=include_config,
@@ -1094,7 +1102,7 @@ async def migrate_context_interactive(
     When migration preferences are not specified, this tool will elicit
     the required configuration from the user.
     """
-    return await migrate_context_interactive(
+    return await migrate_context_interactive_impl(
         source_registry=source_registry,
         target_registry=target_registry,
         context=context,
@@ -1311,36 +1319,6 @@ def get_elicitation_status():
         return create_error_response(
             f"Failed to get elicitation status: {str(e)}",
             error_code="ELICITATION_STATUS_FAILED",
-            registry_mode=REGISTRY_MODE,
-        )
-
-
-# Add an elicitation response tool for clients to submit responses
-@mcp.tool()
-@require_scopes("write")
-async def submit_elicitation_response(request_id: str, response_data: dict):
-    """Submit an elicitation response from the client."""
-    try:
-        from elicitation_mcp_integration import handle_elicitation_response
-
-        success = await handle_elicitation_response(request_id, response_data)
-
-        if success:
-            return create_success_response(
-                f"Elicitation response submitted successfully for request '{request_id}'",
-                data={"request_id": request_id, "processed": True},
-                registry_mode=REGISTRY_MODE,
-            )
-        else:
-            return create_error_response(
-                f"Failed to process elicitation response for request '{request_id}'",
-                error_code="ELICITATION_RESPONSE_FAILED",
-                registry_mode=REGISTRY_MODE,
-            )
-    except Exception as e:
-        return create_error_response(
-            f"Error submitting elicitation response: {str(e)}",
-            error_code="ELICITATION_RESPONSE_ERROR",
             registry_mode=REGISTRY_MODE,
         )
 
@@ -1696,7 +1674,10 @@ def _internal_get_mcp_compliance_status():
                 "mcp_specification": "2025-06-18",
                 "validation_date": datetime.utcnow().isoformat(),
                 "compliance_notes": [
-                    f"MCP-Protocol-Version header validation {'enabled' if header_validation_active else 'disabled (compatibility mode)'}",
+                    (
+                        f"MCP-Protocol-Version header validation "
+                        f"{'enabled' if header_validation_active else 'disabled (compatibility mode)'}"
+                    ),
                     "JSON-RPC batching explicitly disabled in FastMCP configuration",
                     "Application-level batching uses individual requests",
                     "All operations maintain backward compatibility except JSON-RPC batching",
@@ -2293,7 +2274,11 @@ def get_registry_info_resource():
                 "Async Task Queue",
                 "Modular Architecture",
                 "MCP 2025-06-18 Compliance (No JSON-RPC Batching)",
-                f"MCP-Protocol-Version Header Validation ({'enabled' if header_validation_active else 'compatibility mode'}) ({MCP_PROTOCOL_VERSION})",
+                (
+                    f"MCP-Protocol-Version Header Validation "
+                    f"({'enabled' if header_validation_active else 'compatibility mode'}) "
+                    f"({MCP_PROTOCOL_VERSION})"
+                ),
                 "Application-Level Batch Operations",
                 "🎯 Structured Tool Output (100% Complete - All tools)",
                 "🎭 Interactive Workflows with Elicitation Support",
@@ -2435,7 +2420,11 @@ def get_mode_info():
                 "jsonrpc_batching_disabled": True,
                 "application_level_batching": True,
                 "compliance_notes": [
-                    f"MCP-Protocol-Version header validation {'enabled' if header_validation_active else 'disabled (compatibility mode)'} per MCP 2025-06-18 specification",
+                    (
+                        f"MCP-Protocol-Version header validation "
+                        f"{'enabled' if header_validation_active else 'disabled (compatibility mode)'} "
+                        f"per MCP 2025-06-18 specification"
+                    ),
                     "JSON-RPC batching disabled per MCP 2025-06-18 specification",
                     "Application-level batch operations use individual requests",
                     "All operations maintain backward compatibility except JSON-RPC batching",
@@ -2533,13 +2522,21 @@ if __name__ == "__main__":
         "🎯 Structured tool output: 100% Complete - All tools have JSON Schema validation"
     )
     logger.info(
-        f"🎭 Elicitation capability: {'ENABLED' if is_elicitation_supported() else 'DISABLED'} - Interactive workflows per MCP 2025-06-18"
+        (
+            f"🎭 Elicitation capability: "
+            f"{'ENABLED' if is_elicitation_supported() else 'DISABLED'} - "
+            f"Interactive workflows per MCP 2025-06-18"
+        )
     )
     logger.info(
         "🔗 Real MCP elicitation protocol integrated with intelligent fallback to mock"
     )
     logger.info(
-        "Available prompts: schema-getting-started, schema-registration, context-management, schema-export, multi-registry, schema-compatibility, troubleshooting, advanced-workflows"
+        (
+            "Available prompts: schema-getting-started, schema-registration, "
+            "context-management, schema-export, multi-registry, "
+            "schema-compatibility, troubleshooting, advanced-workflows"
+        )
     )
 
     mcp.run()

@@ -306,11 +306,26 @@ def register_elicitation_handlers(mcp):
 
         # Method 2: Register method handler if supported
         if hasattr(mcp, "tool"):
+            # Import the scope decorator - avoid circular import by importing from oauth_provider
+            try:
+                from oauth_provider import require_scopes
 
-            @mcp.tool()
-            async def submit_elicitation_response(request_id: str, response_data: dict):
-                """Submit an elicitation response from the client."""
-                return await handle_elicitation_response(request_id, response_data)
+                @mcp.tool()
+                @require_scopes("write")
+                async def submit_elicitation_response(
+                    request_id: str, response_data: dict
+                ):
+                    """Submit an elicitation response from the client."""
+                    return await handle_elicitation_response(request_id, response_data)
+
+            except ImportError:
+                # Fallback if oauth_provider is not available
+                @mcp.tool()
+                async def submit_elicitation_response(
+                    request_id: str, response_data: dict
+                ):
+                    """Submit an elicitation response from the client."""
+                    return await handle_elicitation_response(request_id, response_data)
 
         # Method 3: Register resource handler if supported
         if hasattr(mcp, "resource"):
