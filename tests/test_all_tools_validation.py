@@ -87,9 +87,7 @@ async def test_all_tools_validation():
                         print(f"   ✅ {tool_name}: OK")
 
                     elif tool_name == "get_schema_versions":
-                        result = await client.call_tool(
-                            tool_name, {"subject": "test-validation-schema"}
-                        )
+                        result = await client.call_tool(tool_name, {"subject": "test-validation-schema"})
                         passed_tools.append(tool_name)
                         print(f"   ✅ {tool_name}: OK")
 
@@ -128,13 +126,9 @@ async def test_all_tools_validation():
                     if tool_name == "list_contexts":
                         result = await client.call_tool(tool_name, {})
                     elif tool_name == "create_context":
-                        result = await client.call_tool(
-                            tool_name, {"context": "test-validation-context"}
-                        )
+                        result = await client.call_tool(tool_name, {"context": "test-validation-context"})
                     elif tool_name == "delete_context":
-                        result = await client.call_tool(
-                            tool_name, {"context": "test-validation-context"}
-                        )
+                        result = await client.call_tool(tool_name, {"context": "test-validation-context"})
 
                     passed_tools.append(tool_name)
                     print(f"   ✅ {tool_name}: OK")
@@ -155,13 +149,9 @@ async def test_all_tools_validation():
                             {"subject": "test-validation-schema", "format": "json"},
                         )
                     elif tool_name == "export_context":
-                        result = await client.call_tool(
-                            tool_name, {"context": ".", "include_metadata": False}
-                        )
+                        result = await client.call_tool(tool_name, {"context": ".", "include_metadata": False})
                     elif tool_name == "export_global":
-                        result = await client.call_tool(
-                            tool_name, {"include_versions": "latest"}
-                        )
+                        result = await client.call_tool(tool_name, {"include_versions": "latest"})
 
                     passed_tools.append(tool_name)
                     print(f"   ✅ {tool_name}: OK")
@@ -229,9 +219,7 @@ async def test_all_tools_validation():
             # Cleanup
             print("\n🧹 Cleaning up test data...")
             try:
-                await client.call_tool(
-                    "delete_subject", {"subject": "test-validation-schema"}
-                )
+                await client.call_tool("delete_subject", {"subject": "test-validation-schema"})
                 print("   ✅ Cleanup completed")
             except Exception as e:
                 print(f"   ⚠️ Cleanup failed (expected): {e}")

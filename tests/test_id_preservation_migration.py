@@ -85,21 +85,15 @@ class IDPreservationTest:
                     response = requests.put(
                         f"{self.dev_url}/mode",
                         json={"mode": "READWRITE"},
-                        headers={
-                            "Content-Type": "application/vnd.schemaregistry.v1+json"
-                        },
+                        headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
                     )
                     if response.status_code == 200:
                         print("   ✅ Restored registry to READWRITE mode")
                 else:
                     print("   ⚠️ IMPORT mode is not supported")
-                    print(
-                        "   ℹ️  This is expected in some Schema Registry configurations"
-                    )
+                    print("   ℹ️  This is expected in some Schema Registry configurations")
                     print("   ℹ️  ID preservation requires IMPORT mode support")
-                    print(
-                        "   ℹ️  Consider using a Schema Registry version that supports IMPORT mode"
-                    )
+                    print("   ℹ️  Consider using a Schema Registry version that supports IMPORT mode")
                     self.import_mode_supported = False
             else:
                 print(f"   ⚠️ Could not check mode: {response.text}")
@@ -229,14 +223,10 @@ class IDPreservationTest:
 
         # Check for task tracking
         if "migration_id" in migration_result:
-            print(
-                f"   📋 Migration started with task ID: {migration_result['migration_id']}"
-            )
+            print(f"   📋 Migration started with task ID: {migration_result['migration_id']}")
 
             # Check task status
-            status = get_migration_status_tool(
-                migration_result["migration_id"], mcp_server.REGISTRY_MODE
-            )
+            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
             if status and "error" not in status:
                 print(f"   📋 Migration task status: {status.get('status', 'unknown')}")
 
@@ -259,13 +249,9 @@ class IDPreservationTest:
 
         # Without ID preservation, IDs should be different
         if source_id == target_id:
-            print(
-                f"   ⚠️ IDs are the same ({source_id}) - unexpected without ID preservation"
-            )
+            print(f"   ⚠️ IDs are the same ({source_id}) - unexpected without ID preservation")
         else:
-            print(
-                f"   ✅ IDs are different: source={source_id}, target={target_id} (expected)"
-            )
+            print(f"   ✅ IDs are different: source={source_id}, target={target_id} (expected)")
 
         return True
 
@@ -277,9 +263,7 @@ class IDPreservationTest:
         self.check_import_mode_support()
         if not self.import_mode_supported:
             print("   ⚠️ Skipping ID preservation test - IMPORT mode not supported")
-            print(
-                "   💡 This test requires a Schema Registry that supports IMPORT mode"
-            )
+            print("   💡 This test requires a Schema Registry that supports IMPORT mode")
             return True  # Skip test but don't fail
 
         # Use the appropriate subject name and context
@@ -321,27 +305,19 @@ class IDPreservationTest:
             )
 
             if "error" in migration_result:
-                print(
-                    f"   ❌ Migration with ID preservation failed: {migration_result['error']}"
-                )
+                print(f"   ❌ Migration with ID preservation failed: {migration_result['error']}")
                 return False
 
             print(f"   ✅ Migration completed: {migration_result}")
 
             # Check for task tracking
             if "migration_id" in migration_result:
-                print(
-                    f"   📋 Migration started with task ID: {migration_result['migration_id']}"
-                )
+                print(f"   📋 Migration started with task ID: {migration_result['migration_id']}")
 
                 # Check task status
-                status = get_migration_status_tool(
-                    migration_result["migration_id"], mcp_server.REGISTRY_MODE
-                )
+                status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
                 if status and "error" not in status:
-                    print(
-                        f"   📋 Migration task status: {status.get('status', 'unknown')}"
-                    )
+                    print(f"   📋 Migration task status: {status.get('status', 'unknown')}")
 
             # Get target schema ID
             target_data = get_schema_tool(
@@ -355,9 +331,7 @@ class IDPreservationTest:
 
             if "error" in target_data:
                 print(f"   ❌ Could not get target schema: {target_data['error']}")
-                print(
-                    "   💡 This might be expected if the subject name changed during migration"
-                )
+                print("   💡 This might be expected if the subject name changed during migration")
                 return True  # Don't fail the test for this
 
             target_id = target_data.get("id")
@@ -368,12 +342,8 @@ class IDPreservationTest:
                 print(f"   ✅ ID preservation successful: {source_id} == {target_id}")
                 return True
             else:
-                print(
-                    f"   ⚠️ ID preservation may not have worked: source={source_id}, target={target_id}"
-                )
-                print(
-                    "   💡 This could be due to registry configuration or existing schemas"
-                )
+                print(f"   ⚠️ ID preservation may not have worked: source={source_id}, target={target_id}")
+                print("   💡 This could be due to registry configuration or existing schemas")
                 return True  # Don't fail - just note the issue
 
         except Exception as e:

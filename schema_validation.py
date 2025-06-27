@@ -39,154 +39,60 @@ DRAFT_07_SCHEMA = {
     "$id": "http://json-schema.org/draft-07/schema#",
     "title": "Core schema meta-schema",
     "definitions": {
-        "schemaArray": {
-            "type": "array",
-            "minItems": 1,
-            "items": {"$ref": "#"}
-        },
-        "nonNegativeInteger": {
-            "type": "integer",
-            "minimum": 0
-        },
-        "nonNegativeIntegerDefault0": {
-            "allOf": [
-                {"$ref": "#/definitions/nonNegativeInteger"},
-                {"default": 0}
-            ]
-        },
-        "simpleTypes": {
-            "enum": [
-                "array",
-                "boolean",
-                "integer",
-                "null",
-                "number",
-                "object",
-                "string"
-            ]
-        },
-        "stringArray": {
-            "type": "array",
-            "items": {"type": "string"},
-            "uniqueItems": True,
-            "default": []
-        }
+        "schemaArray": {"type": "array", "minItems": 1, "items": {"$ref": "#"}},
+        "nonNegativeInteger": {"type": "integer", "minimum": 0},
+        "nonNegativeIntegerDefault0": {"allOf": [{"$ref": "#/definitions/nonNegativeInteger"}, {"default": 0}]},
+        "simpleTypes": {"enum": ["array", "boolean", "integer", "null", "number", "object", "string"]},
+        "stringArray": {"type": "array", "items": {"type": "string"}, "uniqueItems": True, "default": []},
     },
     "type": ["object", "boolean"],
     "properties": {
-        "$id": {
-            "type": "string",
-            "format": "uri-reference"
-        },
-        "$schema": {
-            "type": "string",
-            "format": "uri"
-        },
-        "$ref": {
-            "type": "string",
-            "format": "uri-reference"
-        },
-        "$comment": {
-            "type": "string"
-        },
-        "title": {
-            "type": "string"
-        },
-        "description": {
-            "type": "string"
-        },
+        "$id": {"type": "string", "format": "uri-reference"},
+        "$schema": {"type": "string", "format": "uri"},
+        "$ref": {"type": "string", "format": "uri-reference"},
+        "$comment": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
         "default": True,
-        "readOnly": {
-            "type": "boolean",
-            "default": False
-        },
-        "examples": {
-            "type": "array",
-            "items": True
-        },
-        "multipleOf": {
-            "type": "number",
-            "exclusiveMinimum": 0
-        },
-        "maximum": {
-            "type": "number"
-        },
-        "exclusiveMaximum": {
-            "type": "number"
-        },
-        "minimum": {
-            "type": "number"
-        },
-        "exclusiveMinimum": {
-            "type": "number"
-        },
+        "readOnly": {"type": "boolean", "default": False},
+        "examples": {"type": "array", "items": True},
+        "multipleOf": {"type": "number", "exclusiveMinimum": 0},
+        "maximum": {"type": "number"},
+        "exclusiveMaximum": {"type": "number"},
+        "minimum": {"type": "number"},
+        "exclusiveMinimum": {"type": "number"},
         "maxLength": {"$ref": "#/definitions/nonNegativeInteger"},
         "minLength": {"$ref": "#/definitions/nonNegativeIntegerDefault0"},
-        "pattern": {
-            "type": "string",
-            "format": "regex"
-        },
+        "pattern": {"type": "string", "format": "regex"},
         "additionalItems": {"$ref": "#"},
-        "items": {
-            "anyOf": [
-                {"$ref": "#"},
-                {"$ref": "#/definitions/schemaArray"}
-            ],
-            "default": True
-        },
+        "items": {"anyOf": [{"$ref": "#"}, {"$ref": "#/definitions/schemaArray"}], "default": True},
         "maxItems": {"$ref": "#/definitions/nonNegativeInteger"},
         "minItems": {"$ref": "#/definitions/nonNegativeIntegerDefault0"},
-        "uniqueItems": {
-            "type": "boolean",
-            "default": False
-        },
+        "uniqueItems": {"type": "boolean", "default": False},
         "contains": {"$ref": "#"},
         "maxProperties": {"$ref": "#/definitions/nonNegativeInteger"},
         "minProperties": {"$ref": "#/definitions/nonNegativeIntegerDefault0"},
         "required": {"$ref": "#/definitions/stringArray"},
         "additionalProperties": {"$ref": "#"},
-        "definitions": {
-            "type": "object",
-            "additionalProperties": {"$ref": "#"},
-            "default": {}
-        },
-        "properties": {
-            "type": "object",
-            "additionalProperties": {"$ref": "#"},
-            "default": {}
-        },
+        "definitions": {"type": "object", "additionalProperties": {"$ref": "#"}, "default": {}},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#"}, "default": {}},
         "patternProperties": {
             "type": "object",
             "additionalProperties": {"$ref": "#"},
             "propertyNames": {"format": "regex"},
-            "default": {}
+            "default": {},
         },
         "dependencies": {
             "type": "object",
-            "additionalProperties": {
-                "anyOf": [
-                    {"$ref": "#"},
-                    {"$ref": "#/definitions/stringArray"}
-                ]
-            }
+            "additionalProperties": {"anyOf": [{"$ref": "#"}, {"$ref": "#/definitions/stringArray"}]},
         },
         "propertyNames": {"$ref": "#"},
         "const": True,
-        "enum": {
-            "type": "array",
-            "items": True,
-            "minItems": 1,
-            "uniqueItems": True
-        },
+        "enum": {"type": "array", "items": True, "minItems": 1, "uniqueItems": True},
         "type": {
             "anyOf": [
                 {"$ref": "#/definitions/simpleTypes"},
-                {
-                    "type": "array",
-                    "items": {"$ref": "#/definitions/simpleTypes"},
-                    "minItems": 1,
-                    "uniqueItems": True
-                }
+                {"type": "array", "items": {"$ref": "#/definitions/simpleTypes"}, "minItems": 1, "uniqueItems": True},
             ]
         },
         "format": {"type": "string"},
@@ -198,9 +104,9 @@ DRAFT_07_SCHEMA = {
         "allOf": {"$ref": "#/definitions/schemaArray"},
         "anyOf": {"$ref": "#/definitions/schemaArray"},
         "oneOf": {"$ref": "#/definitions/schemaArray"},
-        "not": {"$ref": "#"}
+        "not": {"$ref": "#"},
     },
-    "default": True
+    "default": True,
 }
 
 
@@ -247,9 +153,7 @@ class ValidationResult:
         }
 
 
-def validate_response(
-    data: Any, schema: Dict[str, Any], tool_name: str = "unknown"
-) -> ValidationResult:
+def validate_response(data: Any, schema: Dict[str, Any], tool_name: str = "unknown") -> ValidationResult:
     """
     Validate response data against a JSON schema.
 
@@ -262,13 +166,9 @@ def validate_response(
         ValidationResult containing validation status and any errors
     """
     if not JSONSCHEMA_AVAILABLE:
-        logger.warning(
-            f"jsonschema library not available - skipping validation for {tool_name}"
-        )
+        logger.warning(f"jsonschema library not available - skipping validation for {tool_name}")
         result = ValidationResult(is_valid=True, data=data)
-        result.add_warning(
-            "Schema validation skipped - jsonschema library not available"
-        )
+        result.add_warning("Schema validation skipped - jsonschema library not available")
         return result
 
     try:
@@ -280,9 +180,9 @@ def validate_response(
                 "http://json-schema.org/draft-07/schema#": DRAFT_07_SCHEMA,
                 "https://json-schema.org/draft-07/schema": DRAFT_07_SCHEMA,
                 "https://json-schema.org/draft-07/schema#": DRAFT_07_SCHEMA,
-            }
+            },
         )
-        
+
         # Create validator with local resolver
         validator = Draft7Validator(schema, resolver=resolver)
 
@@ -296,16 +196,10 @@ def validate_response(
             # Collect error messages
             error_messages = []
             for error in errors:
-                path = (
-                    " -> ".join(str(p) for p in error.absolute_path)
-                    if error.absolute_path
-                    else "root"
-                )
+                path = " -> ".join(str(p) for p in error.absolute_path) if error.absolute_path else "root"
                 error_messages.append(f"At {path}: {error.message}")
 
-            logger.warning(
-                f"❌ Schema validation failed for {tool_name}: {len(errors)} errors"
-            )
+            logger.warning(f"❌ Schema validation failed for {tool_name}: {len(errors)} errors")
             for msg in error_messages:
                 logger.warning(f"  - {msg}")
 
@@ -313,15 +207,11 @@ def validate_response(
 
     except Exception as e:
         logger.error(f"💥 Schema validation error for {tool_name}: {str(e)}")
-        result = ValidationResult(
-            is_valid=False, data=data, errors=[f"Validation error: {str(e)}"]
-        )
+        result = ValidationResult(is_valid=False, data=data, errors=[f"Validation error: {str(e)}"])
         return result
 
 
-def structured_output(
-    tool_name: str, strict: bool = False, fallback_on_error: bool = True
-):
+def structured_output(tool_name: str, strict: bool = False, fallback_on_error: bool = True):
     """
     Decorator to add structured output validation to MCP tools.
     Supports both sync and async functions.
@@ -335,7 +225,7 @@ def structured_output(
         @structured_output("get_schema")
         def get_schema_tool(...):
             return {...}
-            
+
         @structured_output("migrate_context")
         async def migrate_context_tool(...):
             return {...}
@@ -343,6 +233,7 @@ def structured_output(
 
     def decorator(func: Callable) -> Callable:
         if asyncio.iscoroutinefunction(func):
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 # Call the original async function
@@ -378,9 +269,7 @@ def structured_output(
 
                     if fallback_on_error:
                         # Return original data with validation warning
-                        logger.warning(
-                            f"Returning unvalidated data for {tool_name} due to validation failure"
-                        )
+                        logger.warning(f"Returning unvalidated data for {tool_name} due to validation failure")
                         if isinstance(result, dict):
                             result["_validation"] = {
                                 "validated": False,
@@ -392,6 +281,7 @@ def structured_output(
 
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 # Call the original function
@@ -427,9 +317,7 @@ def structured_output(
 
                     if fallback_on_error:
                         # Return original data with validation warning
-                        logger.warning(
-                            f"Returning unvalidated data for {tool_name} due to validation failure"
-                        )
+                        logger.warning(f"Returning unvalidated data for {tool_name} due to validation failure")
                         if isinstance(result, dict):
                             result["_validation"] = {
                                 "validated": False,
@@ -444,9 +332,7 @@ def structured_output(
     return decorator
 
 
-def format_error_response(
-    error_message: str, tool_name: str, error_code: Optional[str] = None
-) -> Dict[str, Any]:
+def format_error_response(error_message: str, tool_name: str, error_code: Optional[str] = None) -> Dict[str, Any]:
     """
     Format an error response according to the error schema.
 
@@ -469,9 +355,7 @@ def format_error_response(
     return response
 
 
-def validate_tool_output(
-    tool_name: str, data: Any, strict: bool = False
-) -> Union[Any, Dict[str, Any]]:
+def validate_tool_output(tool_name: str, data: Any, strict: bool = False) -> Union[Any, Dict[str, Any]]:
     """
     Standalone function to validate tool output.
 
@@ -510,11 +394,7 @@ def check_schema_compatibility() -> Dict[str, Any]:
     """
     return {
         "jsonschema_available": JSONSCHEMA_AVAILABLE,
-        "jsonschema_version": (
-            getattr(jsonschema, "__version__", "unknown")
-            if JSONSCHEMA_AVAILABLE
-            else None
-        ),
+        "jsonschema_version": (getattr(jsonschema, "__version__", "unknown") if JSONSCHEMA_AVAILABLE else None),
         "supported_draft": "Draft7" if JSONSCHEMA_AVAILABLE else None,
         "validation_enabled": JSONSCHEMA_AVAILABLE,
         "recommendations": [
@@ -600,16 +480,16 @@ __all__ = [
 def create_local_validator(schema: Dict[str, Any]) -> Draft7Validator:
     """
     Create a JSON Schema validator with local resolver to avoid network requests.
-    
+
     Args:
         schema: The JSON schema to create a validator for
-        
+
     Returns:
         Draft7Validator instance with local resolver
     """
     if not JSONSCHEMA_AVAILABLE:
         raise ImportError("jsonschema library is not available")
-        
+
     resolver = get_local_resolver(schema)
     return Draft7Validator(schema, resolver=resolver)
 
@@ -617,16 +497,16 @@ def create_local_validator(schema: Dict[str, Any]) -> Draft7Validator:
 def get_local_resolver(schema: Dict[str, Any]) -> RefResolver:
     """
     Get a RefResolver that uses local draft-07 schema instead of network requests.
-    
+
     Args:
         schema: The referrer schema
-        
+
     Returns:
         RefResolver instance with local draft-07 schema
     """
     if not JSONSCHEMA_AVAILABLE:
         raise ImportError("jsonschema library is not available")
-        
+
     return RefResolver(
         base_uri="",
         referrer=schema,
@@ -634,5 +514,5 @@ def get_local_resolver(schema: Dict[str, Any]) -> RefResolver:
             "http://json-schema.org/draft-07/schema#": DRAFT_07_SCHEMA,
             "https://json-schema.org/draft-07/schema": DRAFT_07_SCHEMA,
             "https://json-schema.org/draft-07/schema#": DRAFT_07_SCHEMA,
-        }
+        },
     )

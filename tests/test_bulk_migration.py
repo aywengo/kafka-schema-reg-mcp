@@ -106,9 +106,7 @@ def test_test_bulk_migration():
                     print(f"   ✅ Created {subject}")
                 else:
                     failed_subjects.append(subject)
-                    print(
-                        f"   ❌ Failed to create {subject}: {create_response.status_code}"
-                    )
+                    print(f"   ❌ Failed to create {subject}: {create_response.status_code}")
                     # Print response details for debugging
                     try:
                         error_details = create_response.json()
@@ -138,28 +136,20 @@ def test_test_bulk_migration():
 
             try:
                 # Get schema from DEV
-                get_response = requests.get(
-                    f"{dev_url}/subjects/{subject}-value/versions/latest", timeout=5
-                )
+                get_response = requests.get(f"{dev_url}/subjects/{subject}-value/versions/latest", timeout=5)
 
                 if get_response.status_code != 200:
-                    migration_results["failed"].append(
-                        {"subject": subject, "reason": "Failed to retrieve from DEV"}
-                    )
+                    migration_results["failed"].append({"subject": subject, "reason": "Failed to retrieve from DEV"})
                     print(f"   ❌ Failed to retrieve {subject} from DEV")
                     continue
 
                 schema_data = get_response.json()
 
                 # Check if already exists in PROD
-                prod_check = requests.get(
-                    f"{prod_url}/subjects/{subject}-value/versions/latest", timeout=5
-                )
+                prod_check = requests.get(f"{prod_url}/subjects/{subject}-value/versions/latest", timeout=5)
 
                 if prod_check.status_code == 200:
-                    migration_results["skipped"].append(
-                        {"subject": subject, "reason": "Already exists in PROD"}
-                    )
+                    migration_results["skipped"].append({"subject": subject, "reason": "Already exists in PROD"})
                     print(f"   ⚠️  {subject} already exists in PROD - skipped")
                     continue
 
@@ -181,9 +171,7 @@ def test_test_bulk_migration():
                     )
                     print(f"   ✅ Successfully migrated {subject}")
                 elif migrate_response.status_code in [403, 405]:
-                    migration_results["failed"].append(
-                        {"subject": subject, "reason": "PROD registry is read-only"}
-                    )
+                    migration_results["failed"].append({"subject": subject, "reason": "PROD registry is read-only"})
                     print(f"   ⚠️  {subject} migration blocked by read-only PROD")
                 else:
                     migration_results["failed"].append(
@@ -192,17 +180,13 @@ def test_test_bulk_migration():
                             "reason": f"HTTP {migrate_response.status_code}",
                         }
                     )
-                    print(
-                        f"   ❌ {subject} migration failed: {migrate_response.status_code}"
-                    )
+                    print(f"   ❌ {subject} migration failed: {migrate_response.status_code}")
 
                 # Small delay between migrations
                 time.sleep(0.1)
 
             except Exception as e:
-                migration_results["failed"].append(
-                    {"subject": subject, "reason": str(e)}
-                )
+                migration_results["failed"].append({"subject": subject, "reason": str(e)})
                 print(f"   ❌ {subject} migration error: {e}")
 
         # Summary of bulk migration
@@ -213,13 +197,9 @@ def test_test_bulk_migration():
         print(f"   Skipped (already exist): {len(migration_results['skipped'])}")
 
         # Calculate success rate
-        total_attempted = len(migration_results["successful"]) + len(
-            migration_results["failed"]
-        )
+        total_attempted = len(migration_results["successful"]) + len(migration_results["failed"])
         if total_attempted > 0:
-            success_rate = (
-                len(migration_results["successful"]) / total_attempted
-            ) * 100
+            success_rate = (len(migration_results["successful"]) / total_attempted) * 100
             print(f"   Success rate: {success_rate:.1f}%")
 
         # Show details for failed migrations
@@ -235,18 +215,14 @@ def test_test_bulk_migration():
         validation_count = 0
         for subject in created_subjects[:3]:  # Test first 3
             try:
-                validate_response = requests.get(
-                    f"{dev_url}/subjects/{subject}-value/versions/latest", timeout=5
-                )
+                validate_response = requests.get(f"{dev_url}/subjects/{subject}-value/versions/latest", timeout=5)
                 if validate_response.status_code == 200:
                     validation_count += 1
 
             except Exception:
                 pass
 
-        print(
-            f"   ✅ Validated {validation_count}/{min(3, len(created_subjects))} schemas in DEV"
-        )
+        print(f"   ✅ Validated {validation_count}/{min(3, len(created_subjects))} schemas in DEV")
 
         print("✅ Bulk migration test completed successfully")
         return True

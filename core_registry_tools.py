@@ -25,18 +25,14 @@ from schema_validation import (
 )
 
 
-def build_context_url_legacy(
-    base_url: str, schema_registry_url: str, context: Optional[str] = None
-) -> str:
+def build_context_url_legacy(base_url: str, schema_registry_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support (legacy function for single-registry mode)."""
     if context and context != ".":
         return f"{schema_registry_url}/contexts/{context}{base_url}"
     return f"{schema_registry_url}{base_url}"
 
 
-def _get_registry_name(
-    registry_mode: str, registry: Optional[str] = None, client=None
-) -> str:
+def _get_registry_name(registry_mode: str, registry: Optional[str] = None, client=None) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
@@ -90,13 +86,9 @@ def register_schema_tool(
                 "schemaType": schema_type,
             }
 
-            url = build_context_url_legacy(
-                f"/subjects/{subject}/versions", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
 
-            response = requests.post(
-                url, data=json.dumps(payload), auth=auth, headers=headers
-            )
+            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
 
@@ -137,9 +129,7 @@ def register_schema_tool(
 
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
 
-            response = requests.post(
-                url, data=json.dumps(payload), auth=client.auth, headers=client.headers
-            )
+            response = requests.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -164,9 +154,7 @@ def register_schema_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="REGISTRATION_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="REGISTRATION_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("get_schema", fallback_on_error=True)
@@ -196,9 +184,7 @@ def get_schema_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/subjects/{subject}/versions/{version}", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/subjects/{subject}/versions/{version}", schema_registry_url, context)
 
             response = requests.get(url, auth=auth, headers=headers)
             response.raise_for_status()
@@ -238,9 +224,7 @@ def get_schema_tool(
                     registry_mode="multi",
                 )
 
-            url = client.build_context_url(
-                f"/subjects/{subject}/versions/{version}", context
-            )
+            url = client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
 
             response = requests.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
@@ -271,9 +255,7 @@ def get_schema_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SCHEMA_RETRIEVAL_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SCHEMA_RETRIEVAL_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("get_schema_versions", fallback_on_error=True)
@@ -301,9 +283,7 @@ def get_schema_versions_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/subjects/{subject}/versions", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
 
             response = requests.get(url, auth=auth, headers=headers)
 
@@ -374,9 +354,7 @@ def get_schema_versions_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="VERSION_RETRIEVAL_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="VERSION_RETRIEVAL_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("list_subjects", fallback_on_error=True)
@@ -418,9 +396,7 @@ def list_subjects_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "subjects_list", registry_name, context=context
-            )
+            result = add_links_to_response(result, "subjects_list", registry_name, context=context)
 
             return result
         else:
@@ -445,15 +421,11 @@ def list_subjects_tool(
             }
 
             # Add resource links
-            result = add_links_to_response(
-                result, "subjects_list", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "subjects_list", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SUBJECT_LIST_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SUBJECT_LIST_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("check_compatibility", fallback_on_error=True)
@@ -493,9 +465,7 @@ def check_compatibility_tool(
                 context,
             )
 
-            response = requests.post(
-                url, data=json.dumps(payload), auth=auth, headers=headers
-            )
+            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
             response.raise_for_status()
             result = response.json()
 
@@ -508,9 +478,7 @@ def check_compatibility_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "compatibility", registry_name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "compatibility", registry_name, subject=subject, context=context)
 
             return result
         else:
@@ -523,13 +491,9 @@ def check_compatibility_tool(
                     registry_mode="multi",
                 )
 
-            url = client.build_context_url(
-                f"/compatibility/subjects/{subject}/versions/latest", context
-            )
+            url = client.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
 
-            response = requests.post(
-                url, data=json.dumps(payload), auth=client.auth, headers=client.headers
-            )
+            response = requests.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -552,9 +516,7 @@ def check_compatibility_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="COMPATIBILITY_CHECK_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="COMPATIBILITY_CHECK_FAILED", registry_mode=registry_mode)
 
 
 # ===== CONFIGURATION MANAGEMENT TOOLS =====
@@ -595,9 +557,7 @@ def get_global_config_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "config", registry_name, context=context
-            )
+            result = add_links_to_response(result, "config", registry_name, context=context)
 
             return result
         else:
@@ -612,9 +572,7 @@ def get_global_config_tool(
 
             url = client.build_context_url("/config", context)
 
-            response = requests.get(
-                url, auth=client.auth, headers={"Content-Type": "application/json"}
-            )
+            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             result = response.json()
 
@@ -624,15 +582,11 @@ def get_global_config_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "config", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "config", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONFIG_RETRIEVAL_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONFIG_RETRIEVAL_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("update_global_config", fallback_on_error=True)
@@ -669,9 +623,7 @@ def update_global_config_tool(
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/config", schema_registry_url, context)
 
-            response = requests.put(
-                url, data=json.dumps(payload), auth=auth, headers=standard_headers
-            )
+            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
 
@@ -681,9 +633,7 @@ def update_global_config_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "config", registry_name, context=context
-            )
+            result = add_links_to_response(result, "config", registry_name, context=context)
 
             return result
         else:
@@ -713,15 +663,11 @@ def update_global_config_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "config", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "config", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONFIG_UPDATE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONFIG_UPDATE_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("get_subject_config", fallback_on_error=True)
@@ -749,9 +695,7 @@ def get_subject_config_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/config/{subject}", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
 
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
@@ -763,9 +707,7 @@ def get_subject_config_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "config", registry_name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "config", registry_name, subject=subject, context=context)
 
             return result
         else:
@@ -780,9 +722,7 @@ def get_subject_config_tool(
 
             url = client.build_context_url(f"/config/{subject}", context)
 
-            response = requests.get(
-                url, auth=client.auth, headers={"Content-Type": "application/json"}
-            )
+            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             result = response.json()
 
@@ -792,9 +732,7 @@ def get_subject_config_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "config", client.config.name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "config", client.config.name, subject=subject, context=context)
 
             return result
     except Exception as e:
@@ -838,12 +776,8 @@ def update_subject_config_tool(
         payload = {"compatibility": compatibility}
 
         if registry_mode == "single":
-            url = build_context_url_legacy(
-                f"/config/{subject}", schema_registry_url, context
-            )
-            response = requests.put(
-                url, data=json.dumps(payload), auth=auth, headers=standard_headers
-            )
+            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
+            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
 
@@ -853,9 +787,7 @@ def update_subject_config_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "config", registry_name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "config", registry_name, subject=subject, context=context)
 
             return result
         else:
@@ -883,9 +815,7 @@ def update_subject_config_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "config", client.config.name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "config", client.config.name, subject=subject, context=context)
 
             return result
     except Exception as e:
@@ -934,9 +864,7 @@ def get_mode_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "mode", registry_name, context=context
-            )
+            result = add_links_to_response(result, "mode", registry_name, context=context)
 
             return result
         else:
@@ -951,9 +879,7 @@ def get_mode_tool(
 
             url = client.build_context_url("/mode", context)
 
-            response = requests.get(
-                url, auth=client.auth, headers={"Content-Type": "application/json"}
-            )
+            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             result = response.json()
 
@@ -963,15 +889,11 @@ def get_mode_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "mode", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "mode", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="MODE_RETRIEVAL_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="MODE_RETRIEVAL_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("update_mode", fallback_on_error=True)
@@ -1008,9 +930,7 @@ def update_mode_tool(
             # Single-registry mode: use legacy approach
             url = build_context_url_legacy("/mode", schema_registry_url, context)
 
-            response = requests.put(
-                url, data=json.dumps(payload), auth=auth, headers=standard_headers
-            )
+            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1020,9 +940,7 @@ def update_mode_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "mode", registry_name, context=context
-            )
+            result = add_links_to_response(result, "mode", registry_name, context=context)
 
             return result
         else:
@@ -1052,15 +970,11 @@ def update_mode_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "mode", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "mode", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="MODE_UPDATE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="MODE_UPDATE_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("get_subject_mode", fallback_on_error=True)
@@ -1088,9 +1002,7 @@ def get_subject_mode_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/mode/{subject}", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
 
             response = requests.get(url, auth=auth, headers=standard_headers)
             response.raise_for_status()
@@ -1102,9 +1014,7 @@ def get_subject_mode_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "mode", registry_name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "mode", registry_name, subject=subject, context=context)
 
             return result
         else:
@@ -1119,9 +1029,7 @@ def get_subject_mode_tool(
 
             url = client.build_context_url(f"/mode/{subject}", context)
 
-            response = requests.get(
-                url, auth=client.auth, headers={"Content-Type": "application/json"}
-            )
+            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
             response.raise_for_status()
             result = response.json()
 
@@ -1131,9 +1039,7 @@ def get_subject_mode_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "mode", client.config.name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "mode", client.config.name, subject=subject, context=context)
 
             return result
     except Exception as e:
@@ -1178,13 +1084,9 @@ def update_subject_mode_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/mode/{subject}", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
 
-            response = requests.put(
-                url, data=json.dumps(payload), auth=auth, headers=standard_headers
-            )
+            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1194,9 +1096,7 @@ def update_subject_mode_tool(
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "mode", registry_name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "mode", registry_name, subject=subject, context=context)
 
             return result
         else:
@@ -1226,15 +1126,11 @@ def update_subject_mode_tool(
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            result = add_links_to_response(
-                result, "mode", client.config.name, subject=subject, context=context
-            )
+            result = add_links_to_response(result, "mode", client.config.name, subject=subject, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SUBJECT_MODE_UPDATE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SUBJECT_MODE_UPDATE_FAILED", registry_mode=registry_mode)
 
 
 # ===== CONTEXT AND SUBJECT MANAGEMENT =====
@@ -1261,9 +1157,7 @@ def list_contexts_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            response = requests.get(
-                f"{schema_registry_url}/contexts", auth=auth, headers=headers
-            )
+            response = requests.get(f"{schema_registry_url}/contexts", auth=auth, headers=headers)
             response.raise_for_status()
             contexts_list = response.json()
 
@@ -1304,9 +1198,7 @@ def list_contexts_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONTEXT_LIST_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONTEXT_LIST_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("create_context", fallback_on_error=True)
@@ -1337,19 +1229,13 @@ def create_context_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            response = requests.post(
-                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
-            )
+            response = requests.post(f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers)
             response.raise_for_status()
-            result = create_success_response(
-                f"Context '{context}' created successfully", registry_mode="single"
-            )
+            result = create_success_response(f"Context '{context}' created successfully", registry_mode="single")
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "context", registry_name, context=context
-            )
+            result = add_links_to_response(result, "context", registry_name, context=context)
 
             return result
         else:
@@ -1375,15 +1261,11 @@ def create_context_tool(
             )
 
             # Add resource links
-            result = add_links_to_response(
-                result, "context", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "context", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONTEXT_CREATE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONTEXT_CREATE_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("delete_context", fallback_on_error=True)
@@ -1414,13 +1296,9 @@ def delete_context_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            response = requests.delete(
-                f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers
-            )
+            response = requests.delete(f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers)
             response.raise_for_status()
-            result = create_success_response(
-                f"Context '{context}' deleted successfully", registry_mode="single"
-            )
+            result = create_success_response(f"Context '{context}' deleted successfully", registry_mode="single")
 
             # Add links to contexts list since the specific context is now deleted
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1454,9 +1332,7 @@ def delete_context_tool(
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONTEXT_DELETE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONTEXT_DELETE_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("delete_subject", fallback_on_error=True)
@@ -1491,9 +1367,7 @@ async def delete_subject_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/subjects/{subject}", schema_registry_url, context
-            )
+            url = build_context_url_legacy(f"/subjects/{subject}", schema_registry_url, context)
 
             # Add permanent parameter if specified
             if permanent:
@@ -1515,9 +1389,7 @@ async def delete_subject_tool(
 
             # Add links to subjects list since the specific subject is now deleted
             registry_name = _get_registry_name(registry_mode, registry)
-            result = add_links_to_response(
-                result, "subjects_list", registry_name, context=context
-            )
+            result = add_links_to_response(result, "subjects_list", registry_name, context=context)
 
             return result
         else:
@@ -1554,12 +1426,8 @@ async def delete_subject_tool(
             }
 
             # Add links to subjects list since the specific subject is now deleted
-            result = add_links_to_response(
-                result, "subjects_list", client.config.name, context=context
-            )
+            result = add_links_to_response(result, "subjects_list", client.config.name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SUBJECT_DELETE_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SUBJECT_DELETE_FAILED", registry_mode=registry_mode)

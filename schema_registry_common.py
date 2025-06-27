@@ -125,9 +125,7 @@ class RegistryClient:
 
         if config.user and config.password:
             self.auth = HTTPBasicAuth(config.user, config.password)
-            credentials = base64.b64encode(
-                f"{config.user}:{config.password}".encode()
-            ).decode()
+            credentials = base64.b64encode(f"{config.user}:{config.password}".encode()).decode()
             self.headers["Authorization"] = f"Basic {credentials}"
             self.standard_headers["Authorization"] = f"Basic {credentials}"
 
@@ -182,9 +180,7 @@ class RegistryClient:
     def get_contexts(self) -> List[str]:
         """Get contexts from this registry."""
         try:
-            response = requests.get(
-                f"{self.config.url}/contexts", auth=self.auth, headers=self.headers
-            )
+            response = requests.get(f"{self.config.url}/contexts", auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception:
@@ -194,21 +190,15 @@ class RegistryClient:
         """Delete a subject from this registry."""
         try:
             url = self.build_context_url(f"/subjects/{subject}", context)
-            response = requests.delete(
-                url, auth=self.auth, headers=self.headers, timeout=30
-            )
+            response = requests.delete(url, auth=self.auth, headers=self.headers, timeout=30)
             return response.status_code in [200, 404]  # 404 means already deleted
         except Exception:
             return False
 
-    def get_schema(
-        self, subject: str, version: str = "latest", context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_schema(self, subject: str, version: str = "latest", context: Optional[str] = None) -> Dict[str, Any]:
         """Get a specific version of a schema."""
         try:
-            url = self.build_context_url(
-                f"/subjects/{subject}/versions/{version}", context
-            )
+            url = self.build_context_url(f"/subjects/{subject}/versions/{version}", context)
             response = requests.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
@@ -231,9 +221,7 @@ class RegistryClient:
                 "schemaType": schema_type,
             }
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
-            response = requests.post(
-                url, data=json.dumps(payload), auth=self.auth, headers=self.headers
-            )
+            response = requests.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -253,9 +241,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_global_config(
-        self, compatibility: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_global_config(self, compatibility: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update global configuration settings."""
         try:
             url = self.build_context_url("/config", context)
@@ -273,9 +259,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_subject_config(
-        self, subject: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_subject_config(self, subject: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Get configuration settings for a specific subject."""
         try:
             url = self.build_context_url(f"/config/{subject}", context)
@@ -287,9 +271,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_subject_config(
-        self, subject: str, compatibility: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_subject_config(self, subject: str, compatibility: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update configuration settings for a specific subject."""
         try:
             url = self.build_context_url(f"/config/{subject}", context)
@@ -337,9 +319,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_subject_mode(
-        self, subject: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_subject_mode(self, subject: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Get the mode for a specific subject."""
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
@@ -351,9 +331,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_subject_mode(
-        self, subject: str, mode: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_subject_mode(self, subject: str, mode: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update the mode for a specific subject."""
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
@@ -371,9 +349,7 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_schema_versions(
-        self, subject: str, context: Optional[str] = None
-    ) -> Union[List[int], Dict[str, str]]:
+    def get_schema_versions(self, subject: str, context: Optional[str] = None) -> Union[List[int], Dict[str, str]]:
         """Get all versions of a schema."""
         try:
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
@@ -396,12 +372,8 @@ class RegistryClient:
                 "schema": json.dumps(schema_definition),
                 "schemaType": schema_type,
             }
-            url = self.build_context_url(
-                f"/compatibility/subjects/{subject}/versions/latest", context
-            )
-            response = requests.post(
-                url, data=json.dumps(payload), auth=self.auth, headers=self.headers
-            )
+            url = self.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
+            response = requests.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -451,9 +423,7 @@ class RegistryClient:
             metadata.update(
                 {
                     "scope": metadata_id.get("scope", {}),
-                    "kafka_cluster_id": metadata_id.get("scope", {})
-                    .get("clusters", {})
-                    .get("kafka-cluster"),
+                    "kafka_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("kafka-cluster"),
                     "schema_registry_cluster_id": metadata_id.get("scope", {})
                     .get("clusters", {})
                     .get("schema-registry-cluster"),
@@ -529,9 +499,7 @@ class BaseRegistryManager:
         return {
             "registry_tests": results,
             "total_registries": len(results),
-            "connected": sum(
-                1 for r in results.values() if r.get("status") == "connected"
-            ),
+            "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
             "failed": sum(1 for r in results.values() if r.get("status") == "error"),
         }
 
@@ -570,15 +538,11 @@ class BaseRegistryManager:
         return {
             "registry_tests": results,
             "total_registries": len(results),
-            "connected": sum(
-                1 for r in results.values() if r.get("status") == "connected"
-            ),
+            "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
             "failed": sum(1 for r in results.values() if r.get("status") == "error"),
         }
 
-    async def compare_registries_async(
-        self, source: str, target: str
-    ) -> Dict[str, Any]:
+    async def compare_registries_async(self, source: str, target: str) -> Dict[str, Any]:
         """Compare two registries asynchronously."""
         source_client = self.get_registry(source)
         target_client = self.get_registry(target)
@@ -604,14 +568,10 @@ class BaseRegistryManager:
                 },
             }
 
-    async def _get_subjects_async(
-        self, session: aiohttp.ClientSession, client: RegistryClient
-    ) -> List[str]:
+    async def _get_subjects_async(self, session: aiohttp.ClientSession, client: RegistryClient) -> List[str]:
         """Get subjects from a registry asynchronously."""
         try:
-            async with session.get(
-                f"{client.config.url}/subjects", headers=client.headers
-            ) as response:
+            async with session.get(f"{client.config.url}/subjects", headers=client.headers) as response:
                 if response.status == 200:
                     return await response.json()
                 return []
@@ -658,9 +618,7 @@ class SingleRegistryManager(BaseRegistryManager):
                 )
                 self.registries["default"] = RegistryClient(config)
                 self.default_registry = "default"
-                logging.info(
-                    f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-                )
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})")
             except ValueError as e:
                 logging.error(f"Failed to load single registry: {e}")
 
@@ -716,9 +674,7 @@ class MultiRegistryManager(BaseRegistryManager):
                     if self.default_registry is None:
                         self.default_registry = name
 
-                    logging.info(
-                        f"Loaded registry {i}: {name} at {url} (readonly: {readonly})"
-                    )
+                    logging.info(f"Loaded registry {i}: {name} at {url} (readonly: {readonly})")
                 except ValueError as e:
                     logging.error(f"Failed to load registry {i} ({name}): {e}")
 
@@ -735,9 +691,7 @@ class MultiRegistryManager(BaseRegistryManager):
                 )
                 self.registries["default"] = RegistryClient(config)
                 self.default_registry = "default"
-                logging.info(
-                    f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-                )
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})")
             except ValueError as e:
                 logging.error(f"Failed to load single registry: {e}")
 
@@ -784,9 +738,7 @@ class LegacyRegistryManager(BaseRegistryManager):
                             url=config_data["url"],
                             user=config_data.get("user", ""),
                             password=config_data.get("password", ""),
-                            description=config_data.get(
-                                "description", f"{name} registry"
-                            ),
+                            description=config_data.get("description", f"{name} registry"),
                             readonly=config_data.get("readonly", False),
                         )
                         self.registries[name] = RegistryClient(config)
@@ -812,16 +764,12 @@ def check_readonly_mode(
         return {
             "error": "Registry is in READONLY mode. Modification operations are disabled for safety.",
             "readonly_mode": "true",
-            "registry": registry_name
-            or registry_manager.get_default_registry()
-            or "unknown",
+            "registry": registry_name or registry_manager.get_default_registry() or "unknown",
         }
     return None
 
 
-def build_context_url(
-    base_url: str, registry_url: str, context: Optional[str] = None
-) -> str:
+def build_context_url(base_url: str, registry_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support (global function for backward compatibility)."""
     # Validate the registry URL
     if not validate_url(registry_url):
@@ -1066,22 +1014,16 @@ def export_global(
         # Export each context
         contexts_data = []
         for context in contexts_list:
-            context_export = export_context(
-                client, context, include_metadata, include_config, include_versions
-            )
+            context_export = export_context(client, context, include_metadata, include_config, include_versions)
             if "error" not in context_export:
                 contexts_data.append(context_export)
 
         # Export default context (no context specified)
-        default_export = export_context(
-            client, "", include_metadata, include_config, include_versions
-        )
+        default_export = export_context(client, "", include_metadata, include_config, include_versions)
 
         result = {
             "contexts": contexts_data,
-            "default_context": (
-                default_export if "error" not in default_export else None
-            ),
+            "default_context": (default_export if "error" not in default_export else None),
         }
 
         if include_config:
@@ -1160,9 +1102,7 @@ def clear_context_batch(
 
             # Execute deletions in parallel (max 10 concurrent)
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                deletion_results = list(
-                    executor.map(delete_single_subject, subjects_list)
-                )
+                deletion_results = list(executor.map(delete_single_subject, subjects_list))
 
             # Process results
             for result in deletion_results:
@@ -1202,17 +1142,11 @@ def clear_context_batch(
             "subjects_deleted": len(deleted_subjects),
             "subjects_failed": len(failed_deletions),
             "context_deleted": context_deleted,
-            "success_rate": (
-                round((len(deleted_subjects) / len(subjects_list)) * 100, 1)
-                if subjects_list
-                else 100
-            ),
+            "success_rate": (round((len(deleted_subjects) / len(subjects_list)) * 100, 1) if subjects_list else 100),
             "deleted_subjects": deleted_subjects,
             "failed_deletions": failed_deletions[:5],  # Show first 5 failures
             "performance": {
-                "subjects_per_second": round(
-                    len(deleted_subjects) / max(duration, 0.1), 1
-                ),
+                "subjects_per_second": round(len(deleted_subjects) / max(duration, 0.1), 1),
                 "parallel_execution": not dry_run,
                 "max_concurrent_deletions": 10,
             },
@@ -1223,13 +1157,9 @@ def clear_context_batch(
 
         # Summary message
         if dry_run:
-            result["message"] = (
-                f"DRY RUN: Would delete {len(subjects_list)} subjects from context '{context}'"
-            )
+            result["message"] = f"DRY RUN: Would delete {len(subjects_list)} subjects from context '{context}'"
         elif len(deleted_subjects) == len(subjects_list):
-            result["message"] = (
-                f"Successfully cleared context '{context}' - deleted {len(deleted_subjects)} subjects"
-            )
+            result["message"] = f"Successfully cleared context '{context}' - deleted {len(deleted_subjects)} subjects"
         else:
             result["message"] = (
                 f"Partially cleared context '{context}' - deleted {len(deleted_subjects)}/{len(subjects_list)} subjects"

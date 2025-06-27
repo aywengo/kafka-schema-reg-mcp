@@ -28,9 +28,7 @@ def check_and_fix_registry_mode(registry_name, url, desired_mode="READWRITE"):
                 print(f"   ✅ Mode is already correct ({desired_mode})")
                 return True
             else:
-                print(
-                    f"   ⚠️  Mode needs to be changed: {current_mode} → {desired_mode}"
-                )
+                print(f"   ⚠️  Mode needs to be changed: {current_mode} → {desired_mode}")
 
                 # Attempt to change mode
                 print(f"   🔄 Attempting to change mode to {desired_mode}...")

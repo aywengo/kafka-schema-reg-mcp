@@ -92,9 +92,7 @@ class TestElicitationIntegration:
         }
 
         # Mock the underlying schema registration tool
-        mock_register_tool = Mock(
-            return_value={"success": True, "id": 123, "subject": subject, "version": 1}
-        )
+        mock_register_tool = Mock(return_value={"success": True, "id": 123, "subject": subject, "version": 1})
 
         # Mock elicitation response simulating user input
         with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
@@ -141,9 +139,7 @@ class TestElicitationIntegration:
         # Verify the underlying tool was called with enhanced schema
         mock_register_tool.assert_called_once()
         call_args = mock_register_tool.call_args
-        enhanced_schema = call_args[
-            1
-        ]  # Second positional argument is schema_definition
+        enhanced_schema = call_args[1]  # Second positional argument is schema_definition
 
         # The schema should now have the user-defined field
         assert len(enhanced_schema["fields"]) == 1
@@ -298,9 +294,7 @@ class TestElicitationIntegration:
         context_name = "analytics-events"
 
         # Mock context creation tool
-        mock_create_tool = Mock(
-            return_value={"success": True, "context": context_name, "created": True}
-        )
+        mock_create_tool = Mock(return_value={"success": True, "context": context_name, "created": True})
 
         # Mock elicitation response with metadata
         with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
@@ -347,10 +341,7 @@ class TestElicitationIntegration:
         # Verify result contains collected metadata
         assert result["success"] is True
         assert result["elicitation_used"] is True
-        assert (
-            result["metadata"]["description"]
-            == "Analytics and behavioral event schemas for data pipeline"
-        )
+        assert result["metadata"]["description"] == "Analytics and behavioral event schemas for data pipeline"
         assert result["metadata"]["owner"] == "data-platform-team"
         assert result["metadata"]["environment"] == "production"
         assert result["metadata"]["tags"] == [
@@ -447,9 +438,7 @@ class TestElicitationIntegration:
         assert request_id not in manager.pending_requests
 
         # Verify we can't submit a response to expired request
-        response = ElicitationResponse(
-            request_id=request_id, values={"test_field": "too_late"}
-        )
+        response = ElicitationResponse(request_id=request_id, values={"test_field": "too_late"})
 
         success = await manager.submit_response(response)
         assert success is False
@@ -462,9 +451,7 @@ class TestElicitationIntegration:
         subject = "complex-user-profile"
 
         # Mock registration tool
-        mock_register_tool = Mock(
-            return_value={"success": True, "id": 456, "subject": subject, "version": 1}
-        )
+        mock_register_tool = Mock(return_value={"success": True, "id": 456, "subject": subject, "version": 1})
 
         # First round: Basic field definition
         first_response = ElicitationResponse(
@@ -654,14 +641,9 @@ class TestElicitationIntegration:
             assert all(req_id in manager.pending_requests for req_id in ids)
 
             # Submit responses concurrently
-            responses = [
-                ElicitationResponse(req_id, {"test": f"value_{i}"})
-                for i, req_id in enumerate(ids)
-            ]
+            responses = [ElicitationResponse(req_id, {"test": f"value_{i}"}) for i, req_id in enumerate(ids)]
 
-            results = await asyncio.gather(
-                *[manager.submit_response(resp) for resp in responses]
-            )
+            results = await asyncio.gather(*[manager.submit_response(resp) for resp in responses])
 
             # Verify all responses were processed
             assert all(results)
@@ -729,9 +711,7 @@ class TestElicitationPerformance:
         start_time = datetime.utcnow()
 
         # Submit all requests
-        request_ids = await asyncio.gather(
-            *[manager.create_request(req) for req in requests]
-        )
+        request_ids = await asyncio.gather(*[manager.create_request(req) for req in requests])
 
         submission_time = datetime.utcnow() - start_time
 
@@ -740,15 +720,10 @@ class TestElicitationPerformance:
         assert len(manager.pending_requests) == num_requests
 
         # Submit responses
-        responses = [
-            ElicitationResponse(req_id, {f"field_{i}": f"value_{i}"})
-            for i, req_id in enumerate(request_ids)
-        ]
+        responses = [ElicitationResponse(req_id, {f"field_{i}": f"value_{i}"}) for i, req_id in enumerate(request_ids)]
 
         start_time = datetime.utcnow()
-        results = await asyncio.gather(
-            *[manager.submit_response(resp) for resp in responses]
-        )
+        results = await asyncio.gather(*[manager.submit_response(resp) for resp in responses])
         processing_time = datetime.utcnow() - start_time
 
         # Verify all responses processed quickly

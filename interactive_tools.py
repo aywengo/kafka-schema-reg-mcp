@@ -80,32 +80,20 @@ async def register_schema_interactive(
             else:
                 # Check if fields are properly defined
                 for field in schema_definition.get("fields", []):
-                    if (
-                        not isinstance(field, dict)
-                        or not field.get("name")
-                        or not field.get("type")
-                    ):
+                    if not isinstance(field, dict) or not field.get("name") or not field.get("type"):
                         needs_elicitation = True
                         missing_info.append("Field definitions are incomplete")
                         break
 
         if needs_elicitation:
-            logger.info(
-                f"Schema registration for '{subject}' needs additional information: {missing_info}"
-            )
+            logger.info(f"Schema registration for '{subject}' needs additional information: {missing_info}")
 
             # Create elicitation request for schema fields
             existing_fields = []
             if schema_definition and schema_definition.get("fields"):
-                existing_fields = [
-                    f.get("name", "")
-                    for f in schema_definition["fields"]
-                    if f.get("name")
-                ]
+                existing_fields = [f.get("name", "") for f in schema_definition["fields"] if f.get("name")]
 
-            elicitation_request = create_schema_field_elicitation(
-                context=context, existing_fields=existing_fields
-            )
+            elicitation_request = create_schema_field_elicitation(context=context, existing_fields=existing_fields)
 
             # Store the request for processing
             await elicitation_manager.create_request(elicitation_request)
@@ -127,9 +115,7 @@ async def register_schema_interactive(
                     "Unable to obtain complete schema definition",
                     details={
                         "missing_info": missing_info,
-                        "elicitation_status": (
-                            "failed" if response is None else "incomplete"
-                        ),
+                        "elicitation_status": ("failed" if response is None else "incomplete"),
                         "suggestion": "Please provide a complete schema definition with field specifications",
                     },
                     error_code="INCOMPLETE_SCHEMA_DEFINITION",
@@ -153,9 +139,7 @@ async def register_schema_interactive(
         if isinstance(result, dict) and "error" not in result:
             result["elicitation_used"] = needs_elicitation
             if needs_elicitation:
-                result["elicited_fields"] = (
-                    list(response.values.keys()) if response else []
-                )
+                result["elicited_fields"] = list(response.values.keys()) if response else []
 
         return result
 
@@ -224,16 +208,11 @@ async def migrate_context_interactive(
             if response and response.complete:
                 # Apply elicited preferences
                 if preserve_ids is None:
-                    preserve_ids = (
-                        response.values.get("preserve_ids", "true").lower() == "true"
-                    )
+                    preserve_ids = response.values.get("preserve_ids", "true").lower() == "true"
                 if dry_run is None:
                     dry_run = response.values.get("dry_run", "true").lower() == "true"
                 if migrate_all_versions is None:
-                    migrate_all_versions = (
-                        response.values.get("migrate_all_versions", "false").lower()
-                        == "true"
-                    )
+                    migrate_all_versions = response.values.get("migrate_all_versions", "false").lower() == "true"
 
                 logger.info(
                     f"Applied migration preferences from elicitation: preserve_ids={preserve_ids}, dry_run={dry_run}, migrate_all_versions={migrate_all_versions}"
@@ -243,9 +222,7 @@ async def migrate_context_interactive(
                     "Unable to obtain migration preferences",
                     details={
                         "missing_preferences": missing_preferences,
-                        "elicitation_status": (
-                            "failed" if response is None else "incomplete"
-                        ),
+                        "elicitation_status": ("failed" if response is None else "incomplete"),
                         "suggestion": "Please specify migration preferences or enable elicitation support",
                     },
                     error_code="INCOMPLETE_MIGRATION_PREFERENCES",
@@ -325,9 +302,7 @@ async def check_compatibility_interactive(
             compatibility_errors = compatibility_result.get("messages", [])
 
             if not is_compatible and compatibility_errors:
-                logger.info(
-                    f"Compatibility issues found for subject '{subject}': {compatibility_errors}"
-                )
+                logger.info(f"Compatibility issues found for subject '{subject}': {compatibility_errors}")
 
                 # Create elicitation request for resolution strategy
                 elicitation_request = create_compatibility_resolution_elicitation(
@@ -344,9 +319,7 @@ async def check_compatibility_interactive(
                     # Add resolution guidance to the result
                     compatibility_result["resolution_guidance"] = {
                         "strategy": response.values.get("resolution_strategy"),
-                        "compatibility_level": response.values.get(
-                            "compatibility_level"
-                        ),
+                        "compatibility_level": response.values.get("compatibility_level"),
                         "notes": response.values.get("notes"),
                         "elicitation_used": True,
                     }
@@ -404,9 +377,7 @@ async def create_context_interactive(
     """
     try:
         # Check if we should elicit metadata (any metadata field is None)
-        needs_elicitation = any(
-            [description is None, owner is None, environment is None, tags is None]
-        )
+        needs_elicitation = any([description is None, owner is None, environment is None, tags is None])
 
         elicited_metadata = {}
 
@@ -414,9 +385,7 @@ async def create_context_interactive(
             logger.info(f"Context creation for '{context}' could benefit from metadata")
 
             # Create elicitation request for context metadata
-            elicitation_request = create_context_metadata_elicitation(
-                context_name=context
-            )
+            elicitation_request = create_context_metadata_elicitation(context_name=context)
 
             # Store the request for processing
             await elicitation_manager.create_request(elicitation_request)
@@ -430,19 +399,13 @@ async def create_context_interactive(
                     "description": response.values.get("description") or description,
                     "owner": response.values.get("owner") or owner,
                     "environment": response.values.get("environment") or environment,
-                    "tags": (
-                        response.values.get("tags", "").split(",")
-                        if response.values.get("tags")
-                        else tags
-                    ),
+                    "tags": (response.values.get("tags", "").split(",") if response.values.get("tags") else tags),
                 }
 
                 # Filter out empty values
                 elicited_metadata = {k: v for k, v in elicited_metadata.items() if v}
 
-                logger.info(
-                    f"Collected context metadata from elicitation: {list(elicited_metadata.keys())}"
-                )
+                logger.info(f"Collected context metadata from elicitation: {list(elicited_metadata.keys())}")
 
         # Now proceed with the actual context creation
         result = create_context_tool(
@@ -509,9 +472,7 @@ async def export_global_interactive(
             logger.info(f"Global export for registry '{registry}' needs preferences")
 
             # Create elicitation request for export preferences
-            elicitation_request = create_export_preferences_elicitation(
-                operation_type="global_export"
-            )
+            elicitation_request = create_export_preferences_elicitation(operation_type="global_export")
 
             # Store the request for processing
             await elicitation_manager.create_request(elicitation_request)
@@ -522,14 +483,10 @@ async def export_global_interactive(
             if response and response.complete:
                 # Apply elicited preferences
                 if include_metadata is None:
-                    include_metadata = (
-                        response.values.get("include_metadata", "true").lower()
-                        == "true"
-                    )
+                    include_metadata = response.values.get("include_metadata", "true").lower() == "true"
                 if include_config is None:
                     include_config = (
-                        response.values.get("include_metadata", "true").lower()
-                        == "true"
+                        response.values.get("include_metadata", "true").lower() == "true"
                     )  # Use same setting
                 if include_versions is None:
                     include_versions = response.values.get("include_versions", "latest")
@@ -543,9 +500,7 @@ async def export_global_interactive(
                 )
             else:
                 # Use safe defaults
-                include_metadata = (
-                    include_metadata if include_metadata is not None else True
-                )
+                include_metadata = include_metadata if include_metadata is not None else True
                 include_config = include_config if include_config is not None else True
                 include_versions = include_versions or "latest"
                 format = format or "json"
@@ -662,9 +617,7 @@ def create_interactive_tool_wrapper(original_tool_func, interactive_tool_func):
             result = await interactive_tool_func(*args, **kwargs)
             return result
         except Exception as e:
-            logger.warning(
-                f"Interactive tool failed, falling back to original: {str(e)}"
-            )
+            logger.warning(f"Interactive tool failed, falling back to original: {str(e)}")
             # Fall back to original tool
             if asyncio.iscoroutinefunction(original_tool_func):
                 return await original_tool_func(*args, **kwargs)

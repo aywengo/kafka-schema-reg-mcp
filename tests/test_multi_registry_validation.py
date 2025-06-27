@@ -85,9 +85,7 @@ class MultiRegistryValidationTest:
             # Test PROD registry
             prod_response = requests.get(f"{self.prod_url}/subjects", timeout=5)
             if prod_response.status_code != 200:
-                print(
-                    f"   ❌ PROD registry not responding: {prod_response.status_code}"
-                )
+                print(f"   ❌ PROD registry not responding: {prod_response.status_code}")
                 return False
             print(f"   ✅ PROD registry ({self.prod_url}) is accessible")
 
@@ -133,9 +131,7 @@ class MultiRegistryValidationTest:
                 readonly = registry.get("readonly", False)
                 connection_status = registry.get("connection_status", "unknown")
 
-                print(
-                    f"   📊 {name}: {url} (readonly: {readonly}, status: {connection_status})"
-                )
+                print(f"   📊 {name}: {url} (readonly: {readonly}, status: {connection_status})")
 
                 if connection_status != "connected":
                     print(f"   ⚠️  Registry {name} is not connected")
@@ -168,17 +164,13 @@ class MultiRegistryValidationTest:
             }
 
             # Register test schema in dev
-            result = mcp_server.register_schema(
-                test_subject, test_schema, registry="dev"
-            )
+            result = mcp_server.register_schema(test_subject, test_schema, registry="dev")
             if "error" in result:
                 print(f"   ❌ Failed to register test schema: {result['error']}")
                 return False
 
             # Check compatibility in prod
-            compatibility = mcp_server.check_compatibility(
-                test_subject, test_schema, registry="prod"
-            )
+            compatibility = mcp_server.check_compatibility(test_subject, test_schema, registry="prod")
             if "error" in compatibility:
                 print(f"   ❌ Compatibility check failed: {compatibility['error']}")
                 return False
@@ -239,9 +231,7 @@ class MultiRegistryValidationTest:
             connectivity_test = await mcp_server.test_all_registries()
 
             if "error" in connectivity_test:
-                print(
-                    f"   ❌ test_all_registries() failed: {connectivity_test['error']}"
-                )
+                print(f"   ❌ test_all_registries() failed: {connectivity_test['error']}")
                 return False
 
             total_registries = connectivity_test.get("total_registries", 0)

@@ -96,9 +96,7 @@ async def test_readonly_with_mcp_client():
             if "readonly" in str(e).lower():
                 print("❌ list_subjects incorrectly blocked by readonly mode")
             else:
-                print(
-                    "✅ list_subjects not blocked by readonly mode (connection error expected)"
-                )
+                print("✅ list_subjects not blocked by readonly mode (connection error expected)")
 
         # Test 4: Try an export operation (should work)
         print("\n🧪 Testing allowed operation: export_global")
@@ -124,9 +122,7 @@ async def test_readonly_with_mcp_client():
             if "readonly" in str(e).lower():
                 print("❌ export_global incorrectly blocked by readonly mode")
             else:
-                print(
-                    "✅ export_global not blocked by readonly mode (connection error expected)"
-                )
+                print("✅ export_global not blocked by readonly mode (connection error expected)")
 
         # Test 5: Check server info resource
         print("\n🧪 Testing registry info resource")
@@ -141,13 +137,9 @@ async def test_readonly_with_mcp_client():
                         try:
                             info = json.loads(result)
                             readonly_status = info.get("readonly_mode", "unknown")
-                            print(
-                                f"✅ Server info shows readonly_mode: {readonly_status}"
-                            )
+                            print(f"✅ Server info shows readonly_mode: {readonly_status}")
                         except json.JSONDecodeError:
-                            print(
-                                f"✅ Server info resource available: {result[:100]}..."
-                            )
+                            print(f"✅ Server info resource available: {result[:100]}...")
                     break
 
         except Exception as e:

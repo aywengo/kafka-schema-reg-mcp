@@ -73,9 +73,7 @@ class OAuthTest:
                 print(f"   ✅ {var}: {value}")
 
         if missing_vars:
-            print(
-                f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}"
-            )
+            print(f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}")
             # This is expected when OAuth is enabled but not fully configured
             return True
 
@@ -111,14 +109,10 @@ class OAuthTest:
 
                 for scope_key in required_scope_keys:
                     if scope_key not in scope_info:
-                        print(
-                            f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'"
-                        )
+                        print(f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'")
                         return False
 
-                print(
-                    f"   ✅ Scope '{scope}': Level {scope_info['level']}, {len(scope_info['includes'])} tools"
-                )
+                print(f"   ✅ Scope '{scope}': Level {scope_info['level']}, {len(scope_info['includes'])} tools")
 
             print("   ✅ All scope definitions are valid")
             return True
@@ -165,9 +159,7 @@ class OAuthTest:
                     if all(scope in actual_scopes for scope in expected_scopes):
                         print(f"   ✅ {tool}: {actual_scopes}")
                     else:
-                        print(
-                            f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}"
-                        )
+                        print(f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}")
                 else:
                     print(f"   ⚠️  Tool '{tool}' not found in scope definitions")
 
@@ -341,9 +333,7 @@ class OAuthTest:
                 is_compliant = provider_example.get("oauth_2_1_compliant", False)
                 if provider == "github":
                     if is_compliant:
-                        print(
-                            f"   ⚠️  {provider} marked as OAuth 2.1 compliant but should be False"
-                        )
+                        print(f"   ⚠️  {provider} marked as OAuth 2.1 compliant but should be False")
                 else:
                     if not is_compliant:
                         print(f"   ❌ {provider} should be OAuth 2.1 compliant")
@@ -403,9 +393,7 @@ class OAuthTest:
 
         print("\n🔧 Production Setup Examples:")
         print("# Azure AD")
-        print(
-            "export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0"
-        )
+        print("export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0")
         print("export AUTH_AUDIENCE=your-azure-client-id")
         print()
         print("# Google OAuth 2.0")
@@ -441,12 +429,8 @@ class OAuthTest:
             print("✅ Tool permissions are properly mapped")
             print("✅ Configuration values are consistent")
             print("✅ OAuth 2.1 generic discovery configuration is valid")
-            print(
-                "✅ Provider examples are valid (Azure, Google, Keycloak, Okta, GitHub)"
-            )
-            print(
-                "🚀 Using simplified OAuth 2.1 discovery - no provider-specific configuration needed!"
-            )
+            print("✅ Provider examples are valid (Azure, Google, Keycloak, Okta, GitHub)")
+            print("🚀 Using simplified OAuth 2.1 discovery - no provider-specific configuration needed!")
 
             if ENABLE_AUTH:
                 print("✅ OAuth is enabled and ready for testing")

@@ -52,9 +52,7 @@ def run_basic_compliance_tests():
                 non_exempt_paths = ["/mcp", "/api/test", "/some/path"]
 
                 all_exempt_correct = all(is_exempt_path(path) for path in exempt_paths)
-                all_non_exempt_correct = all(
-                    not is_exempt_path(path) for path in non_exempt_paths
-                )
+                all_non_exempt_correct = all(not is_exempt_path(path) for path in non_exempt_paths)
 
                 if all_exempt_correct and all_non_exempt_correct:
                     print("✅ Exempt path detection working correctly")
@@ -93,14 +91,9 @@ def run_basic_compliance_tests():
                 "header_validation_enabled",
                 "compliance_status",
             ]
-            all_fields_present = all(
-                field in compliance_status for field in required_fields
-            )
+            all_fields_present = all(field in compliance_status for field in required_fields)
 
-            if (
-                all_fields_present
-                and compliance_status.get("compliance_status") == "COMPLIANT"
-            ):
+            if all_fields_present and compliance_status.get("compliance_status") == "COMPLIANT":
                 print("✅ MCP compliance status tool working correctly")
                 test4_passed = True
             else:

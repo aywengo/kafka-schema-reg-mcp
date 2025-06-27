@@ -28,11 +28,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from schema_validation import (
-    create_error_response,
-    create_success_response,
-    structured_output,
-)
+from schema_validation import create_error_response, structured_output
 from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
@@ -78,9 +74,7 @@ def clear_context_batch_tool(
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
             if available_registries:
-                registry = available_registries[
-                    0
-                ]  # list_registries() returns list of strings
+                registry = available_registries[0]  # list_registries() returns list of strings
             else:
                 return create_error_response(
                     "No registries available",
@@ -171,9 +165,7 @@ def clear_context_batch_tool(
         return result
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode)
 
 
 def _execute_clear_context_batch(
@@ -312,9 +304,7 @@ def _execute_clear_context_batch(
         with ThreadPoolExecutor(max_workers=10) as executor:
             futures = []
             for subject in subjects:
-                future = executor.submit(
-                    _delete_subject_from_context, registry_client, subject, context
-                )
+                future = executor.submit(_delete_subject_from_context, registry_client, subject, context)
                 futures.append(future)
 
             total_futures = len(futures)
@@ -336,9 +326,7 @@ def _execute_clear_context_batch(
 
         # Calculate metrics
         duration = time.time() - start_time
-        success_rate = (
-            (subjects_deleted / subjects_found * 100) if subjects_found > 0 else 100.0
-        )
+        success_rate = (subjects_deleted / subjects_found * 100) if subjects_found > 0 else 100.0
         performance = subjects_deleted / duration if duration > 0 else 0.0
 
         # Delete context if requested (not supported by Schema Registry API)
@@ -382,9 +370,7 @@ def _execute_clear_context_batch(
         }
 
 
-def _delete_subject_from_context(
-    registry_client, subject: str, context: Optional[str] = None
-) -> bool:
+def _delete_subject_from_context(registry_client, subject: str, context: Optional[str] = None) -> bool:
     """Helper function to delete a subject from a context using individual request.
 
     Note: This makes a single HTTP request per subject, replacing previous
@@ -392,9 +378,7 @@ def _delete_subject_from_context(
     """
     try:
         url = registry_client.build_context_url(f"/subjects/{subject}", context)
-        response = requests.delete(
-            url, auth=registry_client.auth, headers=registry_client.headers
-        )
+        response = requests.delete(url, auth=registry_client.auth, headers=registry_client.headers)
         return response.status_code in [200, 404]  # 404 is OK, subject already deleted
     except Exception:
         return False
@@ -439,9 +423,7 @@ def clear_multiple_contexts_batch_tool(
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
             if available_registries:
-                registry = available_registries[
-                    0
-                ]  # list_registries() returns list of strings
+                registry = available_registries[0]  # list_registries() returns list of strings
             else:
                 return create_error_response(
                     "No registries available",
@@ -532,9 +514,7 @@ def clear_multiple_contexts_batch_tool(
         return result
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode)
 
 
 def _execute_clear_multiple_contexts_batch(
@@ -676,11 +656,7 @@ def _execute_clear_multiple_contexts_batch(
         update_progress(90.0, "Computing final results")
 
         duration = time.time() - start_time
-        success_rate = (
-            (total_subjects_deleted / total_subjects_found * 100)
-            if total_subjects_found > 0
-            else 100.0
-        )
+        success_rate = (total_subjects_deleted / total_subjects_found * 100) if total_subjects_found > 0 else 100.0
         subjects_per_second = total_subjects_deleted / duration if duration > 0 else 0.0
 
         message = (

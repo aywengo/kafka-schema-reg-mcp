@@ -119,11 +119,7 @@ async def test_docker_command_generation():
         print(f"❌ Wrong target details: {target}")
         return False
 
-    if (
-        not options["preserve_ids"]
-        or not options["dry_run"]
-        or not options["migrate_all_versions"]
-    ):
+    if not options["preserve_ids"] or not options["dry_run"] or not options["migrate_all_versions"]:
         print(f"❌ Wrong options: {options}")
         return False
 
@@ -246,24 +242,18 @@ async def test_default_context():
     env_vars = result["env_variables"]
     context_vars = [var for var in env_vars if "CONTEXT" in var]
     if context_vars:
-        print(
-            f"❌ Context variables should not be included for default context: {context_vars}"
-        )
+        print(f"❌ Context variables should not be included for default context: {context_vars}")
         return False
 
     # Check that IMPORT mode is not set when not preserving IDs
     import_mode_vars = [var for var in env_vars if "DEST_IMPORT_MODE" in var]
     if import_mode_vars:
-        print(
-            f"❌ IMPORT mode should not be set when not preserving IDs: {import_mode_vars}"
-        )
+        print(f"❌ IMPORT mode should not be set when not preserving IDs: {import_mode_vars}")
         return False
 
     # Check that non-dry-run warning is present
     warnings = result["warnings"]
-    non_dry_run_warning = any(
-        "actual data migration" in warning for warning in warnings
-    )
+    non_dry_run_warning = any("actual data migration" in warning for warning in warnings)
     if not non_dry_run_warning:
         print("❌ Missing non-dry-run warning")
         return False

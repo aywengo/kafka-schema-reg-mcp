@@ -48,9 +48,7 @@ from kafka_schema_registry_unified_mcp import (
 )
 
 # Configure logging for remote deployment
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -89,9 +87,7 @@ class RemoteMCPMetrics:
         self.registry_errors = defaultdict(int)  # registry -> error count
         self.registry_response_times = defaultdict(list)  # registry -> [response_times]
         self.schema_registrations = defaultdict(int)  # registry -> registration count
-        self.schema_compatibility_checks = defaultdict(
-            int
-        )  # registry -> compatibility checks
+        self.schema_compatibility_checks = defaultdict(int)  # registry -> compatibility checks
         self.schema_exports = defaultdict(int)  # registry -> export count
         self.context_operations = defaultdict(int)  # context -> operation count
 
@@ -195,9 +191,7 @@ class RemoteMCPMetrics:
 
                         # Count total schemas across all subjects
                         total_schemas = 0
-                        for subject in (subjects or [])[
-                            :50
-                        ]:  # Limit to first 50 for performance
+                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
@@ -285,15 +279,9 @@ class RemoteMCPMetrics:
                 avg_time = sum(times) / len(times)
                 max_time = max(times)
                 min_time = min(times)
-                metrics.append(
-                    f'mcp_request_duration_seconds_avg{{method="{method}"}} {avg_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_request_duration_seconds_max{{method="{method}"}} {max_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_request_duration_seconds_min{{method="{method}"}} {min_time:.6f}'
-                )
+                metrics.append(f'mcp_request_duration_seconds_avg{{method="{method}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_max{{method="{method}"}} {max_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_min{{method="{method}"}} {min_time:.6f}')
 
         # OAuth 2.1 metrics
         metrics.extend(
@@ -375,9 +363,7 @@ class RemoteMCPMetrics:
         )
 
         for operation, count in self.schema_operations.items():
-            metrics.append(
-                f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}')
 
         metrics.extend(
             [
@@ -388,9 +374,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.registry_operations.items():
-            metrics.append(
-                f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -401,9 +385,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.registry_errors.items():
-            metrics.append(
-                f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -418,15 +400,9 @@ class RemoteMCPMetrics:
                 avg_time = sum(times) / len(times)
                 max_time = max(times)
                 min_time = min(times)
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_avg{{registry="{registry}"}} {avg_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_max{{registry="{registry}"}} {max_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}'
-                )
+                metrics.append(f'mcp_schema_registry_response_time_seconds_avg{{registry="{registry}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_max{{registry="{registry}"}} {max_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}')
 
         metrics.extend(
             [
@@ -437,9 +413,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_registrations.items():
-            metrics.append(
-                f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -450,9 +424,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_compatibility_checks.items():
-            metrics.append(
-                f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -463,9 +435,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_exports.items():
-            metrics.append(
-                f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}')
 
         # Current registry statistics (from cache)
         registry_stats = self.get_registry_stats()
@@ -479,9 +449,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}')
 
         metrics.extend(
             [
@@ -492,9 +460,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}')
 
         metrics.extend(
             [
@@ -505,9 +471,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}')
 
         metrics.extend(
             [
@@ -519,9 +483,7 @@ class RemoteMCPMetrics:
 
         for registry, stats in registry_stats.items():
             status_value = 1 if stats.get("status") == "healthy" else 0
-            metrics.append(
-                f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}'
-            )
+            metrics.append(f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}')
 
         metrics.extend(
             [
@@ -555,9 +517,7 @@ def get_security_headers() -> dict:
         "Cache-Control": "no-store, no-cache, must-revalidate",
         "Pragma": "no-cache",
         "Strict-Transport-Security": (
-            "max-age=31536000; includeSubDomains"
-            if os.getenv("TLS_ENABLED", "false").lower() == "true"
-            else ""
+            "max-age=31536000; includeSubDomains" if os.getenv("TLS_ENABLED", "false").lower() == "true" else ""
         ),
         "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none';",
         "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
@@ -780,9 +740,7 @@ async def oauth_authorization_server_metadata(request):
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = (
-            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
-        )
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
         base_url = f"{scheme}://{host}:{port}"
 
         # Get OAuth provider info
@@ -815,9 +773,7 @@ async def oauth_authorization_server_metadata(request):
             "authorization_endpoint": provider_config.get("authorization_endpoint"),
             "token_endpoint": provider_config.get("token_endpoint"),
             "jwks_uri": provider_config.get("jwks_uri"),
-            "token_introspection_endpoint": provider_config.get(
-                "token_introspection_endpoint"
-            ),
+            "token_introspection_endpoint": provider_config.get("token_introspection_endpoint"),
             "revocation_endpoint": provider_config.get("revocation_endpoint"),
             # OAuth 2.1 required features
             "scopes_supported": [
@@ -947,9 +903,7 @@ async def oauth_protected_resource_metadata(request):
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = (
-            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
-        )
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
         base_url = f"{scheme}://{host}:{port}"
 
         # Get authorization server URL (generic OAuth 2.1)
@@ -958,11 +912,7 @@ async def oauth_protected_resource_metadata(request):
         # Resource indicators configuration
         resource_indicators = []
         if os.getenv("RESOURCE_INDICATORS"):
-            resource_indicators = [
-                url.strip()
-                for url in os.getenv("RESOURCE_INDICATORS").split(",")
-                if url.strip()
-            ]
+            resource_indicators = [url.strip() for url in os.getenv("RESOURCE_INDICATORS").split(",") if url.strip()]
 
         # Default resource indicator is our server URL
         if not resource_indicators:
@@ -991,19 +941,13 @@ async def oauth_protected_resource_metadata(request):
             "audience_values": [base_url] + resource_indicators,
             # Token validation methods
             "token_validation_methods": (
-                ["jwt", "introspection"]
-                if "github.com" not in authorization_server
-                else ["api_validation"]
+                ["jwt", "introspection"] if "github.com" not in authorization_server else ["api_validation"]
             ),
             "token_introspection_endpoint": (
-                f"{authorization_server}/introspect"
-                if "github.com" not in authorization_server
-                else None
+                f"{authorization_server}/introspect" if "github.com" not in authorization_server else None
             ),
             "token_revocation_endpoint": (
-                f"{authorization_server}/revoke"
-                if "github.com" not in authorization_server
-                else None
+                f"{authorization_server}/revoke" if "github.com" not in authorization_server else None
             ),
             # OAuth 2.1 security features
             "oauth_version": "2.1",
@@ -1016,9 +960,7 @@ async def oauth_protected_resource_metadata(request):
                 "implicit_flow_disabled": True,
             },
             # Token binding (if supported)
-            "token_binding_methods_supported": (
-                ["tls-server-end-point"] if scheme == "https" else []
-            ),
+            "token_binding_methods_supported": (["tls-server-end-point"] if scheme == "https" else []),
             # MCP-specific resource information
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
@@ -1068,9 +1010,7 @@ async def oauth_protected_resource_metadata(request):
             },
             # Supported algorithms
             "token_signing_alg_values_supported": ["RS256", "ES256"],
-            "token_encryption_alg_values_supported": (
-                ["RSA-OAEP", "A256KW"] if scheme == "https" else []
-            ),
+            "token_encryption_alg_values_supported": (["RSA-OAEP", "A256KW"] if scheme == "https" else []),
             # Error handling
             "error_uris": {
                 "invalid_token": f"{base_url}/docs/errors#invalid_token",
@@ -1217,9 +1157,7 @@ def main():
     path = os.getenv("MCP_PATH", "/mcp")  # Always use /mcp for streamable-http
 
     logger.info("🚀 Starting Kafka Schema Registry Remote MCP Server")
-    logger.info(
-        f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)"
-    )
+    logger.info(f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)")
     logger.info(f"🌐 Host: {host}")
     logger.info(f"🔌 Port: {port}")
     logger.info(f"📍 Path: {path}")

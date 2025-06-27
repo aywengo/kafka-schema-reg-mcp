@@ -73,9 +73,7 @@ def test_mcp_header_validation_basic():
                 ]
 
                 exempt_results = [is_exempt_path(path) for path in exempt_test_paths]
-                non_exempt_results = [
-                    is_exempt_path(path) for path in non_exempt_test_paths
-                ]
+                non_exempt_results = [is_exempt_path(path) for path in non_exempt_test_paths]
 
                 if all(exempt_results) and not any(non_exempt_results):
                     print("✅ Exempt path detection working correctly")
@@ -107,16 +105,12 @@ def test_mcp_header_validation_basic():
                     "compliance_status",
                 ]
 
-                missing_fields = [
-                    field for field in required_fields if field not in status
-                ]
+                missing_fields = [field for field in required_fields if field not in status]
 
                 if not missing_fields:
                     print("✅ Header validation status reporting working")
                     print(f"   Protocol Version: {status.get('protocol_version')}")
-                    print(
-                        f"   Header Validation: {status.get('header_validation_enabled')}"
-                    )
+                    print(f"   Header Validation: {status.get('header_validation_enabled')}")
                     print(f"   Compliance Status: {status.get('compliance_status')}")
                     test3_passed = True
                 else:
@@ -204,9 +198,7 @@ class MCPHeaderValidationTest(unittest.TestCase):
         health_paths = ["/health", "/metrics", "/ready"]
         for path in health_paths:
             with self.subTest(path=path):
-                self.assertTrue(
-                    self.is_exempt_path(path), f"Path {path} should be exempt"
-                )
+                self.assertTrue(self.is_exempt_path(path), f"Path {path} should be exempt")
 
     def test_exempt_paths_well_known(self):
         """Test that .well-known paths are exempt from header validation."""
@@ -217,18 +209,14 @@ class MCPHeaderValidationTest(unittest.TestCase):
         ]
         for path in well_known_paths:
             with self.subTest(path=path):
-                self.assertTrue(
-                    self.is_exempt_path(path), f"Path {path} should be exempt"
-                )
+                self.assertTrue(self.is_exempt_path(path), f"Path {path} should be exempt")
 
     def test_non_exempt_paths(self):
         """Test that API paths are not exempt from header validation."""
         api_paths = ["/", "/mcp", "/api/schemas", "/subjects/test/versions", "/config"]
         for path in api_paths:
             with self.subTest(path=path):
-                self.assertFalse(
-                    self.is_exempt_path(path), f"Path {path} should not be exempt"
-                )
+                self.assertFalse(self.is_exempt_path(path), f"Path {path} should not be exempt")
 
     def test_compliance_status_fields(self):
         """Test that compliance status includes required fields."""
@@ -245,9 +233,7 @@ class MCPHeaderValidationTest(unittest.TestCase):
 
             for field in required_fields:
                 with self.subTest(field=field):
-                    self.assertIn(
-                        field, status, f"Status missing required field: {field}"
-                    )
+                    self.assertIn(field, status, f"Status missing required field: {field}")
 
             # Verify protocol version in status
             self.assertEqual(status["protocol_version"], "2025-06-18")

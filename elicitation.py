@@ -21,12 +21,11 @@ MCP 2025-06-18 Compliance:
 """
 
 import asyncio
-import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -244,9 +243,7 @@ class ElicitationManager:
             self.timeout_tasks[request_id].cancel()
             del self.timeout_tasks[request_id]
 
-    def _validate_response(
-        self, request: ElicitationRequest, response: ElicitationResponse
-    ) -> bool:
+    def _validate_response(self, request: ElicitationRequest, response: ElicitationResponse) -> bool:
         """Validate a response against the request requirements."""
         # Check required fields
         for field in request.fields:
@@ -263,9 +260,7 @@ class ElicitationManager:
 
                 # Additional validation based on field type
                 if field.type == "email" and "@" not in str(value):
-                    logger.warning(
-                        f"Invalid email format for field {field.name}: {value}"
-                    )
+                    logger.warning(f"Invalid email format for field {field.name}: {value}")
                     return False
 
         return True
@@ -418,9 +413,7 @@ def create_migration_preferences_elicitation(
     )
 
 
-def create_compatibility_resolution_elicitation(
-    subject: str, compatibility_errors: List[str]
-) -> ElicitationRequest:
+def create_compatibility_resolution_elicitation(subject: str, compatibility_errors: List[str]) -> ElicitationRequest:
     """Create an elicitation request for compatibility issue resolution."""
     fields = [
         ElicitationField(
@@ -632,12 +625,8 @@ async def elicit_with_fallback(
     if is_elicitation_supported():
         # In a real implementation, this would use the MCP elicitation protocol
         # For now, we'll simulate with the mock function
-        logger.info(
-            f"Elicitation not yet implemented, using fallback for: {request.title}"
-        )
+        logger.info(f"Elicitation not yet implemented, using fallback for: {request.title}")
         return await mock_elicit(request)
     else:
-        logger.info(
-            f"Client doesn't support elicitation, using defaults for: {request.title}"
-        )
+        logger.info(f"Client doesn't support elicitation, using defaults for: {request.title}")
         return await mock_elicit(request)

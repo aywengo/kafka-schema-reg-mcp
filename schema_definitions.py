@@ -716,7 +716,7 @@ ELICITATION_REQUESTS_SCHEMA = {
 
 # Elicitation status response
 ELICITATION_STATUS_SCHEMA = {
-    "type": "object", 
+    "type": "object",
     "properties": {
         "elicitation_supported": {
             "type": "boolean",
@@ -847,9 +847,7 @@ def get_tool_schema(tool_name: str) -> Dict[str, Any]:
     Returns:
         JSON Schema definition for the tool's output
     """
-    return TOOL_OUTPUT_SCHEMAS.get(
-        tool_name, {"type": "object", "additionalProperties": True}
-    )
+    return TOOL_OUTPUT_SCHEMAS.get(tool_name, {"type": "object", "additionalProperties": True})
 
 
 def get_all_schemas() -> Dict[str, Any]:

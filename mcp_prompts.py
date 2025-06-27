@@ -79,7 +79,7 @@ Contexts help organize schemas by environment, team, or purpose. Let me help you
 ## 🏢 Common Context Patterns
 1. **By Environment**:
    - development → Testing and iteration
-   - staging → Pre-production validation  
+   - staging → Pre-production validation
    - production → Live schemas
 
 2. **By Team/Domain**:
@@ -214,7 +214,7 @@ I'll help you understand and manage schema compatibility for safe evolution:
 
 ## 📊 Compatibility Levels
 1. **BACKWARD** (default): New schema can read old data
-2. **FORWARD**: Old schema can read new data  
+2. **FORWARD**: Old schema can read new data
 3. **FULL**: Both backward and forward compatible
 4. **NONE**: No compatibility checking
 

@@ -25,9 +25,7 @@ try:
 
     oauth_available = True
 except ImportError:
-    print(
-        "⚠️  OAuth dependencies not available. Install MCP auth modules to test OAuth functionality."
-    )
+    print("⚠️  OAuth dependencies not available. Install MCP auth modules to test OAuth functionality.")
     print("This is normal in development mode. OAuth features will be disabled.")
     oauth_available = False
 
@@ -52,11 +50,7 @@ except ImportError:
             return "write" in user_scopes and "read" in user_scopes
 
         def has_admin_access(self, user_scopes):
-            return (
-                "admin" in user_scopes
-                and "write" in user_scopes
-                and "read" in user_scopes
-            )
+            return "admin" in user_scopes and "write" in user_scopes and "read" in user_scopes
 
         async def validate_token(self, token):
             if token.startswith("dev-token-"):
@@ -137,9 +131,7 @@ def test_keycloak_realm_roles():
         "sub": "admin-user-123",
         "preferred_username": "admin",
         "name": "System Administrator",
-        "realm_access": {
-            "roles": ["mcp-admin", "mcp-writer", "mcp-reader", "offline_access"]
-        },
+        "realm_access": {"roles": ["mcp-admin", "mcp-writer", "mcp-reader", "offline_access"]},
         "resource_access": {"mcp-client": {"roles": ["mcp-admin"]}},
         "iss": "https://keycloak.company.com/realms/production",
         "aud": "mcp-client",

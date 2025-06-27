@@ -25,9 +25,7 @@ from task_management import TaskType, task_manager
 
 
 @structured_output("count_contexts", fallback_on_error=True)
-def count_contexts_tool(
-    registry_manager, registry_mode: str, registry: Optional[str] = None
-) -> Dict[str, Any]:
+def count_contexts_tool(registry_manager, registry_mode: str, registry: Optional[str] = None) -> Dict[str, Any]:
     """
     Count the number of contexts in a registry.
 
@@ -61,9 +59,7 @@ def count_contexts_tool(
         metadata = client.get_server_metadata()
 
         result = {
-            "registry": (
-                client.config.name if hasattr(client.config, "name") else "default"
-            ),
+            "registry": (client.config.name if hasattr(client.config, "name") else "default"),
             "count": len(contexts),
             "scope": "contexts",
             "contexts": contexts,
@@ -77,9 +73,7 @@ def count_contexts_tool(
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONTEXT_COUNT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONTEXT_COUNT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("count_schemas", fallback_on_error=True)
@@ -123,9 +117,7 @@ def count_schemas_tool(
         metadata = client.get_server_metadata()
 
         result = {
-            "registry": (
-                client.config.name if hasattr(client.config, "name") else "default"
-            ),
+            "registry": (client.config.name if hasattr(client.config, "name") else "default"),
             "context": context or "default",
             "count": len(subjects),
             "scope": "schemas",
@@ -140,9 +132,7 @@ def count_schemas_tool(
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SCHEMA_COUNT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SCHEMA_COUNT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("count_schema_versions", fallback_on_error=True)
@@ -191,9 +181,7 @@ def count_schema_versions_tool(
         metadata = client.get_server_metadata()
 
         result = {
-            "registry": (
-                client.config.name if hasattr(client.config, "name") else "default"
-            ),
+            "registry": (client.config.name if hasattr(client.config, "name") else "default"),
             "context": context or "default",
             "subject": subject,
             "count": len(versions),
@@ -209,9 +197,7 @@ def count_schema_versions_tool(
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="VERSION_COUNT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="VERSION_COUNT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("get_registry_statistics", fallback_on_error=True)
@@ -313,9 +299,7 @@ def get_registry_statistics_tool(
         metadata = client.get_server_metadata()
 
         result = {
-            "registry": (
-                client.config.name if hasattr(client.config, "name") else "default"
-            ),
+            "registry": (client.config.name if hasattr(client.config, "name") else "default"),
             "total_contexts": len(contexts),
             "total_subjects": total_schemas,
             "total_schemas": total_versions,
@@ -330,9 +314,7 @@ def get_registry_statistics_tool(
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="REGISTRY_STATISTICS_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="REGISTRY_STATISTICS_FAILED", registry_mode=registry_mode)
 
 
 # ===== OPTIMIZED ASYNC STATISTICS FUNCTIONS =====
@@ -367,9 +349,7 @@ async def _count_schemas_async(
                 return subjects
 
             result = {
-                "registry": (
-                    client.config.name if hasattr(client.config, "name") else "default"
-                ),
+                "registry": (client.config.name if hasattr(client.config, "name") else "default"),
                 "context": context,
                 "total_schemas": len(subjects),
                 "schemas": subjects,
@@ -390,14 +370,10 @@ async def _count_schemas_async(
 
             # Parallel execution for better performance
             with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_context = {
-                    executor.submit(client.get_subjects, ctx): ctx for ctx in contexts
-                }
+                future_to_context = {executor.submit(client.get_subjects, ctx): ctx for ctx in contexts}
 
                 # Add default context
-                future_to_context[executor.submit(client.get_subjects, None)] = (
-                    "default"
-                )
+                future_to_context[executor.submit(client.get_subjects, None)] = "default"
 
                 for future in as_completed(future_to_context):
                     ctx = future_to_context[future]
@@ -410,9 +386,7 @@ async def _count_schemas_async(
                         all_schemas[ctx] = {"error": str(e)}
 
             result = {
-                "registry": (
-                    client.config.name if hasattr(client.config, "name") else "default"
-                ),
+                "registry": (client.config.name if hasattr(client.config, "name") else "default"),
                 "total_schemas": total_schemas,
                 "schemas_by_context": all_schemas,
                 "contexts_analyzed": len(all_schemas),
@@ -497,9 +471,7 @@ def count_schemas_task_queue_tool(
         }
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode)
 
 
 async def _get_registry_statistics_async(
@@ -543,9 +515,7 @@ async def _get_registry_statistics_async(
 
             # Add all contexts
             for context in contexts:
-                future = executor.submit(
-                    _analyze_context_parallel, client, context, registry
-                )
+                future = executor.submit(_analyze_context_parallel, client, context, registry)
                 future_to_context[future] = context
 
             # Add default context
@@ -561,10 +531,7 @@ async def _get_registry_statistics_async(
                 try:
                     context_result = future.result()
 
-                    if (
-                        not isinstance(context_result, dict)
-                        or "error" not in context_result
-                    ):
+                    if not isinstance(context_result, dict) or "error" not in context_result:
                         total_schemas += context_result.get("schemas", 0)
                         total_versions += context_result.get("versions", 0)
 
@@ -595,15 +562,11 @@ async def _get_registry_statistics_async(
         metadata = client.get_server_metadata()
 
         result = {
-            "registry": (
-                client.config.name if hasattr(client.config, "name") else "default"
-            ),
+            "registry": (client.config.name if hasattr(client.config, "name") else "default"),
             "total_contexts": len(contexts),
             "total_schemas": total_schemas,
             "total_versions": total_versions,
-            "average_versions_per_schema": round(
-                total_versions / max(total_schemas, 1), 2
-            ),
+            "average_versions_per_schema": round(total_versions / max(total_schemas, 1), 2),
             "contexts": context_stats if include_context_details else None,
             "counted_at": datetime.now().isoformat(),
         }
@@ -620,9 +583,7 @@ async def _get_registry_statistics_async(
         return {"error": str(e)}
 
 
-def _analyze_context_parallel(
-    client, context: Optional[str], registry: Optional[str]
-) -> Dict[str, Any]:
+def _analyze_context_parallel(client, context: Optional[str], registry: Optional[str]) -> Dict[str, Any]:
     """
     Analyze a single context in parallel execution.
     Returns schema and version counts for the context.
@@ -640,10 +601,7 @@ def _analyze_context_parallel(
             # Import here to avoid circular imports
             from kafka_schema_registry_unified_mcp import get_schema_versions
 
-            futures = [
-                executor.submit(get_schema_versions, subject, context, registry)
-                for subject in subjects
-            ]
+            futures = [executor.submit(get_schema_versions, subject, context, registry) for subject in subjects]
 
             for future in as_completed(futures):
                 try:
@@ -733,6 +691,4 @@ def get_registry_statistics_task_queue_tool(
         }
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode)

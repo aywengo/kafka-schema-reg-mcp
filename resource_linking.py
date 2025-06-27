@@ -96,9 +96,7 @@ class RegistryURI:
         base = self.subject_uri(subject, context)
         return f"{base}/mode"
 
-    def subject_compatibility_uri(
-        self, subject: str, context: Optional[str] = None
-    ) -> str:
+    def subject_compatibility_uri(self, subject: str, context: Optional[str] = None) -> str:
         """Build URI for subject compatibility checking."""
         base = self.subject_uri(subject, context)
         return f"{base}/compatibility"
@@ -110,9 +108,7 @@ class RegistryURI:
         base = self.subject_uri(subject, context)
         return f"{base}/versions"
 
-    def schema_version_uri(
-        self, subject: str, version: Union[str, int], context: Optional[str] = None
-    ) -> str:
+    def schema_version_uri(self, subject: str, version: Union[str, int], context: Optional[str] = None) -> str:
         """Build URI for a specific schema version."""
         versions_base = self.schema_versions_uri(subject, context)
         return f"{versions_base}/{version}"
@@ -179,9 +175,7 @@ class ResourceLinker:
         links["subject"] = self.uri_builder.subject_uri(subject, context)
         links["context"] = self.uri_builder.context_uri(context)
         links["versions"] = self.uri_builder.schema_versions_uri(subject, context)
-        links["compatibility"] = self.uri_builder.subject_compatibility_uri(
-            subject, context
-        )
+        links["compatibility"] = self.uri_builder.subject_compatibility_uri(subject, context)
 
         # Configuration links
         links["config"] = self.uri_builder.subject_config_uri(subject, context)
@@ -191,12 +185,8 @@ class ResourceLinker:
         if isinstance(version, int) or (isinstance(version, str) and version.isdigit()):
             version_num = int(version)
             if version_num > 1:
-                links["previous"] = self.uri_builder.schema_version_uri(
-                    subject, version_num - 1, context
-                )
-            links["next"] = self.uri_builder.schema_version_uri(
-                subject, version_num + 1, context
-            )
+                links["previous"] = self.uri_builder.schema_version_uri(subject, version_num - 1, context)
+            links["next"] = self.uri_builder.schema_version_uri(subject, version_num + 1, context)
 
         response["_links"] = links
         return response
@@ -210,9 +200,7 @@ class ResourceLinker:
         links["self"] = self.uri_builder.subject_uri(subject, context)
         links["context"] = self.uri_builder.context_uri(context)
         links["versions"] = self.uri_builder.schema_versions_uri(subject, context)
-        links["compatibility"] = self.uri_builder.subject_compatibility_uri(
-            subject, context
-        )
+        links["compatibility"] = self.uri_builder.subject_compatibility_uri(subject, context)
         links["config"] = self.uri_builder.subject_config_uri(subject, context)
         links["mode"] = self.uri_builder.subject_mode_uri(subject, context)
 
@@ -267,9 +255,7 @@ class ResourceLinker:
         # Add links to individual versions
         version_links = {}
         for version in versions_list:
-            version_links[str(version)] = self.uri_builder.schema_version_uri(
-                subject, version, context
-            )
+            version_links[str(version)] = self.uri_builder.schema_version_uri(subject, version, context)
 
         if version_links:
             links["items"] = version_links
@@ -279,9 +265,7 @@ class ResourceLinker:
 
     # ===== CONTEXT LINKS =====
 
-    def add_context_links(
-        self, response: Dict[str, Any], context: str
-    ) -> Dict[str, Any]:
+    def add_context_links(self, response: Dict[str, Any], context: str) -> Dict[str, Any]:
         """Add navigation links to context response."""
         links = {}
 
@@ -294,9 +278,7 @@ class ResourceLinker:
         response["_links"] = links
         return response
 
-    def add_contexts_list_links(
-        self, response: Union[List[str], Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def add_contexts_list_links(self, response: Union[List[str], Dict[str, Any]]) -> Dict[str, Any]:
         """Add navigation links to contexts list response."""
         # Convert list response to dict format if needed
         if isinstance(response, list):
@@ -384,9 +366,7 @@ class ResourceLinker:
 
     # ===== MIGRATION LINKS =====
 
-    def add_migration_links(
-        self, response: Dict[str, Any], migration_id: str
-    ) -> Dict[str, Any]:
+    def add_migration_links(self, response: Dict[str, Any], migration_id: str) -> Dict[str, Any]:
         """Add navigation links to migration response."""
         links = {}
 
@@ -405,9 +385,7 @@ class ResourceLinker:
         response["_links"] = links
         return response
 
-    def add_migrations_list_links(
-        self, response: Union[List[Dict], Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def add_migrations_list_links(self, response: Union[List[Dict], Dict[str, Any]]) -> Dict[str, Any]:
         """Add navigation links to migrations list response."""
         # Convert list response to dict format if needed
         if isinstance(response, list):
@@ -424,9 +402,7 @@ class ResourceLinker:
         for migration in migrations_list:
             if isinstance(migration, dict) and "id" in migration:
                 migration_id = migration["id"]
-                migration_links[migration_id] = self.uri_builder.migration_uri(
-                    migration_id
-                )
+                migration_links[migration_id] = self.uri_builder.migration_uri(migration_id)
 
         if migration_links:
             links["items"] = migration_links
@@ -479,9 +455,7 @@ def create_registry_linker(registry_name: str) -> ResourceLinker:
     return ResourceLinker(registry_name)
 
 
-def add_links_to_response(
-    response: Dict[str, Any], link_type: str, registry_name: str, **kwargs
-) -> Dict[str, Any]:
+def add_links_to_response(response: Dict[str, Any], link_type: str, registry_name: str, **kwargs) -> Dict[str, Any]:
     """
     Generic function to add links to any response based on type.
 
@@ -501,25 +475,19 @@ def add_links_to_response(
             # Schema links require subject and version
             if "subject" not in kwargs or "version" not in kwargs:
                 return response
-            return linker.add_schema_links(
-                response, kwargs["subject"], kwargs["version"], kwargs.get("context")
-            )
+            return linker.add_schema_links(response, kwargs["subject"], kwargs["version"], kwargs.get("context"))
         elif link_type == "subject":
             # Subject links require subject
             if "subject" not in kwargs:
                 return response
-            return linker.add_subject_links(
-                response, kwargs["subject"], kwargs.get("context")
-            )
+            return linker.add_subject_links(response, kwargs["subject"], kwargs.get("context"))
         elif link_type == "subjects_list":
             return linker.add_subjects_list_links(response, kwargs.get("context"))
         elif link_type == "schema_versions":
             # Schema versions links require subject
             if "subject" not in kwargs:
                 return response
-            return linker.add_schema_versions_links(
-                response, kwargs["subject"], kwargs.get("context")
-            )
+            return linker.add_schema_versions_links(response, kwargs["subject"], kwargs.get("context"))
         elif link_type == "context":
             # Context links require context
             if "context" not in kwargs:
@@ -528,20 +496,14 @@ def add_links_to_response(
         elif link_type == "contexts_list":
             return linker.add_contexts_list_links(response)
         elif link_type == "config":
-            return linker.add_config_links(
-                response, kwargs.get("subject"), kwargs.get("context")
-            )
+            return linker.add_config_links(response, kwargs.get("subject"), kwargs.get("context"))
         elif link_type == "mode":
-            return linker.add_mode_links(
-                response, kwargs.get("subject"), kwargs.get("context")
-            )
+            return linker.add_mode_links(response, kwargs.get("subject"), kwargs.get("context"))
         elif link_type == "compatibility":
             # Compatibility links require subject
             if "subject" not in kwargs:
                 return response
-            return linker.add_compatibility_links(
-                response, kwargs["subject"], kwargs.get("context")
-            )
+            return linker.add_compatibility_links(response, kwargs["subject"], kwargs.get("context"))
         elif link_type == "migration":
             # Migration links require migration_id
             if "migration_id" not in kwargs:
@@ -555,9 +517,7 @@ def add_links_to_response(
             # Comparison links require source and target registries
             if "source_registry" not in kwargs or "target_registry" not in kwargs:
                 return response
-            return linker.add_comparison_links(
-                response, kwargs["source_registry"], kwargs["target_registry"]
-            )
+            return linker.add_comparison_links(response, kwargs["source_registry"], kwargs["target_registry"])
         else:
             # Unknown link type, return response unchanged
             return response

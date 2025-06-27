@@ -70,9 +70,7 @@ async def test_mcp_server():
                 if result:
                     print(f"📋 Response: {result[0].text[:200]}...")
             except Exception as e:
-                print(
-                    f"⚠️ Tool call failed (might be expected if no schema registry): {e}"
-                )
+                print(f"⚠️ Tool call failed (might be expected if no schema registry): {e}")
 
             print("\n✅ MCP Server basic connectivity test completed!")
 
@@ -91,9 +89,7 @@ async def test_dependencies():
     try:
         import fastmcp
 
-        print(
-            f"✅ FastMCP available: {fastmcp.__version__ if hasattr(fastmcp, '__version__') else 'Unknown version'}"
-        )
+        print(f"✅ FastMCP available: {fastmcp.__version__ if hasattr(fastmcp, '__version__') else 'Unknown version'}")
     except ImportError as e:
         print(f"❌ FastMCP not available: {e}")
         return False

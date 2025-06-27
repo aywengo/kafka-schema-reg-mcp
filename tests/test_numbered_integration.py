@@ -88,9 +88,7 @@ class IntegrationTestSetup:
                     print(f"⏳ Attempt {attempt + 1}/{max_attempts}: {e}")
                     time.sleep(2)
                 else:
-                    raise Exception(
-                        f"Schema Registry not ready after {max_attempts} attempts"
-                    )
+                    raise Exception(f"Schema Registry not ready after {max_attempts} attempts")
 
     async def _create_test_contexts(self):
         """Create contexts to simulate different registries."""
@@ -104,9 +102,7 @@ class IntegrationTestSetup:
                 if response.status_code in [200, 409]:  # 409 = already exists
                     print(f"✅ Context '{context}' ready for {registry_name}")
                 else:
-                    print(
-                        f"⚠️  Context creation response for {context}: {response.status_code}"
-                    )
+                    print(f"⚠️  Context creation response for {context}: {response.status_code}")
             except Exception as e:
                 print(f"⚠️  Error creating context {context}: {e}")
 
@@ -162,9 +158,7 @@ class IntegrationTestSetup:
             if response.status_code in [200, 409]:  # 409 = schema already exists
                 print(f"✅ Schema {subject} registered in {context}")
             else:
-                print(
-                    f"⚠️  Schema registration failed for {subject} in {context}: {response.status_code}"
-                )
+                print(f"⚠️  Schema registration failed for {subject} in {context}: {response.status_code}")
 
         except Exception as e:
             print(f"⚠️  Error registering schema {subject} in {context}: {e}")
@@ -220,18 +214,12 @@ async def test_single_registry_mode():
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_single_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_single_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Single registry test timed out after 30 seconds")
     except Exception as e:
@@ -296,18 +284,12 @@ async def test_multi_registry_mode():
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_multi_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_multi_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Multi-registry test timed out after 30 seconds")
     except Exception as e:
@@ -339,9 +321,7 @@ async def _test_multi_registry_with_client(server_params):
                 print(f"✅ Registry connections: {connected}/{total} successful")
 
             # Test schema operations with registry parameter
-            result = await session.call_tool(
-                "list_subjects", {"context": "development"}
-            )
+            result = await session.call_tool("list_subjects", {"context": "development"})
             if result.content and len(result.content) > 0:
                 subjects = json.loads(result.content[0].text)
                 print(f"✅ Development context: {len(subjects)} subjects")
@@ -376,18 +356,12 @@ async def test_cross_registry_operations():
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_cross_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_cross_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Cross-registry test timed out after 30 seconds")
     except Exception as e:
@@ -427,9 +401,7 @@ async def _test_cross_registry_with_client(server_params):
                     print(f"⚠️  Missing schemas check: {missing['error']}")
                 else:
                     missing_count = missing.get("missing_count", 0)
-                    print(
-                        f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod"
-                    )
+                    print(f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod")
 
             # Test migration (dry run)
             result = await session.call_tool(
@@ -469,18 +441,12 @@ async def test_per_registry_readonly():
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_per_registry_readonly_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_per_registry_readonly_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Per-registry readonly test timed out after 30 seconds")
     except Exception as e:
@@ -512,13 +478,9 @@ async def _test_per_registry_readonly_with_client(server_params):
                 response = json.loads(result.content[0].text)
                 if "error" in response:
                     if "Connection refused" in response["error"]:
-                        print(
-                            "⚠️  Development schema registration skipped (connection issue)"
-                        )
+                        print("⚠️  Development schema registration skipped (connection issue)")
                     else:
-                        print(
-                            f"⚠️  Development schema registration: {response['error']}"
-                        )
+                        print(f"⚠️  Development schema registration: {response['error']}")
                 else:
                     print("✅ Development schema registration successful")
 
@@ -544,9 +506,7 @@ async def _test_per_registry_readonly_with_client(server_params):
             if result.content and len(result.content) > 0:
                 subjects = json.loads(result.content[0].text)
                 if isinstance(subjects, list):
-                    print(
-                        f"✅ Production read operations working: {len(subjects)} subjects"
-                    )
+                    print(f"✅ Production read operations working: {len(subjects)} subjects")
                 else:
                     print(f"⚠️  Production read operations: {subjects}")
 
@@ -610,16 +570,12 @@ async def test_numbered_integration():
 
                 # Test registry-specific operations if multi-registry
                 if "SCHEMA_REGISTRY_URL_1" in config["env"]:
-                    registry_tools = [
-                        tool for tool in tool_names if "_1" in tool or "_2" in tool
-                    ]
+                    registry_tools = [tool for tool in tool_names if "_1" in tool or "_2" in tool]
                     print(f"🏢 Multi-registry tools found: {len(registry_tools)}")
 
                     # Test a registry-specific tool if available
                     registry_list_tools = [
-                        tool
-                        for tool in tool_names
-                        if "list_subjects" in tool and ("_1" in tool or "_2" in tool)
+                        tool for tool in tool_names if "list_subjects" in tool and ("_1" in tool or "_2" in tool)
                     ]
                     if registry_list_tools:
                         try:
@@ -647,9 +603,7 @@ async def main():
     """Run all integration tests."""
     print("🚀 Starting Kafka Schema Registry MCP Integration Tests")
     print("📋 Testing numbered environment variable configuration with real operations")
-    print(
-        "🐳 Using docker-compose Schema Registry with contexts to simulate multiple registries"
-    )
+    print("🐳 Using docker-compose Schema Registry with contexts to simulate multiple registries")
     print()
 
     try:

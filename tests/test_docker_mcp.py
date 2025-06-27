@@ -85,23 +85,17 @@ async def test_docker_mcp_server():
             logs = logs_result.stdout
             error_logs = logs_result.stderr
 
-            if logs and (
-                "MCP server test mode" in logs or "kafka_schema_registry_mcp" in logs
-            ):
+            if logs and ("MCP server test mode" in logs or "kafka_schema_registry_mcp" in logs):
                 print("✅ Container successfully imported MCP module")
                 print(f"   Container output: {logs.strip()}")
             elif logs:
                 print("✅ Container produced output (logs available)")
-                print(
-                    f"   Output: {logs.strip()[:200]}{'...' if len(logs.strip()) > 200 else ''}"
-                )
+                print(f"   Output: {logs.strip()[:200]}{'...' if len(logs.strip()) > 200 else ''}")
             else:
                 print("ℹ️  Container is running but no output logs yet")
 
             if error_logs:
-                print(
-                    f"   Error logs: {error_logs.strip()[:200]}{'...' if len(error_logs.strip()) > 200 else ''}"
-                )
+                print(f"   Error logs: {error_logs.strip()[:200]}{'...' if len(error_logs.strip()) > 200 else ''}")
         else:
             print(f"⚠️ Could not get container logs: {logs_result.stderr}")
 
@@ -115,9 +109,7 @@ async def test_docker_mcp_server():
             "-c",
             "print('Container is responsive')",
         ]
-        health_result = subprocess.run(
-            health_cmd, capture_output=True, text=True, timeout=10
-        )
+        health_result = subprocess.run(health_cmd, capture_output=True, text=True, timeout=10)
 
         if health_result.returncode == 0:
             print("✅ Container is healthy and responsive")
@@ -127,9 +119,7 @@ async def test_docker_mcp_server():
             print(f"⚠️ Container health check failed: {health_result.stderr}")
             # Try a simpler test
             simple_health_cmd = ["docker", "exec", container_name, "echo", "alive"]
-            simple_result = subprocess.run(
-                simple_health_cmd, capture_output=True, text=True, timeout=5
-            )
+            simple_result = subprocess.run(simple_health_cmd, capture_output=True, text=True, timeout=5)
             if simple_result.returncode == 0:
                 print("✅ Container basic responsiveness confirmed")
 
@@ -151,9 +141,7 @@ async def test_docker_mcp_server():
             if stop_result.returncode == 0:
                 print("✅ Container stopped")
             else:
-                print(
-                    f"⚠️ Container stop: {stop_result.stderr.decode() if stop_result.stderr else 'unknown error'}"
-                )
+                print(f"⚠️ Container stop: {stop_result.stderr.decode() if stop_result.stderr else 'unknown error'}")
 
             # Remove container
             rm_cmd = ["docker", "rm", container_name]
@@ -162,9 +150,7 @@ async def test_docker_mcp_server():
             if rm_result.returncode == 0:
                 print("✅ Container removed")
             else:
-                print(
-                    f"⚠️ Container removal: {rm_result.stderr.decode() if rm_result.stderr else 'unknown error'}"
-                )
+                print(f"⚠️ Container removal: {rm_result.stderr.decode() if rm_result.stderr else 'unknown error'}")
 
             print("✅ Cleanup completed")
         except subprocess.TimeoutExpired:

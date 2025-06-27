@@ -49,56 +49,56 @@ Features:
 import json
 import logging
 import os
-
-from dotenv import load_dotenv
+import urllib.error
 
 # Prevent network requests to JSON Schema meta-schema URLs
 import urllib.request
-import urllib.error
-from urllib.parse import urlparse
+
+from dotenv import load_dotenv
 
 # Store original urllib opener
 _original_opener = urllib.request.build_opener()
 
+
 class LocalSchemaHandler(urllib.request.BaseHandler):
     """Custom handler to serve JSON Schema meta-schemas locally."""
-    
+
     def http_open(self, req):
         return self.handle_schema_request(req)
-        
+
     def https_open(self, req):
         return self.handle_schema_request(req)
-    
+
     def handle_schema_request(self, req):
         url = req.get_full_url()
-        
+
         # Check if this is a request to json-schema.org
-        if 'json-schema.org' in url and 'draft-07' in url:
+        if "json-schema.org" in url and "draft-07" in url:
             # Return a minimal valid schema response
-            schema_content = json.dumps({
-                "$schema": "http://json-schema.org/draft-07/schema#",
-                "$id": "http://json-schema.org/draft-07/schema#",
-                "title": "Core schema meta-schema",
-                "type": "object",
-                "additionalProperties": True,
-                "properties": {},
-                "definitions": {}
-            }).encode('utf-8')
-            
+            schema_content = json.dumps(
+                {
+                    "$schema": "http://json-schema.org/draft-07/schema#",
+                    "$id": "http://json-schema.org/draft-07/schema#",
+                    "title": "Core schema meta-schema",
+                    "type": "object",
+                    "additionalProperties": True,
+                    "properties": {},
+                    "definitions": {},
+                }
+            ).encode("utf-8")
+
             # Create a mock response
-            from io import BytesIO
             import urllib.response
-            
+            from io import BytesIO
+
             response = urllib.response.addinfourl(
-                BytesIO(schema_content),
-                headers={'Content-Type': 'application/json'},
-                url=url,
-                code=200
+                BytesIO(schema_content), headers={"Content-Type": "application/json"}, url=url, code=200
             )
             return response
-        
+
         # For non-schema URLs, use the original opener
         return _original_opener.open(req)
+
 
 # Install the custom handler
 custom_opener = urllib.request.build_opener(LocalSchemaHandler)
@@ -109,56 +109,58 @@ try:
     import requests
     from requests.adapters import HTTPAdapter
     from requests.models import Response
-    
+
     class LocalSchemaAdapter(HTTPAdapter):
         """Custom adapter to serve JSON Schema meta-schemas locally."""
-        
+
         def send(self, request, **kwargs):
             url = request.url
-            
+
             # Check if this is a request to json-schema.org for draft-07 schema
-            if 'json-schema.org' in url and 'draft-07' in url:
+            if "json-schema.org" in url and "draft-07" in url:
                 # Create a mock response
                 response = Response()
                 response.status_code = 200
-                response.headers['Content-Type'] = 'application/json'
-                response._content = json.dumps({
-                    "$schema": "http://json-schema.org/draft-07/schema#",
-                    "$id": "http://json-schema.org/draft-07/schema#",
-                    "title": "Core schema meta-schema",
-                    "type": "object",
-                    "additionalProperties": True,
-                    "properties": {},
-                    "definitions": {}
-                }).encode('utf-8')
+                response.headers["Content-Type"] = "application/json"
+                response._content = json.dumps(
+                    {
+                        "$schema": "http://json-schema.org/draft-07/schema#",
+                        "$id": "http://json-schema.org/draft-07/schema#",
+                        "title": "Core schema meta-schema",
+                        "type": "object",
+                        "additionalProperties": True,
+                        "properties": {},
+                        "definitions": {},
+                    }
+                ).encode("utf-8")
                 response.url = url
                 return response
-            
+
             # For non-schema URLs, use normal behavior
             return super().send(request, **kwargs)
-    
+
     # Create a global session with the custom adapter
     session = requests.Session()
-    session.mount('http://json-schema.org', LocalSchemaAdapter())
-    session.mount('https://json-schema.org', LocalSchemaAdapter())
-    
+    session.mount("http://json-schema.org", LocalSchemaAdapter())
+    session.mount("https://json-schema.org", LocalSchemaAdapter())
+
     # Monkey-patch the requests.get function to use our session
     original_get = requests.get
     original_post = requests.post
-    
+
     def patched_get(url, **kwargs):
-        if 'json-schema.org' in url:
+        if "json-schema.org" in url:
             return session.get(url, **kwargs)
         return original_get(url, **kwargs)
-    
+
     def patched_post(url, **kwargs):
-        if 'json-schema.org' in url:
+        if "json-schema.org" in url:
             return session.post(url, **kwargs)
         return original_post(url, **kwargs)
-    
+
     requests.get = patched_get
     requests.post = patched_post
-    
+
 except ImportError:
     pass  # requests not available
 
@@ -306,9 +308,7 @@ try:
         mcp.add_middleware(validate_mcp_protocol_version_middleware)
         MIDDLEWARE_ENABLED = True
         logger = logging.getLogger(__name__)
-        logger.info(
-            "✅ MCP-Protocol-Version header validation middleware enabled (alternative method)"
-        )
+        logger.info("✅ MCP-Protocol-Version header validation middleware enabled (alternative method)")
     else:
         logger = logging.getLogger(__name__)
         logger.info(
@@ -317,14 +317,10 @@ try:
 except Exception as e:
     # If middleware fails to install, log warning but continue
     logger = logging.getLogger(__name__)
-    logger.info(
-        f"ℹ️ MCP header validation middleware not installed: {e} (normal for MCP clients and testing)"
-    )
+    logger.info(f"ℹ️ MCP header validation middleware not installed: {e} (normal for MCP clients and testing)")
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 from batch_operations import (  # noqa: E402
@@ -375,21 +371,11 @@ from export_tools import (  # noqa: E402
 )
 
 # Import interactive tools
-from interactive_tools import (  # noqa: E402
-    check_compatibility_interactive as check_compatibility_interactive_impl,
-)
-from interactive_tools import (
-    create_context_interactive as create_context_interactive_impl,
-)
-from interactive_tools import (
-    export_global_interactive as export_global_interactive_impl,
-)
-from interactive_tools import (
-    migrate_context_interactive as migrate_context_interactive_impl,
-)
-from interactive_tools import (
-    register_schema_interactive as register_schema_interactive_impl,
-)
+from interactive_tools import check_compatibility_interactive as check_compatibility_interactive_impl  # noqa: E402
+from interactive_tools import create_context_interactive as create_context_interactive_impl
+from interactive_tools import export_global_interactive as export_global_interactive_impl
+from interactive_tools import migrate_context_interactive as migrate_context_interactive_impl
+from interactive_tools import register_schema_interactive as register_schema_interactive_impl
 
 # Import prompts from external module
 from mcp_prompts import PROMPT_REGISTRY  # noqa: E402
@@ -417,9 +403,7 @@ from schema_registry_common import (  # noqa: E402
     LegacyRegistryManager,
     MultiRegistryManager,
 )
-from schema_registry_common import (  # noqa: E402
-    check_readonly_mode as _check_readonly_mode,
-)
+from schema_registry_common import check_readonly_mode as _check_readonly_mode  # noqa: E402
 
 # Import schema validation utilities for structured output
 from schema_validation import (  # noqa: E402
@@ -497,9 +481,7 @@ if REGISTRY_MODE == "single":
         from requests.auth import HTTPBasicAuth
 
         auth = HTTPBasicAuth(SCHEMA_REGISTRY_USER, SCHEMA_REGISTRY_PASSWORD)
-        credentials = base64.b64encode(
-            f"{SCHEMA_REGISTRY_USER}:{SCHEMA_REGISTRY_PASSWORD}".encode()
-        ).decode()
+        credentials = base64.b64encode(f"{SCHEMA_REGISTRY_USER}:{SCHEMA_REGISTRY_PASSWORD}".encode()).decode()
         headers["Authorization"] = f"Basic {credentials}"
         standard_headers["Authorization"] = f"Basic {credentials}"
 else:
@@ -526,9 +508,7 @@ try:
         update_elicitation_implementation()
         logger.info("✅ Enhanced elicitation implementation activated")
     else:
-        logger.warning(
-            "⚠️ Failed to register elicitation handlers, using fallback implementation"
-        )
+        logger.warning("⚠️ Failed to register elicitation handlers, using fallback implementation")
 except Exception as e:
     logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
     logger.info("📝 Falling back to mock elicitation implementation")
@@ -607,13 +587,9 @@ async def compare_contexts_across_registries(
 
 @mcp.tool()
 @require_scopes("read")
-async def find_missing_schemas(
-    source_registry: str, target_registry: str, context: str = None
-):
+async def find_missing_schemas(source_registry: str, target_registry: str, context: str = None):
     """Find schemas that exist in source registry but not in target registry."""
-    return await find_missing_schemas_tool(
-        source_registry, target_registry, registry_manager, REGISTRY_MODE, context
-    )
+    return await find_missing_schemas_tool(source_registry, target_registry, registry_manager, REGISTRY_MODE, context)
 
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
@@ -675,9 +651,7 @@ async def register_schema_interactive(
 
 @mcp.tool()
 @require_scopes("read")
-def get_schema(
-    subject: str, version: str = "latest", context: str = None, registry: str = None
-):
+def get_schema(subject: str, version: str = "latest", context: str = None, registry: str = None):
     """Get a specific version of a schema."""
     return get_schema_tool(
         subject,
@@ -829,9 +803,7 @@ def get_subject_config(subject: str, context: str = None, registry: str = None):
 
 @mcp.tool()
 @require_scopes("write")
-def update_subject_config(
-    subject: str, compatibility: str, context: str = None, registry: str = None
-):
+def update_subject_config(subject: str, compatibility: str, context: str = None, registry: str = None):
     """Update configuration settings for a specific subject."""
     return update_subject_config_tool(
         subject,
@@ -898,9 +870,7 @@ def get_subject_mode(subject: str, context: str = None, registry: str = None):
 
 @mcp.tool()
 @require_scopes("write")
-def update_subject_mode(
-    subject: str, mode: str, context: str = None, registry: str = None
-):
+def update_subject_mode(subject: str, mode: str, context: str = None, registry: str = None):
     """Update the mode for a specific subject."""
     return update_subject_mode_tool(
         subject,
@@ -922,9 +892,7 @@ def update_subject_mode(
 @require_scopes("read")
 def list_contexts(registry: str = None):
     """List all available schema contexts."""
-    return list_contexts_tool(
-        registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL
-    )
+    return list_contexts_tool(registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL)
 
 
 @mcp.tool()
@@ -991,9 +959,7 @@ def delete_context(context: str, registry: str = None):
 
 @mcp.tool()
 @require_scopes("admin")
-async def delete_subject(
-    subject: str, context: str = None, registry: str = None, permanent: bool = False
-):
+async def delete_subject(subject: str, context: str = None, registry: str = None, permanent: bool = False):
     """Delete a subject and all its versions.
 
     Args:
@@ -1028,9 +994,7 @@ def export_schema(
     registry: str = None,
 ):
     """Export a single schema in the specified format."""
-    return export_schema_tool(
-        subject, registry_manager, REGISTRY_MODE, version, context, format, registry
-    )
+    return export_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, format, registry)
 
 
 @mcp.tool()
@@ -1291,9 +1255,7 @@ def count_schemas(context: str = None, registry: str = None):
     # Use task queue version for better performance when counting across multiple contexts
     if context is None:
         # Multiple contexts - use optimized async version
-        return count_schemas_task_queue_tool(
-            registry_manager, REGISTRY_MODE, context, registry
-        )
+        return count_schemas_task_queue_tool(registry_manager, REGISTRY_MODE, context, registry)
     else:
         # Single context - use direct version
         return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
@@ -1303,9 +1265,7 @@ def count_schemas(context: str = None, registry: str = None):
 @require_scopes("read")
 def count_schema_versions(subject: str, context: str = None, registry: str = None):
     """Count the number of versions for a specific schema."""
-    return count_schema_versions_tool(
-        subject, registry_manager, REGISTRY_MODE, context, registry
-    )
+    return count_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry)
 
 
 @mcp.tool()
@@ -1313,9 +1273,7 @@ def count_schema_versions(subject: str, context: str = None, registry: str = Non
 def get_registry_statistics(registry: str = None, include_context_details: bool = True):
     """Get comprehensive statistics about a registry."""
     # Always use task queue version for better performance due to complexity
-    return get_registry_statistics_task_queue_tool(
-        registry_manager, REGISTRY_MODE, registry, include_context_details
-    )
+    return get_registry_statistics_task_queue_tool(registry_manager, REGISTRY_MODE, registry, include_context_details)
 
 
 # ===== ELICITATION MANAGEMENT TOOLS =====
@@ -1359,11 +1317,7 @@ def get_elicitation_request(request_id: str):
         return {
             "request": request.to_dict(),
             "response": response.to_dict() if response else None,
-            "status": (
-                "completed"
-                if response
-                else ("expired" if request.is_expired() else "pending")
-            ),
+            "status": ("completed" if response else ("expired" if request.is_expired() else "pending")),
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
     except Exception as e:
@@ -1418,9 +1372,7 @@ def get_elicitation_status():
                     "type": req.type.value,
                     "priority": req.priority.value,
                     "created_at": req.created_at.isoformat(),
-                    "expires_at": (
-                        req.expires_at.isoformat() if req.expires_at else None
-                    ),
+                    "expires_at": (req.expires_at.isoformat() if req.expires_at else None),
                     "expired": req.is_expired(),
                 }
                 for req in pending_requests
@@ -1469,9 +1421,7 @@ def get_task_status_tool(task_id: str):
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="TASK_STATUS_FAILED", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="TASK_STATUS_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("get_task_progress", fallback_on_error=True)
@@ -1508,9 +1458,7 @@ def list_active_tasks_tool():
         for task in tasks:
             task_dict = task.to_dict()
             transformed_task = {
-                "task_id": task_dict[
-                    "id"
-                ],  # Map "id" to "task_id" as expected by schema
+                "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
                 "status": task_dict["status"],
                 "progress": task_dict["progress"],
                 "started_at": task_dict["started_at"],
@@ -1524,18 +1472,14 @@ def list_active_tasks_tool():
         result = {
             "tasks": transformed_tasks,  # Use "tasks" field name to match schema
             "total_tasks": len(tasks),
-            "active_tasks": len(
-                [t for t in tasks if t.status.value in ["pending", "running"]]
-            ),
+            "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
             "registry_mode": REGISTRY_MODE,
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="TASK_LIST_FAILED", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="TASK_LIST_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("cancel_task", fallback_on_error=True)
@@ -1556,9 +1500,7 @@ async def cancel_task_tool(task_id: str):
                 registry_mode=REGISTRY_MODE,
             )
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="TASK_CANCEL_ERROR", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="TASK_CANCEL_ERROR", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("list_statistics_tasks", fallback_on_error=True)
@@ -1574,9 +1516,7 @@ def list_statistics_tasks_tool():
         for task in tasks:
             task_dict = task.to_dict()
             transformed_task = {
-                "task_id": task_dict[
-                    "id"
-                ],  # Map "id" to "task_id" as expected by schema
+                "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
                 "status": task_dict["status"],
                 "progress": task_dict["progress"],
                 "started_at": task_dict["started_at"],
@@ -1590,9 +1530,7 @@ def list_statistics_tasks_tool():
         result = {
             "tasks": transformed_tasks,  # Use "tasks" field name to match schema
             "total_tasks": len(tasks),
-            "active_tasks": len(
-                [t for t in tasks if t.status.value in ["pending", "running"]]
-            ),
+            "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
             "registry_mode": REGISTRY_MODE,
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
@@ -1955,9 +1893,7 @@ def get_default_registry_tool():
             return {
                 "default_registry": default,
                 "registry_mode": "single",
-                "info": (
-                    registry_manager.get_registry_info(default) if default else None
-                ),
+                "info": (registry_manager.get_registry_info(default) if default else None),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             }
         else:
@@ -2021,9 +1957,7 @@ def check_readonly_mode_tool(registry: str = None):
         }
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="READONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="READONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("get_oauth_scopes_info_tool", fallback_on_error=True)
@@ -2047,9 +1981,7 @@ def get_oauth_scopes_info_tool_wrapper():
             }
 
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="OAUTH_SCOPES_INFO_FAILED", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="OAUTH_SCOPES_INFO_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("get_operation_info_tool", fallback_on_error=True)
@@ -2083,9 +2015,7 @@ def get_operation_info_tool_wrapper(operation_name: str = None):
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             }
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="OPERATION_INFO_FAILED", registry_mode=REGISTRY_MODE
-        )
+        return create_error_response(str(e), error_code="OPERATION_INFO_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @mcp.tool()
@@ -2162,17 +2092,14 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
             endpoint_result = {
                 "url": endpoint_url,
                 "status_code": response.status_code,
-                "success": response.status_code
-                in [200, 404],  # 404 is OK if OAuth disabled
+                "success": response.status_code in [200, 404],  # 404 is OK if OAuth disabled
                 "headers": dict(response.headers),
                 "response_time_ms": response.elapsed.total_seconds() * 1000,
             }
 
             # Check for MCP-Protocol-Version header in response
             if "MCP-Protocol-Version" in response.headers:
-                endpoint_result["mcp_protocol_version_header"] = response.headers[
-                    "MCP-Protocol-Version"
-                ]
+                endpoint_result["mcp_protocol_version_header"] = response.headers["MCP-Protocol-Version"]
             else:
                 endpoint_result["mcp_protocol_version_header"] = "Missing"
 
@@ -2182,77 +2109,49 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
                 endpoint_result["data"] = response_data
 
                 # Validate expected fields based on endpoint
-                if (
-                    endpoint_name == "oauth_authorization_server"
-                    and response.status_code == 200
-                ):
+                if endpoint_name == "oauth_authorization_server" and response.status_code == 200:
                     required_fields = [
                         "issuer",
                         "scopes_supported",
                         "mcp_server_version",
                     ]
-                    missing_fields = [
-                        f for f in required_fields if f not in response_data
-                    ]
+                    missing_fields = [f for f in required_fields if f not in response_data]
                     if missing_fields:
-                        endpoint_result["warnings"] = (
-                            f"Missing recommended fields: {missing_fields}"
-                        )
+                        endpoint_result["warnings"] = f"Missing recommended fields: {missing_fields}"
 
                     # Check MCP-specific extensions
                     if "mcp_endpoints" not in response_data:
-                        endpoint_result["warnings"] = (
-                            endpoint_result.get("warnings", "")
-                            + " Missing MCP endpoints"
-                        )
+                        endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP endpoints"
 
-                elif (
-                    endpoint_name == "oauth_protected_resource"
-                    and response.status_code == 200
-                ):
+                elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
                     required_fields = [
                         "resource",
                         "authorization_servers",
                         "scopes_supported",
                     ]
-                    missing_fields = [
-                        f for f in required_fields if f not in response_data
-                    ]
+                    missing_fields = [f for f in required_fields if f not in response_data]
                     if missing_fields:
-                        endpoint_result["warnings"] = (
-                            f"Missing required fields: {missing_fields}"
-                        )
+                        endpoint_result["warnings"] = f"Missing required fields: {missing_fields}"
 
                     # Check MCP-specific fields
                     if "mcp_server_info" not in response_data:
-                        endpoint_result["warnings"] = (
-                            endpoint_result.get("warnings", "")
-                            + " Missing MCP server info"
-                        )
+                        endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP server info"
 
                 elif endpoint_name == "jwks" and response.status_code == 200:
                     if "keys" not in response_data:
-                        endpoint_result["warnings"] = (
-                            "Missing 'keys' field in JWKS response"
-                        )
+                        endpoint_result["warnings"] = "Missing 'keys' field in JWKS response"
 
             except json.JSONDecodeError:
-                endpoint_result["data"] = response.text[
-                    :500
-                ]  # First 500 chars if not JSON
+                endpoint_result["data"] = response.text[:500]  # First 500 chars if not JSON
                 endpoint_result["warnings"] = "Response is not valid JSON"
 
             # Additional validations
             if response.status_code == 404 and not results["oauth_enabled"]:
                 endpoint_result["note"] = "404 expected when OAuth is disabled"
             elif response.status_code == 200 and not results["oauth_enabled"]:
-                endpoint_result["warnings"] = (
-                    "Endpoint returns 200 but OAuth appears disabled"
-                )
+                endpoint_result["warnings"] = "Endpoint returns 200 but OAuth appears disabled"
             elif response.status_code != 200 and results["oauth_enabled"]:
-                endpoint_result["warnings"] = (
-                    f"Expected 200 status when OAuth enabled, got {response.status_code}"
-                )
+                endpoint_result["warnings"] = f"Expected 200 status when OAuth enabled, got {response.status_code}"
 
         except requests.exceptions.RequestException as e:
             endpoint_result = {
@@ -2265,17 +2164,14 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
         results["endpoints"][endpoint_name] = endpoint_result
 
     # Overall assessment
-    successful_endpoints = sum(
-        1 for ep in results["endpoints"].values() if ep.get("success", False)
-    )
+    successful_endpoints = sum(1 for ep in results["endpoints"].values() if ep.get("success", False))
     total_endpoints = len(endpoints)
 
     results["summary"] = {
         "successful_endpoints": successful_endpoints,
         "total_endpoints": total_endpoints,
         "success_rate": f"{(successful_endpoints/total_endpoints)*100:.1f}%",
-        "oauth_discovery_ready": successful_endpoints == total_endpoints
-        and results["oauth_enabled"],
+        "oauth_discovery_ready": successful_endpoints == total_endpoints and results["oauth_enabled"],
         "mcp_header_validation": "Enabled",
         "recommendations": [],
     }
@@ -2288,9 +2184,7 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
 
     for endpoint_name, endpoint_result in results["endpoints"].items():
         if endpoint_result.get("warnings"):
-            results["summary"]["recommendations"].append(
-                f"{endpoint_name}: {endpoint_result['warnings']}"
-            )
+            results["summary"]["recommendations"].append(f"{endpoint_name}: {endpoint_result['warnings']}")
 
     if results["oauth_enabled"] and successful_endpoints == total_endpoints:
         results["summary"]["recommendations"].append(
@@ -2299,18 +2193,14 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
 
     # Check MCP-Protocol-Version header presence
     headers_present = sum(
-        1
-        for ep in results["endpoints"].values()
-        if ep.get("mcp_protocol_version_header") == MCP_PROTOCOL_VERSION
+        1 for ep in results["endpoints"].values() if ep.get("mcp_protocol_version_header") == MCP_PROTOCOL_VERSION
     )
     if headers_present == total_endpoints:
         results["summary"]["recommendations"].append(
             f"✅ MCP-Protocol-Version header correctly added to all responses ({MCP_PROTOCOL_VERSION})"
         )
     else:
-        results["summary"]["recommendations"].append(
-            "⚠️ MCP-Protocol-Version header missing from some responses"
-        )
+        results["summary"]["recommendations"].append("⚠️ MCP-Protocol-Version header missing from some responses")
 
     return results
 
@@ -2334,9 +2224,7 @@ def get_registry_status():
             return "❌ No Schema Registry configured"
 
         status_lines = [f"🔧 Registry Mode: {REGISTRY_MODE.upper()}"]
-        status_lines.append(
-            "🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)"
-        )
+        status_lines.append("🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 compliance)")
 
         # Check if header validation is active
         header_validation_status = "ENABLED"
@@ -2352,9 +2240,7 @@ def get_registry_status():
             f"✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})"
         )
         status_lines.append("🎯 Structured Tool Output: 100% Complete (All tools)")
-        status_lines.append(
-            "🎭 Elicitation Capability: ENABLED (Interactive Workflows)"
-        )
+        status_lines.append("🎭 Elicitation Capability: ENABLED (Interactive Workflows)")
 
         for name in registries:
             client = registry_manager.get_registry(name)
@@ -2363,9 +2249,7 @@ def get_registry_status():
                 if test_result["status"] == "connected":
                     status_lines.append(f"✅ {name}: Connected to {client.config.url}")
                 else:
-                    status_lines.append(
-                        f"❌ {name}: {test_result.get('error', 'Connection failed')}"
-                    )
+                    status_lines.append(f"❌ {name}: {test_result.get('error', 'Connection failed')}")
 
         return "\n".join(status_lines)
     except Exception as e:
@@ -2397,9 +2281,7 @@ def get_registry_info_resource():
             "registries": registries_info,
             "total_registries": len(registries_info),
             "default_registry": (
-                registry_manager.get_default_registry()
-                if hasattr(registry_manager, "get_default_registry")
-                else None
+                registry_manager.get_default_registry() if hasattr(registry_manager, "get_default_registry") else None
             ),
             "readonly_mode": READONLY if REGISTRY_MODE == "single" else False,
             "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation",
@@ -2435,11 +2317,7 @@ def get_registry_info_resource():
             "features": [
                 f"Unified {REGISTRY_MODE.title()} Registry Support",
                 "Auto-Mode Detection",
-                (
-                    "Cross-Registry Comparison"
-                    if REGISTRY_MODE == "multi"
-                    else "Single Registry Operations"
-                ),
+                ("Cross-Registry Comparison" if REGISTRY_MODE == "multi" else "Single Registry Operations"),
                 "Schema Migration",
                 "Context Management",
                 "Schema Export (JSON, Avro IDL)",
@@ -2676,25 +2554,15 @@ if __name__ == "__main__":
     )
 
     # Log startup information
-    logger.info(
-        f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation)"
-    )
-    logger.info(
-        f"Detected {len(registry_manager.list_registries())} registry configurations"
-    )
+    logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation)")
+    logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
     logger.info(
         f"✅ MCP-Protocol-Version header validation {header_validation_status.lower()} ({MCP_PROTOCOL_VERSION})"
     )
     logger.info(f"🚫 Exempt paths from header validation: {EXEMPT_PATHS}")
-    logger.info(
-        "🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance"
-    )
-    logger.info(
-        "💼 Application-level batch operations ENABLED with individual requests"
-    )
-    logger.info(
-        "🎯 Structured tool output: 100% Complete - All tools have JSON Schema validation"
-    )
+    logger.info("🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance")
+    logger.info("💼 Application-level batch operations ENABLED with individual requests")
+    logger.info("🎯 Structured tool output: 100% Complete - All tools have JSON Schema validation")
     logger.info(
         (
             f"🎭 Elicitation capability: "
@@ -2702,9 +2570,7 @@ if __name__ == "__main__":
             f"Interactive workflows per MCP 2025-06-18"
         )
     )
-    logger.info(
-        "🔗 Real MCP elicitation protocol integrated with intelligent fallback to mock"
-    )
+    logger.info("🔗 Real MCP elicitation protocol integrated with intelligent fallback to mock")
     logger.info(
         (
             "Available prompts: schema-getting-started, schema-registration, "

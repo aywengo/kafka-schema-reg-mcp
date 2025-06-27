@@ -47,9 +47,7 @@ class TestElicitationEdgeCases:
         """Test handling multiple concurrent elicitation requests."""
         requests = []
         for i in range(10):
-            request = ElicitationRequest(
-                title=f"Concurrent Request {i}", timeout_seconds=30
-            )
+            request = ElicitationRequest(title=f"Concurrent Request {i}", timeout_seconds=30)
             requests.append(request)
             await manager.create_request(request)
 
@@ -76,9 +74,7 @@ class TestElicitationEdgeCases:
 
         # Create many short-lived requests
         for i in range(100):
-            request = ElicitationRequest(
-                title=f"Load Test {i}", timeout_seconds=0.01  # Very short timeout
-            )
+            request = ElicitationRequest(title=f"Load Test {i}", timeout_seconds=0.01)  # Very short timeout
             await manager.create_request(request)
 
         # Wait for all to timeout and cleanup
@@ -110,9 +106,7 @@ class TestElicitationEdgeCases:
             title="Validation Test",
             fields=[
                 ElicitationField("email", "email", required=True),
-                ElicitationField(
-                    "choice", "choice", options=["a", "b", "c"], required=True
-                ),
+                ElicitationField("choice", "choice", options=["a", "b", "c"], required=True),
                 ElicitationField("optional", "text", required=False),
             ],
         )
@@ -191,9 +185,7 @@ class TestElicitationEdgeCases:
     @pytest.mark.asyncio
     async def test_duplicate_response_submission(self, manager):
         """Test submitting multiple responses to same request."""
-        request = ElicitationRequest(
-            title="Duplicate Test", fields=[ElicitationField("test", "text")]
-        )
+        request = ElicitationRequest(title="Duplicate Test", fields=[ElicitationField("test", "text")])
 
         await manager.create_request(request)
 
@@ -204,9 +196,7 @@ class TestElicitationEdgeCases:
         assert success1
 
         # Try to submit second response (should fail)
-        response2 = ElicitationResponse(
-            request_id=request.id, values={"test": "second"}
-        )
+        response2 = ElicitationResponse(request_id=request.id, values={"test": "second"})
 
         success2 = await manager.submit_response(response2)
         assert not success2  # Request already completed
@@ -270,18 +260,14 @@ class TestElicitationEdgeCases:
         manager = ElicitationManager()
 
         async def create_and_respond(index):
-            request = ElicitationRequest(
-                title=f"Concurrent {index}", fields=[ElicitationField("value", "text")]
-            )
+            request = ElicitationRequest(title=f"Concurrent {index}", fields=[ElicitationField("value", "text")])
 
             await manager.create_request(request)
 
             # Small delay to simulate real usage
             await asyncio.sleep(0.01)
 
-            response = ElicitationResponse(
-                request_id=request.id, values={"value": f"response_{index}"}
-            )
+            response = ElicitationResponse(request_id=request.id, values={"value": f"response_{index}"})
 
             return await manager.submit_response(response)
 
@@ -303,9 +289,7 @@ class TestMCPIntegrationEdgeCases:
         mock_mcp = Mock()
 
         # Mock various failure scenarios
-        mock_mcp.get_client_capabilities = Mock(
-            side_effect=Exception("Connection failed")
-        )
+        mock_mcp.get_client_capabilities = Mock(side_effect=Exception("Connection failed"))
         mock_mcp.client_info = None
         mock_mcp.call_method = Mock(side_effect=asyncio.TimeoutError())
 
@@ -373,9 +357,7 @@ class TestMCPIntegrationEdgeCases:
                 response = await enhanced_elicit_with_fallback(request)
 
                 # Should still work due to exception handling
-                assert (
-                    response is None or response.values["test"] == "ultimate_fallback"
-                )
+                assert response is None or response.values["test"] == "ultimate_fallback"
 
 
 class TestInteractiveToolsEdgeCases:
@@ -465,9 +447,7 @@ class TestInteractiveToolsEdgeCases:
                     "text",
                     validation={"pattern": r"^\d+$", "min_length": 1, "max_length": 10},
                 ),
-                ElicitationField(
-                    "enum_value", "choice", options=["value1", "value2", "value3"]
-                ),
+                ElicitationField("enum_value", "choice", options=["value1", "value2", "value3"]),
             ],
         )
 
@@ -495,9 +475,7 @@ class TestPerformanceAndScaling:
         # Create request with many fields
         fields = []
         for i in range(100):
-            fields.append(
-                ElicitationField(f"field_{i}", "text", default=f"default_{i}")
-            )
+            fields.append(ElicitationField(f"field_{i}", "text", default=f"default_{i}"))
 
         request = ElicitationRequest(title="Large Fields Test", fields=fields)
 
@@ -526,9 +504,7 @@ class TestPerformanceAndScaling:
         start_time = time.time()
 
         for i in range(1000):
-            request = ElicitationRequest(
-                title=f"Rapid {i}", timeout_seconds=0.001  # Very short
-            )
+            request = ElicitationRequest(title=f"Rapid {i}", timeout_seconds=0.001)  # Very short
             await manager.create_request(request)
 
         creation_time = time.time() - start_time

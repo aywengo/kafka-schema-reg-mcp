@@ -41,15 +41,11 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
         )
 
         # Check file exists
-        self.assertTrue(
-            os.path.exists(remote_script_path), "remote-mcp-server.py should exist"
-        )
+        self.assertTrue(os.path.exists(remote_script_path), "remote-mcp-server.py should exist")
 
         try:
             # Import the module using importlib
-            spec = importlib.util.spec_from_file_location(
-                "remote_mcp_server", remote_script_path
-            )
+            spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
             remote_mcp_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(remote_mcp_server)
 
@@ -91,9 +87,7 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
 
                 # Test configuration values
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
-                path = os.getenv(
-                    "MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse"
-                )
+                path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
 
                 self.assertEqual(transport, case["expected_transport"])
                 self.assertEqual(path, case["expected_path"])
@@ -156,9 +150,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
 
             # Import and test
             try:
-                spec = importlib.util.spec_from_file_location(
-                    "remote_mcp_server", remote_script_path
-                )
+                spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
                 remote_mcp_server = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_mcp_server)
 
@@ -185,9 +177,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
 
         with patch("kafka_schema_registry_unified_mcp.mcp") as mock_mcp:
             try:
-                spec = importlib.util.spec_from_file_location(
-                    "remote_mcp_server", remote_script_path
-                )
+                spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
                 remote_mcp_server = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_mcp_server)
 
@@ -207,9 +197,7 @@ class TestRemoteMCPDockerIntegration(unittest.TestCase):
 
     def test_dockerfile_includes_remote_script(self):
         """Test that Dockerfile includes remote-mcp-server.py."""
-        dockerfile_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Dockerfile"
-        )
+        dockerfile_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Dockerfile")
 
         self.assertTrue(os.path.exists(dockerfile_path), "Dockerfile should exist")
 
@@ -235,9 +223,7 @@ class TestRemoteMCPDocumentation(unittest.TestCase):
             "remote-mcp-deployment.md",
         )
 
-        self.assertTrue(
-            os.path.exists(docs_path), "Remote MCP deployment guide should exist"
-        )
+        self.assertTrue(os.path.exists(docs_path), "Remote MCP deployment guide should exist")
 
 
 def run_remote_mcp_tests():

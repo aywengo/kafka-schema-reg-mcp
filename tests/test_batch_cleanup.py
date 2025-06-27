@@ -57,13 +57,9 @@ async def test_single_registry_batch_cleanup_helper():
 
         # Get absolute path to server script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        server_script = os.path.join(
-            os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-        )
+        server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-        server_params = StdioServerParameters(
-            command="python", args=[server_script], env=env
-        )
+        server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -199,9 +195,7 @@ async def test_single_registry_batch_cleanup():
 
     try:
         # Run the async helper with timeout protection
-        result = await asyncio.wait_for(
-            test_single_registry_batch_cleanup_helper(), timeout=30.0
-        )
+        result = await asyncio.wait_for(test_single_registry_batch_cleanup_helper(), timeout=30.0)
         return result
 
     except asyncio.TimeoutError:
@@ -243,13 +237,9 @@ async def test_multi_registry_batch_cleanup_helper():
 
         # Get absolute path to server script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        server_script = os.path.join(
-            os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-        )
+        server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-        server_params = StdioServerParameters(
-            command="python", args=[server_script], env=env
-        )
+        server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
         async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as session:
@@ -327,9 +317,7 @@ async def test_multi_registry_batch_cleanup():
             print(f"❌ Failed to create test subject: {response.status_code}")
             return False
 
-        print(
-            f"   ✅ Created {test_subject} in context '{test_context}' (DEV registry)"
-        )
+        print(f"   ✅ Created {test_subject} in context '{test_context}' (DEV registry)")
 
     except Exception as e:
         print(f"❌ Error creating test subject: {e}")
@@ -340,9 +328,7 @@ async def test_multi_registry_batch_cleanup():
 
     try:
         # Run the async helper with timeout protection
-        result = await asyncio.wait_for(
-            test_multi_registry_batch_cleanup_helper(), timeout=30.0
-        )
+        result = await asyncio.wait_for(test_multi_registry_batch_cleanup_helper(), timeout=30.0)
         return result
 
     except asyncio.TimeoutError:
@@ -392,9 +378,7 @@ async def test_batch_cleanup():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Create client
     client = Client(server_script)
@@ -416,9 +400,7 @@ async def test_batch_cleanup():
                 "cleanup_by_pattern",
             ]
 
-            available_cleanup_tools = [
-                tool for tool in cleanup_tools if tool in tool_names
-            ]
+            available_cleanup_tools = [tool for tool in cleanup_tools if tool in tool_names]
             print(f"🧹 Cleanup tools available: {available_cleanup_tools}")
 
             for tool_name in available_cleanup_tools:
@@ -440,10 +422,7 @@ async def test_batch_cleanup():
 
                     # Check if result contains cleanup info
                     result_text = str(result)
-                    if (
-                        "cleanup" in result_text.lower()
-                        or "deleted" in result_text.lower()
-                    ):
+                    if "cleanup" in result_text.lower() or "deleted" in result_text.lower():
                         print("   Result appears to be cleanup-related")
 
                 except Exception as e:

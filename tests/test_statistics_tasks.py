@@ -63,9 +63,7 @@ class TestStatisticsTaskQueue:
         assert task.status == TaskStatus.PENDING
         assert task.metadata["operation"] == "count_schemas"
 
-    def test_count_schemas_task_queue_tool(
-        self, mock_registry_client, mock_registry_manager
-    ):
+    def test_count_schemas_task_queue_tool(self, mock_registry_client, mock_registry_manager):
         """Test count_schemas_task_queue_tool functionality"""
         try:
             from statistics_tools import count_schemas_task_queue_tool
@@ -92,9 +90,7 @@ class TestStatisticsTaskQueue:
         except ImportError:
             pytest.skip("statistics_tools module not available")
 
-    def test_get_registry_statistics_task_queue_tool(
-        self, mock_registry_client, mock_registry_manager
-    ):
+    def test_get_registry_statistics_task_queue_tool(self, mock_registry_client, mock_registry_manager):
         """Test get_registry_statistics_task_queue_tool functionality"""
         try:
             from statistics_tools import get_registry_statistics_task_queue_tool
@@ -110,10 +106,7 @@ class TestStatisticsTaskQueue:
 
             assert "task_id" in result
             assert "message" in result
-            assert (
-                "Registry statistics analysis started as async task"
-                in result["message"]
-            )
+            assert "Registry statistics analysis started as async task" in result["message"]
             assert result["operation_info"]["operation"] == "get_registry_statistics"
             assert result["operation_info"]["expected_duration"] == "long"
             assert result["operation_info"]["async_pattern"] == "task_queue"
@@ -132,9 +125,7 @@ class TestAsyncStatisticsFunctions:
     """Test the async implementations of statistics functions"""
 
     @pytest.mark.asyncio
-    async def test_count_schemas_async_single_context(
-        self, mock_registry_client, mock_registry_manager
-    ):
+    async def test_count_schemas_async_single_context(self, mock_registry_client, mock_registry_manager):
         """Test async count_schemas for a single context"""
         try:
             from statistics_tools import _count_schemas_async
@@ -167,17 +158,13 @@ class TestAsyncStatisticsFunctions:
             subjects = ["subject1", "subject2"]
             mock_registry_client.get_subjects.return_value = subjects
 
-            with patch(
-                "kafka_schema_registry_unified_mcp.get_schema_versions"
-            ) as mock_versions:
+            with patch("kafka_schema_registry_unified_mcp.get_schema_versions") as mock_versions:
                 mock_versions.side_effect = [
                     [1, 2],
                     [1, 2, 3],
                 ]  # 2 and 3 versions respectively
 
-                result = _analyze_context_parallel(
-                    mock_registry_client, "test-context", "test-registry"
-                )
+                result = _analyze_context_parallel(mock_registry_client, "test-context", "test-registry")
 
             assert result["schemas"] == 2
             assert result["versions"] == 5  # 2 + 3
@@ -304,16 +291,10 @@ def test_performance_characteristics():
     print("   • get_registry_statistics: LONG (task queue)")
 
     print("\n📝 Usage pattern:")
-    print(
-        "   result = get_registry_statistics()     # Returns immediately with task_id"
-    )
+    print("   result = get_registry_statistics()     # Returns immediately with task_id")
     print("   task_id = result['task_id']")
-    print(
-        "   get_statistics_task_progress(task_id)  # Monitor progress: 'Analyzing contexts' (45%)"
-    )
-    print(
-        "   get_task_status(task_id)               # Check completion and get results"
-    )
+    print("   get_statistics_task_progress(task_id)  # Monitor progress: 'Analyzing contexts' (45%)")
+    print("   get_task_status(task_id)               # Check completion and get results")
 
 
 def test_statistics_task_workflow():

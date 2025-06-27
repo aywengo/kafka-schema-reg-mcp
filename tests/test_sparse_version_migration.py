@@ -87,18 +87,14 @@ class SparseVersionMigrationTest:
                     for subject in test_subjects:
                         try:
                             # Two-step deletion
-                            requests.delete(
-                                f"{registry_url}/subjects/{subject}", timeout=10
-                            )
+                            requests.delete(f"{registry_url}/subjects/{subject}", timeout=10)
                             requests.delete(
                                 f"{registry_url}/subjects/{subject}?permanent=true",
                                 timeout=10,
                             )
                             print(f"  ✓ Cleaned up {subject} from {registry_name}")
                         except Exception as e:
-                            print(
-                                f"  Warning: Could not clean {subject} from {registry_name}: {e}"
-                            )
+                            print(f"  Warning: Could not clean {subject} from {registry_name}: {e}")
 
                     if not test_subjects:
                         print(f"  ✓ No test subjects to clean in {registry_name}")
@@ -151,9 +147,7 @@ class SparseVersionMigrationTest:
         for i in range(5):
             schema = copy.deepcopy(base_schema)
             # Add a unique field for each version to make them different
-            schema["fields"].append(
-                {"name": f"version_{i+1}_field", "type": "string", "default": f"v{i+1}"}
-            )
+            schema["fields"].append({"name": f"version_{i+1}_field", "type": "string", "default": f"v{i+1}"})
 
             # Register schema using direct tool function call
             result = register_schema_tool(
@@ -166,9 +160,7 @@ class SparseVersionMigrationTest:
             )
 
             if "error" in result:
-                raise Exception(
-                    f"Failed to register schema version {i+1}: {result['error']}"
-                )
+                raise Exception(f"Failed to register schema version {i+1}: {result['error']}")
 
             version_id = result.get("id", i + 1)  # Some versions might return ID
             version_ids.append(version_id)
@@ -238,30 +230,22 @@ class SparseVersionMigrationTest:
         if isinstance(final_versions, dict) and "error" in final_versions:
             raise Exception(f"Error getting final versions: {final_versions['error']}")
 
-        print(
-            f"✓ Final source versions after deletion attempt: {sorted(final_versions)}"
-        )
+        print(f"✓ Final source versions after deletion attempt: {sorted(final_versions)}")
 
         # Check if we successfully created sparse versions
         # If version deletion worked, we should have [3, 4, 5]
         # If not, we'll have [1, 2, 3, 4, 5] and test different migration behavior
         expected_sparse = [3, 4, 5]
         if sorted(final_versions) == expected_sparse:
-            print(
-                f"✓ Successfully created sparse version set: {sorted(final_versions)}"
-            )
+            print(f"✓ Successfully created sparse version set: {sorted(final_versions)}")
             return final_versions
         else:
             print(f"ℹ️  Schema Registry doesn't support individual version deletion")
-            print(
-                f"   Using alternate approach: migrating subset of versions {expected_sparse}"
-            )
+            print(f"   Using alternate approach: migrating subset of versions {expected_sparse}")
             # Return the sparse subset we want to migrate instead
             return expected_sparse
 
-    def verify_sparse_versions_preserved(
-        self, subject: str, expected_versions: list, strict: bool = True
-    ):
+    def verify_sparse_versions_preserved(self, subject: str, expected_versions: list, strict: bool = True):
         """Verify that the target registry has the correct version numbers."""
         target_versions_result = get_schema_versions_tool(
             subject=subject,
@@ -272,9 +256,7 @@ class SparseVersionMigrationTest:
 
         if isinstance(target_versions_result, dict):
             if "error" in target_versions_result:
-                raise Exception(
-                    f"Error getting target versions: {target_versions_result['error']}"
-                )
+                raise Exception(f"Error getting target versions: {target_versions_result['error']}")
             elif "versions" in target_versions_result:
                 target_versions = target_versions_result["versions"]
             else:
@@ -294,9 +276,7 @@ class SparseVersionMigrationTest:
                 f"This indicates that version preservation during migration may have issues."
             )
         elif not strict and len(sorted_target) != len(sorted_expected):
-            raise Exception(
-                f"COUNT MISMATCH: Expected {len(sorted_expected)} versions, got {len(sorted_target)}."
-            )
+            raise Exception(f"COUNT MISMATCH: Expected {len(sorted_expected)} versions, got {len(sorted_target)}.")
 
         if strict:
             print("✓ Versions correctly preserved in target")
@@ -335,7 +315,7 @@ class SparseVersionMigrationTest:
                 print(f"⚠️  ID preservation failed, proceeding without ID preservation")
                 # Import the confirmation tool
                 from migration_tools import confirm_migration_without_ids_tool
-                
+
                 # Retry migration without ID preservation
                 migration_result = confirm_migration_without_ids_tool(
                     subject=subject,
@@ -346,7 +326,7 @@ class SparseVersionMigrationTest:
                     dry_run=False,
                     versions=sparse_versions,
                 )
-                
+
                 if "error" in migration_result:
                     raise Exception(f"Migration failed even without ID preservation: {migration_result['error']}")
                 else:
@@ -356,14 +336,10 @@ class SparseVersionMigrationTest:
 
         # Check for task tracking
         if "migration_id" in migration_result:
-            print(
-                f"✓ Migration started with task ID: {migration_result['migration_id']}"
-            )
+            print(f"✓ Migration started with task ID: {migration_result['migration_id']}")
 
             # Check task status
-            status = get_migration_status_tool(
-                migration_result["migration_id"], mcp_server.REGISTRY_MODE
-            )
+            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
             if status and "error" not in status:
                 print(f"✓ Migration task status: {status.get('status', 'unknown')}")
 
@@ -485,14 +461,10 @@ def cleanup_all_test_subjects():
                         # Soft delete
                         requests.delete(f"{registry_url}/subjects/{subject}")
                         # Permanent delete
-                        requests.delete(
-                            f"{registry_url}/subjects/{subject}?permanent=true"
-                        )
+                        requests.delete(f"{registry_url}/subjects/{subject}?permanent=true")
                         print(f"  ✓ Cleaned up {subject} from {registry_name}")
                     except Exception as e:
-                        print(
-                            f"  Warning: Could not clean {subject} from {registry_name}: {e}"
-                        )
+                        print(f"  Warning: Could not clean {subject} from {registry_name}: {e}")
 
                 if not test_subjects:
                     print(f"  ✓ No test subjects to clean in {registry_name}")

@@ -33,9 +33,7 @@ async def test_readonly_mode():
 
     # Get absolute path to server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Create client with the server script
     client = Client(server_script)
@@ -80,15 +78,10 @@ async def test_readonly_mode():
                 try:
                     result = await client.call_tool(func_name, args)
                     result_text = str(result)
-                    if (
-                        "readonly_mode" in result_text.lower()
-                        or "read-only" in result_text.lower()
-                    ):
+                    if "readonly_mode" in result_text.lower() or "read-only" in result_text.lower():
                         print(f"✅ {func_name}: Correctly blocked in READONLY mode")
                     else:
-                        print(
-                            f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}"
-                        )
+                        print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}")
                 except Exception as e:
                     if "readonly" in str(e).lower():
                         print(f"✅ {func_name}: Correctly blocked by readonly mode")
@@ -110,9 +103,7 @@ async def test_readonly_mode():
                     result = await client.call_tool(func_name, args)
                     result_text = str(result)
                     if "readonly_mode" in result_text.lower():
-                        print(
-                            f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}"
-                        )
+                        print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
                     else:
                         print(f"✅ {func_name}: Correctly allowed in READONLY mode")
                 except Exception as e:
@@ -120,9 +111,7 @@ async def test_readonly_mode():
                     if "readonly" in str(e).lower():
                         print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
                     else:
-                        print(
-                            f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
-                        )
+                        print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
 
             # Test export functions (should also be allowed)
             print("\n🧪 Testing export operations in READONLY mode...")
@@ -139,18 +128,14 @@ async def test_readonly_mode():
                     result = await client.call_tool(func_name, args)
                     result_text = str(result)
                     if "readonly_mode" in result_text.lower():
-                        print(
-                            f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}"
-                        )
+                        print(f"❌ {func_name}: Should NOT be blocked but was! Result: {result_text}")
                     else:
                         print(f"✅ {func_name}: Correctly allowed in READONLY mode")
                 except Exception as e:
                     if "readonly" in str(e).lower():
                         print(f"❌ {func_name}: Incorrectly blocked by readonly mode")
                     else:
-                        print(
-                            f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)"
-                        )
+                        print(f"✅ {func_name}: Not blocked by readonly mode (connection error is OK)")
 
             # Test check_compatibility (should be allowed since it doesn't modify anything)
             print("\n🧪 Testing compatibility check in READONLY mode...")
@@ -169,13 +154,9 @@ async def test_readonly_mode():
                     print("✅ check_compatibility: Correctly allowed in READONLY mode")
             except Exception as e:
                 if "readonly" in str(e).lower():
-                    print(
-                        "❌ check_compatibility: Incorrectly blocked by readonly mode"
-                    )
+                    print("❌ check_compatibility: Incorrectly blocked by readonly mode")
                 else:
-                    print(
-                        "✅ check_compatibility: Not blocked by readonly mode (connection error is OK)"
-                    )
+                    print("✅ check_compatibility: Not blocked by readonly mode (connection error is OK)")
 
     except Exception as e:
         print(f"❌ Error during test: {e}")

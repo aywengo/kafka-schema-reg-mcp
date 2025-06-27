@@ -126,11 +126,7 @@ class PerformanceMetrics:
             "min_time_ms": min(times) * 1000,
             "max_time_ms": max(times) * 1000,
             "median_time_ms": statistics.median(times) * 1000,
-            "p95_time_ms": (
-                statistics.quantiles(times, n=20)[18] * 1000
-                if len(times) > 5
-                else max(times) * 1000
-            ),
+            "p95_time_ms": (statistics.quantiles(times, n=20)[18] * 1000 if len(times) > 5 else max(times) * 1000),
             "total_errors": self.error_counts[operation],
         }
 
@@ -148,9 +144,7 @@ class PerformanceMetrics:
 metrics = PerformanceMetrics()
 
 
-async def timed_operation(
-    client: Client, operation: str, tool_name: str, params: Dict[str, Any]
-) -> bool:
+async def timed_operation(client: Client, operation: str, tool_name: str, params: Dict[str, Any]) -> bool:
     """Execute an operation and record its performance."""
     metrics.start_concurrent_operation()
     start_time = time.time()
@@ -288,9 +282,7 @@ async def test_concurrent_operations():
                 ]
 
                 op_name, params = operations[index % len(operations)]
-                return await timed_operation(
-                    client, f"concurrent_{op_name}", op_name, params
-                )
+                return await timed_operation(client, f"concurrent_{op_name}", op_name, params)
 
             # Run concurrent operations
             tasks = []

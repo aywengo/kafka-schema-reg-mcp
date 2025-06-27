@@ -74,9 +74,7 @@ class MCPContainerClient:
                         return response
             raise ValueError("No valid response found")
         except json.JSONDecodeError as e:
-            raise RuntimeError(
-                f"Failed to parse MCP response: {e}\nOutput: {result.stdout}"
-            )
+            raise RuntimeError(f"Failed to parse MCP response: {e}\nOutput: {result.stdout}")
 
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Call an MCP tool and return the result."""
@@ -195,17 +193,13 @@ class TestMCPContainerIntegration:
         }
 
         # Register schema
-        result = mcp_client.call_tool(
-            "register_schema", {"subject": subject, "schema": json.dumps(schema)}
-        )
+        result = mcp_client.call_tool("register_schema", {"subject": subject, "schema": json.dumps(schema)})
 
         # Should return schema ID
         assert any("id" in str(item) for item in result)
 
         # Retrieve the schema
-        result = mcp_client.call_tool(
-            "get_schema", {"subject": subject, "version": "latest"}
-        )
+        result = mcp_client.call_tool("get_schema", {"subject": subject, "version": "latest"})
 
         # Verify schema content
         assert any("TestRecord" in str(item) for item in result)
@@ -280,9 +274,7 @@ class TestMCPContainerIntegration:
         """Test error handling in containerized MCP server."""
         # Try to get non-existent schema
         with pytest.raises(RuntimeError) as exc_info:
-            mcp_client.call_tool(
-                "get_schema", {"subject": "non-existent-subject", "version": "latest"}
-            )
+            mcp_client.call_tool("get_schema", {"subject": "non-existent-subject", "version": "latest"})
 
         # Should get an error
         assert "error" in str(exc_info.value).lower()
@@ -336,9 +328,7 @@ class TestMCPContainerIntegration:
         subject = f"test-restart-{int(time.time())}"
         schema = {"type": "string"}
 
-        client.call_tool(
-            "register_schema", {"subject": subject, "schema": json.dumps(schema)}
-        )
+        client.call_tool("register_schema", {"subject": subject, "schema": json.dumps(schema)})
 
         # Restart the container
         subprocess.run(["docker", "restart", "mcp-server"], check=True)
@@ -365,9 +355,7 @@ class TestMCPContainerIntegration:
 
         # Create new client and verify we can still access the schema
         new_client = MCPContainerClient()
-        result = new_client.call_tool(
-            "get_schema", {"subject": subject, "version": "latest"}
-        )
+        result = new_client.call_tool("get_schema", {"subject": subject, "version": "latest"})
 
         assert any("string" in str(item) for item in result)
 

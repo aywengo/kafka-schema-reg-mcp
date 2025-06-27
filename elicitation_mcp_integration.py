@@ -76,56 +76,40 @@ async def real_mcp_elicit(request: ElicitationRequest) -> Optional[ElicitationRe
 
             # Method 1: Check if FastMCP has direct elicitation support
             if hasattr(mcp, "send_elicitation_request"):
-                logger.debug(
-                    f"Using FastMCP direct elicitation for request {request_id}"
-                )
+                logger.debug(f"Using FastMCP direct elicitation for request {request_id}")
                 response_data = await mcp.send_elicitation_request(elicitation_data)
 
             # Method 2: Check if FastMCP has notification-based elicitation
             elif hasattr(mcp, "send_notification"):
-                logger.debug(
-                    f"Using FastMCP notification-based elicitation for request {request_id}"
-                )
+                logger.debug(f"Using FastMCP notification-based elicitation for request {request_id}")
                 # Send elicitation request as notification
                 await mcp.send_notification("elicitation/request", elicitation_data)
 
                 # Wait for response through normal request mechanism
-                response_data = await elicitation_manager.wait_for_response(
-                    request_id, timeout=request.timeout_seconds
-                )
+                response_data = await elicitation_manager.wait_for_response(request_id, timeout=request.timeout_seconds)
 
                 if response_data:
                     return response_data
 
             # Method 3: Check if we can use custom protocol extensions
             elif hasattr(mcp, "call_method"):
-                logger.debug(
-                    f"Using FastMCP custom method for elicitation request {request_id}"
-                )
-                response_data = await mcp.call_method(
-                    "elicitation/request", elicitation_data
-                )
+                logger.debug(f"Using FastMCP custom method for elicitation request {request_id}")
+                response_data = await mcp.call_method("elicitation/request", elicitation_data)
 
             # Method 4: Use resource-based elicitation (last resort)
             elif hasattr(mcp, "create_resource"):
-                logger.debug(
-                    f"Using FastMCP resource-based elicitation for request {request_id}"
-                )
+                logger.debug(f"Using FastMCP resource-based elicitation for request {request_id}")
                 resource_uri = f"elicitation://request/{request_id}"
                 await mcp.create_resource(resource_uri, elicitation_data)
 
                 # Wait for response
-                response_data = await elicitation_manager.wait_for_response(
-                    request_id, timeout=request.timeout_seconds
-                )
+                response_data = await elicitation_manager.wait_for_response(request_id, timeout=request.timeout_seconds)
 
                 if response_data:
                     return response_data
 
             else:
-                logger.warning(
-                    "No suitable MCP elicitation method found, using fallback"
-                )
+                logger.warning("No suitable MCP elicitation method found, using fallback")
                 return await mock_elicit(request)
 
             # Process response if we got one
@@ -136,18 +120,14 @@ async def real_mcp_elicit(request: ElicitationRequest) -> Optional[ElicitationRe
                         request_id=request_id,
                         values=response_data.get("values", {}),
                         complete=response_data.get("complete", True),
-                        metadata=response_data.get(
-                            "metadata", {"source": "mcp_client"}
-                        ),
+                        metadata=response_data.get("metadata", {"source": "mcp_client"}),
                     )
                 elif isinstance(response_data, ElicitationResponse):
                     return response_data
 
             # If we reach here, wait for response through the manager
             logger.debug(f"Waiting for response to elicitation request {request_id}")
-            response = await elicitation_manager.wait_for_response(
-                request_id, timeout=request.timeout_seconds
-            )
+            response = await elicitation_manager.wait_for_response(request_id, timeout=request.timeout_seconds)
 
             if response:
                 logger.info(f"Received elicitation response for request {request_id}")
@@ -198,9 +178,7 @@ async def _check_client_elicitation_support(mcp) -> bool:
         # Method 3: Try a ping-style elicitation support check
         if hasattr(mcp, "call_method"):
             try:
-                response = await asyncio.wait_for(
-                    mcp.call_method("elicitation/ping", {}), timeout=1.0
-                )
+                response = await asyncio.wait_for(mcp.call_method("elicitation/ping", {}), timeout=1.0)
                 if response:
                     logger.debug("Client responded to elicitation ping")
                     return True
@@ -218,9 +196,7 @@ async def _check_client_elicitation_support(mcp) -> bool:
             try:
                 major, minor, patch = map(int, version.split("."))
                 if major > 2 or (major == 2 and minor >= 8):
-                    logger.debug(
-                        f"FastMCP version {version} likely supports elicitation"
-                    )
+                    logger.debug(f"FastMCP version {version} likely supports elicitation")
                     return True
             except (ValueError, AttributeError):
                 pass
@@ -235,9 +211,7 @@ async def _check_client_elicitation_support(mcp) -> bool:
         return False
 
 
-async def handle_elicitation_response(
-    request_id: str, response_data: Dict[str, Any]
-) -> bool:
+async def handle_elicitation_response(request_id: str, response_data: Dict[str, Any]) -> bool:
     """
     Handle an elicitation response received from the MCP client.
 
@@ -247,9 +221,7 @@ async def handle_elicitation_response(
     try:
         # Validate response data
         if not isinstance(response_data, dict):
-            logger.error(
-                f"Invalid response data type for request {request_id}: {type(response_data)}"
-            )
+            logger.error(f"Invalid response data type for request {request_id}: {type(response_data)}")
             return False
 
         # Create ElicitationResponse object
@@ -264,20 +236,14 @@ async def handle_elicitation_response(
         success = await elicitation_manager.submit_response(response)
 
         if success:
-            logger.info(
-                f"Successfully processed elicitation response for request {request_id}"
-            )
+            logger.info(f"Successfully processed elicitation response for request {request_id}")
         else:
-            logger.warning(
-                f"Failed to process elicitation response for request {request_id}"
-            )
+            logger.warning(f"Failed to process elicitation response for request {request_id}")
 
         return success
 
     except Exception as e:
-        logger.error(
-            f"Error handling elicitation response for request {request_id}: {str(e)}"
-        )
+        logger.error(f"Error handling elicitation response for request {request_id}: {str(e)}")
         return False
 
 
@@ -312,18 +278,14 @@ def register_elicitation_handlers(mcp):
 
                 @mcp.tool()
                 @require_scopes("write")
-                async def submit_elicitation_response(
-                    request_id: str, response_data: dict
-                ):
+                async def submit_elicitation_response(request_id: str, response_data: dict):
                     """Submit an elicitation response from the client."""
                     return await handle_elicitation_response(request_id, response_data)
 
             except ImportError:
                 # Fallback if oauth_provider is not available
                 @mcp.tool()
-                async def submit_elicitation_response(
-                    request_id: str, response_data: dict
-                ):
+                async def submit_elicitation_response(request_id: str, response_data: dict):
                     """Submit an elicitation response from the client."""
                     return await handle_elicitation_response(request_id, response_data)
 

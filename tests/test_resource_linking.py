@@ -37,9 +37,7 @@ class TestRegistryURI(unittest.TestCase):
     def test_context_uris(self):
         """Test context URI generation."""
         # Test default context
-        self.assertEqual(
-            self.uri_builder.context_uri(), "registry://test-registry/contexts/default"
-        )
+        self.assertEqual(self.uri_builder.context_uri(), "registry://test-registry/contexts/default")
 
         # Test named context
         self.assertEqual(
@@ -129,9 +127,7 @@ class TestResourceLinker(unittest.TestCase):
             "schema": {"type": "record", "name": "User"},
         }
 
-        enhanced = self.linker.add_schema_links(
-            response, "user-events", 3, "production"
-        )
+        enhanced = self.linker.add_schema_links(response, "user-events", 3, "production")
 
         # Check that _links section was added
         self.assertIn("_links", enhanced)
@@ -209,11 +205,7 @@ class TestUtilityFunctions(unittest.TestCase):
         # Valid URIs
         self.assertTrue(validate_registry_uri("registry://test-reg"))
         self.assertTrue(validate_registry_uri("registry://test-reg/contexts/prod"))
-        self.assertTrue(
-            validate_registry_uri(
-                "registry://test-reg/contexts/prod/subjects/user-events/versions/3"
-            )
-        )
+        self.assertTrue(validate_registry_uri("registry://test-reg/contexts/prod/subjects/user-events/versions/3"))
 
         # Invalid URIs
         self.assertFalse(validate_registry_uri("http://example.com"))
@@ -234,9 +226,7 @@ class TestUtilityFunctions(unittest.TestCase):
     def test_parse_registry_uri(self):
         """Test parsing URI components."""
         # Test schema version URI
-        parsed = parse_registry_uri(
-            "registry://test-reg/contexts/production/subjects/user-events/versions/3"
-        )
+        parsed = parse_registry_uri("registry://test-reg/contexts/production/subjects/user-events/versions/3")
 
         expected = {
             "registry": "test-reg",
@@ -248,9 +238,7 @@ class TestUtilityFunctions(unittest.TestCase):
         self.assertEqual(parsed, expected)
 
         # Test subject config URI
-        parsed = parse_registry_uri(
-            "registry://test-reg/contexts/production/subjects/user-events/config"
-        )
+        parsed = parse_registry_uri("registry://test-reg/contexts/production/subjects/user-events/config")
 
         expected = {
             "registry": "test-reg",
@@ -345,9 +333,7 @@ class TestResourceLinkingIntegration(unittest.TestCase):
 
         # Validate URI format
         for link_name, uri in links.items():
-            self.assertTrue(
-                validate_registry_uri(uri), f"Invalid URI for {link_name}: {uri}"
-            )
+            self.assertTrue(validate_registry_uri(uri), f"Invalid URI for {link_name}: {uri}")
 
         # Check that we can parse the URIs back
         parsed_self = parse_registry_uri(links["self"])
@@ -362,9 +348,7 @@ class TestResourceLinkingIntegration(unittest.TestCase):
 
         # Test subjects list
         subjects_response = ["user-events", "order-events"]
-        enhanced_subjects = linker.add_subjects_list_links(
-            subjects_response, "production"
-        )
+        enhanced_subjects = linker.add_subjects_list_links(subjects_response, "production")
 
         self.assertIn("_links", enhanced_subjects)
         self.assertIn("items", enhanced_subjects["_links"])
@@ -378,9 +362,7 @@ class TestResourceLinkingIntegration(unittest.TestCase):
 
         # Test configuration
         config_response = {"compatibility": "BACKWARD"}
-        enhanced_config = linker.add_config_links(
-            config_response, "user-events", "production"
-        )
+        enhanced_config = linker.add_config_links(config_response, "user-events", "production")
 
         self.assertIn("_links", enhanced_config)
         self.assertIn("subject", enhanced_config["_links"])

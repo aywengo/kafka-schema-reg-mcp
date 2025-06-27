@@ -99,9 +99,7 @@ class TestSchemaDefinitions(unittest.TestCase):
         """Test that all schemas have consistent structure."""
         all_schemas = get_all_schemas()
         for tool_name, schema in all_schemas.items():
-            self.assertIsInstance(
-                schema, dict, f"Schema for {tool_name} should be dict"
-            )
+            self.assertIsInstance(schema, dict, f"Schema for {tool_name} should be dict")
             self.assertIn("type", schema, f"Schema for {tool_name} should have 'type'")
 
 
@@ -224,9 +222,7 @@ class TestSchemaValidation(unittest.TestCase):
 
     def test_create_success_response(self):
         """Test structured success response creation."""
-        response = create_success_response(
-            "Operation successful", data={"result": "test"}, registry_mode="single"
-        )
+        response = create_success_response("Operation successful", data={"result": "test"}, registry_mode="single")
 
         self.assertIsInstance(response, dict)
         self.assertEqual(response["message"], "Operation successful")
@@ -236,9 +232,7 @@ class TestSchemaValidation(unittest.TestCase):
 
     def test_create_error_response(self):
         """Test structured error response creation."""
-        response = create_error_response(
-            "Something went wrong", error_code="TEST_ERROR", registry_mode="multi"
-        )
+        response = create_error_response("Something went wrong", error_code="TEST_ERROR", registry_mode="multi")
 
         self.assertIsInstance(response, dict)
         self.assertEqual(response["error"], "Something went wrong")
@@ -265,9 +259,7 @@ class TestToolIntegration(unittest.TestCase):
 
     @patch("core_registry_tools.requests")
     @patch("schema_registry_common.check_readonly_mode")
-    def test_register_schema_tool_structured_output(
-        self, mock_readonly_check, mock_requests
-    ):
+    def test_register_schema_tool_structured_output(self, mock_readonly_check, mock_requests):
         """Test register_schema tool with structured output."""
         # Mock readonly check to return None (not readonly)
         mock_readonly_check.return_value = None
@@ -343,9 +335,7 @@ class TestPerformanceAndCompatibility(unittest.TestCase):
             "schema": {
                 "type": "record",
                 "name": "LargeRecord",
-                "fields": [
-                    {"name": f"field_{i}", "type": "string"} for i in range(100)
-                ],
+                "fields": [{"name": f"field_{i}", "type": "string"} for i in range(100)],
             },
             "schemaType": "AVRO",
             "registry_mode": "single",
@@ -490,15 +480,11 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
 
         for tool_name, schema in all_schemas.items():
             # Basic JSON Schema structure checks
-            self.assertIsInstance(
-                schema, dict, f"Schema for {tool_name} should be dict"
-            )
+            self.assertIsInstance(schema, dict, f"Schema for {tool_name} should be dict")
 
             if schema != {"type": "object", "additionalProperties": True}:
                 # More specific schemas should have proper structure
-                self.assertIn(
-                    "type", schema, f"Schema for {tool_name} should have type"
-                )
+                self.assertIn("type", schema, f"Schema for {tool_name} should have type")
 
                 if "properties" in schema:
                     self.assertIsInstance(schema["properties"], dict)
@@ -511,9 +497,7 @@ def run_comprehensive_tests():
     """Run all tests and provide a summary report."""
     if not MODULES_AVAILABLE:
         print("❌ Cannot run tests - required modules not available")
-        print(
-            "Make sure schema_definitions.py and schema_validation.py are in the Python path"
-        )
+        print("Make sure schema_definitions.py and schema_validation.py are in the Python path")
         print(f"Current working directory: {os.getcwd()}")
         print(f"Python path: {sys.path}")
 
@@ -571,9 +555,7 @@ def run_comprehensive_tests():
             print(f"  - {test}")
 
     if result.wasSuccessful():
-        print(
-            "\n✅ All tests passed! Structured output implementation is working correctly."
-        )
+        print("\n✅ All tests passed! Structured output implementation is working correctly.")
         print("\nImplementation Status:")
         print("📊 Schema validation infrastructure: ✅ Complete")
         print("🔧 Tool schema coverage: ✅ Complete (48+ tools across 11 categories)")

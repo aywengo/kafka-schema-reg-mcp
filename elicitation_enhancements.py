@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
 """
-Enhanced Elicitation Validation and Error Handling
+Enhanced Schema Registry Elicitation Capabilities
 
-Additional validation, error handling, and performance improvements
-for the elicitation system to ensure production readiness.
+This module extends the base elicitation framework with advanced validation,
+type checking, and user experience enhancements for Schema Registry operations.
+
+Features:
+- Advanced field validation with context-aware error messages
+- Smart default suggestions based on schema patterns
+- Multi-step elicitation for complex operations
+- Integration with schema introspection
+- Progress tracking and user guidance
 """
 
-import asyncio
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from elicitation import (
     ElicitationField,
@@ -76,9 +83,7 @@ class EnhancedFieldValidator:
     }
 
     @classmethod
-    def validate_field_value(
-        cls, field: ElicitationField, value: Any
-    ) -> ValidationResult:
+    def validate_field_value(cls, field: ElicitationField, value: Any) -> ValidationResult:
         """Validate a field value against its definition."""
         errors = []
         warnings = []
@@ -110,9 +115,7 @@ class EnhancedFieldValidator:
 
         elif field.type == "choice":
             if field.options and str_value not in field.options:
-                errors.append(
-                    f"Value '{str_value}' not in allowed options: {field.options}"
-                )
+                errors.append(f"Value '{str_value}' not in allowed options: {field.options}")
 
         elif field.type == "number":
             try:
@@ -137,25 +140,19 @@ class EnhancedFieldValidator:
         return ValidationResult(len(errors) == 0, errors, warnings)
 
     @classmethod
-    def _apply_custom_validation(
-        cls, field: ElicitationField, value: str, errors: List[str], warnings: List[str]
-    ):
+    def _apply_custom_validation(cls, field: ElicitationField, value: str, errors: List[str], warnings: List[str]):
         """Apply custom validation rules."""
         validation = field.validation
 
         if "min_length" in validation:
             min_len = validation["min_length"]
             if len(value) < min_len:
-                errors.append(
-                    f"Field '{field.name}' must be at least {min_len} characters"
-                )
+                errors.append(f"Field '{field.name}' must be at least {min_len} characters")
 
         if "max_length" in validation:
             max_len = validation["max_length"]
             if len(value) > max_len:
-                errors.append(
-                    f"Field '{field.name}' must be at most {max_len} characters"
-                )
+                errors.append(f"Field '{field.name}' must be at most {max_len} characters")
 
         if "pattern" in validation:
             pattern = re.compile(validation["pattern"])
@@ -166,9 +163,7 @@ class EnhancedFieldValidator:
             try:
                 num_val = float(value)
                 if num_val < validation["min_value"]:
-                    errors.append(
-                        f"Field '{field.name}' must be at least {validation['min_value']}"
-                    )
+                    errors.append(f"Field '{field.name}' must be at least {validation['min_value']}")
             except (ValueError, TypeError):
                 pass  # Already handled by type validation
 
@@ -176,9 +171,7 @@ class EnhancedFieldValidator:
             try:
                 num_val = float(value)
                 if num_val > validation["max_value"]:
-                    errors.append(
-                        f"Field '{field.name}' must be at most {validation['max_value']}"
-                    )
+                    errors.append(f"Field '{field.name}' must be at most {validation['max_value']}")
             except (ValueError, TypeError):
                 pass
 
@@ -188,13 +181,9 @@ class EnhancedFieldValidator:
         if value.lower() in cls.AVRO_TYPES:
             return  # Valid Avro type
         elif value.lower() in cls.JSON_SCHEMA_TYPES:
-            warnings.append(
-                f"Type '{value}' is JSON Schema format, consider Avro equivalent"
-            )
+            warnings.append(f"Type '{value}' is JSON Schema format, consider Avro equivalent")
         else:
-            warnings.append(
-                f"Unknown schema type '{value}', ensure it's valid for your schema system"
-            )
+            warnings.append(f"Unknown schema type '{value}', ensure it's valid for your schema system")
 
 
 class EnhancedElicitationManager(ElicitationManager):
@@ -229,17 +218,13 @@ class EnhancedElicitationManager(ElicitationManager):
             validation_result = self._validate_response_enhanced(request, response)
 
             if not validation_result.is_valid:
-                logger.warning(
-                    f"Validation failed for request {response.request_id}: {validation_result.errors}"
-                )
+                logger.warning(f"Validation failed for request {response.request_id}: {validation_result.errors}")
                 self._update_validation_stats(validation_result.errors)
                 return False
 
             # Log warnings
             if validation_result.warnings:
-                logger.info(
-                    f"Validation warnings for request {response.request_id}: {validation_result.warnings}"
-                )
+                logger.info(f"Validation warnings for request {response.request_id}: {validation_result.warnings}")
 
             # Call parent implementation
             success = await super().submit_response(response)
@@ -295,9 +280,7 @@ class EnhancedElicitationManager(ElicitationManager):
 
             # Check naming conventions
             if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", field_name):
-                warnings.append(
-                    f"Field name '{field_name}' should follow camelCase or snake_case convention"
-                )
+                warnings.append(f"Field name '{field_name}' should follow camelCase or snake_case convention")
 
             # Check for reserved keywords
             reserved_keywords = {
@@ -310,22 +293,15 @@ class EnhancedElicitationManager(ElicitationManager):
                 "symbols",
             }
             if field_name.lower() in reserved_keywords:
-                warnings.append(
-                    f"Field name '{field_name}' is a reserved keyword, consider using a different name"
-                )
+                warnings.append(f"Field name '{field_name}' is a reserved keyword, consider using a different name")
 
         # Migration preferences rules
-        if (
-            "preserve_ids" in response.values
-            and "conflict_resolution" in response.values
-        ):
+        if "preserve_ids" in response.values and "conflict_resolution" in response.values:
             preserve_ids = response.values["preserve_ids"]
             conflict_resolution = response.values["conflict_resolution"]
 
             if preserve_ids == "false" and conflict_resolution == "skip":
-                warnings.append(
-                    "Not preserving IDs with 'skip' conflict resolution may cause issues"
-                )
+                warnings.append("Not preserving IDs with 'skip' conflict resolution may cause issues")
 
         # Export preferences rules
         if "format" in response.values and "compression" in response.values:
@@ -333,9 +309,7 @@ class EnhancedElicitationManager(ElicitationManager):
             compression = response.values["compression"]
 
             if format_type == "csv" and compression != "none":
-                warnings.append(
-                    "CSV export with compression may not be supported by all tools"
-                )
+                warnings.append("CSV export with compression may not be supported by all tools")
 
     def _update_validation_stats(self, errors: List[str]):
         """Update validation statistics."""
@@ -353,9 +327,7 @@ class EnhancedElicitationManager(ElicitationManager):
         # Update average response time
         total = self.performance_stats["total_requests"]
         current_avg = self.performance_stats["avg_response_time"]
-        self.performance_stats["avg_response_time"] = (
-            current_avg * (total - 1) + response_time
-        ) / total
+        self.performance_stats["avg_response_time"] = (current_avg * (total - 1) + response_time) / total
 
         # Update timeout rate (if response_time > reasonable threshold)
         if response_time > 30.0:  # 30 seconds considered slow
@@ -395,9 +367,7 @@ class EnhancedElicitationManager(ElicitationManager):
             del self.responses[request_id]
             expired_count += 1
 
-        logger.info(
-            f"Cleaned up {expired_count} expired elicitation requests/responses"
-        )
+        logger.info(f"Cleaned up {expired_count} expired elicitation requests/responses")
         return expired_count
 
 
@@ -413,9 +383,7 @@ class ElicitationCache:
     def get_cached_response(self, request_signature: str) -> Optional[Dict[str, Any]]:
         """Get cached response for similar requests."""
         if request_signature in self.cache:
-            self.access_count[request_signature] = (
-                self.access_count.get(request_signature, 0) + 1
-            )
+            self.access_count[request_signature] = self.access_count.get(request_signature, 0) + 1
             return self.cache[request_signature]
         return None
 
@@ -446,9 +414,7 @@ async def recover_from_elicitation_failure(
 ) -> ElicitationResponse:
     """Recover from elicitation failures with intelligent fallbacks."""
 
-    logger.warning(
-        f"Elicitation failure for '{original_request.title}': {failure_reason}"
-    )
+    logger.warning(f"Elicitation failure for '{original_request.title}': {failure_reason}")
 
     # Use provided fallback values or generate intelligent defaults
     if fallback_values:

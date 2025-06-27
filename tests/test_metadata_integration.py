@@ -77,9 +77,7 @@ class TestMetadataIntegration(unittest.TestCase):
 
         # Verify values are correctly mapped
         self.assertEqual(result["version"], "7.6.0")
-        self.assertEqual(
-            result["commit_id"], "02d9aa023a8d034d480a718242df2a880e0be1f7"
-        )
+        self.assertEqual(result["commit_id"], "02d9aa023a8d034d480a718242df2a880e0be1f7")
         self.assertEqual(result["kafka_cluster_id"], "MkVlNjdqWVF0Q056MWFrUA")
         self.assertEqual(result["schema_registry_cluster_id"], "schema-registry")
 
@@ -142,9 +140,7 @@ class TestMetadataIntegration(unittest.TestCase):
         self.assertFalse(hasattr(mcp_module, "test_registry_connection_with_metadata"))
         self.assertFalse(hasattr(mcp_module, "test_schema_operations_with_metadata"))
 
-        print(
-            "✅ Consolidated approach verified - using existing get_registry_info with metadata"
-        )
+        print("✅ Consolidated approach verified - using existing get_registry_info with metadata")
 
     def test_enhanced_existing_methods(self):
         """Test that existing methods are enhanced rather than duplicated."""

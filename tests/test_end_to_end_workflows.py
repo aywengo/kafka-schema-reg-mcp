@@ -172,9 +172,7 @@ async def test_end_to_end_workflows():
             # Step 4: Check versions
             print("   1.4 Checking schema versions...")
             try:
-                result = await client.call_tool(
-                    "get_schema_versions", {"subject": user_subject, "registry": "dev"}
-                )
+                result = await client.call_tool("get_schema_versions", {"subject": user_subject, "registry": "dev"})
                 print(f"   ✅ Schema versions: {result}")
             except Exception as e:
                 print(f"   ❌ Failed to get versions: {e}")
@@ -216,33 +214,21 @@ async def test_end_to_end_workflows():
                     "export_schema",
                     {"subject": user_subject, "registry": "dev", "format": "json"},
                 )
-                print(
-                    f"   ✅ Schema export: {result[:100]}..."
-                    if result
-                    else "   ❌ No export result"
-                )
+                print(f"   ✅ Schema export: {result[:100]}..." if result else "   ❌ No export result")
             except Exception as e:
                 print(f"   ❌ Export failed: {e}")
 
             print("   3.2 Exporting full registry...")
             try:
-                result = await client.call_tool(
-                    "export_global", {"registry": "dev", "include_versions": "latest"}
-                )
-                print(
-                    f"   ✅ Global export: {result[:100]}..."
-                    if result
-                    else "   ❌ No global export result"
-                )
+                result = await client.call_tool("export_global", {"registry": "dev", "include_versions": "latest"})
+                print(f"   ✅ Global export: {result[:100]}..." if result else "   ❌ No global export result")
             except Exception as e:
                 print(f"   ❌ Global export failed: {e}")
 
             # Cleanup
             print("\n🧹 Cleanup: Removing test subjects...")
             try:
-                result = await client.call_tool(
-                    "delete_subject", {"subject": user_subject, "registry": "dev"}
-                )
+                result = await client.call_tool("delete_subject", {"subject": user_subject, "registry": "dev"})
                 print(f"   ✅ Cleanup completed: {result}")
             except Exception as e:
                 print(f"   ⚠️ Cleanup failed (may not exist): {e}")
@@ -278,18 +264,14 @@ async def test_schema_evolution_workflow():
     env["READONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
-    env["SCHEMA_REGISTRY_URL_2"] = (
-        "http://localhost:38081"  # Same registry, different contexts
-    )
+    env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38081"  # Same registry, different contexts
     env["READONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = "http://localhost:38081"
     env["READONLY_3"] = "true"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -306,9 +288,7 @@ async def test_schema_evolution_workflow():
                         "registry": "development",
                     },
                 )
-                print(
-                    f"✅ Registered v1: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Registered v1: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 2: Check compatibility for v2 schema
                 print("\nStep 2: Check compatibility for User v2 schema")
@@ -320,9 +300,7 @@ async def test_schema_evolution_workflow():
                         "registry": "development",
                     },
                 )
-                print(
-                    f"✅ Compatibility check: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Compatibility check: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 3: Register v2 schema if compatible
                 print("\nStep 3: Register User v2 schema in development")
@@ -334,9 +312,7 @@ async def test_schema_evolution_workflow():
                         "registry": "development",
                     },
                 )
-                print(
-                    f"✅ Registered v2: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Registered v2: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 4: Get all versions
                 print("\nStep 4: Get all schema versions")
@@ -344,9 +320,7 @@ async def test_schema_evolution_workflow():
                     "get_schema_versions",
                     {"subject": "user-events", "registry": "development"},
                 )
-                print(
-                    f"✅ Versions: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Versions: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 5: Migrate latest schema to staging
                 print("\nStep 5: Migrate schema from development to staging")
@@ -359,9 +333,7 @@ async def test_schema_evolution_workflow():
                         "dry_run": False,
                     },
                 )
-                print(
-                    f"✅ Migration: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Migration: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 6: Compare development and staging
                 print("\nStep 6: Compare development and staging registries")
@@ -369,9 +341,7 @@ async def test_schema_evolution_workflow():
                     "compare_registries",
                     {"source_registry": "development", "target_registry": "staging"},
                 )
-                print(
-                    f"✅ Comparison: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"✅ Comparison: {result.content[0].text if result.content else 'Success'}")
 
                 # Step 7: Try to migrate to production (should fail due to readonly)
                 print("\nStep 7: Try to migrate to production (should fail)")
@@ -420,9 +390,7 @@ async def test_multi_schema_deployment_workflow():
     env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38081"
     env["READONLY_2"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -450,9 +418,7 @@ async def test_multi_schema_deployment_workflow():
 
                 # Step 2: List all subjects in development
                 print("\nStep 2: List all subjects in development")
-                result = await session.call_tool(
-                    "list_subjects", {"registry": "development"}
-                )
+                result = await session.call_tool("list_subjects", {"registry": "development"})
                 subjects = json.loads(result.content[0].text) if result.content else []
                 print(f"  ✅ Found {len(subjects)} subjects: {subjects}")
 
@@ -462,9 +428,7 @@ async def test_multi_schema_deployment_workflow():
                     "find_missing_schemas",
                     {"source_registry": "development", "target_registry": "staging"},
                 )
-                print(
-                    f"  ✅ Missing schemas: {result.content[0].text if result.content else 'None'}"
-                )
+                print(f"  ✅ Missing schemas: {result.content[0].text if result.content else 'None'}")
 
                 # Step 4: Migrate all schemas to staging
                 print("\nStep 4: Migrate all schemas to staging")
@@ -486,20 +450,14 @@ async def test_multi_schema_deployment_workflow():
                     "compare_registries",
                     {"source_registry": "development", "target_registry": "staging"},
                 )
-                comparison = (
-                    json.loads(result.content[0].text) if result.content else {}
-                )
-                missing_count = len(
-                    comparison.get("subjects", {}).get("target_only", [])
-                )
+                comparison = json.loads(result.content[0].text) if result.content else {}
+                missing_count = len(comparison.get("subjects", {}).get("target_only", []))
                 print(f"  ✅ Schemas missing in staging: {missing_count}")
 
                 # Step 6: List migration history
                 print("\nStep 6: Check migration history")
                 result = await session.call_tool("list_migrations", {})
-                migrations = (
-                    json.loads(result.content[0].text) if result.content else []
-                )
+                migrations = json.loads(result.content[0].text) if result.content else []
                 print(f"  ✅ Total migrations: {len(migrations)}")
 
                 print("\n🎉 Multi-Schema Deployment Workflow Complete!")
@@ -530,9 +488,7 @@ async def test_context_management_workflow():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -541,21 +497,15 @@ async def test_context_management_workflow():
 
                 # Step 1: List existing contexts
                 print("Step 1: List existing contexts")
-                result = await session.call_tool(
-                    "list_contexts", {"registry": "primary"}
-                )
-                initial_contexts = (
-                    json.loads(result.content[0].text) if result.content else []
-                )
+                result = await session.call_tool("list_contexts", {"registry": "primary"})
+                initial_contexts = json.loads(result.content[0].text) if result.content else []
                 print(f"  ✅ Initial contexts: {initial_contexts}")
 
                 # Step 2: Create new contexts
                 print("\nStep 2: Create new contexts")
                 new_contexts = ["ecommerce", "analytics", "audit"]
                 for context in new_contexts:
-                    result = await session.call_tool(
-                        "create_context", {"context": context, "registry": "primary"}
-                    )
+                    result = await session.call_tool("create_context", {"context": context, "registry": "primary"})
                     print(f"  ✅ Created context: {context}")
 
                 # Step 3: Register schemas in different contexts
@@ -582,24 +532,16 @@ async def test_context_management_workflow():
                 # Step 4: List subjects in each context
                 print("\nStep 4: List subjects in each context")
                 for context in new_contexts:
-                    result = await session.call_tool(
-                        "list_subjects", {"context": context, "registry": "primary"}
-                    )
-                    subjects = (
-                        json.loads(result.content[0].text) if result.content else []
-                    )
+                    result = await session.call_tool("list_subjects", {"context": context, "registry": "primary"})
+                    subjects = json.loads(result.content[0].text) if result.content else []
                     print(f"  ✅ {context} context: {len(subjects)} subjects")
 
                 # Step 5: Get and update configurations per context
                 print("\nStep 5: Manage context configurations")
                 for context in new_contexts[:2]:  # Test first 2 contexts
                     # Get current config
-                    result = await session.call_tool(
-                        "get_global_config", {"context": context, "registry": "primary"}
-                    )
-                    print(
-                        f"  ✅ Got config for {context}: {result.content[0].text if result.content else 'Success'}"
-                    )
+                    result = await session.call_tool("get_global_config", {"context": context, "registry": "primary"})
+                    print(f"  ✅ Got config for {context}: {result.content[0].text if result.content else 'Success'}")
 
                     # Update config
                     result = await session.call_tool(
@@ -615,9 +557,7 @@ async def test_context_management_workflow():
                 # Step 6: Test context deletion (cleanup)
                 print("\nStep 6: Clean up test contexts")
                 for context in new_contexts:
-                    result = await session.call_tool(
-                        "delete_context", {"context": context, "registry": "primary"}
-                    )
+                    result = await session.call_tool("delete_context", {"context": context, "registry": "primary"})
                     print(f"  ✅ Deleted context: {context}")
 
                 print("\n🎉 Context Management Workflow Complete!")
@@ -648,9 +588,7 @@ async def test_configuration_management_workflow():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -659,15 +597,9 @@ async def test_configuration_management_workflow():
 
                 # Step 1: Get initial global configuration
                 print("Step 1: Get initial global configuration")
-                result = await session.call_tool(
-                    "get_global_config", {"registry": "config_test"}
-                )
-                initial_config = (
-                    json.loads(result.content[0].text) if result.content else {}
-                )
-                print(
-                    f"  ✅ Initial compatibility: {initial_config.get('compatibility', 'N/A')}"
-                )
+                result = await session.call_tool("get_global_config", {"registry": "config_test"})
+                initial_config = json.loads(result.content[0].text) if result.content else {}
+                print(f"  ✅ Initial compatibility: {initial_config.get('compatibility', 'N/A')}")
 
                 # Step 2: Test different compatibility levels
                 print("\nStep 2: Test different compatibility levels")
@@ -680,12 +612,8 @@ async def test_configuration_management_workflow():
                     print(f"  ✅ Set compatibility to {level}")
 
                     # Verify the change
-                    result = await session.call_tool(
-                        "get_global_config", {"registry": "config_test"}
-                    )
-                    current_config = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
+                    result = await session.call_tool("get_global_config", {"registry": "config_test"})
+                    current_config = json.loads(result.content[0].text) if result.content else {}
                     current_level = current_config.get("compatibility", "N/A")
                     print(f"  ✅ Verified: {current_level}")
 
@@ -707,9 +635,7 @@ async def test_configuration_management_workflow():
                     "get_subject_config",
                     {"subject": "config-test-subject", "registry": "config_test"},
                 )
-                print(
-                    f"  ✅ Got subject config: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"  ✅ Got subject config: {result.content[0].text if result.content else 'Success'}")
 
                 result = await session.call_tool(
                     "update_subject_config",
@@ -723,20 +649,14 @@ async def test_configuration_management_workflow():
 
                 # Step 5: Test mode management
                 print("\nStep 5: Test mode management")
-                result = await session.call_tool(
-                    "get_mode", {"registry": "config_test"}
-                )
-                initial_mode = (
-                    json.loads(result.content[0].text) if result.content else {}
-                )
+                result = await session.call_tool("get_mode", {"registry": "config_test"})
+                initial_mode = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Initial mode: {initial_mode.get('mode', 'N/A')}")
 
                 # Test different modes
                 modes = ["READWRITE", "READONLY"]
                 for mode in modes:
-                    result = await session.call_tool(
-                        "update_mode", {"mode": mode, "registry": "config_test"}
-                    )
+                    result = await session.call_tool("update_mode", {"mode": mode, "registry": "config_test"})
                     print(f"  ✅ Set mode to {mode}")
 
                 # Step 6: Test subject-level mode
@@ -745,9 +665,7 @@ async def test_configuration_management_workflow():
                     "get_subject_mode",
                     {"subject": "config-test-subject", "registry": "config_test"},
                 )
-                print(
-                    f"  ✅ Got subject mode: {result.content[0].text if result.content else 'Success'}"
-                )
+                print(f"  ✅ Got subject mode: {result.content[0].text if result.content else 'Success'}")
 
                 result = await session.call_tool(
                     "update_subject_mode",
@@ -777,9 +695,7 @@ async def test_complete_schema_lifecycle():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Generate unique test prefix
     test_prefix = f"e2e-test-{uuid.uuid4().hex[:8]}"
@@ -864,9 +780,7 @@ async def test_complete_schema_lifecycle():
             print("\n📤 Phase 4: Schema Export")
             if "export_subject" in tool_names:
                 try:
-                    result = await client.call_tool(
-                        "export_subject", {"subject": f"{test_prefix}-subject"}
-                    )
+                    result = await client.call_tool("export_subject", {"subject": f"{test_prefix}-subject"})
                     print("✅ Schema exported")
                 except Exception as e:
                     print(f"⚠️  Schema export: {e}")
@@ -879,9 +793,7 @@ async def test_complete_schema_lifecycle():
             for cleanup_tool in available_cleanup:
                 try:
                     if cleanup_tool == "delete_subject":
-                        result = await client.call_tool(
-                            cleanup_tool, {"subject": f"{test_prefix}-subject"}
-                        )
+                        result = await client.call_tool(cleanup_tool, {"subject": f"{test_prefix}-subject"})
                     else:
                         result = await client.call_tool(
                             cleanup_tool,

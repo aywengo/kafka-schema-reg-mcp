@@ -74,9 +74,7 @@ def test_env():
     try:
         for registry in ["dev", "prod"]:
             try:
-                subjects = mcp_server.list_subjects(
-                    context=test_context, registry=registry
-                )
+                subjects = mcp_server.list_subjects(context=test_context, registry=registry)
                 if subjects and not isinstance(subjects, dict):  # Not an error response
                     for subject in subjects:
                         mcp_server.delete_subject(
@@ -91,9 +89,7 @@ def test_env():
         logger.warning(f"Cleanup error: {e}")
 
 
-def create_test_schema_via_api(
-    registry_url: str, context: str, subject: str, schema_def: dict
-) -> bool:
+def create_test_schema_via_api(registry_url: str, context: str, subject: str, schema_def: dict) -> bool:
     """Create a test schema directly via the registry API"""
     try:
         if context and context != ".":
@@ -136,9 +132,7 @@ async def test_migrate_schema_functionality(test_env):
     }
 
     # Create schema via API
-    success = create_test_schema_via_api(
-        dev_url, test_context, test_subject, test_schema
-    )
+    success = create_test_schema_via_api(dev_url, test_context, test_subject, test_schema)
     assert success, f"Failed to create test schema {test_subject}"
 
     try:
@@ -168,21 +162,15 @@ async def test_migrate_schema_functionality(test_env):
         successful_count = result.get("successful_migrations", 0)
         skipped_count = result.get("skipped_migrations", 0)
 
-        assert (
-            successful_count > 0 or skipped_count > 0
-        ), "No schema versions migrated or skipped"
+        assert successful_count > 0 or skipped_count > 0, "No schema versions migrated or skipped"
 
         logger.info("✅ Schema migration test passed")
 
     finally:
         # Cleanup
         try:
-            mcp_server.delete_subject(
-                test_subject, context=test_context, registry="dev", permanent=True
-            )
-            mcp_server.delete_subject(
-                test_subject, context=test_context, registry="prod", permanent=True
-            )
+            mcp_server.delete_subject(test_subject, context=test_context, registry="dev", permanent=True)
+            mcp_server.delete_subject(test_subject, context=test_context, registry="prod", permanent=True)
         except Exception:
             pass
 
@@ -214,9 +202,7 @@ async def test_migration_task_tracking(test_env):
         "fields": [{"name": "trackingId", "type": "string"}],
     }
 
-    success = create_test_schema_via_api(
-        dev_url, test_context, test_subject, test_schema
-    )
+    success = create_test_schema_via_api(dev_url, test_context, test_subject, test_schema)
     assert success, f"Failed to create tracking test schema {test_subject}"
 
     try:
@@ -242,9 +228,7 @@ async def test_migration_task_tracking(test_env):
         else:
             after_count = 0
 
-        assert (
-            after_count > before_count
-        ), f"Migration task not tracked properly ({before_count} -> {after_count})"
+        assert after_count > before_count, f"Migration task not tracked properly ({before_count} -> {after_count})"
 
         # Test getting specific migration status if migration_id is provided
         if "migration_id" in result:
@@ -254,21 +238,15 @@ async def test_migration_task_tracking(test_env):
             if "error" not in status:
                 logger.info("✅ Migration status retrieval works")
             else:
-                logger.warning(
-                    f"Migration status error (non-critical): {status['error']}"
-                )
+                logger.warning(f"Migration status error (non-critical): {status['error']}")
 
         logger.info("✅ Migration task tracking test passed")
 
     finally:
         # Cleanup
         try:
-            mcp_server.delete_subject(
-                test_subject, context=test_context, registry="dev", permanent=True
-            )
-            mcp_server.delete_subject(
-                test_subject, context=test_context, registry="prod", permanent=True
-            )
+            mcp_server.delete_subject(test_subject, context=test_context, registry="dev", permanent=True)
+            mcp_server.delete_subject(test_subject, context=test_context, registry="prod", permanent=True)
         except Exception:
             pass
 
@@ -292,9 +270,7 @@ async def test_migration_error_handling(test_env):
 
     # Should return a result indicating no versions to migrate, not an error
     assert "total_versions" in result, "Expected migration result with version count"
-    assert (
-        result.get("total_versions", 0) == 0
-    ), "Expected 0 versions for non-existent subject"
+    assert result.get("total_versions", 0) == 0, "Expected 0 versions for non-existent subject"
 
     # Try to migrate to non-existent registry
     result = migrate_schema_tool(

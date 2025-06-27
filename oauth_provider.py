@@ -53,24 +53,14 @@ try:
     JWT_AVAILABLE = True
 except ImportError:
     JWT_AVAILABLE = False
-    logger.warning(
-        "JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography"
-    )
+    logger.warning("JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography")
 
 # OAuth configuration from environment variables
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
 AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
-AUTH_VALID_SCOPES = [
-    s.strip()
-    for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",")
-    if s.strip()
-]
-AUTH_DEFAULT_SCOPES = [
-    s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "read").split(",") if s.strip()
-]
-AUTH_REQUIRED_SCOPES = [
-    s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "read").split(",") if s.strip()
-]
+AUTH_VALID_SCOPES = [s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",") if s.strip()]
+AUTH_DEFAULT_SCOPES = [s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "read").split(",") if s.strip()]
+AUTH_REQUIRED_SCOPES = [s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "read").split(",") if s.strip()]
 AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() in (
     "true",
     "1",
@@ -92,19 +82,13 @@ AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
 AUTH_GITHUB_ORG = os.getenv("AUTH_GITHUB_ORG", "")
 
 # OAuth 2.1 Discovery Configuration
-OAUTH_DISCOVERY_CACHE_TTL = int(
-    os.getenv("OAUTH_DISCOVERY_CACHE_TTL", "3600")
-)  # 1 hour default
+OAUTH_DISCOVERY_CACHE_TTL = int(os.getenv("OAUTH_DISCOVERY_CACHE_TTL", "3600"))  # 1 hour default
 _discovery_cache = {}
 _discovery_cache_timestamps = {}
 
 # Resource Server Configuration (RFC 8692)
 RESOURCE_SERVER_URL = os.getenv("RESOURCE_SERVER_URL", "")  # Our resource server URL
-RESOURCE_INDICATORS = [
-    url.strip()
-    for url in os.getenv("RESOURCE_INDICATORS", "").split(",")
-    if url.strip()
-]
+RESOURCE_INDICATORS = [url.strip() for url in os.getenv("RESOURCE_INDICATORS", "").split(",") if url.strip()]
 
 # PKCE Configuration (OAuth 2.1 requirement)
 REQUIRE_PKCE = os.getenv("REQUIRE_PKCE", "true").lower() in ("true", "1", "yes", "on")
@@ -118,14 +102,15 @@ TOKEN_BINDING_ENABLED = os.getenv("TOKEN_BINDING_ENABLED", "false").lower() in (
 )
 
 # Token Introspection Configuration
-TOKEN_INTROSPECTION_ENABLED = os.getenv(
-    "TOKEN_INTROSPECTION_ENABLED", "true"
-).lower() in ("true", "1", "yes", "on")
+TOKEN_INTROSPECTION_ENABLED = os.getenv("TOKEN_INTROSPECTION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
 
 # Token Revocation Configuration
-TOKEN_REVOCATION_CHECK_ENABLED = os.getenv(
-    "TOKEN_REVOCATION_CHECK_ENABLED", "true"
-).lower() in ("true", "1", "yes", "on")
+TOKEN_REVOCATION_CHECK_ENABLED = os.getenv("TOKEN_REVOCATION_CHECK_ENABLED", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
+)
 
 # JWKS Configuration
 JWKS_CACHE_TTL = int(os.getenv("JWKS_CACHE_TTL", "3600"))  # 1 hour default
@@ -289,9 +274,7 @@ class OAuth21TokenValidator:
 
         return False
 
-    def validate_audience(
-        self, aud: Union[str, List[str]], resource_indicators: List[str] = None
-    ) -> bool:
+    def validate_audience(self, aud: Union[str, List[str]], resource_indicators: List[str] = None) -> bool:
         """
         Validate token audience against resource indicators (RFC 8707).
         """
@@ -306,18 +289,14 @@ class OAuth21TokenValidator:
             for audience in audiences:
                 if audience in RESOURCE_INDICATORS:
                     return True
-            logger.warning(
-                f"Token audience {audiences} not in allowed resource indicators {RESOURCE_INDICATORS}"
-            )
+            logger.warning(f"Token audience {audiences} not in allowed resource indicators {RESOURCE_INDICATORS}")
             return False
 
         # If we have a configured AUTH_AUDIENCE, validate against it
         if AUTH_AUDIENCE:
             if AUTH_AUDIENCE in audiences:
                 return True
-            logger.warning(
-                f"Token audience {audiences} does not match configured audience {AUTH_AUDIENCE}"
-            )
+            logger.warning(f"Token audience {audiences} does not match configured audience {AUTH_AUDIENCE}")
             return False
 
         # If no specific audience validation configured, any audience is valid
@@ -340,9 +319,7 @@ class OAuth21TokenValidator:
         # In a full implementation, you'd validate this at the authorization server
         return True
 
-    def validate_resource_indicator(
-        self, claims: Dict[str, Any], requested_resource: str = None
-    ) -> bool:
+    def validate_resource_indicator(self, claims: Dict[str, Any], requested_resource: str = None) -> bool:
         """
         Validate resource indicator according to RFC 8707.
         """
@@ -365,9 +342,7 @@ class OAuth21TokenValidator:
         # If specific resource requested, validate it's in token
         if requested_resource:
             if requested_resource not in resource_claims:
-                logger.warning(
-                    f"Requested resource {requested_resource} not authorized in token"
-                )
+                logger.warning(f"Requested resource {requested_resource} not authorized in token")
                 return False
 
         # Validate against configured resource indicators
@@ -443,9 +418,7 @@ class OAuth21TokenValidator:
             # Check for development token bypass (only in development)
             if self.is_dev_token(token):
                 if ALLOW_DEV_TOKENS:
-                    logger.warning(
-                        "🚨 Using development token bypass - NOT FOR PRODUCTION!"
-                    )
+                    logger.warning("🚨 Using development token bypass - NOT FOR PRODUCTION!")
                     return {
                         "valid": True,
                         "user": "dev-user",
@@ -457,9 +430,7 @@ class OAuth21TokenValidator:
                         "dev_token": True,
                     }
                 else:
-                    logger.error(
-                        "🚨 Development token rejected in production environment"
-                    )
+                    logger.error("🚨 Development token rejected in production environment")
                     return {
                         "valid": False,
                         "error": "Development tokens not allowed in production",
@@ -565,11 +536,7 @@ class OAuth21TokenValidator:
                 }
 
             # Extract user information
-            user_id = (
-                claims.get("sub")
-                or claims.get("preferred_username")
-                or claims.get("email")
-            )
+            user_id = claims.get("sub") or claims.get("preferred_username") or claims.get("email")
 
             return {
                 "valid": True,
@@ -583,9 +550,7 @@ class OAuth21TokenValidator:
             logger.error(f"Token validation error: {str(e)}")
             return {"valid": False, "error": f"Token validation failed: {str(e)}"}
 
-    async def discover_oauth_configuration(
-        self, issuer_url: str
-    ) -> Optional[Dict[str, Any]]:
+    async def discover_oauth_configuration(self, issuer_url: str) -> Optional[Dict[str, Any]]:
         """
         Discover OAuth 2.1 configuration from standard discovery endpoints.
         Uses RFC 8414 (OAuth Authorization Server Metadata) for discovery.
@@ -596,8 +561,7 @@ class OAuth21TokenValidator:
         if (
             issuer_url in _discovery_cache
             and issuer_url in _discovery_cache_timestamps
-            and (current_time - _discovery_cache_timestamps[issuer_url])
-            < OAUTH_DISCOVERY_CACHE_TTL
+            and (current_time - _discovery_cache_timestamps[issuer_url]) < OAUTH_DISCOVERY_CACHE_TTL
         ):
             return _discovery_cache[issuer_url]
 
@@ -626,9 +590,7 @@ class OAuth21TokenValidator:
                             _discovery_cache[issuer_url] = config
                             _discovery_cache_timestamps[issuer_url] = current_time
 
-                            logger.info(
-                                f"✅ OAuth 2.1 discovery successful from: {discovery_url}"
-                            )
+                            logger.info(f"✅ OAuth 2.1 discovery successful from: {discovery_url}")
                             logger.debug(
                                 f"Discovered endpoints - Auth: {config.get('authorization_endpoint')}, "
                                 f"Token: {config.get('token_endpoint')}, JWKS: {config.get('jwks_uri')}"
@@ -645,9 +607,7 @@ class OAuth21TokenValidator:
                 continue
 
         # Fallback: If discovery fails, try to construct basic configuration
-        logger.warning(
-            f"⚠️  OAuth 2.1 discovery failed for {issuer_url}, using fallback configuration"
-        )
+        logger.warning(f"⚠️  OAuth 2.1 discovery failed for {issuer_url}, using fallback configuration")
         return await self.get_fallback_configuration(issuer_url)
 
     async def get_fallback_configuration(self, issuer_url: str) -> Dict[str, Any]:
@@ -669,9 +629,7 @@ class OAuth21TokenValidator:
             }
 
         # For all other providers, require OAuth 2.1 discovery
-        logger.error(
-            f"OAuth 2.1 discovery failed for {issuer_url}. Provider must support RFC 8414 discovery."
-        )
+        logger.error(f"OAuth 2.1 discovery failed for {issuer_url}. Provider must support RFC 8414 discovery.")
         raise ValueError(
             f"OAuth 2.1 discovery failed for {issuer_url}. Please ensure your provider supports RFC 8414 discovery endpoints."
         )
@@ -739,9 +697,7 @@ if ENABLE_AUTH:
 
                 self.valid_scopes = set(AUTH_VALID_SCOPES)
                 self.required_scopes = set(AUTH_REQUIRED_SCOPES)
-                logger.info(
-                    f"OAuth 2.1 Bearer Auth Provider initialized with scopes: {self.valid_scopes}"
-                )
+                logger.info(f"OAuth 2.1 Bearer Auth Provider initialized with scopes: {self.valid_scopes}")
                 logger.info(f"JWT validation available: {JWT_AVAILABLE}")
                 logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
                 logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
@@ -760,13 +716,9 @@ if ENABLE_AUTH:
                 if not token_validator:
                     return {"valid": False, "error": "Token validation not available"}
 
-                return await token_validator.validate_token(
-                    token, required_scopes, requested_resource
-                )
+                return await token_validator.validate_token(token, required_scopes, requested_resource)
 
-            def check_scopes(
-                self, user_scopes: Set[str], required_scopes: Set[str]
-            ) -> bool:
+            def check_scopes(self, user_scopes: Set[str], required_scopes: Set[str]) -> bool:
                 """Check if user has required scopes, considering scope hierarchy."""
                 if token_validator:
                     return token_validator.check_scopes(user_scopes, required_scopes)
@@ -793,9 +745,7 @@ if ENABLE_AUTH:
                 oauth_provider = OAuth21BearerAuthProvider()
                 logger.info("OAuth 2.1 Bearer Auth Provider initialized successfully")
             except Exception as e:
-                logger.warning(
-                    f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}"
-                )
+                logger.warning(f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}")
                 oauth_provider = None
         else:
             oauth_provider = None
@@ -828,31 +778,21 @@ if ENABLE_AUTH:
 
                         # Perform comprehensive OAuth 2.1 validation
                         if oauth_provider and token_validator:
-                            validation_result = (
-                                await oauth_provider.validate_token_comprehensive(
-                                    access_token.token, set(required_scopes)
-                                )
+                            validation_result = await oauth_provider.validate_token_comprehensive(
+                                access_token.token, set(required_scopes)
                             )
 
                             if not validation_result.get("valid"):
                                 return {
-                                    "error": validation_result.get(
-                                        "error", "Token validation failed"
-                                    ),
+                                    "error": validation_result.get("error", "Token validation failed"),
                                     "required_scopes": list(required_scopes),
                                     "oauth_2_1_compliant": True,
                                 }
                         else:
                             # Fallback to basic scope checking
-                            user_scopes = (
-                                set(access_token.scopes)
-                                if access_token.scopes
-                                else set()
-                            )
+                            user_scopes = set(access_token.scopes) if access_token.scopes else set()
 
-                            if oauth_provider and not oauth_provider.check_scopes(
-                                user_scopes, set(required_scopes)
-                            ):
+                            if oauth_provider and not oauth_provider.check_scopes(user_scopes, set(required_scopes)):
                                 return {
                                     "error": "Insufficient permissions",
                                     "required_scopes": list(required_scopes),
@@ -861,15 +801,11 @@ if ENABLE_AUTH:
                                 }
 
                         return (
-                            await func(*args, **kwargs)
-                            if asyncio.iscoroutinefunction(func)
-                            else func(*args, **kwargs)
+                            await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
                         )
                     except Exception as e:
                         if ENABLE_AUTH:
-                            logger.warning(
-                                f"OAuth 2.1 authentication check failed: {e}"
-                            )
+                            logger.warning(f"OAuth 2.1 authentication check failed: {e}")
                             return {
                                 "error": "Authentication failed",
                                 "required_scopes": list(required_scopes),
@@ -965,14 +901,9 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
             },
         },
         "development_mode": {
-            "is_development": os.getenv("ENVIRONMENT", "development").lower()
-            == "development",
+            "is_development": os.getenv("ENVIRONMENT", "development").lower() == "development",
             "dev_tokens_allowed": ALLOW_DEV_TOKENS,
-            "warning": (
-                "🚨 Development tokens MUST be disabled in production!"
-                if ALLOW_DEV_TOKENS
-                else None
-            ),
+            "warning": ("🚨 Development tokens MUST be disabled in production!" if ALLOW_DEV_TOKENS else None),
         },
     }
 
@@ -1099,27 +1030,15 @@ def get_fastmcp_config(server_name: str):
 
     if ENABLE_AUTH and oauth_provider:
         config["auth"] = oauth_provider
-        logger.info(
-            "FastMCP configured with OAuth 2.1 Bearer token authentication (MCP 2025-06-18 compliant)"
-        )
+        logger.info("FastMCP configured with OAuth 2.1 Bearer token authentication (MCP 2025-06-18 compliant)")
     else:
-        logger.info(
-            "FastMCP configured without authentication (MCP 2025-06-18 compliant)"
-        )
+        logger.info("FastMCP configured without authentication (MCP 2025-06-18 compliant)")
 
     # Log the compliance information for clarity
-    logger.info(
-        "🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)"
-    )
-    logger.info(
-        "💡 Application-level batch operations (clear_context_batch, etc.) remain available"
-    )
-    logger.info(
-        "🔒 OAuth 2.1 features enabled: PKCE, Resource Indicators, Audience Validation"
-    )
-    logger.info(
-        "🚀 Using generic OAuth 2.1 discovery - works with any compliant provider"
-    )
+    logger.info("🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)")
+    logger.info("💡 Application-level batch operations (clear_context_batch, etc.) remain available")
+    logger.info("🔒 OAuth 2.1 features enabled: PKCE, Resource Indicators, Audience Validation")
+    logger.info("🚀 Using generic OAuth 2.1 discovery - works with any compliant provider")
 
     return config
 

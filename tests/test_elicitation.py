@@ -230,9 +230,7 @@ class TestElicitationManager:
         await manager.create_request(request)
 
         # Response missing required field
-        response = ElicitationResponse(
-            request_id=request.id, values={"wrong_field": "value"}
-        )
+        response = ElicitationResponse(request_id=request.id, values={"wrong_field": "value"})
 
         success = await manager.submit_response(response)
 
@@ -243,9 +241,7 @@ class TestElicitationManager:
     @pytest.mark.asyncio
     async def test_wait_for_response(self, manager):
         """Test waiting for responses with timeout."""
-        request = ElicitationRequest(
-            title="Test Request", timeout_seconds=1  # Short timeout for testing
-        )
+        request = ElicitationRequest(title="Test Request", timeout_seconds=1)  # Short timeout for testing
 
         await manager.create_request(request)
 
@@ -254,9 +250,7 @@ class TestElicitationManager:
         assert response is None
 
         # Test successful response
-        test_response = ElicitationResponse(
-            request_id=request.id, values={"test": "value"}
-        )
+        test_response = ElicitationResponse(request_id=request.id, values={"test": "value"})
 
         # Submit response in background
         async def submit_response():
@@ -301,9 +295,7 @@ class TestElicitationManager:
     @pytest.mark.asyncio
     async def test_timeout_handling(self, manager):
         """Test automatic timeout handling."""
-        request = ElicitationRequest(
-            title="Timeout Test", timeout_seconds=0.1  # Very short timeout
-        )
+        request = ElicitationRequest(title="Timeout Test", timeout_seconds=0.1)  # Very short timeout
 
         await manager.create_request(request)
 
@@ -363,9 +355,7 @@ class TestElicitationHelpers:
     def test_create_compatibility_resolution_elicitation(self):
         """Test creating compatibility resolution elicitation requests."""
         errors = ["Error 1", "Error 2"]
-        request = create_compatibility_resolution_elicitation(
-            subject="test-subject", compatibility_errors=errors
-        )
+        request = create_compatibility_resolution_elicitation(subject="test-subject", compatibility_errors=errors)
 
         assert request.type == ElicitationType.FORM
         assert request.title == "Resolve Compatibility Issues"
@@ -597,9 +587,7 @@ class TestInteractiveTools:
     async def test_check_compatibility_interactive_compatible(self):
         """Test interactive compatibility check with compatible schema."""
         # Mock compatibility tool to return compatible result
-        mock_compatibility_tool = Mock(
-            return_value={"compatible": True, "messages": []}
-        )
+        mock_compatibility_tool = Mock(return_value={"compatible": True, "messages": []})
 
         result = await check_compatibility_interactive(
             subject="test-subject",
@@ -661,9 +649,7 @@ class TestInteractiveTools:
     async def test_create_context_interactive_with_metadata(self):
         """Test interactive context creation with metadata elicitation."""
         # Mock the core create_context_tool
-        mock_create_tool = Mock(
-            return_value={"success": True, "context": "test-context"}
-        )
+        mock_create_tool = Mock(return_value={"success": True, "context": "test-context"})
 
         # Mock elicitation to return metadata
         with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
@@ -774,17 +760,13 @@ class TestElicitationIntegration:
         # Create request with validation rules
         fields = [
             ElicitationField("email", "email", required=True),
-            ElicitationField(
-                "choice", "choice", options=["a", "b", "c"], required=True
-            ),
+            ElicitationField("choice", "choice", options=["a", "b", "c"], required=True),
         ]
 
         request = ElicitationRequest(title="Validation Test", fields=fields)
 
         # Test invalid email
-        response = ElicitationResponse(
-            request_id=request.id, values={"email": "invalid-email", "choice": "a"}
-        )
+        response = ElicitationResponse(request_id=request.id, values={"email": "invalid-email", "choice": "a"})
 
         assert not manager._validate_response(request, response)
 
@@ -797,9 +779,7 @@ class TestElicitationIntegration:
         assert not manager._validate_response(request, response)
 
         # Test valid response
-        response = ElicitationResponse(
-            request_id=request.id, values={"email": "test@example.com", "choice": "a"}
-        )
+        response = ElicitationResponse(request_id=request.id, values={"email": "test@example.com", "choice": "a"})
 
         assert manager._validate_response(request, response)
 

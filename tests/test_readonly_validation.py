@@ -59,11 +59,7 @@ class ReadOnlyValidationTest:
             return json.loads(text)
         except json.JSONDecodeError:
             # If it's not JSON, return as-is
-            return (
-                result
-                if isinstance(result, (list, dict))
-                else {"response": str(result)}
-            )
+            return result if isinstance(result, (list, dict)) else {"response": str(result)}
 
     async def run_test(self):
         """Test unified server in multi-registry mode's read-only enforcement for PROD registry"""
@@ -73,9 +69,7 @@ class ReadOnlyValidationTest:
         try:
             # Get the path to the parent directory where the server script is located
             parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            server_script = os.path.join(
-                parent_dir, "kafka_schema_registry_unified_mcp.py"
-            )
+            server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
 
             # Debug: Show environment variables that will be passed
             print("\n🔍 Debug: Environment variables for server:")
@@ -98,9 +92,7 @@ class ReadOnlyValidationTest:
             subprocess_env = os.environ.copy()
 
             # Create server parameters with explicit environment
-            server_params = StdioServerParameters(
-                command="python", args=[server_script], env=subprocess_env
-            )
+            server_params = StdioServerParameters(command="python", args=[server_script], env=subprocess_env)
 
             # Test with subprocess communication
             async with stdio_client(server_params) as (read, write):
@@ -122,26 +114,17 @@ class ReadOnlyValidationTest:
                     # Handle the structured response format
                     if isinstance(registries, dict) and "registries" in registries:
                         registry_list = registries["registries"]
-                        registry_names = [
-                            r.get("name") for r in registry_list if isinstance(r, dict)
-                        ]
+                        registry_names = [r.get("name") for r in registry_list if isinstance(r, dict)]
                     elif isinstance(registries, list):
-                        registry_names = [
-                            r.get("name") for r in registries if isinstance(r, dict)
-                        ]
+                        registry_names = [r.get("name") for r in registries if isinstance(r, dict)]
                     else:
                         registry_names = []
 
                     print(f"   📋 Configured registries: {registry_names}")
 
                     # Check that we have both registries
-                    if (
-                        "development" not in registry_names
-                        or "production" not in registry_names
-                    ):
-                        print(
-                            f"   ❌ Expected both 'development' and 'production' registries, got: {registry_names}"
-                        )
+                    if "development" not in registry_names or "production" not in registry_names:
+                        print(f"   ❌ Expected both 'development' and 'production' registries, got: {registry_names}")
                         return False
 
                     print("   ✅ Both DEV and PROD registries configured")
@@ -173,16 +156,10 @@ class ReadOnlyValidationTest:
                     else:
                         prod_result = {}
 
-                    if isinstance(prod_result, dict) and prod_result.get(
-                        "readonly_mode"
-                    ):
-                        print(
-                            f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}"
-                        )
+                    if isinstance(prod_result, dict) and prod_result.get("readonly_mode"):
+                        print(f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}")
                     else:
-                        print(
-                            f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}"
-                        )
+                        print(f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}")
                         return False
 
                     # Test 3: Test write operations on DEV registry (should work)
@@ -204,14 +181,10 @@ class ReadOnlyValidationTest:
                         dev_result = {}
 
                     if isinstance(dev_result, dict) and dev_result.get("readonly_mode"):
-                        print(
-                            f"   ❌ DEV incorrectly blocked by readonly mode: {dev_result}"
-                        )
+                        print(f"   ❌ DEV incorrectly blocked by readonly mode: {dev_result}")
                         return False
                     else:
-                        print(
-                            "   ✅ DEV write operations: Not blocked by readonly mode"
-                        )
+                        print("   ✅ DEV write operations: Not blocked by readonly mode")
 
                     # Test 4: Test other modification operations on PROD
                     print("\n🚫 Testing other modification operations on PROD...")
@@ -227,9 +200,7 @@ class ReadOnlyValidationTest:
                     else:
                         config_result = {}
 
-                    if isinstance(config_result, dict) and config_result.get(
-                        "readonly_mode"
-                    ):
+                    if isinstance(config_result, dict) and config_result.get("readonly_mode"):
                         print("   ✅ Config update correctly blocked")
                     else:
                         print(f"   ❌ Config update not blocked: {config_result}")
@@ -245,9 +216,7 @@ class ReadOnlyValidationTest:
                     else:
                         context_result = {}
 
-                    if isinstance(context_result, dict) and context_result.get(
-                        "readonly_mode"
-                    ):
+                    if isinstance(context_result, dict) and context_result.get("readonly_mode"):
                         print("   ✅ Context creation correctly blocked")
                     else:
                         print(f"   ❌ Context creation not blocked: {context_result}")
@@ -271,9 +240,7 @@ class ReadOnlyValidationTest:
                     else:
                         migration_result = {}
 
-                    if isinstance(migration_result, dict) and migration_result.get(
-                        "readonly_mode"
-                    ):
+                    if isinstance(migration_result, dict) and migration_result.get("readonly_mode"):
                         print("   ✅ Migration to PROD correctly blocked")
                     else:
                         print(f"   ⚠️  Migration response: {migration_result}")
@@ -313,9 +280,7 @@ async def validate_readonly_mode():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     try:
         # Use subprocess approach for consistent environment passing
@@ -326,9 +291,7 @@ async def validate_readonly_mode():
         subprocess_env = os.environ.copy()
 
         # Create server parameters with explicit environment
-        server_params = StdioServerParameters(
-            command="python", args=[server_script], env=subprocess_env
-        )
+        server_params = StdioServerParameters(command="python", args=[server_script], env=subprocess_env)
 
         # Test with subprocess communication
         async with stdio_client(server_params) as (read, write):
@@ -376,9 +339,7 @@ async def validate_readonly_mode():
                     "count_total_schemas",
                 ]
 
-                print(
-                    f"\n🚫 Testing {len(modification_operations)} modification operations (should be blocked)..."
-                )
+                print(f"\n🚫 Testing {len(modification_operations)} modification operations (should be blocked)...")
                 blocked_count = 0
 
                 for operation in modification_operations:
@@ -421,9 +382,7 @@ async def validate_readonly_mode():
                         else:
                             print(f"⚠️  {operation}: Exception (not readonly): {e}")
 
-                print(
-                    f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)..."
-                )
+                print(f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)...")
                 allowed_count = 0
 
                 for operation in readonly_operations:
@@ -459,43 +418,27 @@ async def validate_readonly_mode():
                     except Exception as e:
                         error_text = str(e).lower()
                         if "readonly" in error_text or "read-only" in error_text:
-                            print(
-                                f"❌ {operation}: Incorrectly blocked by readonly mode"
-                            )
+                            print(f"❌ {operation}: Incorrectly blocked by readonly mode")
                         else:
                             # Connection errors are expected and OK
-                            print(
-                                f"✅ {operation}: Not blocked by readonly mode (connection error OK)"
-                            )
+                            print(f"✅ {operation}: Not blocked by readonly mode (connection error OK)")
                             allowed_count += 1
 
                 print("\n📊 READONLY Mode Validation Summary:")
-                print(
-                    f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}"
-                )
-                print(
-                    f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}"
-                )
+                print(f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}")
+                print(f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}")
 
                 # Validate that most operations behave as expected
-                min_blocked = (
-                    len(modification_operations) * 0.8
-                )  # At least 80% should be blocked
-                min_allowed = (
-                    len(readonly_operations) * 0.8
-                )  # At least 80% should be allowed
+                min_blocked = len(modification_operations) * 0.8  # At least 80% should be blocked
+                min_allowed = len(readonly_operations) * 0.8  # At least 80% should be allowed
 
                 if blocked_count >= min_blocked and allowed_count >= min_allowed:
                     print("\n✅ READONLY mode validation PASSED!")
                     return True
                 else:
                     print("\n❌ READONLY mode validation FAILED!")
-                    print(
-                        f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}"
-                    )
-                    print(
-                        f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}"
-                    )
+                    print(f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}")
+                    print(f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}")
                     return False
 
     except Exception as e:

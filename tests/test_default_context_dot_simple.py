@@ -93,26 +93,16 @@ def test_default_context_subject_listing():
         if isinstance(subjects_none, dict) and "error" in subjects_none:
             print(f"   ❌ Error with context=None: {subjects_none['error']}")
             # If this is a connection error, it's expected in test environments
-            if (
-                "Connection refused" in subjects_none["error"]
-                or "Max retries exceeded" in subjects_none["error"]
-            ):
-                print(
-                    "   ℹ️  Schema Registry not available - skipping subject listing test"
-                )
+            if "Connection refused" in subjects_none["error"] or "Max retries exceeded" in subjects_none["error"]:
+                print("   ℹ️  Schema Registry not available - skipping subject listing test")
                 return True
             return False
 
         if isinstance(subjects_dot, dict) and "error" in subjects_dot:
             print(f"   ❌ Error with context='.': {subjects_dot['error']}")
             # If this is a connection error, it's expected in test environments
-            if (
-                "Connection refused" in subjects_dot["error"]
-                or "Max retries exceeded" in subjects_dot["error"]
-            ):
-                print(
-                    "   ℹ️  Schema Registry not available - skipping subject listing test"
-                )
+            if "Connection refused" in subjects_dot["error"] or "Max retries exceeded" in subjects_dot["error"]:
+                print("   ℹ️  Schema Registry not available - skipping subject listing test")
                 return True
             return False
 
@@ -128,9 +118,7 @@ def test_default_context_subject_listing():
 
         # Check that the actual subjects are the same
         if set(subjects_none) != set(subjects_dot):
-            print(
-                "   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!"
-            )
+            print("   ❌ CRITICAL: Different subjects returned for context=None vs context='.'!")
             diff_none_only = set(subjects_none) - set(subjects_dot)
             diff_dot_only = set(subjects_dot) - set(subjects_none)
             if diff_none_only:
@@ -192,9 +180,7 @@ def test_schema_registry_connectivity():
         print(f"   ❌ Schema Registry connectivity test failed: {e}")
         # Connection errors are expected in test environments without running Schema Registry
         if "Connection refused" in str(e) or "Max retries exceeded" in str(e):
-            print(
-                "   ℹ️  Schema Registry not available - this is expected in test environments"
-            )
+            print("   ℹ️  Schema Registry not available - this is expected in test environments")
             return True
         return False
 

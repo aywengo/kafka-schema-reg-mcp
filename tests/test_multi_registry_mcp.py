@@ -70,9 +70,7 @@ async def test_multi_registry_mcp():
                 )
                 print(f"Registry comparison: {result}")
             except Exception as e:
-                print(
-                    f"⚠️ Registry comparison (expected if registries not running): {e}"
-                )
+                print(f"⚠️ Registry comparison (expected if registries not running): {e}")
 
             print("\n🎉 Multi-registry MCP server test completed successfully!")
 

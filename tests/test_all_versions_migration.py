@@ -99,9 +99,7 @@ class AllVersionsMigrationTest:
             schema = copy.deepcopy(base_schema)
             # Add a new field for each version (ensure unique field name, and make it optional for compatibility)
             for j in range(i + 1):
-                schema["fields"].append(
-                    {"name": f"field_{j}", "type": "string", "default": ""}
-                )
+                schema["fields"].append({"name": f"field_{j}", "type": "string", "default": ""})
 
             # Register schema using direct tool function call
             result = register_schema_tool(
@@ -115,15 +113,11 @@ class AllVersionsMigrationTest:
             )
 
             if "error" in result:
-                raise Exception(
-                    f"Failed to register schema version {i+1}: {result['error']}"
-                )
+                raise Exception(f"Failed to register schema version {i+1}: {result['error']}")
             print(f"✓ Registered schema version {i+1}")
         return True
 
-    def verify_schema_versions(
-        self, subject: str, registry: str, context: str, expected_versions: int
-    ):
+    def verify_schema_versions(self, subject: str, registry: str, context: str, expected_versions: int):
         """Verify that a schema has the expected number of versions."""
         versions_result = get_schema_versions_tool(
             subject=subject,
@@ -144,9 +138,7 @@ class AllVersionsMigrationTest:
             versions = versions_result
 
         if len(versions) != expected_versions:
-            raise Exception(
-                f"Expected {expected_versions} versions, got {len(versions)}"
-            )
+            raise Exception(f"Expected {expected_versions} versions, got {len(versions)}")
         print(f"✓ Verified {len(versions)} versions in {registry} registry")
         return True
 
@@ -205,7 +197,7 @@ class AllVersionsMigrationTest:
                 print(f"⚠️  ID preservation failed, proceeding without ID preservation")
                 # Import the confirmation tool
                 from migration_tools import confirm_migration_without_ids_tool
-                
+
                 # Retry migration without ID preservation
                 migration_result = confirm_migration_without_ids_tool(
                     subject=subject,
@@ -218,7 +210,7 @@ class AllVersionsMigrationTest:
                     dry_run=False,
                     versions=versions,
                 )
-                
+
                 if "error" in migration_result:
                     raise Exception(f"Migration failed even without ID preservation: {migration_result['error']}")
                 else:
@@ -228,14 +220,10 @@ class AllVersionsMigrationTest:
 
         # Check for task tracking
         if "migration_id" in migration_result:
-            print(
-                f"✓ Migration started with task ID: {migration_result['migration_id']}"
-            )
+            print(f"✓ Migration started with task ID: {migration_result['migration_id']}")
 
             # Check task status
-            status = get_migration_status_tool(
-                migration_result["migration_id"], mcp_server.REGISTRY_MODE
-            )
+            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
             if status and "error" not in status:
                 print(f"✓ Migration task status: {status.get('status', 'unknown')}")
 

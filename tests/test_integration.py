@@ -65,9 +65,7 @@ async def wait_for_service(url: str, timeout: int = 60):
             pass
 
         if asyncio.get_event_loop().time() - start_time > timeout:
-            raise TimeoutError(
-                f"Service at {url} did not become available within {timeout} seconds"
-            )
+            raise TimeoutError(f"Service at {url} did not become available within {timeout} seconds")
 
         await asyncio.sleep(1)
 
@@ -142,9 +140,7 @@ async def test_get_schema_versions(client: httpx.AsyncClient, test_subject: str)
 
 
 @pytest.mark.asyncio
-async def test_check_compatibility_compatible(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_check_compatibility_compatible(client: httpx.AsyncClient, test_subject: str):
     """Test checking compatibility with a compatible schema."""
     # Register initial schema
     await client.post(
@@ -164,9 +160,7 @@ async def test_check_compatibility_compatible(
 
 
 @pytest.mark.asyncio
-async def test_check_compatibility_incompatible(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_check_compatibility_incompatible(client: httpx.AsyncClient, test_subject: str):
     """Test checking compatibility with an incompatible schema."""
     # Register initial schema
     await client.post(
@@ -213,9 +207,7 @@ async def test_invalid_schema_format(client: httpx.AsyncClient, test_subject: st
 
 # Test with authentication (if configured)
 @pytest.mark.asyncio
-@pytest.mark.skipif(
-    not os.getenv("SCHEMA_REGISTRY_USER"), reason="Authentication not configured"
-)
+@pytest.mark.skipif(not os.getenv("SCHEMA_REGISTRY_USER"), reason="Authentication not configured")
 async def test_with_authentication():
     """Test that authentication is working when configured."""
     # This test assumes authentication is configured in the environment
@@ -253,9 +245,7 @@ async def test_create_context(client: httpx.AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_context_aware_schema_registration(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_schema_registration(client: httpx.AsyncClient, test_subject: str):
     """Test registering a schema within a specific context."""
     import uuid
 
@@ -282,9 +272,7 @@ async def test_context_aware_schema_registration(
 
 
 @pytest.mark.asyncio
-async def test_context_aware_schema_registration_query_param(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_schema_registration_query_param(client: httpx.AsyncClient, test_subject: str):
     """Test registering a schema with context via query parameter."""
     import uuid
 
@@ -306,9 +294,7 @@ async def test_context_aware_schema_registration_query_param(
 
 
 @pytest.mark.asyncio
-async def test_context_aware_schema_retrieval(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_schema_retrieval(client: httpx.AsyncClient, test_subject: str):
     """Test retrieving a schema from a specific context."""
     import uuid
 
@@ -328,9 +314,7 @@ async def test_context_aware_schema_retrieval(
     )
 
     # Retrieve schema from context
-    response = await client.get(
-        f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context_name}"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context_name}")
     assert response.status_code == 200
 
     data = response.json()
@@ -342,9 +326,7 @@ async def test_context_aware_schema_retrieval(
 
 
 @pytest.mark.asyncio
-async def test_context_aware_schema_versions(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_schema_versions(client: httpx.AsyncClient, test_subject: str):
     """Test getting schema versions within a specific context."""
     import uuid
 
@@ -374,9 +356,7 @@ async def test_context_aware_schema_versions(
     )
 
     # Get versions within context
-    response = await client.get(
-        f"{MCP_SERVER_URL}/schemas/{test_subject}/versions?context={context_name}"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/schemas/{test_subject}/versions?context={context_name}")
     assert response.status_code == 200
 
     versions = response.json()
@@ -386,9 +366,7 @@ async def test_context_aware_schema_versions(
 
 
 @pytest.mark.asyncio
-async def test_context_aware_compatibility_check(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_compatibility_check(client: httpx.AsyncClient, test_subject: str):
     """Test compatibility checking within a specific context."""
     import uuid
 
@@ -424,9 +402,7 @@ async def test_context_aware_compatibility_check(
 
 
 @pytest.mark.asyncio
-async def test_context_aware_compatibility_check_query_param(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_context_aware_compatibility_check_query_param(client: httpx.AsyncClient, test_subject: str):
     """Test compatibility checking with context via query parameter."""
     import uuid
 
@@ -483,9 +459,7 @@ async def test_list_subjects_with_context(client: httpx.AsyncClient, test_subjec
 
 
 @pytest.mark.asyncio
-async def test_list_subjects_default_context(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_list_subjects_default_context(client: httpx.AsyncClient, test_subject: str):
     """Test listing subjects in default context (no context specified)."""
     # Register a schema in default context
     await client.post(
@@ -503,9 +477,7 @@ async def test_list_subjects_default_context(
 
 
 @pytest.mark.asyncio
-async def test_delete_subject_with_context(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_delete_subject_with_context(client: httpx.AsyncClient, test_subject: str):
     """Test deleting a subject within a specific context."""
     import uuid
 
@@ -525,15 +497,11 @@ async def test_delete_subject_with_context(
     )
 
     # Delete subject within context
-    response = await client.delete(
-        f"{MCP_SERVER_URL}/subjects/{test_subject}?context={context_name}"
-    )
+    response = await client.delete(f"{MCP_SERVER_URL}/subjects/{test_subject}?context={context_name}")
     assert response.status_code == 200
 
     # Verify deletion
-    response = await client.get(
-        f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context_name}"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context_name}")
     assert response.status_code == 404
 
 
@@ -567,9 +535,7 @@ async def test_delete_context(client: httpx.AsyncClient):
         pass
     else:
         # Unexpected status code
-        assert (
-            False
-        ), f"Unexpected status code: {response.status_code}, response: {response.text}"
+        assert False, f"Unexpected status code: {response.status_code}, response: {response.text}"
 
 
 @pytest.mark.asyncio
@@ -606,12 +572,8 @@ async def test_context_isolation(client: httpx.AsyncClient, test_subject: str):
     )
 
     # Verify schemas are different in each context
-    response1 = await client.get(
-        f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context1}"
-    )
-    response2 = await client.get(
-        f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context2}"
-    )
+    response1 = await client.get(f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context1}")
+    response2 = await client.get(f"{MCP_SERVER_URL}/schemas/{test_subject}?context={context2}")
 
     assert response1.status_code == 200
     assert response2.status_code == 200
@@ -653,13 +615,9 @@ async def test_update_global_config(client: httpx.AsyncClient):
     current_config = current_response.json()
 
     # Update to a different compatibility level
-    new_compatibility = (
-        "FULL" if current_config["compatibilityLevel"] != "FULL" else "BACKWARD"
-    )
+    new_compatibility = "FULL" if current_config["compatibilityLevel"] != "FULL" else "BACKWARD"
 
-    response = await client.put(
-        f"{MCP_SERVER_URL}/config", json={"compatibility": new_compatibility}
-    )
+    response = await client.put(f"{MCP_SERVER_URL}/config", json={"compatibility": new_compatibility})
     assert response.status_code == 200
 
     data = response.json()
@@ -696,9 +654,7 @@ async def test_update_subject_config(client: httpx.AsyncClient, test_subject: st
     )
 
     # Set subject-specific config
-    response = await client.put(
-        f"{MCP_SERVER_URL}/config/{test_subject}", json={"compatibility": "FORWARD"}
-    )
+    response = await client.put(f"{MCP_SERVER_URL}/config/{test_subject}", json={"compatibility": "FORWARD"})
     assert response.status_code == 200
 
     data = response.json()
@@ -793,9 +749,7 @@ async def test_update_subject_mode(client: httpx.AsyncClient, test_subject: str)
     )
 
     # Try to set subject-specific mode (might not be supported)
-    response = await client.put(
-        f"{MCP_SERVER_URL}/mode/{test_subject}", json={"mode": "READWRITE"}
-    )
+    response = await client.put(f"{MCP_SERVER_URL}/mode/{test_subject}", json={"mode": "READWRITE"})
     # Subject-level mode might not be supported in all Schema Registry versions
     assert response.status_code in [200, 404, 422, 500]
 
@@ -855,9 +809,7 @@ async def test_config_mode_integration(client: httpx.AsyncClient, test_subject: 
 @pytest.mark.asyncio
 async def test_invalid_compatibility_level(client: httpx.AsyncClient):
     """Test handling of invalid compatibility levels."""
-    response = await client.put(
-        f"{MCP_SERVER_URL}/config", json={"compatibility": "INVALID_LEVEL"}
-    )
+    response = await client.put(f"{MCP_SERVER_URL}/config", json={"compatibility": "INVALID_LEVEL"})
     # Should return error for invalid compatibility level
     assert response.status_code in [400, 422, 500]
 
@@ -897,9 +849,7 @@ async def test_export_single_schema_json(client: httpx.AsyncClient, test_subject
     )
 
     # Export schema in JSON format
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=json"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=json")
     assert response.status_code == 200
 
     data = response.json()
@@ -913,9 +863,7 @@ async def test_export_single_schema_json(client: httpx.AsyncClient, test_subject
 
 
 @pytest.mark.asyncio
-async def test_export_single_schema_avro_idl(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_export_single_schema_avro_idl(client: httpx.AsyncClient, test_subject: str):
     """Test exporting a single schema in Avro IDL format."""
     # Register a schema first
     await client.post(
@@ -924,9 +872,7 @@ async def test_export_single_schema_avro_idl(
     )
 
     # Export schema in IDL format
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=avro_idl"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?format=avro_idl")
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/plain; charset=utf-8"
 
@@ -957,9 +903,7 @@ async def test_export_schema_with_context(client: httpx.AsyncClient, test_subjec
     )
 
     # Export schema from context
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?context={context_name}"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?context={context_name}")
     assert response.status_code == 200
 
     data = response.json()
@@ -970,9 +914,7 @@ async def test_export_schema_with_context(client: httpx.AsyncClient, test_subjec
 
 
 @pytest.mark.asyncio
-async def test_export_subject_all_versions(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_export_subject_all_versions(client: httpx.AsyncClient, test_subject: str):
     """Test exporting all versions of a subject."""
     # Register multiple versions
     await client.post(
@@ -1144,9 +1086,7 @@ async def test_export_context_bundle(client: httpx.AsyncClient, test_subject: st
 
 
 @pytest.mark.asyncio
-async def test_list_exportable_subjects_default_context(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_list_exportable_subjects_default_context(client: httpx.AsyncClient, test_subject: str):
     """Test listing exportable subjects in default context."""
     # Register a schema in default context
     await client.post(
@@ -1176,9 +1116,7 @@ async def test_list_exportable_subjects_default_context(
 
 
 @pytest.mark.asyncio
-async def test_list_exportable_subjects_with_context(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_list_exportable_subjects_with_context(client: httpx.AsyncClient, test_subject: str):
     """Test listing exportable subjects in a specific context."""
     import uuid
 
@@ -1198,9 +1136,7 @@ async def test_list_exportable_subjects_with_context(
     )
 
     # List exportable subjects in context
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/subjects?context={context_name}"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/subjects?context={context_name}")
     assert response.status_code == 200
 
     data = response.json()
@@ -1306,9 +1242,7 @@ async def test_export_global_bundle(client: httpx.AsyncClient, test_subject: str
 
 
 @pytest.mark.asyncio
-async def test_export_schema_specific_version(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_export_schema_specific_version(client: httpx.AsyncClient, test_subject: str):
     """Test exporting a specific version of a schema."""
     # Register multiple versions
     await client.post(
@@ -1322,9 +1256,7 @@ async def test_export_schema_specific_version(
     )
 
     # Export version 1 specifically
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?version=1"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?version=1")
     assert response.status_code == 200
 
     data = response.json()
@@ -1341,9 +1273,7 @@ async def test_export_schema_specific_version(
 
 
 @pytest.mark.asyncio
-async def test_export_subject_specific_version(
-    client: httpx.AsyncClient, test_subject: str
-):
+async def test_export_subject_specific_version(client: httpx.AsyncClient, test_subject: str):
     """Test exporting a specific version using subject export."""
     # Register multiple versions
     await client.post(
@@ -1418,9 +1348,7 @@ async def test_export_metadata_inclusion(client: httpx.AsyncClient, test_subject
     )
 
     # Export with metadata
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=true"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=true")
     assert response.status_code == 200
 
     data = response.json()
@@ -1430,9 +1358,7 @@ async def test_export_metadata_inclusion(client: httpx.AsyncClient, test_subject
     assert data["metadata"]["registry_url"] == SCHEMA_REGISTRY_URL
 
     # Export without metadata
-    response = await client.get(
-        f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=false"
-    )
+    response = await client.get(f"{MCP_SERVER_URL}/export/schemas/{test_subject}?include_metadata=false")
     assert response.status_code == 200
 
     data = response.json()

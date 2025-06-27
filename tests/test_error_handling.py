@@ -75,9 +75,7 @@ async def test_invalid_registry_configuration():
     env["SCHEMA_REGISTRY_URL_1"] = "http://nonexistent.registry:9999"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -86,32 +84,22 @@ async def test_invalid_registry_configuration():
 
                 # Test 1: Connection test should fail gracefully
                 print("Test 1: Connection test to invalid registry")
-                result = await session.call_tool(
-                    "test_registry_connection", {"registry_name": "invalid_registry"}
-                )
+                result = await session.call_tool("test_registry_connection", {"registry_name": "invalid_registry"})
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Expected failure: {response.get('status', 'unknown')}")
-                assert (
-                    response.get("status") == "error"
-                ), "Expected connection test to fail"
+                assert response.get("status") == "error", "Expected connection test to fail"
 
                 # Test 2: List subjects should handle connection failure
                 print("\nTest 2: List subjects with invalid registry")
-                result = await session.call_tool(
-                    "list_subjects", {"registry": "invalid_registry"}
-                )
+                result = await session.call_tool("list_subjects", {"registry": "invalid_registry"})
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Error handled: {response.get('error', 'No error field')}")
 
                 # Test 3: Registry info should show connection failure
                 print("\nTest 3: Registry info with connection failure")
-                result = await session.call_tool(
-                    "get_registry_info", {"registry_name": "invalid_registry"}
-                )
+                result = await session.call_tool("get_registry_info", {"registry_name": "invalid_registry"})
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Connection status: {response.get('connection_status', 'unknown')}"
-                )
+                print(f"  ✅ Connection status: {response.get('connection_status', 'unknown')}")
 
                 print("\n🎉 Invalid Registry Configuration Tests Complete!")
 
@@ -141,9 +129,7 @@ async def test_readonly_mode_enforcement():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "true"  # Set to readonly
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -182,21 +168,13 @@ async def test_readonly_mode_enforcement():
                 for operation_name, params in readonly_operations:
                     print(f"Test: {operation_name} should be blocked")
                     result = await session.call_tool(operation_name, params)
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
+                    response = json.loads(result.content[0].text) if result.content else {}
 
                     # Check if operation was properly blocked
-                    if "readonly" in response.get("error", "").lower() or response.get(
-                        "readonly_mode"
-                    ):
-                        print(
-                            f"  ✅ {operation_name} properly blocked by readonly mode"
-                        )
+                    if "readonly" in response.get("error", "").lower() or response.get("readonly_mode"):
+                        print(f"  ✅ {operation_name} properly blocked by readonly mode")
                     else:
-                        print(
-                            f"  ⚠️ {operation_name} may not be properly blocked: {response}"
-                        )
+                        print(f"  ⚠️ {operation_name} may not be properly blocked: {response}")
 
                 # Test read operations that should still work
                 read_operations = [
@@ -209,16 +187,12 @@ async def test_readonly_mode_enforcement():
                 print("\nTesting read operations (should work):")
                 for operation_name, params in read_operations:
                     result = await session.call_tool(operation_name, params)
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
+                    response = json.loads(result.content[0].text) if result.content else {}
 
                     if not response.get("error"):
                         print(f"  ✅ {operation_name} works in readonly mode")
                     else:
-                        print(
-                            f"  ⚠️ {operation_name} failed unexpectedly: {response.get('error')}"
-                        )
+                        print(f"  ⚠️ {operation_name} failed unexpectedly: {response.get('error')}")
 
                 print("\n🎉 READONLY Mode Enforcement Tests Complete!")
 
@@ -247,9 +221,7 @@ async def test_invalid_parameters():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -258,13 +230,9 @@ async def test_invalid_parameters():
 
                 # Test 1: Non-existent registry parameter
                 print("Test 1: Non-existent registry")
-                result = await session.call_tool(
-                    "list_subjects", {"registry": "nonexistent_registry"}
-                )
+                result = await session.call_tool("list_subjects", {"registry": "nonexistent_registry"})
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Non-existent registry error: {response.get('error', 'No error')}"
-                )
+                print(f"  ✅ Non-existent registry error: {response.get('error', 'No error')}")
 
                 # Test 2: Invalid schema definitions
                 print("\nTest 2: Invalid schema definitions")
@@ -279,13 +247,9 @@ async def test_invalid_parameters():
                                 "registry": "param_test",
                             },
                         )
-                        response = (
-                            json.loads(result.content[0].text) if result.content else {}
-                        )
+                        response = json.loads(result.content[0].text) if result.content else {}
                         if response.get("error"):
-                            print(
-                                f"    ✅ Properly rejected: {response['error'][:50]}..."
-                            )
+                            print(f"    ✅ Properly rejected: {response['error'][:50]}...")
                         else:
                             print("    ⚠️ Unexpectedly accepted invalid schema")
                     except Exception as e:
@@ -299,26 +263,16 @@ async def test_invalid_parameters():
                         "update_global_config",
                         {"compatibility": level, "registry": "param_test"},
                     )
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
-                    print(
-                        f"  Testing '{level}': {response.get('error', 'Accepted')[:50]}"
-                    )
+                    response = json.loads(result.content[0].text) if result.content else {}
+                    print(f"  Testing '{level}': {response.get('error', 'Accepted')[:50]}")
 
                 # Test 4: Invalid modes
                 print("\nTest 4: Invalid modes")
                 invalid_modes = ["INVALID", "UNKNOWN", "", "123"]
                 for mode in invalid_modes:
-                    result = await session.call_tool(
-                        "update_mode", {"mode": mode, "registry": "param_test"}
-                    )
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
-                    print(
-                        f"  Testing '{mode}': {response.get('error', 'Accepted')[:50]}"
-                    )
+                    result = await session.call_tool("update_mode", {"mode": mode, "registry": "param_test"})
+                    response = json.loads(result.content[0].text) if result.content else {}
+                    print(f"  Testing '{mode}': {response.get('error', 'Accepted')[:50]}")
 
                 # Test 5: Empty and special character subjects
                 print("\nTest 5: Edge case subject names")
@@ -329,15 +283,9 @@ async def test_invalid_parameters():
                     "subject-with-special-chars!@#",
                 ]
                 for subject in edge_case_subjects:
-                    result = await session.call_tool(
-                        "get_schema", {"subject": subject, "registry": "param_test"}
-                    )
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
-                    print(
-                        f"  Subject '{subject}': {response.get('error', 'No error')[:50]}"
-                    )
+                    result = await session.call_tool("get_schema", {"subject": subject, "registry": "param_test"})
+                    response = json.loads(result.content[0].text) if result.content else {}
+                    print(f"  Subject '{subject}': {response.get('error', 'No error')[:50]}")
 
                 print("\n🎉 Invalid Parameters and Edge Cases Tests Complete!")
 
@@ -375,9 +323,7 @@ async def test_cross_registry_error_scenarios():
     env["SCHEMA_REGISTRY_URL_3"] = "http://localhost:38081"
     env["READONLY_3"] = "true"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -422,9 +368,7 @@ async def test_cross_registry_error_scenarios():
                     },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Readonly migration result: {response.get('error', 'Success')}"
-                )
+                print(f"  ✅ Readonly migration result: {response.get('error', 'Success')}")
 
                 # Test 4: Find missing schemas with connection issues
                 print("\nTest 4: Find missing schemas with connection issues")
@@ -436,9 +380,7 @@ async def test_cross_registry_error_scenarios():
                     },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Missing schemas result: {response.get('error', 'Success')}"
-                )
+                print(f"  ✅ Missing schemas result: {response.get('error', 'Success')}")
 
                 # Test 5: Sync operations with mixed registry states
                 print("\nTest 5: Sync operations with mixed registry states")
@@ -481,9 +423,7 @@ async def test_resource_limits_and_timeouts():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -495,10 +435,7 @@ async def test_resource_limits_and_timeouts():
                 large_schema = {
                     "type": "record",
                     "name": "LargeRecord",
-                    "fields": [
-                        {"name": f"field_{i}", "type": "string"}
-                        for i in range(100)  # 100 fields
-                    ],
+                    "fields": [{"name": f"field_{i}", "type": "string"} for i in range(100)],  # 100 fields
                 }
 
                 result = await session.call_tool(
@@ -516,15 +453,9 @@ async def test_resource_limits_and_timeouts():
                 print("\nTest 2: Rapid sequential operations")
                 rapid_test_results = []
                 for i in range(10):
-                    result = await session.call_tool(
-                        "list_subjects", {"registry": "timeout_test"}
-                    )
-                    response = (
-                        json.loads(result.content[0].text) if result.content else {}
-                    )
-                    rapid_test_results.append(
-                        "success" if not response.get("error") else "error"
-                    )
+                    result = await session.call_tool("list_subjects", {"registry": "timeout_test"})
+                    response = json.loads(result.content[0].text) if result.content else {}
+                    rapid_test_results.append("success" if not response.get("error") else "error")
 
                 success_count = rapid_test_results.count("success")
                 print(f"  ✅ Rapid operations: {success_count}/10 successful")
@@ -533,9 +464,7 @@ async def test_resource_limits_and_timeouts():
                 print("\nTest 3: Test all registries simultaneously")
                 result = await session.call_tool("test_all_registries", {})
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Multi-registry test: {response.get('connected', 0)} connected"
-                )
+                print(f"  ✅ Multi-registry test: {response.get('connected', 0)} connected")
 
                 print("\n🎉 Resource Limits and Timeouts Tests Complete!")
 
@@ -567,9 +496,7 @@ async def test_authentication_errors():
     env["SCHEMA_REGISTRY_PASSWORD_1"] = "invalid_password"
     env["READONLY_1"] = "false"
 
-    server_params = StdioServerParameters(
-        command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
     try:
         async with stdio_client(server_params) as (read, write):
@@ -578,23 +505,15 @@ async def test_authentication_errors():
 
                 # Test 1: Connection test with invalid auth
                 print("Test 1: Connection test with invalid credentials")
-                result = await session.call_tool(
-                    "test_registry_connection", {"registry_name": "auth_test"}
-                )
+                result = await session.call_tool("test_registry_connection", {"registry_name": "auth_test"})
                 response = json.loads(result.content[0].text) if result.content else {}
                 print(f"  ✅ Auth test result: {response.get('status', 'unknown')}")
 
                 # Test 2: List subjects with auth issues
                 print("\nTest 2: List subjects with invalid credentials")
-                result = await session.call_tool(
-                    "list_subjects", {"registry": "auth_test"}
-                )
+                result = await session.call_tool("list_subjects", {"registry": "auth_test"})
                 response = json.loads(result.content[0].text) if result.content else {}
-                if (
-                    response.get("error")
-                    or isinstance(response, list)
-                    and len(response) == 0
-                ):
+                if response.get("error") or isinstance(response, list) and len(response) == 0:
                     print("  ✅ Auth error properly handled")
                 else:
                     print(f"  ⚠️ Unexpected response: {response}")
@@ -610,9 +529,7 @@ async def test_authentication_errors():
                     },
                 )
                 response = json.loads(result.content[0].text) if result.content else {}
-                print(
-                    f"  ✅ Auth registration result: {response.get('error', 'Success')}"
-                )
+                print(f"  ✅ Auth registration result: {response.get('error', 'Success')}")
 
                 print("\n🎉 Authentication Error Handling Tests Complete!")
 
@@ -637,9 +554,7 @@ async def test_error_handling():
                 "MULTI_REGISTRY_CONFIG": json.dumps(
                     {
                         "dev": {"url": "http://localhost:38081"},
-                        "invalid": {
-                            "url": "http://localhost:99999"
-                        },  # Invalid port for testing
+                        "invalid": {"url": "http://localhost:99999"},  # Invalid port for testing
                     }
                 ),
             },
@@ -655,9 +570,7 @@ async def test_error_handling():
                     "register_schema",
                     {
                         "subject": "test-invalid-schema",
-                        "schema_definition": {
-                            "invalid": "schema"
-                        },  # Invalid Avro schema
+                        "schema_definition": {"invalid": "schema"},  # Invalid Avro schema
                         "schema_type": "AVRO",
                     },
                 )
@@ -675,9 +588,7 @@ async def test_error_handling():
                     "get_schema",
                     {"subject": "non-existent-subject-12345", "version": "latest"},
                 )
-                if result and (
-                    "error" in result.lower() or "not found" in result.lower()
-                ):
+                if result and ("error" in result.lower() or "not found" in result.lower()):
                     print("   ✅ Error properly handled for non-existent subject")
                 else:
                     print(f"   ⚠️ Unexpected result: {result}")
@@ -687,9 +598,7 @@ async def test_error_handling():
             # Test 3: Invalid registry operations
             print("\n❌ Test 3: Invalid registry operations...")
             try:
-                result = await client.call_tool(
-                    "list_subjects", {"registry": "invalid"}  # This should fail
-                )
+                result = await client.call_tool("list_subjects", {"registry": "invalid"})  # This should fail
                 if result and "error" in result.lower():
                     print("   ✅ Error properly handled for invalid registry")
                 else:
@@ -736,15 +645,11 @@ async def test_error_handling():
             print("\n🔄 Test 6: Recovery after errors...")
             try:
                 # First, cause an error
-                await client.call_tool(
-                    "get_schema", {"subject": "non-existent", "version": "latest"}
-                )
+                await client.call_tool("get_schema", {"subject": "non-existent", "version": "latest"})
 
                 # Then, perform a valid operation
                 result = await client.call_tool("list_subjects", {})
-                print(
-                    "   ✅ Server recovered and handles valid operations after errors"
-                )
+                print("   ✅ Server recovered and handles valid operations after errors")
             except Exception as e:
                 print(f"   ✅ Server continues to function: {e}")
 
@@ -786,9 +691,7 @@ async def test_connection_error_handling():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Create client
     client = Client(server_script)
@@ -860,9 +763,7 @@ async def test_invalid_input_handling():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Create client
     client = Client(server_script)
@@ -900,10 +801,7 @@ async def test_invalid_input_handling():
                     unexpected_successes += 1
                 except Exception as e:
                     error_text = str(e).lower()
-                    if any(
-                        keyword in error_text
-                        for keyword in ["invalid", "validation", "error", "bad request"]
-                    ):
+                    if any(keyword in error_text for keyword in ["invalid", "validation", "error", "bad request"]):
                         print(f"✅ {operation}: Proper validation error - {e}")
                         validation_errors += 1
                     else:
@@ -932,9 +830,7 @@ async def test_error_recovery():
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
     # Create client
     client = Client(server_script)
@@ -962,9 +858,7 @@ async def test_error_recovery():
             # Then, try a valid operation to test recovery
             try:
                 result = await client.call_tool("list_subjects", {})
-                print(
-                    "✅ Recovery successful: Can still perform operations after error"
-                )
+                print("✅ Recovery successful: Can still perform operations after error")
                 return True
             except Exception as e:
                 print(f"❌ Recovery failed: {e}")

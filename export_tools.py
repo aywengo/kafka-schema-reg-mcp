@@ -23,9 +23,7 @@ from schema_validation import (
 )
 
 
-def _get_registry_name_for_linking(
-    registry_mode: str, client=None, registry: Optional[str] = None
-) -> str:
+def _get_registry_name_for_linking(registry_mode: str, client=None, registry: Optional[str] = None) -> str:
     """Helper function to get registry name for linking."""
     if registry_mode == "single":
         return "default"
@@ -89,9 +87,7 @@ def export_schema_tool(
                 result["format"] = format
 
             # Add resource links for dictionary results
-            registry_name = _get_registry_name_for_linking(
-                registry_mode, client, registry
-            )
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(
                 result,
                 "schema",
@@ -103,9 +99,7 @@ def export_schema_tool(
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SCHEMA_EXPORT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SCHEMA_EXPORT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("export_subject", fallback_on_error=True)
@@ -146,9 +140,7 @@ def export_subject_tool(
                 registry_mode=registry_mode,
             )
 
-        result = common_export_subject(
-            client, subject, context, include_metadata, include_config, include_versions
-        )
+        result = common_export_subject(client, subject, context, include_metadata, include_config, include_versions)
 
         # Add structured output metadata
         result["registry_mode"] = registry_mode
@@ -162,15 +154,11 @@ def export_subject_tool(
 
         # Add resource links
         registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
-        result = add_links_to_response(
-            result, "subject", registry_name, subject=subject, context=context
-        )
+        result = add_links_to_response(result, "subject", registry_name, subject=subject, context=context)
 
         return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="SUBJECT_EXPORT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="SUBJECT_EXPORT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("export_context", fallback_on_error=True)
@@ -206,19 +194,13 @@ def export_context_tool(
                     error_code="REGISTRY_NOT_CONFIGURED",
                     registry_mode="single",
                 )
-            result = common_export_context(
-                client, context, include_metadata, include_config, include_versions
-            )
+            result = common_export_context(client, context, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(
-                registry_mode, client, registry
-            )
-            result = add_links_to_response(
-                result, "context", registry_name, context=context
-            )
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(result, "context", registry_name, context=context)
 
             return result
         else:
@@ -286,18 +268,12 @@ def export_context_tool(
                 }
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(
-                registry_mode, client, registry
-            )
-            result = add_links_to_response(
-                result, "context", registry_name, context=context
-            )
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
+            result = add_links_to_response(result, "context", registry_name, context=context)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="CONTEXT_EXPORT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="CONTEXT_EXPORT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("export_global", fallback_on_error=True)
@@ -331,16 +307,12 @@ def export_global_tool(
                     error_code="REGISTRY_NOT_CONFIGURED",
                     registry_mode="single",
                 )
-            result = common_export_global(
-                client, include_metadata, include_config, include_versions
-            )
+            result = common_export_global(client, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(
-                registry_mode, client, registry
-            )
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "registry", registry_name)
 
             return result
@@ -392,9 +364,7 @@ def export_global_tool(
             result = {
                 "contexts": contexts_data,
                 "contexts_count": len(contexts_data),
-                "default_context": (
-                    default_export if "error" not in default_export else None
-                ),
+                "default_context": (default_export if "error" not in default_export else None),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
                 "mcp_protocol_version": "2025-06-18",
@@ -419,19 +389,13 @@ def export_global_tool(
                     "export_version": "2.0.0",
                     "registry_mode": "multi",
                     "total_contexts": len(contexts_data),
-                    "total_subjects": sum(
-                        len(ctx.get("subjects", [])) for ctx in contexts_data
-                    ),
+                    "total_subjects": sum(len(ctx.get("subjects", [])) for ctx in contexts_data),
                 }
 
             # Add resource links
-            registry_name = _get_registry_name_for_linking(
-                registry_mode, client, registry
-            )
+            registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "registry", registry_name)
 
             return result
     except Exception as e:
-        return create_error_response(
-            str(e), error_code="GLOBAL_EXPORT_FAILED", registry_mode=registry_mode
-        )
+        return create_error_response(str(e), error_code="GLOBAL_EXPORT_FAILED", registry_mode=registry_mode)
