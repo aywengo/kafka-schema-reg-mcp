@@ -28,6 +28,23 @@ from task_management import TaskStatus, TaskType, task_manager
 logger = logging.getLogger(__name__)
 
 
+class IDPreservationError(Exception):
+    """Exception raised when ID preservation fails and requires user confirmation."""
+    
+    def __init__(self, message: str, reason: str, original_error: str = None):
+        super().__init__(message)
+        self.reason = reason
+        self.original_error = original_error
+
+
+class MigrationConfirmationRequired(Exception):
+    """Exception raised when migration requires user confirmation to proceed."""
+    
+    def __init__(self, message: str, confirmation_details: Dict[str, Any]):
+        super().__init__(message)
+        self.confirmation_details = confirmation_details
+
+
 def _get_registry_name_for_linking(
     registry_mode: str, registry_name: Optional[str] = None
 ) -> str:
@@ -133,17 +150,60 @@ def migrate_schema_tool(
             task.started_at = datetime.now().isoformat()
 
             # Perform actual schema migration
-            migration_result = _execute_schema_migration(
-                subject=subject,
-                source_client=source_client,
-                target_client=target_client,
-                source_context=source_context,
-                target_context=target_context,
-                versions=versions,
-                migrate_all_versions=migrate_all_versions,
-                preserve_ids=preserve_ids,
-                dry_run=dry_run,
-            )
+            try:
+                migration_result = _execute_schema_migration(
+                    subject=subject,
+                    source_client=source_client,
+                    target_client=target_client,
+                    source_context=source_context,
+                    target_context=target_context,
+                    versions=versions,
+                    migrate_all_versions=migrate_all_versions,
+                    preserve_ids=preserve_ids,
+                    dry_run=dry_run,
+                    force_without_id_preservation=False,  # User confirmation required by default
+                )
+            except MigrationConfirmationRequired as e:
+                # Handle confirmation required case
+                task.status = TaskStatus.FAILED
+                task.error = str(e)
+                migration_result = {
+                    "error": str(e),
+                    "error_type": "confirmation_required",
+                    "confirmation_details": e.confirmation_details,
+                    "user_prompt": (
+                        "Migration requires user confirmation due to ID preservation failure. "
+                        "Please confirm if you want to proceed without ID preservation."
+                    ),
+                    "action_required": "Call migrate_schema_tool again with preserve_ids=False to proceed without ID preservation, or resolve the permission issue first."
+                }
+                task.completed_at = datetime.now().isoformat()
+                
+                # Add structured output metadata
+                migration_result.update({
+                    "migration_id": task.id,
+                    "subject": subject,
+                    "source_registry": source_registry,
+                    "target_registry": target_registry,
+                    "source_context": source_context,
+                    "target_context": target_context,
+                    "status": task.status.value,
+                    "dry_run": dry_run,
+                    "registry_mode": "multi",
+                    "mcp_protocol_version": "2025-06-18",
+                })
+                
+                # Add resource links
+                migration_result = add_links_to_response(
+                    migration_result,
+                    "migration",
+                    source_registry,
+                    migration_id=task.id,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                )
+                
+                return migration_result
 
             # Update task with result
             if "error" in migration_result:
@@ -184,6 +244,180 @@ def migrate_schema_tool(
 
             return migration_result
 
+        except MigrationConfirmationRequired as e:
+            # Re-raise confirmation required exceptions - don't convert them to generic errors
+            raise
+        except Exception as e:
+            return create_error_response(
+                f"Migration setup failed: {str(e)}",
+                error_code="MIGRATION_SETUP_FAILED",
+                registry_mode="multi",
+            )
+
+    except MigrationConfirmationRequired as e:
+        # Handle confirmation required at the outer level - just return confirmation response
+        return {
+            "error": str(e),
+            "error_type": "confirmation_required",
+            "confirmation_details": e.confirmation_details,
+            "user_prompt": (
+                "Migration requires user confirmation due to ID preservation failure. "
+                "Please confirm if you want to proceed without ID preservation."
+            ),
+            "action_required": "Call confirm_migration_without_ids_tool to proceed without ID preservation, or resolve the permission issue first."
+        }
+    except Exception as e:
+        return create_error_response(
+            str(e), error_code="MIGRATION_FAILED", registry_mode=registry_mode
+        )
+
+
+@structured_output("confirm_migration_without_ids", fallback_on_error=True)
+def confirm_migration_without_ids_tool(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    registry_manager,
+    registry_mode: str,
+    dry_run: bool = False,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[List[int]] = None,
+    migrate_all_versions: bool = False,
+) -> Dict[str, Any]:
+    """
+    Confirm and proceed with schema migration without ID preservation.
+    Use this after receiving a confirmation_required error from migrate_schema_tool.
+
+    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
+    This operation runs asynchronously and returns a task_id immediately.
+    Use get_task_status(task_id) to monitor progress and get results.
+
+    Args:
+        subject: The subject name
+        source_registry: Source registry name
+        target_registry: Target registry name
+        dry_run: Preview migration without executing
+        source_context: Source context (default: ".")
+        target_context: Target context (default: ".")
+        versions: Optional list of specific versions to migrate
+        migrate_all_versions: Migrate all versions instead of just latest
+
+    Returns:
+        Task information with task_id for monitoring progress (multi-registry mode)
+        or simple result (single-registry mode) with structured validation and resource links
+    """
+    try:
+        if registry_mode == "single":
+            return create_error_response(
+                "Schema migration between registries not available in single-registry mode",
+                details={
+                    "suggestion": "Use multi-registry configuration to enable cross-registry migration"
+                },
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
+
+        # Multi-registry mode: use task queue
+        # Create migration task
+        task = task_manager.create_task(
+            TaskType.MIGRATION,
+            metadata={
+                "operation": "confirm_migration_without_ids",
+                "subject": subject,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "source_context": source_context,
+                "target_context": target_context,
+                "migrate_all_versions": migrate_all_versions,
+                "preserve_ids": False,  # Explicitly disabled
+                "dry_run": dry_run,
+                "force_without_id_preservation": True,  # Force proceed without confirmation
+            },
+        )
+
+        # Implement schema migration without ID preservation
+        try:
+            # Check registry connections
+            source_client = registry_manager.get_registry(source_registry)
+            target_client = registry_manager.get_registry(target_registry)
+
+            if not source_client:
+                task.status = TaskStatus.FAILED
+                task.error = f"Source registry '{source_registry}' not found"
+                return create_error_response(
+                    f"Source registry '{source_registry}' not found",
+                    error_code="SOURCE_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+            if not target_client:
+                task.status = TaskStatus.FAILED
+                task.error = f"Target registry '{target_registry}' not found"
+                return create_error_response(
+                    f"Target registry '{target_registry}' not found",
+                    error_code="TARGET_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            # Mark task as running
+            task.status = TaskStatus.RUNNING
+            task.started_at = datetime.now().isoformat()
+
+            # Perform actual schema migration (with force flag to skip confirmation)
+            migration_result = _execute_schema_migration(
+                subject=subject,
+                source_client=source_client,
+                target_client=target_client,
+                source_context=source_context,
+                target_context=target_context,
+                versions=versions,
+                migrate_all_versions=migrate_all_versions,
+                preserve_ids=False,  # Explicitly disabled
+                dry_run=dry_run,
+                force_without_id_preservation=True,  # Force proceed without confirmation
+            )
+
+            # Update task with result
+            if "error" in migration_result:
+                task.status = TaskStatus.FAILED
+                task.error = migration_result["error"]
+            else:
+                task.status = TaskStatus.COMPLETED
+                task.progress = 100.0
+                task.result = migration_result
+
+            task.completed_at = datetime.now().isoformat()
+
+            # Add structured output metadata to result
+            migration_result.update(
+                {
+                    "migration_id": task.id,
+                    "subject": subject,
+                    "source_registry": source_registry,
+                    "target_registry": target_registry,
+                    "source_context": source_context,
+                    "target_context": target_context,
+                    "status": task.status.value,
+                    "dry_run": dry_run,
+                    "preserve_ids": False,
+                    "confirmed_without_id_preservation": True,
+                    "registry_mode": "multi",
+                    "mcp_protocol_version": "2025-06-18",
+                }
+            )
+
+            # Add resource links
+            migration_result = add_links_to_response(
+                migration_result,
+                "migration",
+                source_registry,
+                migration_id=task.id,
+                source_registry=source_registry,
+                target_registry=target_registry,
+            )
+
+            return migration_result
+
         except Exception as e:
             return create_error_response(
                 f"Migration setup failed: {str(e)}",
@@ -193,7 +427,7 @@ def migrate_schema_tool(
 
     except Exception as e:
         return create_error_response(
-            str(e), error_code="MIGRATION_FAILED", registry_mode=registry_mode
+            str(e), error_code="CONFIRMED_MIGRATION_FAILED", registry_mode=registry_mode
         )
 
 
@@ -207,6 +441,7 @@ def _execute_schema_migration(
     migrate_all_versions: bool = False,
     preserve_ids: bool = True,
     dry_run: bool = False,
+    force_without_id_preservation: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute actual schema migration between registries with proper sparse version preservation.
@@ -221,6 +456,7 @@ def _execute_schema_migration(
         migrate_all_versions: Whether to migrate all versions
         preserve_ids: Whether to preserve schema IDs (requires IMPORT mode)
         dry_run: Whether to simulate without making changes
+        force_without_id_preservation: Whether to proceed without ID preservation when it fails
 
     Returns:
         Migration results with counts and status
@@ -324,6 +560,9 @@ def _execute_schema_migration(
 
         # Handle IMPORT mode for ID preservation
         original_target_mode = None
+        id_preservation_failed = False
+        id_preservation_error = None
+        
         if preserve_ids:
             try:
                 # Get current target registry mode
@@ -353,28 +592,113 @@ def _execute_schema_migration(
                             timeout=10,
                         )
                         if import_response.status_code != 200:
+                            id_preservation_failed = True
+                            id_preservation_error = import_response.text
                             logger.warning(
-                                f"Failed to set IMPORT mode: {import_response.text}. "
-                                f"Will try migration without ID preservation."
+                                f"Failed to set IMPORT mode: {import_response.text}."
                             )
-                            preserve_ids = False  # Disable ID preservation if can't set IMPORT mode
+                            
+                            # Check if we should ask for user confirmation
+                            if not force_without_id_preservation:
+                                confirmation_details = {
+                                    "subject": subject,
+                                    "source_registry": source_client.config.name,
+                                    "target_registry": target_client.config.name,
+                                    "source_context": source_context,
+                                    "target_context": target_context,
+                                    "versions_to_migrate": versions_to_migrate,
+                                    "preserve_ids_requested": True,
+                                    "id_preservation_error": id_preservation_error,
+                                    "error_reason": "Permission denied to set IMPORT mode",
+                                    "options": {
+                                        "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                                        "cancel_migration": "Cancel the migration and resolve permissions first"
+                                    }
+                                }
+                                
+                                raise MigrationConfirmationRequired(
+                                    f"ID preservation failed for subject '{subject}'. "
+                                    f"Cannot set target registry to IMPORT mode due to insufficient permissions. "
+                                    f"Do you want to continue migration without ID preservation?",
+                                    confirmation_details
+                                )
+                            else:
+                                logger.info("Proceeding without ID preservation as requested (force_without_id_preservation=True)")
+                                preserve_ids = False
                         else:
                             logger.info("✅ Target registry set to IMPORT mode")
                     else:
                         logger.info("✅ Target registry already in IMPORT mode")
                 else:
+                    id_preservation_failed = True
+                    id_preservation_error = f"HTTP {mode_response.status_code}: {mode_response.text}"
                     logger.warning(
-                        f"Could not get target registry mode: {mode_response.text}. "
-                        f"Will try migration without ID preservation."
+                        f"Could not get target registry mode: {mode_response.text}."
                     )
-                    preserve_ids = False
+                    
+                    if not force_without_id_preservation:
+                        confirmation_details = {
+                            "subject": subject,
+                            "source_registry": source_client.config.name,
+                            "target_registry": target_client.config.name,
+                            "source_context": source_context,
+                            "target_context": target_context,
+                            "versions_to_migrate": versions_to_migrate,
+                            "preserve_ids_requested": True,
+                            "id_preservation_error": id_preservation_error,
+                            "error_reason": "Cannot access target registry mode",
+                            "options": {
+                                "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                                "cancel_migration": "Cancel the migration and check registry access"
+                            }
+                        }
+                        
+                        raise MigrationConfirmationRequired(
+                            f"ID preservation failed for subject '{subject}'. "
+                            f"Cannot access target registry mode. "
+                            f"Do you want to continue migration without ID preservation?",
+                            confirmation_details
+                        )
+                    else:
+                        preserve_ids = False
+                        
+            except MigrationConfirmationRequired:
+                # Re-raise confirmation required exceptions
+                raise
             except Exception as e:
+                id_preservation_failed = True
+                id_preservation_error = str(e)
                 logger.warning(
-                    f"Error setting IMPORT mode: {str(e)}. "
-                    f"Will try migration without ID preservation."
+                    f"Error setting IMPORT mode: {str(e)}."
                 )
-                preserve_ids = False
+                
+                if not force_without_id_preservation:
+                    confirmation_details = {
+                        "subject": subject,
+                        "source_registry": source_client.config.name,
+                        "target_registry": target_client.config.name,
+                        "source_context": source_context,
+                        "target_context": target_context,
+                        "versions_to_migrate": versions_to_migrate,
+                        "preserve_ids_requested": True,
+                        "id_preservation_error": str(e),
+                        "error_reason": "Unexpected error setting IMPORT mode",
+                        "options": {
+                            "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                            "cancel_migration": "Cancel the migration and investigate the error"
+                        }
+                    }
+                    
+                    raise MigrationConfirmationRequired(
+                        f"ID preservation failed for subject '{subject}'. "
+                        f"Unexpected error: {str(e)}. "
+                        f"Do you want to continue migration without ID preservation?",
+                        confirmation_details
+                    )
+                else:
+                    preserve_ids = False
 
+        # Continue with migration...
         # Migrate each version
         successful_count = 0
         failed_count = 0
@@ -594,6 +918,9 @@ def _execute_schema_migration(
             + (" (dry run)" if dry_run else ""),
         }
 
+    except MigrationConfirmationRequired:
+        # Re-raise confirmation required exceptions - don't convert them to generic errors
+        raise
     except Exception as e:
         logger.error(f"Error in _execute_schema_migration: {e}")
         return {
@@ -746,7 +1073,7 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
 
 
 @structured_output("migrate_context", fallback_on_error=True)
-async def migrate_context_tool(
+def migrate_context_tool(
     source_registry: str,
     target_registry: str,
     registry_manager,

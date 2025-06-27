@@ -723,6 +723,7 @@ TOOL_OUTPUT_SCHEMAS = {
     # Migration Operations
     "migrate_schema": MIGRATE_SCHEMA_SCHEMA,
     "migrate_context": MIGRATE_SCHEMA_SCHEMA,  # Similar structure
+    "confirm_migration_without_ids": MIGRATE_SCHEMA_SCHEMA,  # Similar structure to migrate_schema
     "list_migrations": {
         "type": "array",
         "items": TASK_STATUS_SCHEMA,

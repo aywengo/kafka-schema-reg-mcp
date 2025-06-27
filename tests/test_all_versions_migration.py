@@ -199,8 +199,32 @@ class AllVersionsMigrationTest:
             versions=versions,  # Pass all versions to migrate
         )
 
+        # Handle confirmation required for ID preservation
         if "error" in migration_result:
-            raise Exception(f"Migration failed: {migration_result['error']}")
+            if migration_result.get("error_type") == "confirmation_required":
+                print(f"⚠️  ID preservation failed, proceeding without ID preservation")
+                # Import the confirmation tool
+                from migration_tools import confirm_migration_without_ids_tool
+                
+                # Retry migration without ID preservation
+                migration_result = confirm_migration_without_ids_tool(
+                    subject=subject,
+                    source_registry="dev",
+                    target_registry="prod",
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
+                    source_context=self.source_context,
+                    target_context=self.target_context,
+                    dry_run=False,
+                    versions=versions,
+                )
+                
+                if "error" in migration_result:
+                    raise Exception(f"Migration failed even without ID preservation: {migration_result['error']}")
+                else:
+                    print("✓ Migration completed without ID preservation")
+            else:
+                raise Exception(f"Migration failed: {migration_result['error']}")
 
         # Check for task tracking
         if "migration_id" in migration_result:

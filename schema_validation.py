@@ -12,6 +12,7 @@ Features:
 - Decorator for easy integration with existing tools
 """
 
+import asyncio
 import functools
 import json
 import logging
@@ -141,6 +142,7 @@ def structured_output(
 ):
     """
     Decorator to add structured output validation to MCP tools.
+    Supports both sync and async functions.
 
     Args:
         tool_name: Name of the tool (used to lookup schema)
@@ -151,64 +153,111 @@ def structured_output(
         @structured_output("get_schema")
         def get_schema_tool(...):
             return {...}
+            
+        @structured_output("migrate_context")
+        async def migrate_context_tool(...):
+            return {...}
     """
 
     def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            # Call the original function
-            try:
-                result = func(*args, **kwargs)
-            except Exception as e:
-                logger.error(f"Tool {tool_name} execution failed: {str(e)}")
-                if strict:
-                    raise
-                # Return error response in structured format
-                return format_error_response(str(e), tool_name)
+        if asyncio.iscoroutinefunction(func):
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                # Call the original async function
+                try:
+                    result = await func(*args, **kwargs)
+                except Exception as e:
+                    logger.error(f"Tool {tool_name} execution failed: {str(e)}")
+                    if strict:
+                        raise
+                    # Return error response in structured format
+                    return format_error_response(str(e), tool_name)
 
-            # Get the schema for this tool
-            schema = get_tool_schema(tool_name)
+                # Get the schema for this tool
+                schema = get_tool_schema(tool_name)
 
-            # Validate the result
-            validation_result = validate_response(result, schema, tool_name)
+                # Validate the result
+                validation_result = validate_response(result, schema, tool_name)
 
-            if validation_result.is_valid:
-                # Add validation metadata if requested
-                if isinstance(result, dict):
-                    result["_validation"] = {
-                        "validated": True,
-                        "tool": tool_name,
-                        "warnings": validation_result.warnings,
-                    }
-                return result
-            else:
-                # Handle validation failure
-                if strict:
-                    error_msg = f"Schema validation failed for {tool_name}: {validation_result.errors}"
-                    raise SchemaValidationError(error_msg, data=result)
-
-                if fallback_on_error:
-                    # Return original data with validation warning
-                    logger.warning(
-                        f"Returning unvalidated data for {tool_name} due to validation failure"
-                    )
+                if validation_result.is_valid:
+                    # Add validation metadata if requested
                     if isinstance(result, dict):
                         result["_validation"] = {
-                            "validated": False,
+                            "validated": True,
                             "tool": tool_name,
-                            "errors": validation_result.errors,
-                            "warnings": validation_result.warnings
-                            + ["Validation failed - returning unstructured data"],
+                            "warnings": validation_result.warnings,
                         }
                     return result
                 else:
-                    # Return error response
-                    return format_error_response(
-                        f"Response validation failed: {validation_result.errors[0] if validation_result.errors else 'Unknown error'}",
-                        tool_name,
-                    )
+                    # Handle validation failure
+                    if strict:
+                        error_msg = f"Schema validation failed for {tool_name}: {validation_result.errors}"
+                        raise SchemaValidationError(error_msg, data=result)
 
-        return wrapper
+                    if fallback_on_error:
+                        # Return original data with validation warning
+                        logger.warning(
+                            f"Returning unvalidated data for {tool_name} due to validation failure"
+                        )
+                        if isinstance(result, dict):
+                            result["_validation"] = {
+                                "validated": False,
+                                "tool": tool_name,
+                                "errors": validation_result.errors,
+                                "warnings": validation_result.warnings,
+                            }
+                    return result
+
+            return async_wrapper
+        else:
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                # Call the original function
+                try:
+                    result = func(*args, **kwargs)
+                except Exception as e:
+                    logger.error(f"Tool {tool_name} execution failed: {str(e)}")
+                    if strict:
+                        raise
+                    # Return error response in structured format
+                    return format_error_response(str(e), tool_name)
+
+                # Get the schema for this tool
+                schema = get_tool_schema(tool_name)
+
+                # Validate the result
+                validation_result = validate_response(result, schema, tool_name)
+
+                if validation_result.is_valid:
+                    # Add validation metadata if requested
+                    if isinstance(result, dict):
+                        result["_validation"] = {
+                            "validated": True,
+                            "tool": tool_name,
+                            "warnings": validation_result.warnings,
+                        }
+                    return result
+                else:
+                    # Handle validation failure
+                    if strict:
+                        error_msg = f"Schema validation failed for {tool_name}: {validation_result.errors}"
+                        raise SchemaValidationError(error_msg, data=result)
+
+                    if fallback_on_error:
+                        # Return original data with validation warning
+                        logger.warning(
+                            f"Returning unvalidated data for {tool_name} due to validation failure"
+                        )
+                        if isinstance(result, dict):
+                            result["_validation"] = {
+                                "validated": False,
+                                "tool": tool_name,
+                                "errors": validation_result.errors,
+                                "warnings": validation_result.warnings,
+                            }
+                    return result
+
+            return wrapper
 
     return decorator
 

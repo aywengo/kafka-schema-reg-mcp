@@ -37,7 +37,7 @@ async def test_docker_command_generation():
     mcp_server.registry_manager._load_multi_registries()
 
     # Call migrate_context
-    result = await migrate_context_tool(
+    result = migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         context="test-context",
@@ -221,7 +221,7 @@ async def test_default_context():
     """Test with default context (.)"""
     print("\n🧪 Testing default context handling")
 
-    result = await migrate_context_tool(
+    result = migrate_context_tool(
         source_registry="source-test",
         target_registry="target-test",
         # No context specified - should default to "."
@@ -281,7 +281,7 @@ async def test_single_registry_mode():
     mcp_server.REGISTRY_MODE = "single"
 
     try:
-        result = await migrate_context_tool(
+        result = migrate_context_tool(
             source_registry="source-test",
             target_registry="target-test",
             registry_manager=mcp_server.registry_manager,
@@ -312,7 +312,7 @@ async def test_missing_registry():
     """Test error handling for missing registry."""
     print("\n🧪 Testing missing registry error")
 
-    result = await migrate_context_tool(
+    result = migrate_context_tool(
         source_registry="nonexistent-registry",
         target_registry="target-test",
         registry_manager=mcp_server.registry_manager,
