@@ -1265,6 +1265,7 @@ def get_elicitation_request(request_id: str):
 
 @mcp.tool()
 @require_scopes("admin")
+@structured_output("cancel_elicitation_request", fallback_on_error=True)
 def cancel_elicitation_request(request_id: str):
     """Cancel a pending elicitation request."""
     try:
@@ -1291,6 +1292,7 @@ def cancel_elicitation_request(request_id: str):
 
 @mcp.tool()
 @require_scopes("read")
+@structured_output("get_elicitation_status", fallback_on_error=True)
 def get_elicitation_status():
     """Get the status of the elicitation system."""
     try:

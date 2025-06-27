@@ -17,6 +17,7 @@ Categories:
 - Statistics operations (counts, registry stats)
 - Batch operations (context clearing)
 - Task management (status, progress, control)
+- Elicitation management (requests, status)
 """
 
 from typing import Any, Dict
@@ -676,6 +677,78 @@ BATCH_OPERATION_SCHEMA = {
     "additionalProperties": True,
 }
 
+# ===== ELICITATION MANAGEMENT SCHEMAS =====
+
+# Elicitation request list response
+ELICITATION_REQUESTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "pending_requests": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Request ID"},
+                    "title": {"type": "string", "description": "Request title"},
+                    "type": {"type": "string", "description": "Request type"},
+                    "priority": {"type": "string", "description": "Request priority"},
+                    "created_at": {"type": "string", "format": "date-time"},
+                    "expires_at": {"type": ["string", "null"], "format": "date-time"},
+                    "expired": {"type": "boolean"},
+                },
+                "required": ["id", "title", "type", "priority", "created_at", "expired"],
+            },
+        },
+        "total_pending": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of pending requests",
+        },
+        "elicitation_supported": {
+            "type": "boolean",
+            "description": "Whether elicitation is supported",
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["pending_requests", "total_pending", "elicitation_supported"],
+    "additionalProperties": True,
+}
+
+# Elicitation status response
+ELICITATION_STATUS_SCHEMA = {
+    "type": "object", 
+    "properties": {
+        "elicitation_supported": {
+            "type": "boolean",
+            "description": "Whether elicitation is supported",
+        },
+        "total_pending_requests": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of pending requests",
+        },
+        "request_details": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Request ID"},
+                    "title": {"type": "string", "description": "Request title"},
+                    "type": {"type": "string", "description": "Request type"},
+                    "priority": {"type": "string", "description": "Request priority"},
+                    "created_at": {"type": "string", "format": "date-time"},
+                    "expires_at": {"type": ["string", "null"], "format": "date-time"},
+                    "expired": {"type": "boolean"},
+                },
+                "required": ["id", "title", "type", "priority", "created_at", "expired"],
+            },
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["elicitation_supported", "total_pending_requests", "request_details"],
+    "additionalProperties": True,
+}
+
 # ===== SCHEMA REGISTRY =====
 
 # Master registry mapping tool names to their output schemas
@@ -745,6 +818,12 @@ TOOL_OUTPUT_SCHEMAS = {
     "cancel_task": SUCCESS_RESPONSE_SCHEMA,
     "list_statistics_tasks": TASK_LIST_SCHEMA,
     "get_statistics_task_progress": TASK_STATUS_SCHEMA,
+    # Elicitation Management
+    "list_elicitation_requests": ELICITATION_REQUESTS_SCHEMA,
+    "get_elicitation_request": {"type": "object", "additionalProperties": True},  # Complex structure
+    "cancel_elicitation_request": SUCCESS_RESPONSE_SCHEMA,
+    "get_elicitation_status": ELICITATION_STATUS_SCHEMA,
+    "submit_elicitation_response": SUCCESS_RESPONSE_SCHEMA,
     # Utility Tools
     "set_default_registry": SUCCESS_RESPONSE_SCHEMA,
     "get_default_registry": REGISTRY_INFO_SCHEMA,
