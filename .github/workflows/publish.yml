@@ -132,103 +132,60 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🚀 Kafka Schema Registry MCP Server ${{ github.ref_name }} - MAJOR RELEASE ✨
+            ## 🔧 Kafka Schema Registry MCP Server ${{ github.ref_name }} - MAINTENANCE RELEASE
             
-            # 🎉 EPIC COMPLETED - v2.0.0 READY FOR PRODUCTION! 
+            **🛠️ Performance & Reliability Improvements**
             
-            **🏆 Perfect 100/100 MCP 2025-06-18 Specification Compliance Achieved!**
-            
-            ✅ **Epic #40 "MCP 2025-06-18 Specification Compliance" COMPLETED** on June 25, 2025  
-            ✅ **All 5 implementation phases successfully delivered** with zero critical issues  
-            ✅ **Production-grade quality** with comprehensive testing and documentation  
-            🚀 **Gold standard for enterprise MCP deployments** - Ready for immediate use!
+            This maintenance release builds upon the solid v2.0.0 foundation with significant performance optimizations, enhanced reliability, and improved code maintainability.
             
             ---
             
-            ## 🌟 Revolutionary v2.0.0 Features - ALL IMPLEMENTED ✅
+            ## 🚀 What's New in v2.0.1
             
-            ### 📡 **Perfect MCP 2025-06-18 Specification Compliance**
-            - **FastMCP 2.8.0+ Framework**: Complete migration from legacy MCP to modern architecture
-            - **Protocol Headers**: MCP-Protocol-Version validation middleware implemented
-            - **Transport Optimization**: Modern streamable-http transport (SSE deprecated)
-            - **Authentication**: Built-in FastMCP BearerAuth with OAuth 2.1 and JWT validation
+            ### 📈 **Performance & Code Quality Improvements**
+            - **🔧 Major Code Refactoring**: Streamlined codebase across 74 files with improved readability and performance
+            - **📊 Reduced Code Complexity**: Simplified error handling, consolidated list comprehensions, and enhanced function definitions
+            - **🧹 Clean Architecture**: Removed 2,442 lines of redundant code while maintaining full functionality
+            - **⚡ Memory Optimization**: Enhanced logging statements and improved resource management
             
-            ### 🎯 **Structured Tool Output - ALL 48 TOOLS ENHANCED**
-            - **Type-Safe Validation**: Complete implementation with sub-millisecond performance
-            - **Consistent Format**: Standardized response structure across all tools
-            - **Enhanced Debugging**: Structured error responses with detailed context
-            - **Memory Optimized**: Intelligent caching and performance improvements
+            ### 🛡️ **Enhanced Schema Validation & Local Processing**
+            - **🏠 Local JSON Schema Handling**: Implemented custom handler for draft-07 JSON Schema meta-schemas
+            - **🚀 Zero Network Dependencies**: Local schema resolution prevents external network requests during validation
+            - **📦 Custom Requests Adapter**: Enhanced requests library integration with mock responses for draft-07 schemas
+            - **⚡ Improved Performance**: Faster validation and testing with consistent local behavior
             
-            ### 🎭 **Interactive Workflows - ELICITATION CAPABILITY**
-            - **5 Interactive Tools**: Complete elicitation system for guided operations
-            - **Multi-Round Conversations**: Dynamic parameter collection with smart prompting
-            - **Context Preservation**: Maintaining conversation state across interactions
-            - **Enhanced UX**: Guided workflows for complex schema operations
+            ### 🎭 **Advanced Elicitation Management**
+            - **✨ Enhanced Elicitation Tools**: Added structured output decorators for `cancel_elicitation_request` and `get_elicitation_status`
+            - **📋 New Schema Definitions**: Introduced comprehensive schemas for elicitation requests and status management
+            - **🔄 Improved Response Structure**: Better error handling and compliance with expected response formats
+            - **🎯 Reliable Validation**: Local draft-07 schema resolver for consistent elicitation workflows
             
-            ### 🔗 **Resource Linking - HATEOAS NAVIGATION (NEW)**
-            - **HATEOAS Implementation**: Complete hypermedia navigation with `_links` sections
-            - **Consistent URI Scheme**: Standardized resource addressing across endpoints
-            - **Enhanced Integration**: Simplified client development with discoverable APIs
-            - **RESTful Excellence**: Following REST architectural constraints perfectly
-            
-            ### 🚀 **Universal OAuth 2.1 Discovery System**
-            - **75% Configuration Reduction**: From 8+ variables to just 2 (`AUTH_ISSUER_URL` + `AUTH_AUDIENCE`)
-            - **RFC 8414 Discovery**: Automatic endpoint discovery - no hardcoded providers
-            - **Universal Compatibility**: Works with ANY OAuth 2.1 compliant provider
-            - **Enhanced Security**: PKCE enforcement, Resource Indicators (RFC 8707), improved validation
+            ### 🔄 **Robust Migration Confirmation System**
+            - **⚠️ New Exception Handling**: `IDPreservationError` and `MigrationConfirmationRequired` for better migration control
+            - **✅ User Confirmation Flow**: Enhanced `migrate_schema_tool` with ID preservation failure handling
+            - **🛠️ New Confirmation Tool**: `confirm_migration_without_ids_tool` for proceeding without ID preservation
+            - **📊 Detailed Migration Metadata**: Comprehensive structured output for migration results
+            - **🧪 Comprehensive Testing**: 233 new test cases for migration confirmation scenarios
             
             ---
             
-            ## 🚀 Quick Start Examples
+            ## 🎯 Key Improvements by the Numbers
             
-            ### **Universal OAuth 2.1 Setup (Works with ANY provider!)**
-            ```bash
-            # Azure AD
-            export ENABLE_AUTH=true
-            export AUTH_ISSUER_URL="https://login.microsoftonline.com/your-tenant-id/v2.0"
-            export AUTH_AUDIENCE="your-azure-client-id"
-            
-            # Google OAuth
-            export AUTH_ISSUER_URL="https://accounts.google.com"
-            export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
-            
-            # Any OAuth 2.1 Provider
-            export AUTH_ISSUER_URL="https://your-oauth-provider.com"
-            export AUTH_AUDIENCE="your-client-id"
-            ```
-            
-            ### **FastMCP Client with Structured Output**
-            ```python
-            from fastmcp import Client
-            import asyncio
-            
-            async def main():
-                client = Client("kafka_schema_registry_unified_mcp.py")
-                async with client:
-                    # Get structured output with resource links
-                    result = await client.call_tool("list_subjects", {})
-                    structured_data = result.content[0].data
-                    links = structured_data.get('_links', {})
-                    print(f"Available actions: {links}")
-            
-            asyncio.run(main())
-            ```
-            
-            ### **Interactive Workflow Example**
-            ```python
-            # Use elicitation for guided schema registration
-            result = await client.call_tool("elicit_schema_registration", {})
-            # Tool guides through: subject → schema type → definition → registration
-            ```
+            - **📉 Code Reduction**: 2,442 lines removed, 1,349 lines improved
+            - **🗂️ Files Enhanced**: 74 files optimized across the entire codebase
+            - **🧪 Test Coverage**: 233+ new test cases for migration scenarios
+            - **⚡ Performance**: Faster validation with local schema resolution
+            - **🛡️ Reliability**: Enhanced error handling and confirmation workflows
             
             ---
             
             ## 📦 Docker Deployment
             
             ```bash
-            # Production deployment with OAuth 2.1
+            # Pull the latest maintenance release
             docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
             
+            # Production deployment (same configuration as v2.0.0)
             docker run -d -p 8000:8000 \
               -e MCP_TRANSPORT=streamable-http \
               -e ENABLE_AUTH=true \
@@ -239,84 +196,64 @@ jobs:
             
             ---
             
-            ## 🧪 Testing v2.0.0 Features
+            ## 🧪 Testing New Features
             
-            ### **Verify Structured Output**
+            ### **Enhanced Migration with Confirmation**
             ```bash
+            # Test migration with ID preservation handling
             curl -X POST http://localhost:8000/mcp \
                  -H "Content-Type: application/json" \
-                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_subjects","arguments":{}},"id":1}'
-            # Response includes structured data with _links navigation
+                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"migrate_schema","arguments":{"source_subject":"test-subject","target_subject":"new-subject"}},"id":1}'
             ```
             
-            ### **Test Interactive Workflows**
+            ### **Local Schema Validation**
             ```bash
-            # Test elicitation capability
+            # Verify local draft-07 schema handling (no network requests)
             curl -X POST http://localhost:8000/mcp \
-                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"elicit_schema_registration","arguments":{}},"id":1}'
+                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"validate_schema","arguments":{"schema_content":"{\"type\":\"object\"}","schema_type":"JSON"}},"id":1}'
             ```
             
-            ### **Validate OAuth 2.1 Discovery**
+            ### **Enhanced Elicitation Status**
             ```bash
-            # Test OAuth discovery endpoints
-            curl http://localhost:8000/.well-known/oauth-authorization-server
-            curl http://localhost:8000/.well-known/oauth-protected-resource
-            curl http://localhost:8000/.well-known/jwks.json
+            # Test improved elicitation management
+            curl -X POST http://localhost:8000/mcp \
+                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_elicitation_status","arguments":{"request_id":"test-id"}},"id":1}'
             ```
             
             ---
             
-            ## 📚 Comprehensive Documentation
+            ## ⬆️ Upgrade from v2.0.0
             
-            - **[README-v2.0.0-HIGHLIGHTS.md](README-v2.0.0-HIGHLIGHTS.md)**: Complete v2.0.0 feature overview and migration guide
-            - **[RESOURCE_LINKING.md](RESOURCE_LINKING.md)**: HATEOAS navigation system documentation
+            **Zero Breaking Changes** - Direct drop-in replacement for v2.0.0!
+            
+            ```bash
+            # Simple upgrade - no configuration changes needed
+            docker pull aywengo/kafka-schema-reg-mcp:v2.0.1
+            
+            # All existing v2.0.0 configurations work unchanged
+            # Enhanced performance and reliability automatically available
+            ```
+            
+            **What You Get:**
+            - ⚡ **Faster Performance**: Optimized code execution and memory usage
+            - 🛡️ **Better Reliability**: Enhanced error handling and local schema processing
+            - 🔄 **Improved Migrations**: Better confirmation workflows for complex scenarios
+            - 🎭 **Enhanced Elicitation**: More robust interactive tool management
+            
+            ---
+            
+            ## 📚 Documentation
+            
+            All existing v2.0.0 documentation remains valid:
+            - **[README-v2.0.0-HIGHLIGHTS.md](README-v2.0.0-HIGHLIGHTS.md)**: Complete feature overview
+            - **[RESOURCE_LINKING.md](RESOURCE_LINKING.md)**: HATEOAS navigation system
             - **[OAuth Providers Guide](docs/oauth-providers-guide.md)**: Universal OAuth 2.1 setup
             - **[Remote MCP Deployment](docs/remote-mcp-deployment.md)**: Production deployment guide
-            - **[API Reference](docs/api-reference.md)**: Complete tool reference with examples
             
             ---
             
-            ## 🏆 Outstanding Achievements
+            **🔧 v2.0.1 delivers significant performance improvements and enhanced reliability while maintaining full backward compatibility with v2.0.0. Perfect for production environments seeking optimal performance!**
             
-            **Perfect 100/100 Compliance Score** represents extraordinary achievement:
-            
-            - **🎯 Zero Critical Issues**: Perfect compliance with all MCP 2025-06-18 requirements
-            - **🚀 Innovation Leader**: Resource linking adds cutting-edge HATEOAS navigation
-            - **🛡️ Security Excellence**: Enhanced OAuth 2.1 with universal provider support
-            - **📈 Performance Optimized**: Sub-millisecond structured output validation
-            - **🎭 Interactive Excellence**: Complete elicitation capability for enhanced UX
-            - **📚 Production Ready**: Comprehensive documentation and 100+ test cases
-            
-            ---
-            
-            ## ✅ Migration Guide: v1.x → v2.0.0
-            
-            **Zero Breaking Changes** - All existing deployments continue to work!
-            
-            ```bash
-            # OLD (v1.x) - Provider-specific (still works)
-            export AUTH_PROVIDER=azure AZURE_TENANT_ID=tenant AZURE_CLIENT_ID=client
-            
-            # NEW (v2.x) - Universal OAuth 2.1 (recommended)
-            export ENABLE_AUTH=true
-            export AUTH_ISSUER_URL="https://login.microsoftonline.com/tenant-id/v2.0"
-            export AUTH_AUDIENCE="client-id"
-            ```
-            
-            **Client API Enhancement:**
-            ```python
-            # Enhanced with structured output and resource linking
-            client = Client("kafka_schema_registry_unified_mcp.py")
-            async with client:
-                result = await client.call_tool("list_subjects", {})
-                data = result.content[0].data  # Structured output
-                links = data.get('_links', {})  # HATEOAS navigation
-            ```
-            
-            ---
-            
-            **🏆 v2.0.0 establishes Kafka Schema Registry MCP Server as the GOLD STANDARD for enterprise MCP deployments with perfect specification compliance, cutting-edge features, and production-ready architecture!**
-            
-            **Ready for immediate production deployment! 🚀**
+            **Recommended upgrade for all v2.0.0 deployments! 🚀**
           draft: false
           prerelease: false
