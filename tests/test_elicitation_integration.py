@@ -12,10 +12,10 @@ import pytest
 
 from elicitation import (
     ElicitationField,
-    ElicitationType,
+    ElicitationManager,
     ElicitationRequest,
     ElicitationResponse,
-    ElicitationManager,
+    ElicitationType,
 )
 from interactive_tools import (
     check_compatibility_interactive,
