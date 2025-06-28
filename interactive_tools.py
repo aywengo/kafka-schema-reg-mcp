@@ -769,8 +769,8 @@ async def migrate_schema_interactive(
                                     )
 
                                     # Check schema type
-                                    schema_type_match = (
-                                        source_schema.get("schemaType") == target_schema.get("schemaType")
+                                    schema_type_match = source_schema.get("schemaType") == target_schema.get(
+                                        "schemaType"
                                     )
                                     checks.append(
                                         {
