@@ -15,10 +15,9 @@ Features:
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from uuid import uuid4
 
 from elicitation import (
     ElicitationField,

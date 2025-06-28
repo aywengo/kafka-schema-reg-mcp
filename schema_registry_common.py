@@ -11,6 +11,7 @@ import ipaddress
 import json
 import logging
 import os
+import re
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -20,6 +21,7 @@ from urllib.parse import quote, urlparse
 
 import aiohttp
 import requests
+import urllib3
 from requests.auth import HTTPBasicAuth
 
 # Environment variables for single registry mode (backward compatibility)
@@ -27,6 +29,68 @@ SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
 SINGLE_READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+
+
+# Sensitive data filter for logging
+class SensitiveDataFilter(logging.Filter):
+    """Filter to mask sensitive data in log messages."""
+
+    def filter(self, record):
+        """Mask Authorization headers and other sensitive data in log messages."""
+        if hasattr(record, "msg") and record.msg:
+            msg = str(record.msg)
+
+            # Mask Authorization headers (various formats)
+            # Pattern 1: Standard header format
+            msg = re.sub(
+                r'Authorization["\']?\s*:\s*["\']?Basic\s+[A-Za-z0-9+/=]+["\']?',
+                "Authorization: Basic ***MASKED***",
+                msg,
+                flags=re.IGNORECASE,
+            )
+
+            # Pattern 2: JSON format with quotes
+            msg = re.sub(
+                r'"Authorization"["\']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
+                '"Authorization": "Basic ***MASKED***"',
+                msg,
+                flags=re.IGNORECASE,
+            )
+
+            # Pattern 3: Any Base64 string that looks like credentials (longer than 20 chars)
+            msg = re.sub(r"Basic\s+[A-Za-z0-9+/]{20,}={0,2}", "Basic ***MASKED***", msg, flags=re.IGNORECASE)
+
+            # Mask potential credentials in URLs
+            msg = re.sub(r"://([^:]+):([^@]+)@", "://***MASKED***:***MASKED***@", msg)
+
+            record.msg = msg
+        return True
+
+
+# Apply sensitive data filter to all loggers
+logging.getLogger().addFilter(SensitiveDataFilter())
+
+
+# Configure secure logging for requests library
+def configure_secure_requests_logging():
+    """Configure requests library to avoid logging sensitive data."""
+    # Disable urllib3 debug logging that might expose headers
+    urllib3_logger = logging.getLogger("urllib3")
+    urllib3_logger.setLevel(logging.WARNING)
+    urllib3_logger.addFilter(SensitiveDataFilter())
+
+    # Disable requests library debug logging
+    requests_logger = logging.getLogger("requests")
+    requests_logger.setLevel(logging.WARNING)
+    requests_logger.addFilter(SensitiveDataFilter())
+
+    # Add filter to httpcore logger (used by some HTTP libraries)
+    httpcore_logger = logging.getLogger("httpcore")
+    httpcore_logger.addFilter(SensitiveDataFilter())
+
+
+# Apply secure logging configuration
+configure_secure_requests_logging()
 
 
 def validate_url(url: str) -> bool:
@@ -91,7 +155,21 @@ class RegistryConfig:
     readonly: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        """Convert to dictionary with sensitive data masked."""
+        result = asdict(self)
+        if result.get("password"):
+            result["password"] = "***MASKED***"
+        return result
+
+    def __repr__(self) -> str:
+        """Safe representation without credentials."""
+        password_masked = "***MASKED***" if self.password else ""
+        return f"RegistryConfig(name={self.name!r}, url={self.url!r}, user={self.user!r}, password={password_masked!r}, description={self.description!r}, readonly={self.readonly})"
+
+    def __str__(self) -> str:
+        """Safe string representation without credentials."""
+        auth_info = f"user={self.user}" if self.user else "no-auth"
+        return f"Registry config: {self.name} at {self.url} ({auth_info})"
 
 
 @dataclass
@@ -120,14 +198,44 @@ class RegistryClient:
 
         self.config = config
         self.auth = None
-        self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-        self.standard_headers = {"Content-Type": "application/json"}
+        # Don't store authorization headers as instance variables
+        self._base_headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
+        self._base_standard_headers = {"Content-Type": "application/json"}
 
         if config.user and config.password:
             self.auth = HTTPBasicAuth(config.user, config.password)
-            credentials = base64.b64encode(f"{config.user}:{config.password}".encode()).decode()
-            self.headers["Authorization"] = f"Basic {credentials}"
-            self.standard_headers["Authorization"] = f"Basic {credentials}"
+
+    def _get_headers(self, content_type: str = "application/vnd.schemaregistry.v1+json") -> Dict[str, str]:
+        """Get headers with authentication, created fresh each time."""
+        headers = {"Content-Type": content_type}
+        if self.auth:
+            # Create auth header dynamically without storing credentials
+            credentials = base64.b64encode(f"{self.config.user}:{self.config.password}".encode()).decode()
+            headers["Authorization"] = f"Basic {credentials}"
+        return headers
+
+    def _get_standard_headers(self) -> Dict[str, str]:
+        """Get standard headers with authentication, created fresh each time."""
+        return self._get_headers("application/json")
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        """Get default headers for registry operations."""
+        return self._get_headers()
+
+    @property
+    def standard_headers(self) -> Dict[str, str]:
+        """Get standard headers for configuration operations."""
+        return self._get_standard_headers()
+
+    def __repr__(self) -> str:
+        """Safe representation without credentials."""
+        return f"RegistryClient(name={self.config.name!r}, url={self.config.url!r}, readonly={self.config.readonly})"
+
+    def __str__(self) -> str:
+        """Safe string representation without credentials."""
+        auth_status = "authenticated" if self.config.user else "no-auth"
+        return f"Registry '{self.config.name}' at {self.config.url} ({auth_status})"
 
     def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
         """Build URL with optional context support."""

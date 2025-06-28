@@ -46,6 +46,7 @@ Features:
 - Elicitation capability for interactive workflows
 """
 
+import base64
 import json
 import logging
 import os
@@ -460,6 +461,47 @@ def detect_registry_mode() -> str:
 REGISTRY_MODE = detect_registry_mode()
 logger.info(f"🔍 Auto-detected registry mode: {REGISTRY_MODE}")
 
+
+class SecureHeaderDict(dict):
+    """Dictionary-like class that generates fresh headers with credentials on each access."""
+
+    def __init__(self, content_type: str = "application/vnd.schemaregistry.v1+json"):
+        super().__init__()
+        self.content_type = content_type
+        self._update_headers()
+
+    def _update_headers(self):
+        """Update headers with fresh credentials."""
+        self.clear()
+        self["Content-Type"] = self.content_type
+        # Get credentials from environment
+        user = os.getenv("SCHEMA_REGISTRY_USER", "")
+        password = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
+        if user and password:
+            credentials = base64.b64encode(f"{user}:{password}".encode()).decode()
+            self["Authorization"] = f"Basic {credentials}"
+
+    def __getitem__(self, key):
+        self._update_headers()  # Refresh on each access
+        return super().__getitem__(key)
+
+    def get(self, key, default=None):
+        self._update_headers()  # Refresh on each access
+        return super().get(key, default)
+
+    def items(self):
+        self._update_headers()  # Refresh on each access
+        return super().items()
+
+    def keys(self):
+        self._update_headers()  # Refresh on each access
+        return super().keys()
+
+    def values(self):
+        self._update_headers()  # Refresh on each access
+        return super().values()
+
+
 if REGISTRY_MODE == "single":
     logger.info("📡 Initializing Single Registry Manager")
     registry_manager = LegacyRegistryManager("")
@@ -472,18 +514,13 @@ if REGISTRY_MODE == "single":
 
     # Set up authentication if configured
     auth = None
-    headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-    standard_headers = {"Content-Type": "application/json"}
+    headers = SecureHeaderDict("application/vnd.schemaregistry.v1+json")
+    standard_headers = SecureHeaderDict("application/json")
 
     if SCHEMA_REGISTRY_USER and SCHEMA_REGISTRY_PASSWORD:
-        import base64
-
         from requests.auth import HTTPBasicAuth
 
         auth = HTTPBasicAuth(SCHEMA_REGISTRY_USER, SCHEMA_REGISTRY_PASSWORD)
-        credentials = base64.b64encode(f"{SCHEMA_REGISTRY_USER}:{SCHEMA_REGISTRY_PASSWORD}".encode()).decode()
-        headers["Authorization"] = f"Basic {credentials}"
-        standard_headers["Authorization"] = f"Basic {credentials}"
 else:
     logger.info("🌐 Initializing Multi-Registry Manager")
     registry_manager = MultiRegistryManager()

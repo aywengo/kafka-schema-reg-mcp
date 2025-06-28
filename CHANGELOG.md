@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.2] - 2025-06-30
 
+### Fixed
+- **🔒 Security Issue #26**: Resolved credential exposure vulnerability in logging and object representations
+  - **Secure Header Management**: Implemented `SecureHeaderDict` to generate fresh headers with credentials on each access instead of storing them persistently
+  - **Logging Security Filter**: Added `SensitiveDataFilter` to automatically mask authorization headers and sensitive data in all log messages
+  - **Safe Object Representations**: Updated `RegistryClient` and `RegistryConfig` `__repr__` and `__str__` methods to mask credentials
+  - **Library Security Configuration**: Enhanced secure logging for requests/urllib3 libraries to prevent credential leakage
+  - **Dynamic Authentication**: Modified authentication flow to create headers dynamically without storing credentials as instance variables
+
 ### Added
 
 #### Interactive Single Schema Migration with Elicitation Support
