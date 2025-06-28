@@ -5,7 +5,125 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - unreleased
+## [2.0.2] - 2025-06-30
+
+### Added
+
+#### Interactive Single Schema Migration with Elicitation Support
+- **🤖 Smart Schema Migration**: Interactive `migrate_schema_interactive()` function with intelligent user preference elicitation
+  - **Schema Existence Detection**: Automatically detects if target schema exists using HTTP requests to target registry
+  - **Conditional Elicitation**: Dynamic elicitation fields based on schema existence status
+  - **User Preference Collection**: Interactive collection of migration preferences including:
+    - `replace_existing`: Whether to replace existing schemas in target registry
+    - `backup_before_replace`: Whether to create backup before replacement
+    - `preserve_ids`: Whether to preserve schema IDs during migration
+    - `compare_after_migration`: Whether to verify schemas match after migration
+    - `migrate_all_versions`: Whether to migrate all versions or just latest
+    - `dry_run`: Whether to perform a test run without actual changes
+
+- **🔍 Pre-Migration Intelligence**: Smart pre-migration analysis and user guidance
+  - **Target Registry Scanning**: Uses HTTP requests to check schema existence in target registry
+  - **Version Detection**: Identifies existing versions in target registry for informed decisions
+  - **Conflict Resolution**: Blocks migration gracefully when user declines replacement of existing schemas
+  - **Safety Checks**: Prevents accidental overwrites through explicit user confirmation
+
+- **💾 Automatic Backup Operations**: Integrated backup creation before schema replacement
+  - **Conditional Backup**: Creates backups only when schema exists and user requests it
+  - **Export Integration**: Uses existing `export_schema_tool` for reliable backup creation
+  - **Backup Metadata**: Includes backup results in migration response for audit trails
+  - **Error Handling**: Graceful backup failure handling with warning messages
+
+- **✅ Post-Migration Verification**: Comprehensive schema verification after successful migration
+  - **Multi-Level Checks**: Validates schema existence, content match, type match, and ID preservation
+  - **Detailed Reporting**: Provides specific check results with pass/fail status
+  - **Schema Comparison**: Compares source and target schemas for content accuracy
+  - **ID Preservation Validation**: Verifies schema IDs match when preservation is requested
+  - **Overall Success Indicator**: Clear success/failure status with detailed check breakdown
+
+- **📊 Comprehensive Result Metadata**: Enhanced migration results with complete operation context
+  - **Elicitation Status**: Records whether elicitation was used and what preferences were collected
+  - **Schema Existence**: Documents whether schema existed in target before migration
+  - **User Preferences**: Captures all elicited user preferences for audit and debugging
+  - **Backup Results**: Includes backup operation results when performed
+  - **Verification Results**: Complete post-migration verification details with individual check results
+
+- **🛡️ Robust Error Handling**: Comprehensive error management for all migration scenarios
+  - **Elicitation Failures**: Graceful handling when user input cannot be collected
+  - **Replacement Declined**: Clear error messages when user declines schema replacement
+  - **Backup Failures**: Warning handling for backup operations with migration continuation
+  - **Verification Failures**: Detailed reporting of post-migration verification issues
+  - **Network Errors**: Resilient handling of registry connectivity issues during existence checks
+
+#### Migration Elicitation Infrastructure
+- **📝 Schema Migration Elicitation**: New `create_migrate_schema_elicitation()` function
+  - **Dynamic Field Generation**: Context-aware elicitation fields based on migration scenario
+  - **Conditional Logic**: Different fields shown based on whether schema exists in target
+  - **Form Validation**: Structured form elicitation with validation and sensible defaults
+  - **User-Friendly Interface**: Clear descriptions and help text for migration decisions
+
+#### Testing & Quality Assurance
+- **🧪 Comprehensive Test Coverage**: Extensive testing suite ensuring reliability
+  - **9 New Test Functions**: Complete coverage of interactive migration functionality
+  - **Edge Case Testing**: Tests for declined replacements, elicitation failures, and error scenarios
+  - **Integration Testing**: End-to-end workflow testing with mocked registry clients and HTTP requests
+  - **Verification Testing**: Tests for all post-migration verification scenarios
+  - **Single Registry Support**: Tests ensuring compatibility with single registry mode
+
+### Usage Example
+
+```python
+# Interactive schema migration with elicitation
+from interactive_tools import migrate_schema_interactive
+
+result = await migrate_schema_interactive(
+    subject="user-events",
+    source_registry="development", 
+    target_registry="staging",
+    source_context="events",
+    target_context="events",
+    # No migration preferences specified - will trigger elicitation
+    migrate_schema_tool=migrate_schema_tool,
+    export_schema_tool=export_schema_tool,
+    registry_manager=registry_manager,
+    registry_mode="multi"
+)
+
+# Result includes elicitation metadata, backup results, and verification
+print(f"Elicitation used: {result['elicitation_used']}")
+print(f"Schema existed in target: {result['schema_existed_in_target']}")
+print(f"Backup created: {result.get('backup_result', {}).get('success', False)}")
+print(f"Verification passed: {result.get('verification_result', {}).get('overall_success', False)}")
+```
+
+## [2.0.1] - 2025-06-27
+
+### 📈 **Performance & Code Quality Improvements**
+- **🔧 Major Code Refactoring**: Streamlined codebase across 74 files with improved readability and performance
+- **📊 Reduced Code Complexity**: Simplified error handling, consolidated list comprehensions, and enhanced function definitions
+- **🧹 Clean Architecture**: Removed 2,442 lines of redundant code while maintaining full functionality
+- **⚡ Memory Optimization**: Enhanced logging statements and improved resource management
+
+### 🛡️ **Enhanced Schema Validation & Local Processing**
+- **🏠 Local JSON Schema Handling**: Implemented custom handler for draft-07 JSON Schema meta-schemas
+- **🚀 Zero Network Dependencies**: Local schema resolution prevents external network requests during validation
+- **📦 Custom Requests Adapter**: Enhanced requests library integration with mock responses for draft-07 schemas
+- **⚡ Improved Performance**: Faster validation and testing with consistent local behavior
+
+### 🎭 **Advanced Elicitation Management**
+- **✨ Enhanced Elicitation Tools**: Added structured output decorators for `cancel_elicitation_request` and `get_elicitation_status`
+- **📋 New Schema Definitions**: Introduced comprehensive schemas for elicitation requests and status management
+- **🔄 Improved Response Structure**: Better error handling and compliance with expected response formats
+- **🎯 Reliable Validation**: Local draft-07 schema resolver for consistent elicitation workflows
+
+### 🔄 **Robust Migration Confirmation System**
+- **⚠️ New Exception Handling**: `IDPreservationError` and `MigrationConfirmationRequired` for better migration control
+- **✅ User Confirmation Flow**: Enhanced `migrate_schema_tool` with ID preservation failure handling
+- **🛠️ New Confirmation Tool**: `confirm_migration_without_ids_tool` for proceeding without ID preservation
+- **📊 Detailed Migration Metadata**: Comprehensive structured output for migration results
+- **🧪 Comprehensive Testing**: 233 new test cases for migration confirmation scenarios
+            
+
+## [2.0.0] - 2025-06-26
 
 ### 🚀 MAJOR RELEASE: FastMCP 2.8.0+ Upgrade & MCP 2025-06-18 Specification Compliance
 

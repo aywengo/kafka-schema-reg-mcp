@@ -1,57 +1,30 @@
 #!/usr/bin/env python3
 """
-Integration Tests for Elicitation Interactive Workflows
-
-Comprehensive end-to-end tests for the MCP 2025-06-18 elicitation capability
-implementation, focusing on real-world usage scenarios and integration between
-components.
-
-Test Coverage:
-- End-to-end elicitation workflows
-- Interactive tool integration
-- MCP protocol integration
-- Error handling and fallback scenarios
-- Performance and timeout behavior
-- Client compatibility testing
+Integration tests for the elicitation system with MCP
 """
 
 import asyncio
-import json
 import logging
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Import elicitation modules
 from elicitation import (
     ElicitationField,
-    ElicitationManager,
-    ElicitationPriority,
+    ElicitationType,
     ElicitationRequest,
     ElicitationResponse,
-    ElicitationType,
-    create_migration_preferences_elicitation,
-    create_schema_field_elicitation,
-    elicitation_manager,
-)
-from elicitation_mcp_integration import (
-    enhanced_elicit_with_fallback,
-    handle_elicitation_response,
-    real_mcp_elicit,
-    register_elicitation_handlers,
-    update_elicitation_implementation,
+    ElicitationManager,
 )
 from interactive_tools import (
     check_compatibility_interactive,
     create_context_interactive,
     export_global_interactive,
     migrate_context_interactive,
+    migrate_schema_interactive,
     register_schema_interactive,
 )
-
-# Import main server components for integration testing
-from schema_validation import create_error_response, create_success_response
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +38,15 @@ class TestElicitationIntegration:
         self.manager = ElicitationManager()
 
         # Mock MCP instance
-        self.mock_mcp = Mock()
+        self.mock_mcp = MagicMock()
         self.mock_mcp.send_elicitation_request = AsyncMock()
         self.mock_mcp.send_notification = AsyncMock()
         self.mock_mcp.call_method = AsyncMock()
         self.mock_mcp.create_resource = AsyncMock()
 
         # Mock registry components
-        self.mock_registry_manager = Mock()
-        self.mock_auth = Mock()
+        self.mock_registry_manager = MagicMock()
+        self.mock_auth = MagicMock()
         self.mock_headers = {"Content-Type": "application/json"}
         self.registry_mode = "multi"
         self.schema_registry_url = "http://test-registry:8081"
@@ -92,7 +65,7 @@ class TestElicitationIntegration:
         }
 
         # Mock the underlying schema registration tool
-        mock_register_tool = Mock(return_value={"success": True, "id": 123, "subject": subject, "version": 1})
+        mock_register_tool = MagicMock(return_value={"success": True, "id": 123, "subject": subject, "version": 1})
 
         # Mock elicitation response simulating user input
         with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
@@ -231,7 +204,7 @@ class TestElicitationIntegration:
         }
 
         # Mock compatibility check that finds issues
-        mock_compatibility_tool = Mock(
+        mock_compatibility_tool = MagicMock(
             return_value={
                 "compatible": False,
                 "messages": [
@@ -294,7 +267,7 @@ class TestElicitationIntegration:
         context_name = "analytics-events"
 
         # Mock context creation tool
-        mock_create_tool = Mock(return_value={"success": True, "context": context_name, "created": True})
+        mock_create_tool = MagicMock(return_value={"success": True, "context": context_name, "created": True})
 
         # Mock elicitation response with metadata
         with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
@@ -359,7 +332,7 @@ class TestElicitationIntegration:
         registry = "compliance-registry"
 
         # Mock export tool
-        mock_export_tool = Mock(
+        mock_export_tool = MagicMock(
             return_value={
                 "success": True,
                 "exported_schemas": 25,
@@ -414,6 +387,194 @@ class TestElicitationIntegration:
         assert result["export_preferences"]["compression"] == "gzip"
 
     @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_workflow(self):
+        """Test complete interactive schema migration workflow."""
+        # Test scenario: User wants to migrate a schema that already exists in target registry
+
+        subject = "user-profile-events"
+        source_registry = "development"
+        target_registry = "staging"
+
+        # Mock the underlying migration tool
+        mock_migrate_tool = MagicMock(
+            return_value={
+                "success": True,
+                "total_versions": 3,
+                "successful_migrations": 3,
+                "failed_migrations": 0,
+                "migration_details": [
+                    {"version": 1, "status": "migrated", "source_id": 101, "target_id": 201},
+                    {"version": 2, "status": "migrated", "source_id": 102, "target_id": 202},
+                    {"version": 3, "status": "migrated", "source_id": 103, "target_id": 203},
+                ],
+            }
+        )
+
+        # Mock export tool for backup
+        mock_export_tool = MagicMock(
+            return_value={
+                "success": True,
+                "subject": subject,
+                "backup_location": "/backups/user-profile-events.json",
+                "timestamp": "2024-01-15T10:30:00Z",
+            }
+        )
+
+        # Mock registry clients
+        mock_source_client = MagicMock()
+        mock_target_client = MagicMock()
+        mock_target_client.config.url = "http://staging-registry:8081"
+        mock_target_client.auth = self.mock_auth
+        mock_target_client.headers = self.mock_headers
+
+        # Mock schema verification responses
+        mock_source_client.get_schema.return_value = {
+            "schema": {
+                "type": "record",
+                "name": "UserProfileEvent",
+                "fields": [
+                    {"name": "user_id", "type": "string"},
+                    {"name": "profile_data", "type": "string"},
+                    {"name": "timestamp", "type": "long"},
+                ],
+            },
+            "schemaType": "AVRO",
+            "id": 103,
+            "version": 3,
+        }
+
+        mock_target_client.get_schema.return_value = {
+            "schema": {
+                "type": "record",
+                "name": "UserProfileEvent",
+                "fields": [
+                    {"name": "user_id", "type": "string"},
+                    {"name": "profile_data", "type": "string"},
+                    {"name": "timestamp", "type": "long"},
+                ],
+            },
+            "schemaType": "AVRO",
+            "id": 203,  # Different ID (not preserved)
+            "version": 3,
+        }
+
+        def get_registry_side_effect(name):
+            if name == source_registry:
+                return mock_source_client
+            elif name == target_registry:
+                return mock_target_client
+            return None
+
+        self.mock_registry_manager.get_registry.side_effect = get_registry_side_effect
+
+        # Mock requests to simulate schema existence check
+        with patch("interactive_tools.requests.get") as mock_get:
+            # First call: check if schema exists in target (returns 200 with versions)
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = [1, 2, 3]
+
+            # Mock elicitation response with complete user preferences
+            with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
+                mock_response = ElicitationResponse(
+                    request_id="migrate-schema-integration-test",
+                    values={
+                        "replace_existing": "true",  # User agrees to replace
+                        "backup_before_replace": "true",  # User wants backup
+                        "preserve_ids": "false",  # Don't preserve IDs
+                        "compare_after_migration": "true",  # Verify after migration
+                        "migrate_all_versions": "true",  # Migrate all versions
+                        "dry_run": "false",  # Perform actual migration
+                    },
+                    complete=True,
+                    metadata={"source": "integration_test_user"},
+                )
+                mock_elicit.return_value = mock_response
+
+                # Execute the interactive migration
+                result = await migrate_schema_interactive(
+                    subject=subject,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                    source_context="user-events",
+                    target_context="user-events",
+                    migrate_schema_tool=mock_migrate_tool,
+                    export_schema_tool=mock_export_tool,
+                    registry_manager=self.mock_registry_manager,
+                    registry_mode=self.registry_mode,
+                )
+
+        # Verify elicitation was triggered with correct request
+        mock_elicit.assert_called_once()
+        elicitation_request = mock_elicit.call_args[0][0]
+        assert elicitation_request.type == ElicitationType.FORM
+        assert elicitation_request.title == "Schema Migration Preferences"
+        assert subject in elicitation_request.description
+        assert "already exists" in elicitation_request.description
+
+        # Verify schema existence was properly detected
+        assert elicitation_request.context["schema_exists_in_target"] is True
+        assert elicitation_request.context["existing_versions"] == [1, 2, 3]
+
+        # Verify backup was performed
+        mock_export_tool.assert_called_once()
+        export_call_kwargs = mock_export_tool.call_args.kwargs
+        assert export_call_kwargs["subject"] == subject
+        assert export_call_kwargs["registry"] == target_registry
+        assert export_call_kwargs["include_metadata"] is True
+
+        # Verify migration was executed with correct preferences
+        mock_migrate_tool.assert_called_once()
+        migrate_call_kwargs = mock_migrate_tool.call_args.kwargs
+        assert migrate_call_kwargs["subject"] == subject
+        assert migrate_call_kwargs["source_registry"] == source_registry
+        assert migrate_call_kwargs["target_registry"] == target_registry
+        assert migrate_call_kwargs["preserve_ids"] is False
+        assert migrate_call_kwargs["dry_run"] is False
+        assert migrate_call_kwargs["migrate_all_versions"] is True
+
+        # Verify result structure
+        assert result["success"] is True
+        assert result["elicitation_used"] is True
+        assert result["schema_existed_in_target"] is True
+
+        # Verify elicited preferences are recorded
+        elicited_prefs = result["elicited_preferences"]
+        assert elicited_prefs["replace_existing"] is True
+        assert elicited_prefs["backup_before_replace"] is True
+        assert elicited_prefs["preserve_ids"] is False
+        assert elicited_prefs["compare_after_migration"] is True
+
+        # Verify backup result is included
+        assert result["backup_result"]["success"] is True
+        assert result["backup_result"]["subject"] == subject
+
+        # Verify post-migration verification was performed
+        verification_result = result["verification_result"]
+        assert verification_result["verification_type"] == "basic"
+        assert verification_result["overall_success"] is True
+
+        # Check that verification included expected checks
+        checks = verification_result["checks"]
+        check_names = [check["check"] for check in checks]
+        assert "schema_exists_in_target" in check_names
+        assert "schema_content_match" in check_names
+        assert "schema_type_match" in check_names
+        # ID preservation check should NOT be present since preserve_ids=false
+        assert "id_preservation" not in check_names
+
+        # Verify specific check results
+        schema_exists_check = next(c for c in checks if c["check"] == "schema_exists_in_target")
+        assert schema_exists_check["passed"] is True
+
+        content_match_check = next(c for c in checks if c["check"] == "schema_content_match")
+        assert content_match_check["passed"] is True
+
+        type_match_check = next(c for c in checks if c["check"] == "schema_type_match")
+        assert type_match_check["passed"] is True
+
+        logger.info("✅ Complete interactive schema migration workflow test passed")
+
+    @pytest.mark.asyncio
     async def test_elicitation_timeout_handling(self):
         """Test elicitation timeout and cleanup behavior."""
         # Test scenario: Elicitation request times out and is properly cleaned up
@@ -451,7 +612,7 @@ class TestElicitationIntegration:
         subject = "complex-user-profile"
 
         # Mock registration tool
-        mock_register_tool = Mock(return_value={"success": True, "id": 456, "subject": subject, "version": 1})
+        mock_register_tool = MagicMock(return_value={"success": True, "id": 456, "subject": subject, "version": 1})
 
         # First round: Basic field definition
         first_response = ElicitationResponse(
@@ -524,7 +685,7 @@ class TestElicitationIntegration:
         incomplete_schema = {"type": "record", "name": "FallbackTest", "fields": []}
 
         # Mock registration tool to expect a call even with fallback
-        mock_register_tool = Mock(
+        mock_register_tool = MagicMock(
             return_value={
                 "error": "Schema validation failed",
                 "details": "No fields defined in schema",
@@ -668,7 +829,7 @@ class TestElicitationIntegration:
         )
 
         # Test 1: Real MCP elicitation succeeds
-        mock_mcp = Mock()
+        mock_mcp = MagicMock()
         mock_mcp.send_elicitation_request = AsyncMock(
             return_value={"values": {"field": "real_mcp_value"}, "complete": True}
         )
@@ -749,6 +910,19 @@ class TestElicitationPerformance:
 
         # Verify responses are still accessible (for audit/debugging)
         assert len(manager.responses) == 10
+
+
+# Mock functions for testing
+async def handle_elicitation_response(request_id: str, response_data: dict) -> bool:
+    """Mock elicitation response handler for testing."""
+    manager = ElicitationManager()
+    response = ElicitationResponse(
+        request_id=request_id,
+        values=response_data.get("values", {}),
+        complete=response_data.get("complete", True),
+        metadata=response_data.get("metadata", {}),
+    )
+    return await manager.submit_response(response)
 
 
 if __name__ == "__main__":

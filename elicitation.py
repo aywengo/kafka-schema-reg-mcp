@@ -246,21 +246,21 @@ class ElicitationManager:
     def _validate_response(self, request: ElicitationRequest, response: ElicitationResponse) -> bool:
         """Validate a response against the request requirements."""
         # Check required fields
-        for field in request.fields:
-            if field.required and field.name not in response.values:
-                logger.warning(f"Missing required field: {field.name}")
+        for req_field in request.fields:
+            if req_field.required and req_field.name not in response.values:
+                logger.warning(f"Missing required field: {req_field.name}")
                 return False
 
             # Validate field types and constraints
-            if field.name in response.values:
-                value = response.values[field.name]
-                if field.options and value not in field.options:
-                    logger.warning(f"Invalid option for field {field.name}: {value}")
+            if req_field.name in response.values:
+                value = response.values[req_field.name]
+                if req_field.options and value not in req_field.options:
+                    logger.warning(f"Invalid option for field {req_field.name}: {value}")
                     return False
 
                 # Additional validation based on field type
-                if field.type == "email" and "@" not in str(value):
-                    logger.warning(f"Invalid email format for field {field.name}: {value}")
+                if req_field.type == "email" and "@" not in str(value):
+                    logger.warning(f"Invalid email format for field {req_field.name}: {value}")
                     return False
 
         return True
@@ -551,9 +551,125 @@ def create_export_preferences_elicitation(operation_type: str) -> ElicitationReq
     return ElicitationRequest(
         type=ElicitationType.FORM,
         title="Export Preferences",
-        description=f"Configure export settings for {operation_type}",
+        description=f"Configure {operation_type} export settings",
         fields=fields,
-        context={"operation_type": operation_type},
+        context={"operation": operation_type},
+        timeout_seconds=300,
+    )
+
+
+def create_migrate_schema_elicitation(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    schema_exists_in_target: bool = False,
+    existing_versions: Optional[List[int]] = None,
+    context: Optional[str] = None,
+) -> ElicitationRequest:
+    """Create an elicitation request for migrate schema preferences."""
+
+    fields = []
+
+    # If schema exists in target, ask about replacement and backup
+    if schema_exists_in_target:
+        fields.extend(
+            [
+                ElicitationField(
+                    name="replace_existing",
+                    type="choice",
+                    label="Replace Existing Schema",
+                    description=(
+                        f"Schema '{subject}' already exists in target registry '{target_registry}'. "
+                        "Should it be replaced?"
+                    ),
+                    required=True,
+                    options=["true", "false"],
+                    default="false",
+                ),
+                ElicitationField(
+                    name="backup_before_replace",
+                    type="choice",
+                    label="Backup Before Replace",
+                    description="Should existing schema be backed up (exported) before replacement?",
+                    required=False,
+                    options=["true", "false"],
+                    default="true",
+                ),
+            ]
+        )
+
+    # Always ask about ID preservation
+    fields.append(
+        ElicitationField(
+            name="preserve_ids",
+            type="choice",
+            label="Preserve Schema IDs",
+            description="Should schema IDs be preserved during migration? (Requires IMPORT mode on target registry)",
+            required=True,
+            options=["true", "false"],
+            default="true",
+        )
+    )
+
+    # Always ask about post-migration comparison
+    fields.append(
+        ElicitationField(
+            name="compare_after_migration",
+            type="choice",
+            label="Compare After Migration",
+            description="Should schemas be compared after migration to verify successful transfer?",
+            required=True,
+            options=["true", "false"],
+            default="true",
+        )
+    )
+
+    # Additional migration preferences
+    fields.extend(
+        [
+            ElicitationField(
+                name="migrate_all_versions",
+                type="choice",
+                label="Migrate All Versions",
+                description="Migrate all schema versions or just the latest?",
+                required=True,
+                options=["true", "false"],
+                default="false",
+            ),
+            ElicitationField(
+                name="dry_run",
+                type="choice",
+                label="Dry Run First",
+                description="Perform a dry run to preview changes before actual migration?",
+                required=True,
+                options=["true", "false"],
+                default="true",
+            ),
+        ]
+    )
+
+    # Build description based on whether schema exists
+    if schema_exists_in_target:
+        description = (
+            f"Schema '{subject}' already exists in target registry '{target_registry}' "
+            f"with versions {existing_versions}. Configure migration preferences."
+        )
+    else:
+        description = f"Configure migration of schema '{subject}' from '{source_registry}' to '{target_registry}'"
+
+    return ElicitationRequest(
+        type=ElicitationType.FORM,
+        title="Schema Migration Preferences",
+        description=description,
+        fields=fields,
+        context={
+            "subject": subject,
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "schema_exists_in_target": schema_exists_in_target,
+            "existing_versions": existing_versions,
+            "context": context,
+        },
         timeout_seconds=300,
     )
 
@@ -569,17 +685,17 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
     # Generate reasonable defaults based on request type and context
     values = {}
 
-    for field in request.fields:
-        if field.default is not None:
-            values[field.name] = field.default
-        elif field.type == "choice" and field.options:
-            values[field.name] = field.options[0]  # Use first option as default
-        elif field.type == "text":
-            values[field.name] = field.placeholder or ""
-        elif field.type == "confirmation":
-            values[field.name] = "false"  # Conservative default
+    for req_field in request.fields:
+        if req_field.default is not None:
+            values[req_field.name] = req_field.default
+        elif req_field.type == "choice" and req_field.options:
+            values[req_field.name] = req_field.options[0]  # Use first option as default
+        elif req_field.type == "text":
+            values[req_field.name] = req_field.placeholder or ""
+        elif req_field.type == "confirmation":
+            values[req_field.name] = "false"  # Conservative default
         else:
-            values[field.name] = None
+            values[req_field.name] = None
 
     # Override with context-specific intelligent defaults
     if request.context:

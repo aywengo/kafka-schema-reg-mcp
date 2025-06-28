@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
 """
-Test Elicitation Capability for Interactive Workflows
-
-Comprehensive test suite for the MCP 2025-06-18 elicitation capability
-implementation in the Kafka Schema Registry MCP server.
-
-Tests cover:
-- Core elicitation functionality
-- Interactive tool variants
-- Elicitation management
-- Timeout handling
-- Fallback mechanisms
-- MCP protocol compliance
+Tests for the elicitation system functionality
 """
 
 import asyncio
-import json
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
@@ -32,6 +20,7 @@ from elicitation import (
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
+    create_migrate_schema_elicitation,
     create_migration_preferences_elicitation,
     create_schema_field_elicitation,
     elicit_with_fallback,
@@ -43,6 +32,7 @@ from interactive_tools import (
     create_context_interactive,
     export_global_interactive,
     migrate_context_interactive,
+    migrate_schema_interactive,
     register_schema_interactive,
 )
 
@@ -391,7 +381,7 @@ class TestElicitationHelpers:
         assert request.type == ElicitationType.FORM
         assert request.title == "Export Preferences"
         assert "global_export" in request.description
-        assert request.context["operation_type"] == "global_export"
+        assert request.context["operation"] == "global_export"
 
         # Check fields
         field_names = [f.name for f in request.fields]
@@ -399,6 +389,74 @@ class TestElicitationHelpers:
         assert "include_metadata" in field_names
         assert "include_versions" in field_names
         assert "compression" in field_names
+
+    def test_create_migrate_schema_elicitation_new_schema(self):
+        """Test creating migrate schema elicitation for new schema (doesn't exist in target)."""
+        request = create_migrate_schema_elicitation(
+            subject="test-subject",
+            source_registry="source-reg",
+            target_registry="target-reg",
+            schema_exists_in_target=False,
+            context="test-context",
+        )
+
+        assert request.type == ElicitationType.FORM
+        assert request.title == "Schema Migration Preferences"
+        assert "test-subject" in request.description
+        assert "source-reg" in request.description
+        assert "target-reg" in request.description
+        assert request.context["subject"] == "test-subject"
+        assert request.context["source_registry"] == "source-reg"
+        assert request.context["target_registry"] == "target-reg"
+        assert request.context["schema_exists_in_target"] is False
+
+        # Check fields - should NOT include replacement fields
+        field_names = [f.name for f in request.fields]
+        assert "replace_existing" not in field_names
+        assert "backup_before_replace" not in field_names
+        assert "preserve_ids" in field_names
+        assert "compare_after_migration" in field_names
+        assert "migrate_all_versions" in field_names
+        assert "dry_run" in field_names
+
+    def test_create_migrate_schema_elicitation_existing_schema(self):
+        """Test creating migrate schema elicitation for existing schema in target."""
+        existing_versions = [1, 2, 3]
+        request = create_migrate_schema_elicitation(
+            subject="existing-subject",
+            source_registry="source-reg",
+            target_registry="target-reg",
+            schema_exists_in_target=True,
+            existing_versions=existing_versions,
+            context="test-context",
+        )
+
+        assert request.type == ElicitationType.FORM
+        assert request.title == "Schema Migration Preferences"
+        assert "already exists" in request.description
+        assert str(existing_versions) in request.description
+        assert request.context["schema_exists_in_target"] is True
+        assert request.context["existing_versions"] == existing_versions
+
+        # Check fields - should include replacement fields
+        field_names = [f.name for f in request.fields]
+        assert "replace_existing" in field_names
+        assert "backup_before_replace" in field_names
+        assert "preserve_ids" in field_names
+        assert "compare_after_migration" in field_names
+        assert "migrate_all_versions" in field_names
+        assert "dry_run" in field_names
+
+        # Check replace_existing field details
+        replace_field = next(f for f in request.fields if f.name == "replace_existing")
+        assert replace_field.required is True
+        assert replace_field.default == "false"
+        assert "already exists" in replace_field.description
+
+        # Check backup field
+        backup_field = next(f for f in request.fields if f.name == "backup_before_replace")
+        assert backup_field.required is False
+        assert backup_field.default == "true"
 
     @pytest.mark.asyncio
     async def test_mock_elicit(self):
@@ -713,6 +771,257 @@ class TestInteractiveTools:
         assert result["export_preferences"]["include_metadata"] is True
         assert result["export_preferences"]["include_versions"] == "latest"
         mock_export_tool.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_no_elicitation_needed(self):
+        """Test interactive schema migration when all preferences are provided."""
+        # Mock the core migrate_schema_tool
+        mock_migrate_tool = Mock(return_value={"success": True, "migrated_versions": [1, 2]})
+
+        # Mock registry client for checking schema existence
+        mock_target_client = Mock()
+        mock_target_client.config.url = "http://target-registry:8081"
+        mock_target_client.auth = self.mock_auth
+        mock_target_client.headers = self.mock_headers
+
+        self.mock_registry_manager.get_registry.return_value = mock_target_client
+
+        # Mock requests.get to simulate schema doesn't exist (404)
+        with patch("interactive_tools.requests.get") as mock_get:
+            mock_get.return_value.status_code = 404
+
+            result = await migrate_schema_interactive(
+                subject="test-subject",
+                source_registry="source",
+                target_registry="target",
+                preserve_ids=True,
+                dry_run=False,
+                migrate_all_versions=True,
+                migrate_schema_tool=mock_migrate_tool,
+                registry_manager=self.mock_registry_manager,
+                registry_mode=self.registry_mode,
+            )
+
+        # Should call the original tool directly without elicitation
+        mock_migrate_tool.assert_called_once()
+        assert result["success"] is True
+        assert result["elicitation_used"] is False
+        assert result["schema_existed_in_target"] is False
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_schema_exists_allow_replace(self):
+        """Test interactive schema migration when schema exists and user allows replacement."""
+        # Mock the core migrate_schema_tool
+        mock_migrate_tool = Mock(return_value={"success": True, "migrated_versions": [1, 2]})
+        mock_export_tool = Mock(return_value={"success": True, "backup_created": True})
+
+        # Mock registry client for checking schema existence
+        mock_target_client = Mock()
+        mock_target_client.config.url = "http://target-registry:8081"
+        mock_target_client.auth = self.mock_auth
+        mock_target_client.headers = self.mock_headers
+
+        self.mock_registry_manager.get_registry.return_value = mock_target_client
+
+        # Mock requests.get to simulate schema exists
+        with patch("interactive_tools.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = [1, 2, 3]
+
+            # Mock elicitation to return user preferences
+            with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
+                mock_response = Mock()
+                mock_response.complete = True
+                mock_response.values = {
+                    "replace_existing": "true",
+                    "backup_before_replace": "true",
+                    "preserve_ids": "false",
+                    "compare_after_migration": "false",
+                    "migrate_all_versions": "true",
+                    "dry_run": "false",
+                }
+                mock_elicit.return_value = mock_response
+
+                result = await migrate_schema_interactive(
+                    subject="existing-subject",
+                    source_registry="source",
+                    target_registry="target",
+                    migrate_schema_tool=mock_migrate_tool,
+                    export_schema_tool=mock_export_tool,
+                    registry_manager=self.mock_registry_manager,
+                    registry_mode=self.registry_mode,
+                )
+
+        # Should have used elicitation and allowed replacement
+        assert result["elicitation_used"] is True
+        assert result["schema_existed_in_target"] is True
+        assert result["elicited_preferences"]["replace_existing"] is True
+        assert result["elicited_preferences"]["backup_before_replace"] is True
+        assert result["backup_result"]["success"] is True
+        mock_migrate_tool.assert_called_once()
+        mock_export_tool.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_schema_exists_decline_replace(self):
+        """Test interactive schema migration when schema exists and user declines replacement."""
+        # Mock registry client for checking schema existence
+        mock_target_client = Mock()
+        mock_target_client.config.url = "http://target-registry:8081"
+        mock_target_client.auth = self.mock_auth
+        mock_target_client.headers = self.mock_headers
+
+        self.mock_registry_manager.get_registry.return_value = mock_target_client
+
+        # Mock requests.get to simulate schema exists
+        with patch("interactive_tools.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = [1, 2]
+
+            # Mock elicitation to return user declining replacement
+            with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
+                mock_response = Mock()
+                mock_response.complete = True
+                mock_response.values = {
+                    "replace_existing": "false",  # User declines
+                    "backup_before_replace": "true",
+                    "preserve_ids": "true",
+                    "compare_after_migration": "true",
+                    "migrate_all_versions": "false",
+                    "dry_run": "true",
+                }
+                mock_elicit.return_value = mock_response
+
+                result = await migrate_schema_interactive(
+                    subject="existing-subject",
+                    source_registry="source",
+                    target_registry="target",
+                    migrate_schema_tool=Mock(),  # Should not be called
+                    registry_manager=self.mock_registry_manager,
+                    registry_mode=self.registry_mode,
+                )
+
+        # Should return error indicating replacement was declined
+        assert "error" in result
+        assert "MIGRATION_DECLINED_EXISTING_SCHEMA" in result["error_code"]
+        assert "existing_versions" in result["details"]
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_with_verification(self):
+        """Test interactive schema migration with post-migration verification."""
+        # Mock the core migrate_schema_tool
+        mock_migrate_tool = Mock(return_value={"success": True, "migrated_versions": [1]})
+
+        # Mock registry clients for verification
+        mock_source_client = Mock()
+        mock_target_client = Mock()
+        mock_source_client.get_schema.return_value = {
+            "schema": {"type": "record", "name": "Test"},
+            "schemaType": "AVRO",
+            "id": 123,
+        }
+        mock_target_client.get_schema.return_value = {
+            "schema": {"type": "record", "name": "Test"},
+            "schemaType": "AVRO",
+            "id": 123,
+        }
+
+        def get_registry_side_effect(name):
+            if name == "source":
+                return mock_source_client
+            elif name == "target":
+                return mock_target_client
+            return None
+
+        self.mock_registry_manager.get_registry.side_effect = get_registry_side_effect
+
+        # Mock requests.get to simulate schema doesn't exist initially
+        with patch("interactive_tools.requests.get") as mock_get:
+            mock_get.return_value.status_code = 404
+
+            # Mock elicitation to request verification
+            with patch("interactive_tools.elicit_with_fallback") as mock_elicit:
+                mock_response = Mock()
+                mock_response.complete = True
+                mock_response.values = {
+                    "preserve_ids": "true",
+                    "compare_after_migration": "true",
+                    "migrate_all_versions": "false",
+                    "dry_run": "false",
+                }
+                mock_elicit.return_value = mock_response
+
+                result = await migrate_schema_interactive(
+                    subject="verify-subject",
+                    source_registry="source",
+                    target_registry="target",
+                    migrate_schema_tool=mock_migrate_tool,
+                    registry_manager=self.mock_registry_manager,
+                    registry_mode=self.registry_mode,
+                )
+
+        # Should have performed verification
+        assert result["elicitation_used"] is True
+        assert result["elicited_preferences"]["compare_after_migration"] is True
+        assert "verification_result" in result
+        assert result["verification_result"]["verification_type"] == "basic"
+        assert result["verification_result"]["overall_success"] is True
+
+        # Check verification details
+        checks = result["verification_result"]["checks"]
+        check_names = [check["check"] for check in checks]
+        assert "schema_exists_in_target" in check_names
+        assert "schema_content_match" in check_names
+        assert "schema_type_match" in check_names
+        assert "id_preservation" in check_names
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_elicitation_fails(self):
+        """Test graceful fallback when elicitation fails."""
+        # Mock registry client
+        mock_target_client = Mock()
+        mock_target_client.config.url = "http://target-registry:8081"
+        mock_target_client.auth = self.mock_auth
+        mock_target_client.headers = self.mock_headers
+
+        self.mock_registry_manager.get_registry.return_value = mock_target_client
+
+        # Mock requests.get to simulate schema exists (trigger elicitation)
+        with patch("interactive_tools.requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = [1]
+
+            # Mock elicitation to fail
+            with patch("interactive_tools.elicit_with_fallback", return_value=None):
+                result = await migrate_schema_interactive(
+                    subject="fail-subject",
+                    source_registry="source",
+                    target_registry="target",
+                    migrate_schema_tool=Mock(),  # Should not be called
+                    registry_manager=self.mock_registry_manager,
+                    registry_mode=self.registry_mode,
+                )
+
+        # Should return error indicating elicitation failed
+        assert "error" in result
+        assert "INCOMPLETE_MIGRATION_PREFERENCES" in result["error_code"]
+        assert "elicitation_status" in result["details"]
+
+    @pytest.mark.asyncio
+    async def test_migrate_schema_interactive_single_registry_mode(self):
+        """Test that interactive migration works in single registry mode."""
+        result = await migrate_schema_interactive(
+            subject="test-subject",
+            source_registry="source",
+            target_registry="target",
+            migrate_schema_tool=Mock(),
+            registry_manager=self.mock_registry_manager,
+            registry_mode="single",  # Single registry mode
+        )
+
+        # Should work but without existence checking (no elicitation triggered)
+        # The actual behavior depends on the migrate_schema_tool implementation
+        # In this test we're just ensuring no errors occur in single mode
+        assert result is not None  # Ensure the function completes without error
 
 
 class TestElicitationIntegration:

@@ -25,18 +25,19 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from elicitation import (
-    ElicitationRequest,
-    ElicitationResponse,
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
+    create_migrate_schema_elicitation,
     create_migration_preferences_elicitation,
     create_schema_field_elicitation,
     elicit_with_fallback,
     elicitation_manager,
 )
-from schema_validation import create_error_response, create_success_response
+from schema_validation import create_error_response
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +216,8 @@ async def migrate_context_interactive(
                     migrate_all_versions = response.values.get("migrate_all_versions", "false").lower() == "true"
 
                 logger.info(
-                    f"Applied migration preferences from elicitation: preserve_ids={preserve_ids}, dry_run={dry_run}, migrate_all_versions={migrate_all_versions}"
+                    f"Applied migration preferences from elicitation: preserve_ids={preserve_ids}, "
+                    f"dry_run={dry_run}, migrate_all_versions={migrate_all_versions}"
                 )
             else:
                 return create_error_response(
@@ -538,6 +540,311 @@ async def export_global_interactive(
         return create_error_response(
             f"Interactive global export failed: {str(e)}",
             error_code="INTERACTIVE_EXPORT_ERROR",
+        )
+
+
+async def migrate_schema_interactive(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[List[int]] = None,
+    migrate_all_versions: Optional[bool] = None,
+    preserve_ids: Optional[bool] = None,
+    dry_run: Optional[bool] = None,
+    # Core tool dependencies injected
+    migrate_schema_tool=None,
+    get_schema_tool=None,
+    export_schema_tool=None,
+    registry_manager=None,
+    registry_mode=None,
+) -> Dict[str, Any]:
+    """
+    Interactive schema migration with elicitation for migration preferences.
+
+    This tool checks if the schema exists in the target registry and elicits
+    user preferences for:
+    - Whether to replace existing schemas (and backup if needed)
+    - Whether to preserve IDs
+    - Whether to compare schemas after migration
+    """
+    try:
+        # First, check if schema exists in target registry
+        schema_exists_in_target = False
+        existing_versions = []
+
+        try:
+            if registry_mode == "multi":
+                target_client = registry_manager.get_registry(target_registry)
+                if target_client:
+                    # Check if subject exists in target
+                    if target_context and target_context != ".":
+                        versions_url = (
+                            f"{target_client.config.url}/contexts/{target_context}/subjects/{subject}/versions"
+                        )
+                    else:
+                        versions_url = f"{target_client.config.url}/subjects/{subject}/versions"
+
+                    response = requests.get(
+                        versions_url,
+                        auth=target_client.auth,
+                        headers=target_client.headers,
+                        timeout=10,
+                    )
+
+                    if response.status_code == 200:
+                        schema_exists_in_target = True
+                        existing_versions = response.json()
+                        logger.info(f"Schema '{subject}' exists in target registry with versions: {existing_versions}")
+                    elif response.status_code == 404:
+                        logger.info(f"Schema '{subject}' does not exist in target registry")
+                    else:
+                        logger.warning(f"Could not check schema existence in target: HTTP {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Error checking schema existence in target registry: {str(e)}")
+
+        # Check if we need elicitation for any missing preferences
+        needs_elicitation = (
+            any(
+                [
+                    migrate_all_versions is None,
+                    preserve_ids is None,
+                    dry_run is None,
+                ]
+            )
+            or schema_exists_in_target
+        )  # Always elicit if schema exists in target
+
+        if needs_elicitation:
+            logger.info(f"Schema migration from {source_registry} to {target_registry} needs user preferences")
+
+            # Create elicitation request for migration preferences
+            elicitation_request = create_migrate_schema_elicitation(
+                subject=subject,
+                source_registry=source_registry,
+                target_registry=target_registry,
+                schema_exists_in_target=schema_exists_in_target,
+                existing_versions=existing_versions,
+                context=source_context,
+            )
+
+            # Store the request for processing
+            await elicitation_manager.create_request(elicitation_request)
+
+            # Attempt elicitation with fallback
+            response = await elicit_with_fallback(elicitation_request)
+
+            if response and response.complete:
+                # Process elicited values
+                replace_existing = response.values.get("replace_existing", "false").lower() == "true"
+                backup_before_replace = response.values.get("backup_before_replace", "true").lower() == "true"
+                compare_after_migration = response.values.get("compare_after_migration", "true").lower() == "true"
+
+                # Apply migration preferences
+                if preserve_ids is None:
+                    preserve_ids = response.values.get("preserve_ids", "true").lower() == "true"
+                if dry_run is None:
+                    dry_run = response.values.get("dry_run", "true").lower() == "true"
+                if migrate_all_versions is None:
+                    migrate_all_versions = response.values.get("migrate_all_versions", "false").lower() == "true"
+
+                # Check if we should proceed with replacement
+                if schema_exists_in_target and not replace_existing:
+                    return create_error_response(
+                        f"Schema '{subject}' already exists in target registry and replacement was declined",
+                        details={
+                            "existing_versions": existing_versions,
+                            "target_registry": target_registry,
+                            "suggestion": "Choose a different target context or confirm replacement",
+                        },
+                        error_code="MIGRATION_DECLINED_EXISTING_SCHEMA",
+                    )
+
+                logger.info(
+                    f"Applied migration preferences from elicitation: "
+                    f"preserve_ids={preserve_ids}, dry_run={dry_run}, "
+                    f"migrate_all_versions={migrate_all_versions}, "
+                    f"replace_existing={replace_existing}, compare_after={compare_after_migration}"
+                )
+            else:
+                return create_error_response(
+                    "Unable to obtain migration preferences",
+                    details={
+                        "schema_exists_in_target": schema_exists_in_target,
+                        "elicitation_status": ("failed" if response is None else "incomplete"),
+                        "suggestion": "Please specify migration preferences or enable elicitation support",
+                    },
+                    error_code="INCOMPLETE_MIGRATION_PREFERENCES",
+                )
+        else:
+            # Use defaults if no elicitation needed
+            replace_existing = True  # Assume replacement is OK if not eliciting
+            backup_before_replace = False
+            compare_after_migration = False
+
+        # Perform backup if requested and schema exists
+        backup_result = None
+        if schema_exists_in_target and backup_before_replace and export_schema_tool:
+            try:
+                logger.info(f"Creating backup of existing schema '{subject}' in target registry")
+                backup_result = export_schema_tool(
+                    subject=subject,
+                    registry_manager=registry_manager,
+                    registry_mode=registry_mode,
+                    registry=target_registry,
+                    context=target_context,
+                    include_metadata=True,
+                )
+                if "error" not in backup_result:
+                    logger.info("✅ Schema backup completed successfully")
+                else:
+                    logger.warning(f"⚠️ Schema backup failed: {backup_result.get('error')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Schema backup failed: {str(e)}")
+                backup_result = {"error": f"Backup failed: {str(e)}"}
+
+        # Now proceed with the actual schema migration
+        migration_result = migrate_schema_tool(
+            subject=subject,
+            source_registry=source_registry,
+            target_registry=target_registry,
+            registry_manager=registry_manager,
+            registry_mode=registry_mode,
+            dry_run=dry_run,
+            preserve_ids=preserve_ids,
+            source_context=source_context,
+            target_context=target_context,
+            versions=versions,
+            migrate_all_versions=migrate_all_versions,
+        )
+
+        # Perform post-migration comparison if requested and migration was successful
+        comparison_result = None
+        if (
+            compare_after_migration
+            and isinstance(migration_result, dict)
+            and "error" not in migration_result
+            and not dry_run
+        ):
+            try:
+                logger.info("Performing post-migration schema verification")
+
+                # Simple verification: check if schema exists in target and get basic info
+                verification_result = {"verification_type": "basic", "checks": []}
+
+                if registry_mode == "multi":
+                    source_client = registry_manager.get_registry(source_registry)
+                    target_client = registry_manager.get_registry(target_registry)
+
+                    if source_client and target_client:
+                        try:
+                            # Get latest schema from source
+                            source_schema = source_client.get_schema(subject, "latest", source_context)
+                            # Get latest schema from target
+                            target_schema = target_client.get_schema(subject, "latest", target_context)
+
+                            # Compare basic properties
+                            if isinstance(source_schema, dict) and isinstance(target_schema, dict):
+                                checks = []
+
+                                # Check if both schemas exist
+                                checks.append(
+                                    {
+                                        "check": "schema_exists_in_target",
+                                        "passed": "error" not in target_schema,
+                                        "details": "Schema successfully migrated to target registry",
+                                    }
+                                )
+
+                                # Check schema content (if both exist)
+                                if "error" not in source_schema and "error" not in target_schema:
+                                    schema_content_match = source_schema.get("schema") == target_schema.get("schema")
+                                    checks.append(
+                                        {
+                                            "check": "schema_content_match",
+                                            "passed": schema_content_match,
+                                            "details": "Schema content matches between source and target",
+                                        }
+                                    )
+
+                                    # Check schema type
+                                    schema_type_match = (
+                                        source_schema.get("schemaType") == target_schema.get("schemaType")
+                                    )
+                                    checks.append(
+                                        {
+                                            "check": "schema_type_match",
+                                            "passed": schema_type_match,
+                                            "details": (
+                                                f"Schema type: {source_schema.get('schemaType')} -> "
+                                                f"{target_schema.get('schemaType')}"
+                                            ),
+                                        }
+                                    )
+
+                                    # Check ID preservation if requested
+                                    if preserve_ids:
+                                        id_preserved = source_schema.get("id") == target_schema.get("id")
+                                        checks.append(
+                                            {
+                                                "check": "id_preservation",
+                                                "passed": id_preserved,
+                                                "details": (
+                                                    f"Schema ID: {source_schema.get('id')} -> "
+                                                    f"{target_schema.get('id')}"
+                                                ),
+                                            }
+                                        )
+
+                                verification_result["checks"] = checks
+                                verification_result["overall_success"] = all(check["passed"] for check in checks)
+
+                        except Exception as e:
+                            verification_result = {
+                                "verification_type": "basic",
+                                "error": f"Verification failed: {str(e)}",
+                                "checks": [],
+                            }
+
+                comparison_result = verification_result
+                if comparison_result.get("overall_success"):
+                    logger.info("✅ Post-migration verification completed successfully")
+                else:
+                    logger.warning("⚠️ Post-migration verification found issues")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Post-migration verification failed: {str(e)}")
+                comparison_result = {"error": f"Verification failed: {str(e)}"}
+
+        # Add elicitation and operation metadata to result
+        if isinstance(migration_result, dict):
+            migration_result["elicitation_used"] = needs_elicitation
+            migration_result["schema_existed_in_target"] = schema_exists_in_target
+
+            if needs_elicitation and response:
+                migration_result["elicited_preferences"] = {
+                    "preserve_ids": preserve_ids,
+                    "dry_run": dry_run,
+                    "migrate_all_versions": migrate_all_versions,
+                    "replace_existing": replace_existing if schema_exists_in_target else None,
+                    "backup_before_replace": backup_before_replace if schema_exists_in_target else None,
+                    "compare_after_migration": compare_after_migration,
+                }
+
+            if backup_result:
+                migration_result["backup_result"] = backup_result
+
+            if comparison_result:
+                migration_result["verification_result"] = comparison_result
+
+        return migration_result
+
+    except Exception as e:
+        logger.error(f"Error in interactive schema migration: {str(e)}")
+        return create_error_response(
+            f"Interactive schema migration failed: {str(e)}",
+            error_code="INTERACTIVE_MIGRATION_ERROR",
         )
 
 
