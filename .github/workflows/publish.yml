@@ -126,134 +126,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          # Convert tag (v2.0.2) to changelog format ([2.0.2])
+          VERSION=${GITHUB_REF_NAME#v}  # Remove 'v' prefix
+          CHANGELOG_SECTION="[$VERSION]"
+          
+          echo "Looking for changelog section: $CHANGELOG_SECTION"
+          
+          # Extract the section from CHANGELOG.md
+          awk "
+            /^## \\[$VERSION\\]/ { found=1; print; next }
+            /^## \\[/ && found { found=0 }
+            found { print }
+          " CHANGELOG.md > release_notes.md
+          
+          # Check if we found content
+          if [ ! -s release_notes.md ]; then
+            echo "Warning: No changelog section found for version $VERSION"
+            echo "## Release $GITHUB_REF_NAME" > release_notes.md
+            echo "" >> release_notes.md
+            echo "Please see [CHANGELOG.md](CHANGELOG.md) for detailed release notes." >> release_notes.md
+          else
+            # Add a header to the extracted content
+            {
+              echo "## Release $GITHUB_REF_NAME"
+              echo ""
+              cat release_notes.md
+              echo ""
+              echo "---"
+              echo ""
+              echo "For complete version history, see [CHANGELOG.md](CHANGELOG.md)."
+            } > temp_notes.md
+            mv temp_notes.md release_notes.md
+          fi
+          
+          # Set the output for the next step
+          echo "changelog_content<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: |
-            ## 🔧 Kafka Schema Registry MCP Server ${{ github.ref_name }} - MAINTENANCE RELEASE
-            
-            **🛠️ Performance & Reliability Improvements**
-            
-            This maintenance release builds upon the solid v2.0.0 foundation with significant performance optimizations, enhanced reliability, and improved code maintainability.
-            
-            ---
-            
-            ## 🚀 What's New in v2.0.1
-            
-            ### 📈 **Performance & Code Quality Improvements**
-            - **🔧 Major Code Refactoring**: Streamlined codebase across 74 files with improved readability and performance
-            - **📊 Reduced Code Complexity**: Simplified error handling, consolidated list comprehensions, and enhanced function definitions
-            - **🧹 Clean Architecture**: Removed 2,442 lines of redundant code while maintaining full functionality
-            - **⚡ Memory Optimization**: Enhanced logging statements and improved resource management
-            
-            ### 🛡️ **Enhanced Schema Validation & Local Processing**
-            - **🏠 Local JSON Schema Handling**: Implemented custom handler for draft-07 JSON Schema meta-schemas
-            - **🚀 Zero Network Dependencies**: Local schema resolution prevents external network requests during validation
-            - **📦 Custom Requests Adapter**: Enhanced requests library integration with mock responses for draft-07 schemas
-            - **⚡ Improved Performance**: Faster validation and testing with consistent local behavior
-            
-            ### 🎭 **Advanced Elicitation Management**
-            - **✨ Enhanced Elicitation Tools**: Added structured output decorators for `cancel_elicitation_request` and `get_elicitation_status`
-            - **📋 New Schema Definitions**: Introduced comprehensive schemas for elicitation requests and status management
-            - **🔄 Improved Response Structure**: Better error handling and compliance with expected response formats
-            - **🎯 Reliable Validation**: Local draft-07 schema resolver for consistent elicitation workflows
-            
-            ### 🔄 **Robust Migration Confirmation System**
-            - **⚠️ New Exception Handling**: `IDPreservationError` and `MigrationConfirmationRequired` for better migration control
-            - **✅ User Confirmation Flow**: Enhanced `migrate_schema_tool` with ID preservation failure handling
-            - **🛠️ New Confirmation Tool**: `confirm_migration_without_ids_tool` for proceeding without ID preservation
-            - **📊 Detailed Migration Metadata**: Comprehensive structured output for migration results
-            - **🧪 Comprehensive Testing**: 233 new test cases for migration confirmation scenarios
-            
-            ---
-            
-            ## 🎯 Key Improvements by the Numbers
-            
-            - **📉 Code Reduction**: 2,442 lines removed, 1,349 lines improved
-            - **🗂️ Files Enhanced**: 74 files optimized across the entire codebase
-            - **🧪 Test Coverage**: 233+ new test cases for migration scenarios
-            - **⚡ Performance**: Faster validation with local schema resolution
-            - **🛡️ Reliability**: Enhanced error handling and confirmation workflows
-            
-            ---
-            
-            ## 📦 Docker Deployment
-            
-            ```bash
-            # Pull the latest maintenance release
-            docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
-            
-            # Production deployment (same configuration as v2.0.0)
-            docker run -d -p 8000:8000 \
-              -e MCP_TRANSPORT=streamable-http \
-              -e ENABLE_AUTH=true \
-              -e AUTH_ISSUER_URL="https://accounts.google.com" \
-              -e AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com" \
-              aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
-            ```
-            
-            ---
-            
-            ## 🧪 Testing New Features
-            
-            ### **Enhanced Migration with Confirmation**
-            ```bash
-            # Test migration with ID preservation handling
-            curl -X POST http://localhost:8000/mcp \
-                 -H "Content-Type: application/json" \
-                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"migrate_schema","arguments":{"source_subject":"test-subject","target_subject":"new-subject"}},"id":1}'
-            ```
-            
-            ### **Local Schema Validation**
-            ```bash
-            # Verify local draft-07 schema handling (no network requests)
-            curl -X POST http://localhost:8000/mcp \
-                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"validate_schema","arguments":{"schema_content":"{\"type\":\"object\"}","schema_type":"JSON"}},"id":1}'
-            ```
-            
-            ### **Enhanced Elicitation Status**
-            ```bash
-            # Test improved elicitation management
-            curl -X POST http://localhost:8000/mcp \
-                 -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_elicitation_status","arguments":{"request_id":"test-id"}},"id":1}'
-            ```
-            
-            ---
-            
-            ## ⬆️ Upgrade from v2.0.0
-            
-            **Zero Breaking Changes** - Direct drop-in replacement for v2.0.0!
-            
-            ```bash
-            # Simple upgrade - no configuration changes needed
-            docker pull aywengo/kafka-schema-reg-mcp:v2.0.1
-            
-            # All existing v2.0.0 configurations work unchanged
-            # Enhanced performance and reliability automatically available
-            ```
-            
-            **What You Get:**
-            - ⚡ **Faster Performance**: Optimized code execution and memory usage
-            - 🛡️ **Better Reliability**: Enhanced error handling and local schema processing
-            - 🔄 **Improved Migrations**: Better confirmation workflows for complex scenarios
-            - 🎭 **Enhanced Elicitation**: More robust interactive tool management
-            
-            ---
-            
-            ## 📚 Documentation
-            
-            All existing v2.0.0 documentation remains valid:
-            - **[README-v2.0.0-HIGHLIGHTS.md](README-v2.0.0-HIGHLIGHTS.md)**: Complete feature overview
-            - **[RESOURCE_LINKING.md](RESOURCE_LINKING.md)**: HATEOAS navigation system
-            - **[OAuth Providers Guide](docs/oauth-providers-guide.md)**: Universal OAuth 2.1 setup
-            - **[Remote MCP Deployment](docs/remote-mcp-deployment.md)**: Production deployment guide
-            
-            ---
-            
-            **🔧 v2.0.1 delivers significant performance improvements and enhanced reliability while maintaining full backward compatibility with v2.0.0. Perfect for production environments seeking optimal performance!**
-            
-            **Recommended upgrade for all v2.0.0 deployments! 🚀**
+          body: ${{ steps.changelog.outputs.changelog_content }}
           draft: false
           prerelease: false
