@@ -72,6 +72,7 @@ OAuth 2.1 generic discovery setup guide:
 ### 🔧 **[IDE Integration](ide-integration.md)** - Development Environment Setup
 Development environment setup guides (updated for MCP):
 - **Claude Desktop Integration**: Primary interface for schema management
+- **Claude Code Integration**: AI-native development environment with advanced MCP capabilities
 - **VS Code Integration**: Extensions and workspace configuration for MCP development
 - **Cursor Integration**: AI-powered development with MCP server testing
 
@@ -221,7 +222,9 @@ Human: "Show me the configuration differences between our development and produc
 
 ### **Configuration Examples**
 - **Claude Desktop Stable**: [claude_desktop_stable_config.json](../config-examples/claude_desktop_stable_config.json)
+- **Claude Code Integration**: [claude-code-mcp-config.json](../config-examples/claude-code-mcp-config.json)
 - **Multi-Registry**: [claude_desktop_multi_registry_docker.json](../config-examples/claude_desktop_multi_registry_docker.json)
+- **IDE Configurations**: [VS Code](../config-examples/vscode-mcp-settings.json), [Cursor](../config-examples/cursor-mcp-config.json), [JetBrains](../config-examples/jetbrains-mcp-config.xml)
 - **Complete Configuration Guide**: [config-examples/README.md](../config-examples/README.md)
 
 ### **Development & Testing**

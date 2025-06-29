@@ -799,6 +799,665 @@ Include specific curl commands, migration configurations, and script examples.
 
 ---
 
+## 🧠 Claude Code Integration
+
+### AI-Native Schema Development with Claude Code
+
+Claude Code provides a specialized development environment that leverages the Schema Registry MCP server for intelligent, context-aware schema management and development workflows.
+
+### Setup & Configuration
+
+#### 1. Claude Code MCP Server Configuration
+
+Create `claude-code-config.json` in your project root:
+
+```json
+{
+    "mcp_servers": {
+        "kafka-schema-registry": {
+            "command": "python",
+            "args": ["kafka_schema_registry_unified_mcp.py"],
+            "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+                "MCP_SERVER_PORT": "38000",
+                "DEFAULT_CONTEXT": "development"
+            },
+            "capabilities": [
+                "schema_management",
+                "context_management",
+                "compatibility_checking",
+                "migration_operations",
+                "export_functionality",
+                "multi_registry_support"
+            ]
+        },
+        "kafka-schema-registry-multi": {
+            "command": "python", 
+            "args": ["remote-mcp-server.py"],
+            "env": {
+                "MULTI_REGISTRY_CONFIG": "multi_registry.env",
+                "MCP_SERVER_PORT": "39000"
+            },
+            "capabilities": [
+                "multi_registry_management",
+                "cross_registry_migration",
+                "disaster_recovery",
+                "bulk_operations"
+            ]
+        }
+    },
+    "claude_code_settings": {
+        "auto_completion": {
+            "schema_fields": true,
+            "context_aware": true,
+            "compatibility_hints": true
+        },
+        "real_time_validation": {
+            "avro_syntax": true,
+            "compatibility_checking": true,
+            "context_validation": true
+        },
+        "intelligent_suggestions": {
+            "schema_evolution": true,
+            "migration_planning": true,
+            "best_practices": true
+        }
+    }
+}
+```
+
+#### 2. Claude Code Workspace Configuration
+
+Create `.claude-code/workspace.json`:
+
+```json
+{
+    "workspace_type": "kafka_schema_management",
+    "mcp_integration": {
+        "enabled": true,
+        "servers": ["kafka-schema-registry", "kafka-schema-registry-multi"],
+        "auto_context_detection": true,
+        "smart_completion": true
+    },
+    "ai_assistance": {
+        "schema_generation": {
+            "enabled": true,
+            "templates": [
+                "event_schema",
+                "entity_schema", 
+                "command_schema",
+                "aggregate_schema"
+            ],
+            "validation_mode": "real_time"
+        },
+        "migration_assistance": {
+            "enabled": true,
+            "auto_planning": true,
+            "compatibility_analysis": true,
+            "rollback_planning": true
+        },
+        "documentation_generation": {
+            "enabled": true,
+            "formats": ["markdown", "avro_idl", "json_schema"],
+            "auto_update": true
+        }
+    },
+    "development_contexts": {
+        "default": "development",
+        "available": ["development", "staging", "production", "testing"],
+        "context_isolation": true
+    }
+}
+```
+
+#### 3. Claude Code Schema Templates
+
+Create `.claude-code/templates/` directory with schema templates:
+
+**Event Schema Template** (`.claude-code/templates/event-schema.json`):
+```json
+{
+    "template_name": "Event Schema",
+    "description": "Template for domain event schemas",
+    "schema_template": {
+        "type": "record",
+        "name": "{{EventName}}Event",
+        "namespace": "{{namespace}}",
+        "doc": "{{event_description}}",
+        "fields": [
+            {
+                "name": "eventId",
+                "type": "string",
+                "doc": "Unique identifier for this event instance"
+            },
+            {
+                "name": "eventType",
+                "type": "string",
+                "doc": "Type of event for routing and processing"
+            },
+            {
+                "name": "timestamp",
+                "type": "long",
+                "doc": "Unix timestamp when event occurred"
+            },
+            {
+                "name": "version",
+                "type": "string",
+                "default": "1.0",
+                "doc": "Schema version for compatibility tracking"
+            },
+            {
+                "name": "data",
+                "type": "{{DataRecordType}}",
+                "doc": "Event-specific payload data"
+            },
+            {
+                "name": "metadata",
+                "type": ["null", {
+                    "type": "map",
+                    "values": "string"
+                }],
+                "default": null,
+                "doc": "Optional event metadata for extensibility"
+            }
+        ]
+    },
+    "ai_prompts": {
+        "generation": "Generate an event schema for {{domain}} domain with {{EventName}} event type",
+        "evolution": "Evolve this event schema to support {{new_requirements}} while maintaining backward compatibility",
+        "validation": "Validate this event schema against existing schemas in {{context}} context"
+    }
+}
+```
+
+**Entity Schema Template** (`.claude-code/templates/entity-schema.json`):
+```json
+{
+    "template_name": "Entity Schema",
+    "description": "Template for business entity schemas",
+    "schema_template": {
+        "type": "record",
+        "name": "{{EntityName}}",
+        "namespace": "{{namespace}}",
+        "doc": "{{entity_description}}",
+        "fields": [
+            {
+                "name": "id",
+                "type": "string",
+                "doc": "Unique identifier for this {{EntityName}}"
+            },
+            {
+                "name": "version",
+                "type": "long",
+                "doc": "Entity version for optimistic locking"
+            },
+            {
+                "name": "createdAt",
+                "type": "long",
+                "doc": "Unix timestamp when entity was created"
+            },
+            {
+                "name": "updatedAt",
+                "type": "long",
+                "doc": "Unix timestamp when entity was last updated"
+            },
+            {
+                "name": "status",
+                "type": {
+                    "type": "enum",
+                    "name": "{{EntityName}}Status",
+                    "symbols": ["ACTIVE", "INACTIVE", "DELETED"]
+                },
+                "default": "ACTIVE",
+                "doc": "Current status of the entity"
+            }
+        ]
+    },
+    "ai_prompts": {
+        "generation": "Generate an entity schema for {{EntityName}} with fields: {{field_list}}",
+        "relationships": "Add relationship fields to connect {{EntityName}} with {{related_entities}}",
+        "constraints": "Add validation constraints for {{business_rules}}"
+    }
+}
+```
+
+### Claude Code AI-Enhanced Workflows
+
+#### 1. Intelligent Schema Generation
+
+Claude Code provides natural language schema generation with MCP server integration:
+
+```javascript
+// Claude Code AI Prompt Interface
+// Type: Schema Generation
+// Context: development
+
+/*
+AI PROMPT: "Create an e-commerce order processing schema with the following requirements:
+- Order must have unique ID, customer info, and line items
+- Support for multiple payment methods (credit, debit, paypal, crypto)
+- Include order lifecycle status tracking
+- Add audit fields for compliance
+- Ensure backward compatibility with existing order schemas
+- Use consistent naming conventions from our existing schemas"
+
+CONTEXT ANALYSIS: Using MCP server to analyze existing schemas in 'development' context
+TARGET: Register in development context, validate against staging context schemas
+*/
+
+// Claude Code will:
+// 1. Analyze existing schemas via MCP server
+// 2. Generate compatible schema following patterns
+// 3. Validate against current schemas
+// 4. Suggest registration commands
+// 5. Provide migration path if needed
+```
+
+#### 2. Context-Aware Schema Evolution
+
+```javascript
+// Claude Code Evolution Assistant
+// Context: production schema evolution
+
+/*
+EVOLUTION PROMPT: "I need to evolve the 'user-profile' schema in production to add:
+- Social login provider tracking (google, facebook, twitter, github)
+- Privacy preferences (analytics_opt_in, marketing_opt_in, data_sharing)
+- Account tier information (free, premium, enterprise)
+
+CONSTRAINTS:
+- Must maintain backward compatibility
+- Existing consumers should continue working
+- Migration should be zero-downtime
+- Need rollback plan"
+
+ANALYSIS REQUEST: Check current production schema, validate evolution approach
+*/
+
+// Claude Code process:
+// 1. Fetch current production schema via MCP
+// 2. Analyze compatibility requirements  
+// 3. Generate evolved schema with proper defaults
+// 4. Create compatibility test plan
+// 5. Generate migration strategy
+// 6. Provide rollback procedures
+```
+
+#### 3. Cross-Context Migration Planning
+
+```javascript
+// Claude Code Migration Assistant
+// Multi-context workflow
+
+/*
+MIGRATION PROMPT: "Plan migration of schema changes from development to production:
+
+DEVELOPMENT CONTEXT: 15 new/updated schemas ready for promotion
+STAGING CONTEXT: Need to validate and test before production
+PRODUCTION CONTEXT: Zero-downtime deployment required
+
+REQUIREMENTS:
+- Batch migration of related schemas
+- Dependency order validation
+- Compatibility testing at each stage
+- Automated rollback capability
+- Full audit trail"
+
+TARGET: Generate comprehensive migration plan with validation steps
+*/
+
+// Claude Code migration workflow:
+// 1. Analyze schemas in development context
+// 2. Check staging context compatibility
+// 3. Generate dependency-ordered migration plan
+// 4. Create validation test scripts
+// 5. Provide execution timeline
+// 6. Generate monitoring and rollback procedures
+```
+
+### Claude Code Custom Commands
+
+Configure Claude Code with schema-specific commands in `.claude-code/commands/`:
+
+**Schema Commands** (`.claude-code/commands/schema.json`):
+```json
+{
+    "commands": [
+        {
+            "name": "schema:analyze",
+            "description": "AI-powered schema analysis and recommendations",
+            "type": "ai_enhanced",
+            "workflow": [
+                {
+                    "step": "fetch_schema",
+                    "mcp_endpoint": "/schemas/{subject}",
+                    "parameters": ["subject", "context"]
+                },
+                {
+                    "step": "analyze_structure",
+                    "ai_task": "analyze schema structure and patterns"
+                },
+                {
+                    "step": "suggest_improvements",
+                    "ai_task": "suggest schema improvements and optimizations"
+                },
+                {
+                    "step": "compatibility_check",
+                    "mcp_endpoint": "/compatibility"
+                }
+            ]
+        },
+        {
+            "name": "schema:generate",
+            "description": "Generate schema from natural language description",
+            "type": "ai_generation",
+            "workflow": [
+                {
+                    "step": "analyze_requirements",
+                    "ai_task": "extract schema requirements from description"
+                },
+                {
+                    "step": "check_existing_patterns",
+                    "mcp_endpoint": "/subjects",
+                    "ai_task": "analyze existing schema patterns"
+                },
+                {
+                    "step": "generate_schema",
+                    "ai_task": "generate Avro schema following patterns"
+                },
+                {
+                    "step": "validate_syntax",
+                    "validation": "avro_schema_syntax"
+                },
+                {
+                    "step": "check_compatibility",
+                    "mcp_endpoint": "/compatibility"
+                }
+            ]
+        },
+        {
+            "name": "schema:evolve",
+            "description": "Evolve existing schema with AI guidance",
+            "type": "ai_evolution",
+            "workflow": [
+                {
+                    "step": "fetch_current_schema",
+                    "mcp_endpoint": "/schemas/{subject}"
+                },
+                {
+                    "step": "analyze_evolution_requirements",
+                    "ai_task": "understand evolution requirements"
+                },
+                {
+                    "step": "generate_evolved_schema",
+                    "ai_task": "create evolved schema maintaining compatibility"
+                },
+                {
+                    "step": "validate_compatibility",
+                    "mcp_endpoint": "/compatibility"
+                },
+                {
+                    "step": "suggest_migration_path",
+                    "ai_task": "recommend deployment and migration strategy"
+                }
+            ]
+        }
+    ]
+}
+```
+
+**Migration Commands** (`.claude-code/commands/migration.json`):
+```json
+{
+    "commands": [
+        {
+            "name": "migration:plan", 
+            "description": "AI-generated migration plan between contexts",
+            "type": "ai_planning",
+            "workflow": [
+                {
+                    "step": "analyze_source_context",
+                    "mcp_endpoint": "/subjects",
+                    "parameters": ["source_context"]
+                },
+                {
+                    "step": "analyze_target_context", 
+                    "mcp_endpoint": "/subjects",
+                    "parameters": ["target_context"]
+                },
+                {
+                    "step": "identify_differences",
+                    "ai_task": "compare contexts and identify migration scope"
+                },
+                {
+                    "step": "generate_migration_plan",
+                    "ai_task": "create detailed migration plan with dependencies"
+                },
+                {
+                    "step": "validate_plan",
+                    "mcp_endpoint": "/migrate/context",
+                    "parameters": ["dry_run=true"]
+                }
+            ]
+        },
+        {
+            "name": "migration:execute",
+            "description": "Execute migration with AI monitoring",
+            "type": "ai_execution",
+            "workflow": [
+                {
+                    "step": "pre_migration_validation",
+                    "ai_task": "validate migration readiness"
+                },
+                {
+                    "step": "execute_migration",
+                    "mcp_endpoint": "/migrate/context"
+                },
+                {
+                    "step": "monitor_progress",
+                    "mcp_endpoint": "/migrate/status"
+                },
+                {
+                    "step": "validate_results",
+                    "ai_task": "verify migration success and integrity"
+                },
+                {
+                    "step": "generate_report",
+                    "ai_task": "create migration completion report"
+                }
+            ]
+        }
+    ]
+}
+```
+
+**Export Commands** (`.claude-code/commands/export.json`):
+```json
+{
+    "commands": [
+        {
+            "name": "export:smart",
+            "description": "AI-optimized export strategy selection",
+            "type": "ai_optimization",
+            "workflow": [
+                {
+                    "step": "analyze_export_requirements",
+                    "ai_task": "understand export purpose and requirements"
+                },
+                {
+                    "step": "recommend_format",
+                    "ai_task": "suggest optimal export format and settings"
+                },
+                {
+                    "step": "execute_export",
+                    "mcp_endpoint": "/export/{type}/{target}"
+                },
+                {
+                    "step": "validate_export",
+                    "ai_task": "verify export completeness and integrity"
+                }
+            ]
+        },
+        {
+            "name": "documentation:generate",
+            "description": "Generate comprehensive schema documentation",
+            "type": "ai_documentation",
+            "workflow": [
+                {
+                    "step": "analyze_schemas",
+                    "mcp_endpoint": "/subjects"
+                },
+                {
+                    "step": "generate_overviews",
+                    "ai_task": "create schema overviews and relationships"
+                },
+                {
+                    "step": "export_schemas",
+                    "mcp_endpoint": "/export/contexts/{context}",
+                    "parameters": ["format=bundle"]
+                },
+                {
+                    "step": "generate_documentation",
+                    "ai_task": "create comprehensive documentation package"
+                }
+            ]
+        }
+    ]
+}
+```
+
+### Claude Code Integration Features
+
+#### 1. Real-Time Schema Validation
+
+Claude Code provides real-time validation as you type:
+
+```json
+// Real-time validation configuration
+{
+    "validation": {
+        "avro_syntax": {
+            "enabled": true,
+            "real_time": true,
+            "show_suggestions": true
+        },
+        "compatibility_checking": {
+            "enabled": true,
+            "check_against_contexts": ["development", "staging"],
+            "warn_on_breaking_changes": true
+        },
+        "naming_conventions": {
+            "enabled": true,
+            "rules": [
+                "camelCase_fields",
+                "PascalCase_types",
+                "consistent_namespaces"
+            ]
+        }
+    }
+}
+```
+
+#### 2. Intelligent Code Completion
+
+Smart completion for schema fields, types, and values:
+
+```javascript
+// Claude Code completion examples:
+{
+    "type": "record",
+    "name": "User", // Claude Code suggests: UserEvent, UserProfile, UserCommand
+    "fields": [
+        {
+            "name": "id", // Suggests: userId, identifier, uniqueId based on context
+            "type": "string" // Suggests: int, long based on field name patterns
+        },
+        // Claude Code suggests common fields based on schema analysis:
+        // - timestamp, version, status for event schemas
+        // - createdAt, updatedAt for entity schemas
+        // - metadata for extensibility
+    ]
+}
+```
+
+#### 3. Context-Aware Suggestions
+
+Claude Code analyzes your schemas and provides intelligent suggestions:
+
+- **Field Additions**: Suggests missing fields based on similar schemas
+- **Type Optimization**: Recommends better field types for your use cases
+- **Compatibility Warnings**: Highlights potential breaking changes
+- **Best Practices**: Suggests schema design improvements
+
+#### 4. Migration Workflow Integration
+
+Seamless integration with migration operations:
+
+```javascript
+// Claude Code migration interface
+// Visual migration planner with drag-and-drop
+// Real-time compatibility checking
+// Dependency visualization
+// Rollback planning assistance
+```
+
+### Claude Code Shortcuts & Snippets
+
+Essential shortcuts for rapid schema development:
+
+```json
+{
+    "shortcuts": {
+        "Ctrl+Shift+S": "schema:analyze",
+        "Ctrl+Shift+G": "schema:generate", 
+        "Ctrl+Shift+E": "schema:evolve",
+        "Ctrl+Shift+M": "migration:plan",
+        "Ctrl+Shift+X": "export:smart",
+        "Ctrl+Shift+V": "validate:compatibility",
+        "Ctrl+Shift+D": "documentation:generate"
+    },
+    "snippets": {
+        "event-schema": "Insert event schema template",
+        "entity-schema": "Insert entity schema template",
+        "migration-script": "Generate migration script",
+        "compatibility-check": "Insert compatibility check",
+        "export-config": "Insert export configuration"
+    }
+}
+```
+
+### Advanced Claude Code Features
+
+#### 1. Visual Schema Designer
+
+Claude Code provides a visual interface for schema design:
+
+- **Drag-and-drop field creation**
+- **Visual type selection**
+- **Real-time compatibility checking**
+- **Schema relationship visualization**
+- **Migration path planning**
+
+#### 2. AI-Powered Schema Analysis
+
+Advanced analysis capabilities:
+
+- **Pattern Recognition**: Identifies common patterns across schemas
+- **Anomaly Detection**: Finds inconsistencies and potential issues
+- **Optimization Suggestions**: Recommends performance improvements
+- **Evolution Planning**: Suggests schema evolution strategies
+
+#### 3. Collaborative Features
+
+Team collaboration tools:
+
+- **Schema Review Workflow**: AI-assisted code review for schemas
+- **Change Impact Analysis**: Understand downstream effects of changes
+- **Team Standards Enforcement**: Consistent naming and structure
+- **Knowledge Sharing**: Automatic documentation and examples
+
+---
+
 ## ⚡ Cursor Integration
 
 ### AI-Powered Schema Development

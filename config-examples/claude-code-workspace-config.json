@@ -1,0 +1,107 @@
+{
+    "workspace_type": "kafka_schema_management",
+    "mcp_integration": {
+        "enabled": true,
+        "servers": ["kafka-schema-registry", "kafka-schema-registry-multi"],
+        "auto_context_detection": true,
+        "smart_completion": true,
+        "real_time_validation": true
+    },
+    "ai_assistance": {
+        "schema_generation": {
+            "enabled": true,
+            "templates": [
+                "event_schema",
+                "entity_schema", 
+                "command_schema",
+                "aggregate_schema",
+                "value_object_schema"
+            ],
+            "validation_mode": "real_time",
+            "auto_suggest_fields": true,
+            "compatibility_checking": true
+        },
+        "migration_assistance": {
+            "enabled": true,
+            "auto_planning": true,
+            "compatibility_analysis": true,
+            "rollback_planning": true,
+            "dependency_tracking": true,
+            "risk_assessment": true
+        },
+        "documentation_generation": {
+            "enabled": true,
+            "formats": ["markdown", "avro_idl", "json_schema", "confluence"],
+            "auto_update": true,
+            "include_examples": true,
+            "generate_diagrams": true
+        },
+        "code_generation": {
+            "enabled": true,
+            "languages": ["java", "python", "javascript", "typescript", "go"],
+            "frameworks": ["spring-boot", "django", "express", "gin"],
+            "generate_tests": true,
+            "generate_producers": true,
+            "generate_consumers": true
+        }
+    },
+    "development_contexts": {
+        "default": "development",
+        "available": ["development", "staging", "production", "testing", "integration"],
+        "context_isolation": true,
+        "auto_context_switching": true,
+        "context_validation": true
+    },
+    "validation_rules": {
+        "avro_syntax": {
+            "enabled": true,
+            "real_time": true,
+            "show_suggestions": true,
+            "auto_fix_common_errors": true
+        },
+        "compatibility_checking": {
+            "enabled": true,
+            "check_against_contexts": ["development", "staging", "production"],
+            "warn_on_breaking_changes": true,
+            "suggest_alternatives": true
+        },
+        "naming_conventions": {
+            "enabled": true,
+            "rules": [
+                "camelCase_fields",
+                "PascalCase_types",
+                "consistent_namespaces",
+                "descriptive_field_names"
+            ],
+            "enforce_standards": true,
+            "auto_suggest_names": true
+        },
+        "best_practices": {
+            "enabled": true,
+            "check_field_documentation": true,
+            "validate_default_values": true,
+            "suggest_optional_fields": true,
+            "warn_about_large_schemas": true
+        }
+    },
+    "workflow_automation": {
+        "auto_save_schemas": true,
+        "backup_before_changes": true,
+        "auto_generate_documentation": true,
+        "validate_before_commit": true,
+        "auto_export_on_major_changes": true
+    },
+    "collaboration": {
+        "team_standards_enforcement": true,
+        "change_impact_analysis": true,
+        "peer_review_integration": true,
+        "knowledge_sharing": true,
+        "version_comparison": true
+    },
+    "performance": {
+        "cache_schema_analysis": true,
+        "background_validation": true,
+        "incremental_updates": true,
+        "optimized_suggestions": true
+    }
+} 

@@ -1,0 +1,79 @@
+{
+    "mcp_servers": {
+        "kafka-schema-registry": {
+            "command": "python",
+            "args": ["kafka_schema_registry_unified_mcp.py"],
+            "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+                "MCP_SERVER_PORT": "38000",
+                "DEFAULT_CONTEXT": "development",
+                "ENABLE_OAUTH": "false",
+                "ENABLE_SSL_TLS_VERIFICATION": "true"
+            },
+            "capabilities": [
+                "schema_management",
+                "context_management",
+                "compatibility_checking",
+                "migration_operations",
+                "export_functionality",
+                "multi_registry_support"
+            ]
+        },
+        "kafka-schema-registry-multi": {
+            "command": "python", 
+            "args": ["remote-mcp-server.py"],
+            "env": {
+                "MULTI_REGISTRY_CONFIG": "multi_registry.env",
+                "MCP_SERVER_PORT": "39000",
+                "PRIMARY_SCHEMA_REGISTRY_URL": "http://localhost:8081",
+                "DR_SCHEMA_REGISTRY_URL": "http://localhost:8082",
+                "DEV_SCHEMA_REGISTRY_URL": "http://localhost:8083"
+            },
+            "capabilities": [
+                "multi_registry_management",
+                "cross_registry_migration",
+                "disaster_recovery",
+                "bulk_operations"
+            ]
+        }
+    },
+    "claude_code_settings": {
+        "auto_completion": {
+            "schema_fields": true,
+            "context_aware": true,
+            "compatibility_hints": true
+        },
+        "real_time_validation": {
+            "avro_syntax": true,
+            "compatibility_checking": true,
+            "context_validation": true
+        },
+        "intelligent_suggestions": {
+            "schema_evolution": true,
+            "migration_planning": true,
+            "best_practices": true
+        },
+        "ai_assistance": {
+            "natural_language_generation": true,
+            "pattern_recognition": true,
+            "documentation_generation": true
+        }
+    },
+    "development_environments": {
+        "local": {
+            "schema_registry_url": "http://localhost:8081",
+            "mcp_server_url": "http://localhost:38000",
+            "multi_mcp_server_url": "http://localhost:39000"
+        },
+        "staging": {
+            "schema_registry_url": "http://staging.example.com:8081",
+            "mcp_server_url": "http://staging.example.com:38000",
+            "multi_mcp_server_url": "http://staging.example.com:39000"
+        },
+        "production": {
+            "schema_registry_url": "http://prod.example.com:8081",
+            "mcp_server_url": "http://prod.example.com:38000",
+            "multi_mcp_server_url": "http://prod.example.com:39000"
+        }
+    }
+} 

@@ -1,0 +1,296 @@
+{
+    "commands": [
+        {
+            "name": "schema:analyze",
+            "description": "AI-powered schema analysis and recommendations",
+            "type": "ai_enhanced",
+            "shortcut": "Ctrl+Shift+A",
+            "workflow": [
+                {
+                    "step": "fetch_schema",
+                    "mcp_endpoint": "/schemas/{subject}",
+                    "parameters": ["subject", "context"]
+                },
+                {
+                    "step": "analyze_structure",
+                    "ai_task": "analyze schema structure and patterns"
+                },
+                {
+                    "step": "suggest_improvements",
+                    "ai_task": "suggest schema improvements and optimizations"
+                },
+                {
+                    "step": "compatibility_check",
+                    "mcp_endpoint": "/compatibility"
+                }
+            ]
+        },
+        {
+            "name": "schema:generate",
+            "description": "Generate schema from natural language description",
+            "type": "ai_generation",
+            "shortcut": "Ctrl+Shift+G",
+            "workflow": [
+                {
+                    "step": "analyze_requirements",
+                    "ai_task": "extract schema requirements from description"
+                },
+                {
+                    "step": "check_existing_patterns",
+                    "mcp_endpoint": "/subjects",
+                    "ai_task": "analyze existing schema patterns"
+                },
+                {
+                    "step": "generate_schema",
+                    "ai_task": "generate Avro schema following patterns"
+                },
+                {
+                    "step": "validate_syntax",
+                    "validation": "avro_schema_syntax"
+                },
+                {
+                    "step": "check_compatibility",
+                    "mcp_endpoint": "/compatibility"
+                }
+            ]
+        },
+        {
+            "name": "schema:evolve",
+            "description": "Evolve existing schema with AI guidance",
+            "type": "ai_evolution",
+            "shortcut": "Ctrl+Shift+E",
+            "workflow": [
+                {
+                    "step": "fetch_current_schema",
+                    "mcp_endpoint": "/schemas/{subject}"
+                },
+                {
+                    "step": "analyze_evolution_requirements",
+                    "ai_task": "understand evolution requirements"
+                },
+                {
+                    "step": "generate_evolved_schema",
+                    "ai_task": "create evolved schema maintaining compatibility"
+                },
+                {
+                    "step": "validate_compatibility",
+                    "mcp_endpoint": "/compatibility"
+                },
+                {
+                    "step": "suggest_migration_path",
+                    "ai_task": "recommend deployment and migration strategy"
+                }
+            ]
+        },
+        {
+            "name": "migration:plan",
+            "description": "AI-generated migration plan between contexts",
+            "type": "ai_planning",
+            "shortcut": "Ctrl+Shift+M",
+            "workflow": [
+                {
+                    "step": "analyze_source_context",
+                    "mcp_endpoint": "/subjects",
+                    "parameters": ["source_context"]
+                },
+                {
+                    "step": "analyze_target_context", 
+                    "mcp_endpoint": "/subjects",
+                    "parameters": ["target_context"]
+                },
+                {
+                    "step": "identify_differences",
+                    "ai_task": "compare contexts and identify migration scope"
+                },
+                {
+                    "step": "generate_migration_plan",
+                    "ai_task": "create detailed migration plan with dependencies"
+                },
+                {
+                    "step": "validate_plan",
+                    "mcp_endpoint": "/migrate/context",
+                    "parameters": ["dry_run=true"]
+                }
+            ]
+        },
+        {
+            "name": "migration:execute",
+            "description": "Execute migration with AI monitoring",
+            "type": "ai_execution",
+            "shortcut": "Ctrl+Shift+X",
+            "workflow": [
+                {
+                    "step": "pre_migration_validation",
+                    "ai_task": "validate migration readiness"
+                },
+                {
+                    "step": "execute_migration",
+                    "mcp_endpoint": "/migrate/context"
+                },
+                {
+                    "step": "monitor_progress",
+                    "mcp_endpoint": "/migrate/status"
+                },
+                {
+                    "step": "validate_results",
+                    "ai_task": "verify migration success and integrity"
+                },
+                {
+                    "step": "generate_report",
+                    "ai_task": "create migration completion report"
+                }
+            ]
+        },
+        {
+            "name": "export:smart",
+            "description": "AI-optimized export strategy selection",
+            "type": "ai_optimization",
+            "shortcut": "Ctrl+Shift+O",
+            "workflow": [
+                {
+                    "step": "analyze_export_requirements",
+                    "ai_task": "understand export purpose and requirements"
+                },
+                {
+                    "step": "recommend_format",
+                    "ai_task": "suggest optimal export format and settings"
+                },
+                {
+                    "step": "execute_export",
+                    "mcp_endpoint": "/export/{type}/{target}"
+                },
+                {
+                    "step": "validate_export",
+                    "ai_task": "verify export completeness and integrity"
+                }
+            ]
+        },
+        {
+            "name": "documentation:generate",
+            "description": "Generate comprehensive schema documentation",
+            "type": "ai_documentation",
+            "shortcut": "Ctrl+Shift+D",
+            "workflow": [
+                {
+                    "step": "analyze_schemas",
+                    "mcp_endpoint": "/subjects"
+                },
+                {
+                    "step": "generate_overviews",
+                    "ai_task": "create schema overviews and relationships"
+                },
+                {
+                    "step": "export_schemas",
+                    "mcp_endpoint": "/export/contexts/{context}",
+                    "parameters": ["format=bundle"]
+                },
+                {
+                    "step": "generate_documentation",
+                    "ai_task": "create comprehensive documentation package"
+                }
+            ]
+        },
+        {
+            "name": "compatibility:check",
+            "description": "Comprehensive compatibility validation",
+            "type": "validation",
+            "shortcut": "Ctrl+Shift+V",
+            "workflow": [
+                {
+                    "step": "validate_current_schema",
+                    "mcp_endpoint": "/schemas/{subject}"
+                },
+                {
+                    "step": "check_cross_context_compatibility",
+                    "mcp_endpoint": "/compatibility",
+                    "parameters": ["contexts=all"]
+                },
+                {
+                    "step": "generate_compatibility_report",
+                    "ai_task": "analyze compatibility results and suggest actions"
+                }
+            ]
+        },
+        {
+            "name": "context:compare",
+            "description": "Compare schemas across development contexts",
+            "type": "analysis",
+            "shortcut": "Ctrl+Shift+C",
+            "workflow": [
+                {
+                    "step": "fetch_context_schemas",
+                    "mcp_endpoint": "/subjects",
+                    "parameters": ["multiple_contexts"]
+                },
+                {
+                    "step": "compare_schema_versions",
+                    "ai_task": "analyze differences between contexts"
+                },
+                {
+                    "step": "generate_comparison_report",
+                    "ai_task": "create detailed comparison with recommendations"
+                }
+            ]
+        },
+        {
+            "name": "backup:create",
+            "description": "Create intelligent backup with AI optimization",
+            "type": "backup",
+            "shortcut": "Ctrl+Shift+B",
+            "workflow": [
+                {
+                    "step": "assess_backup_scope",
+                    "ai_task": "determine optimal backup strategy"
+                },
+                {
+                    "step": "execute_backup",
+                    "mcp_endpoint": "/export/global"
+                },
+                {
+                    "step": "verify_backup_integrity",
+                    "ai_task": "validate backup completeness"
+                },
+                {
+                    "step": "generate_backup_report",
+                    "ai_task": "create backup summary and restoration guide"
+                }
+            ]
+        }
+    ],
+    "snippets": {
+        "event-schema": {
+            "description": "Insert event schema template",
+            "template": "event_schema_template",
+            "ai_enhanced": true
+        },
+        "entity-schema": {
+            "description": "Insert entity schema template", 
+            "template": "entity_schema_template",
+            "ai_enhanced": true
+        },
+        "migration-script": {
+            "description": "Generate migration script",
+            "ai_task": "generate context-specific migration script"
+        },
+        "compatibility-check": {
+            "description": "Insert compatibility check",
+            "mcp_endpoint": "/compatibility"
+        },
+        "export-config": {
+            "description": "Insert export configuration",
+            "ai_task": "generate optimal export configuration"
+        }
+    },
+    "keyboard_shortcuts": {
+        "Ctrl+Shift+S": "schema:analyze",
+        "Ctrl+Shift+G": "schema:generate", 
+        "Ctrl+Shift+E": "schema:evolve",
+        "Ctrl+Shift+M": "migration:plan",
+        "Ctrl+Shift+X": "migration:execute",
+        "Ctrl+Shift+O": "export:smart",
+        "Ctrl+Shift+V": "compatibility:check",
+        "Ctrl+Shift+D": "documentation:generate",
+        "Ctrl+Shift+C": "context:compare",
+        "Ctrl+Shift+B": "backup:create"
+    }
+} 
