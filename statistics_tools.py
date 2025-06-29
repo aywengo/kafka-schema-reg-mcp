@@ -18,7 +18,6 @@ from typing import Any, Dict, Optional
 from schema_registry_common import get_default_client
 from schema_validation import (
     create_error_response,
-    create_success_response,
     structured_output,
 )
 from task_management import TaskType, task_manager

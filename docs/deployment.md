@@ -135,6 +135,10 @@ services:
       AUTH_ISSUER_URL: "${AUTH_ISSUER_URL:-}"
       AUTH_AUDIENCE: "${AUTH_AUDIENCE:-}"
       
+      # SSL/TLS Security Configuration (v2.0.0+)
+      ENFORCE_SSL_TLS_VERIFICATION: "${ENFORCE_SSL_TLS_VERIFICATION:-true}"
+      CUSTOM_CA_BUNDLE_PATH: "${CUSTOM_CA_BUNDLE_PATH:-}"
+      
       PYTHONUNBUFFERED: 1
     ports:
       - "38000:8000"
@@ -192,6 +196,10 @@ data:
   SCHEMA_REGISTRY_NAME_2: "backup"
   SCHEMA_REGISTRY_URL_2: "http://backup-registry-service:8081"
   READONLY_2: "true"
+  
+  # SSL/TLS Security Configuration (v2.0.0+)
+  ENFORCE_SSL_TLS_VERIFICATION: "true"
+  CUSTOM_CA_BUNDLE_PATH: ""
 ```
 
 ### MCP Server Deployment (v2.0.2)

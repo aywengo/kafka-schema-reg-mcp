@@ -27,12 +27,14 @@ Security Features:
 - Token revocation checking
 - JWKS cache with proper TTL management
 - No development token bypasses in production
+- Enhanced SSL/TLS verification for all HTTP requests
 """
 
 import asyncio
 import hashlib
 import logging
 import os
+import ssl
 import time
 from typing import Any, Dict, List, Optional, Set, Union
 
@@ -80,6 +82,10 @@ AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
 # Legacy GitHub OAuth Configuration (for backward compatibility)
 AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
 AUTH_GITHUB_ORG = os.getenv("AUTH_GITHUB_ORG", "")
+
+# SSL/TLS Configuration (inherited from schema_registry_common)
+ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
+CUSTOM_CA_BUNDLE_PATH = os.getenv("CUSTOM_CA_BUNDLE_PATH", "")
 
 # OAuth 2.1 Discovery Configuration
 OAUTH_DISCOVERY_CACHE_TTL = int(os.getenv("OAUTH_DISCOVERY_CACHE_TTL", "3600"))  # 1 hour default
@@ -224,6 +230,46 @@ SCOPE_DEFINITIONS = {
 }
 
 
+def create_secure_ssl_context() -> ssl.SSLContext:
+    """Create a secure SSL context for OAuth HTTP requests."""
+    context = ssl.create_default_context()
+
+    # Configure SSL context for maximum security
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+
+    # Disable weak protocols and ciphers
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS")
+
+    # Load custom CA bundle if specified
+    if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+        context.load_verify_locations(CUSTOM_CA_BUNDLE_PATH)
+        logger.info(f"OAuth SSL context using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
+
+    return context
+
+
+def create_secure_aiohttp_connector() -> aiohttp.TCPConnector:
+    """Create a secure aiohttp connector with proper SSL/TLS configuration."""
+    if ENFORCE_SSL_TLS_VERIFICATION:
+        ssl_context = create_secure_ssl_context()
+        connector = aiohttp.TCPConnector(
+            ssl=ssl_context,
+            use_dns_cache=True,
+            ttl_dns_cache=300,  # 5 minutes DNS cache
+            limit=100,  # Connection pool limit
+            limit_per_host=30,  # Per-host connection limit
+        )
+        logger.debug("OAuth connector created with SSL verification enabled")
+    else:
+        # SSL verification disabled (not recommended for production)
+        connector = aiohttp.TCPConnector(ssl=False, use_dns_cache=True, ttl_dns_cache=300, limit=100, limit_per_host=30)
+        logger.warning("OAuth connector created with SSL verification DISABLED - not recommended for production")
+
+    return connector
+
+
 # OAuth 2.1 Token Validator
 class OAuth21TokenValidator:
     """
@@ -234,6 +280,7 @@ class OAuth21TokenValidator:
     - Token binding
     - Revocation checking
     - JWKS caching with TTL
+    - Enhanced SSL/TLS security for all HTTP requests
     """
 
     def __init__(self):
@@ -242,10 +289,21 @@ class OAuth21TokenValidator:
         self.jwks_timestamps = _jwks_cache_timestamps
 
     async def get_session(self):
-        """Get or create aiohttp session."""
+        """Get or create aiohttp session with secure SSL configuration."""
         if not self.session:
             timeout = aiohttp.ClientTimeout(total=30)
-            self.session = aiohttp.ClientSession(timeout=timeout)
+            connector = create_secure_aiohttp_connector()
+
+            self.session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+                headers={
+                    "User-Agent": "KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)",
+                    "Connection": "close",  # Don't keep connections alive unnecessarily
+                },
+            )
+
+            logger.debug(f"OAuth session created with SSL verification: {ENFORCE_SSL_TLS_VERIFICATION}")
         return self.session
 
     async def close(self):
@@ -391,12 +449,18 @@ class OAuth21TokenValidator:
                     if jwks_uri in JWKS_CACHE_ERRORS:
                         del JWKS_CACHE_ERRORS[jwks_uri]
 
+                    logger.debug(f"JWKS fetched and cached from {jwks_uri}")
                     return jwks
                 else:
                     error_msg = f"Failed to fetch JWKS: HTTP {response.status}"
                     JWKS_CACHE_ERRORS[jwks_uri] = error_msg
                     logger.error(error_msg)
                     return None
+        except ssl.SSLError as e:
+            error_msg = f"SSL error fetching JWKS from {jwks_uri}: {str(e)}"
+            JWKS_CACHE_ERRORS[jwks_uri] = error_msg
+            logger.error(error_msg)
+            return None
         except Exception as e:
             error_msg = f"Error fetching JWKS from {jwks_uri}: {str(e)}"
             JWKS_CACHE_ERRORS[jwks_uri] = error_msg
@@ -544,6 +608,7 @@ class OAuth21TokenValidator:
                 "scopes": list(user_scopes),
                 "claims": claims,
                 "jti": claims.get("jti"),  # For revocation tracking
+                "ssl_verified": ENFORCE_SSL_TLS_VERIFICATION,
             }
 
         except Exception as e:
@@ -602,6 +667,9 @@ class OAuth21TokenValidator:
                                 f"Discovery endpoint {discovery_url} missing required fields: {required_fields}"
                             )
 
+            except ssl.SSLError as e:
+                logger.error(f"SSL error during OAuth discovery for {discovery_url}: {e}")
+                continue
             except Exception as e:
                 logger.debug(f"Discovery failed for {discovery_url}: {e}")
                 continue
@@ -684,6 +752,7 @@ if ENABLE_AUTH:
             - Token binding support
             - Token revocation checking
             - Proper JWKS caching
+            - Enhanced SSL/TLS security for all HTTP requests
             """
 
             def __init__(self, **kwargs):
@@ -702,6 +771,7 @@ if ENABLE_AUTH:
                 logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
                 logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
                 logger.info(f"OAuth 2.1 Issuer: {AUTH_ISSUER_URL}")
+                logger.info(f"SSL/TLS verification: {ENFORCE_SSL_TLS_VERIFICATION}")
                 logger.info(
                     "🚀 Using generic OAuth 2.1 discovery (RFC 8414) - no provider-specific configuration needed"
                 )
@@ -894,6 +964,8 @@ def get_oauth_scopes_info() -> Dict[str, Any]:
             "token_binding": TOKEN_BINDING_ENABLED,
             "token_introspection": TOKEN_INTROSPECTION_ENABLED,
             "revocation_checking": TOKEN_REVOCATION_CHECK_ENABLED,
+            "ssl_tls_verification": ENFORCE_SSL_TLS_VERIFICATION,
+            "custom_ca_bundle": bool(CUSTOM_CA_BUNDLE_PATH),
             "jwks_caching": {
                 "enabled": True,
                 "ttl_seconds": JWKS_CACHE_TTL,
@@ -930,12 +1002,15 @@ def get_oauth_provider_configs():
                 "RESOURCE_INDICATORS": "https://your-api.com,https://another-api.com",
                 "REQUIRE_PKCE": "true",
                 "TOKEN_BINDING_ENABLED": "true",
+                "ENFORCE_SSL_TLS_VERIFICATION": "true",
+                "CUSTOM_CA_BUNDLE_PATH": "/path/to/custom/ca-bundle.pem",
             },
             "oauth_2_1_features": {
                 "pkce_support": True,
                 "resource_indicators": True,
                 "discovery": "RFC 8414",
                 "automatic_endpoint_discovery": True,
+                "enhanced_ssl_security": True,
             },
             "notes": [
                 "✅ Uses standard OAuth 2.1 discovery (/.well-known/oauth-authorization-server)",
@@ -943,6 +1018,8 @@ def get_oauth_provider_configs():
                 "✅ Works with any OAuth 2.1 compliant provider",
                 "✅ Automatic JWKS endpoint discovery",
                 "✅ Supports PKCE, Resource Indicators, and other OAuth 2.1 features",
+                "✅ Enhanced SSL/TLS security for all HTTP requests",
+                "✅ Custom CA bundle support for enterprise environments",
             ],
         },
         "examples": {
@@ -1014,6 +1091,8 @@ def get_oauth_provider_configs():
                 "No more provider-specific configuration needed",
                 "All OAuth 2.1 compliant providers work the same way",
                 "Automatic endpoint discovery via RFC 8414",
+                "Enhanced SSL/TLS security for all OAuth communications",
+                "Custom CA bundle support for enterprise deployments",
                 "Legacy provider-specific environment variables still supported for backward compatibility",
             ],
         },
@@ -1039,6 +1118,7 @@ def get_fastmcp_config(server_name: str):
     logger.info("💡 Application-level batch operations (clear_context_batch, etc.) remain available")
     logger.info("🔒 OAuth 2.1 features enabled: PKCE, Resource Indicators, Audience Validation")
     logger.info("🚀 Using generic OAuth 2.1 discovery - works with any compliant provider")
+    logger.info(f"🔐 SSL/TLS verification: {'ENABLED' if ENFORCE_SSL_TLS_VERIFICATION else 'DISABLED'}")
 
     return config
 
@@ -1061,6 +1141,8 @@ __all__ = [
     "TOKEN_BINDING_ENABLED",
     "TOKEN_INTROSPECTION_ENABLED",
     "TOKEN_REVOCATION_CHECK_ENABLED",
+    "ENFORCE_SSL_TLS_VERIFICATION",
+    "CUSTOM_CA_BUNDLE_PATH",
     "JWT_AVAILABLE",
     "SCOPE_DEFINITIONS",
     "OAuth21TokenValidator",
@@ -1071,4 +1153,6 @@ __all__ = [
     "get_fastmcp_config",
     "revoke_token",
     "token_validator",
+    "create_secure_ssl_context",
+    "create_secure_aiohttp_connector",
 ]

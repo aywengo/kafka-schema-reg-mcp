@@ -14,21 +14,25 @@ Features:
 
 import asyncio
 import functools
-import json
 import logging
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 try:
     import jsonschema
-    from jsonschema import Draft7Validator, ValidationError, validate
-    from jsonschema.validators import RefResolver
+    from jsonschema import Draft7Validator, ValidationError
+
+    # Suppress deprecation warning for RefResolver temporarily
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from jsonschema.validators import RefResolver
 
     JSONSCHEMA_AVAILABLE = True
 except ImportError:
     JSONSCHEMA_AVAILABLE = False
     ValidationError = Exception
 
-from schema_definitions import ERROR_RESPONSE_SCHEMA, get_tool_schema
+from schema_definitions import get_tool_schema
 
 # Configure logging
 logger = logging.getLogger(__name__)

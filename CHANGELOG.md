@@ -198,6 +198,30 @@ This release qualifies as a **major version bump** because it introduces:
 - **Scope-Based Permissions**: Fine-grained `read`, `write`, `admin` permissions mapped to MCP tools
 - **Development Token Support**: Safe testing tokens (`dev-token-read`, `dev-token-write`, etc.)
 
+##### SSL/TLS Security Enhancement (Issue #24)
+- **🔒 Explicit SSL/TLS Certificate Verification**: All HTTP requests now use explicit SSL certificate verification
+  - **Secure Sessions**: All Schema Registry and OAuth provider communications use secure `requests.Session` with `verify=True`
+  - **SecureHTTPAdapter**: Custom HTTP adapter with enhanced SSL/TLS security configuration
+  - **TLS 1.2+ Enforcement**: Minimum TLS version 1.2 with strong cipher suites only
+  - **Hostname Verification**: Strict hostname verification enabled for all connections
+- **🏢 Custom CA Bundle Support**: Enterprise environment compatibility with custom Certificate Authority bundles
+  - **Environment Variable**: `CUSTOM_CA_BUNDLE_PATH` for custom CA certificate files
+  - **Automatic Fallback**: Falls back to system CA bundle if custom bundle is missing or invalid
+  - **Corporate Networks**: Support for internal/corporate certificate authorities
+- **📊 Security Logging & Monitoring**: Comprehensive SSL/TLS status tracking and logging
+  - **SSL Configuration Logging**: Startup logging of SSL/TLS verification status and CA bundle configuration
+  - **Session Creation Logging**: Secure session creation logged for each registry client
+  - **Registry Info Integration**: SSL verification status included in registry information and connection tests
+  - **Sensitive Data Protection**: Enhanced logging filters to prevent credential exposure
+- **⚠️ SSL Error Handling**: Robust error handling for SSL/TLS connection failures
+  - **SSLError Detection**: Specific handling and reporting of SSL certificate verification failures
+  - **Clear Error Messages**: Detailed error messages for SSL-related connection issues
+  - **Status Reporting**: SSL error flags in connection test results for debugging
+- **🧪 Comprehensive Testing**: Dedicated SSL/TLS integration test suite with 11 test cases
+  - **Test Coverage**: SSL verification, custom CA bundles, secure sessions, error handling
+  - **Integration Testing**: Included in both essential and full test suite categories
+  - **Environment Testing**: SSL environment variable control and configuration testing
+
 ##### Enhanced Client API
 - **FastMCP Client**: Modern client interface replacing legacy `mcp.ClientSession`
 - **Simplified Connection**: Direct `Client()` instantiation with automatic protocol handling

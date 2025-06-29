@@ -12,6 +12,9 @@ services:
       - READONLY=false
       - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=8080
+      # SSL/TLS Security Configuration (v2.0.0+)
+      - ENFORCE_SSL_TLS_VERIFICATION=true
+      - CUSTOM_CA_BUNDLE_PATH=
     depends_on:
       - schema-registry
     networks:
@@ -38,6 +41,9 @@ services:
       - READONLY_2=true
       - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=8080
+      # SSL/TLS Security Configuration (v2.0.0+)
+      - ENFORCE_SSL_TLS_VERIFICATION=true
+      - CUSTOM_CA_BUNDLE_PATH=
     depends_on:
       - schema-registry-dev
       - schema-registry-prod
