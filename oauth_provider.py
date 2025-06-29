@@ -233,20 +233,20 @@ SCOPE_DEFINITIONS = {
 def create_secure_ssl_context() -> ssl.SSLContext:
     """Create a secure SSL context for OAuth HTTP requests."""
     context = ssl.create_default_context()
-    
+
     # Configure SSL context for maximum security
     context.check_hostname = True
     context.verify_mode = ssl.CERT_REQUIRED
-    
+
     # Disable weak protocols and ciphers
     context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
-    
+    context.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS")
+
     # Load custom CA bundle if specified
     if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
         context.load_verify_locations(CUSTOM_CA_BUNDLE_PATH)
         logger.info(f"OAuth SSL context using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
-    
+
     return context
 
 
@@ -259,20 +259,14 @@ def create_secure_aiohttp_connector() -> aiohttp.TCPConnector:
             use_dns_cache=True,
             ttl_dns_cache=300,  # 5 minutes DNS cache
             limit=100,  # Connection pool limit
-            limit_per_host=30  # Per-host connection limit
+            limit_per_host=30,  # Per-host connection limit
         )
         logger.debug("OAuth connector created with SSL verification enabled")
     else:
         # SSL verification disabled (not recommended for production)
-        connector = aiohttp.TCPConnector(
-            ssl=False,
-            use_dns_cache=True,
-            ttl_dns_cache=300,
-            limit=100,
-            limit_per_host=30
-        )
+        connector = aiohttp.TCPConnector(ssl=False, use_dns_cache=True, ttl_dns_cache=300, limit=100, limit_per_host=30)
         logger.warning("OAuth connector created with SSL verification DISABLED - not recommended for production")
-    
+
     return connector
 
 
@@ -299,16 +293,16 @@ class OAuth21TokenValidator:
         if not self.session:
             timeout = aiohttp.ClientTimeout(total=30)
             connector = create_secure_aiohttp_connector()
-            
+
             self.session = aiohttp.ClientSession(
                 timeout=timeout,
                 connector=connector,
                 headers={
-                    'User-Agent': 'KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)',
-                    'Connection': 'close',  # Don't keep connections alive unnecessarily
-                }
+                    "User-Agent": "KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)",
+                    "Connection": "close",  # Don't keep connections alive unnecessarily
+                },
             )
-            
+
             logger.debug(f"OAuth session created with SSL verification: {ENFORCE_SSL_TLS_VERIFICATION}")
         return self.session
 

@@ -36,7 +36,7 @@ class TestMetadataIntegration(unittest.TestCase):
         """Test that get_server_metadata provides comprehensive metadata."""
 
         # Mock the session's get method instead of requests.get
-        with patch.object(self.client.session, 'get') as mock_get:
+        with patch.object(self.client.session, "get") as mock_get:
             # Mock responses for both endpoints
             def mock_get_side_effect(url, **kwargs):
                 mock_response = Mock()
@@ -86,7 +86,7 @@ class TestMetadataIntegration(unittest.TestCase):
         """Test that test_connection now includes metadata automatically."""
 
         # Mock the session's get method instead of requests.get
-        with patch.object(self.client.session, 'get') as mock_get:
+        with patch.object(self.client.session, "get") as mock_get:
             # Mock responses for connection test and metadata
             def mock_get_side_effect(url, **kwargs):
                 mock_response = Mock()

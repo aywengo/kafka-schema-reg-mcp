@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, Optional, Union
 try:
     import jsonschema
     from jsonschema import Draft7Validator, ValidationError, validate
+
     # Suppress deprecation warning for RefResolver temporarily
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)

@@ -37,6 +37,7 @@ ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true")
 CUSTOM_CA_BUNDLE_PATH = os.getenv("CUSTOM_CA_BUNDLE_PATH", "")
 SSL_CERT_PINNING_ENABLED = os.getenv("SSL_CERT_PINNING_ENABLED", "false").lower() in ("true", "1", "yes", "on")
 
+
 # SSL/TLS Configuration Logging
 def log_ssl_configuration():
     """Log SSL/TLS configuration for security audit purposes."""
@@ -49,11 +50,12 @@ def log_ssl_configuration():
             logger.warning(f"Custom CA Bundle: {CUSTOM_CA_BUNDLE_PATH} (FILE NOT FOUND)")
     else:
         logger.info("Custom CA Bundle: Using system default CA bundle")
-    
+
     if SSL_CERT_PINNING_ENABLED:
         logger.info("Certificate Pinning: ENABLED (Future enhancement)")
     else:
         logger.info("Certificate Pinning: DISABLED")
+
 
 # Log SSL configuration on import
 log_ssl_configuration()
@@ -173,23 +175,23 @@ def validate_url(url: str) -> bool:
 
 class SecureHTTPAdapter(HTTPAdapter):
     """Custom HTTP adapter with enhanced SSL/TLS security."""
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+
     def init_poolmanager(self, *args, **kwargs):
         """Initialize the pool manager with secure SSL context."""
         context = ssl.create_default_context()
-        
+
         # Configure SSL context for maximum security
         context.check_hostname = True
         context.verify_mode = ssl.CERT_REQUIRED
-        
+
         # Disable weak protocols and ciphers
         context.minimum_version = ssl.TLSVersion.TLSv1_2
-        context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
-        
-        kwargs['ssl_context'] = context
+        context.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS")
+
+        kwargs["ssl_context"] = context
         return super().init_poolmanager(*args, **kwargs)
 
 
@@ -257,7 +259,7 @@ class RegistryClient:
 
         # Create secure session with SSL/TLS configuration
         self.session = self._create_secure_session()
-        
+
         # Log SSL configuration for this client
         logger = logging.getLogger(__name__)
         logger.info(f"Created secure session for registry '{config.name}' at {config.url}")
@@ -265,34 +267,38 @@ class RegistryClient:
     def _create_secure_session(self) -> requests.Session:
         """Create a secure requests session with proper SSL/TLS configuration."""
         session = requests.Session()
-        
+
         # Configure SSL verification
         if ENFORCE_SSL_TLS_VERIFICATION:
             session.verify = True
-            
+
             # Use custom CA bundle if specified
             if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
                 session.verify = CUSTOM_CA_BUNDLE_PATH
                 logging.getLogger(__name__).info(f"Using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
-            
+
             # Mount secure adapter for HTTPS connections
-            session.mount('https://', SecureHTTPAdapter())
-            
+            session.mount("https://", SecureHTTPAdapter())
+
         else:
             # SSL verification disabled (not recommended for production)
             session.verify = False
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            logging.getLogger(__name__).warning("SSL verification is DISABLED - this is not recommended for production use")
-        
+            logging.getLogger(__name__).warning(
+                "SSL verification is DISABLED - this is not recommended for production use"
+            )
+
         # Configure session timeouts for security
         session.timeout = 30  # 30 second default timeout
-        
+
         # Add security headers
-        session.headers.update({
-            'User-Agent': 'KafkaSchemaRegistryMCP/2.0.0 (Security Enhanced)',
-            'Connection': 'close',  # Don't keep connections alive unnecessarily
-        })
-        
+        session.headers.update(
+            {
+                "User-Agent": "KafkaSchemaRegistryMCP/2.0.0 (Security Enhanced)",
+                "Connection": "close",  # Don't keep connections alive unnecessarily
+            }
+        )
+
         return session
 
     def _get_headers(self, content_type: str = "application/vnd.schemaregistry.v1+json") -> Dict[str, str]:
@@ -366,10 +372,10 @@ class RegistryClient:
                 }
         except requests.exceptions.SSLError as e:
             return {
-                "status": "error", 
-                "registry": self.config.name, 
+                "status": "error",
+                "registry": self.config.name,
                 "error": f"SSL verification failed: {str(e)}",
-                "ssl_error": True
+                "ssl_error": True,
             }
         except Exception as e:
             return {"status": "error", "registry": self.config.name, "error": str(e)}
@@ -688,7 +694,7 @@ class BaseRegistryManager:
             info["response_time_ms"] = connection_test["response_time_ms"]
         if "error" in connection_test:
             info["connection_error"] = connection_test["error"]
-        
+
         # Add SSL status information
         info["ssl_verification_enabled"] = ENFORCE_SSL_TLS_VERIFICATION
         if "ssl_verified" in connection_test:
