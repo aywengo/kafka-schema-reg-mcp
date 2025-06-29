@@ -19,14 +19,12 @@ import sys
 import tempfile
 import unittest
 import warnings
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 # Add the parent directory to the path so we can import our modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from schema_registry_common import (
-    CUSTOM_CA_BUNDLE_PATH,
     ENFORCE_SSL_TLS_VERIFICATION,
     RegistryClient,
     RegistryConfig,
