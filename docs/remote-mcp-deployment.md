@@ -81,6 +81,10 @@ Remote MCP servers require authentication. Choose your OAuth provider:
    export AZURE_CLIENT_ID="your-client-id"
    export AZURE_CLIENT_SECRET="your-client-secret"
    export AUTH_AUDIENCE="your-client-id"
+   
+   # SSL/TLS Security Configuration (v2.0.0+)
+   export ENFORCE_SSL_TLS_VERIFICATION="true"
+   export CUSTOM_CA_BUNDLE_PATH=""  # Optional: path to corporate CA bundle
    ```
 
 3. **Assign User Roles** (see [User Role Assignment Guide](user-role-assignment-guide.md)):
@@ -348,16 +352,21 @@ curl http://localhost:8000/metrics
 ```bash
 # Development
 export ENABLE_AUTH="false"  # Development only!
+export ENFORCE_SSL_TLS_VERIFICATION="false"  # Development only - not recommended
 
-# Staging
+# Staging  
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
 export READONLY_1="false"  # Allow write operations
+export ENFORCE_SSL_TLS_VERIFICATION="true"
+export CUSTOM_CA_BUNDLE_PATH=""
 
 # Production
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
 export READONLY_1="true"   # Read-only for safety
+export ENFORCE_SSL_TLS_VERIFICATION="true"
+export CUSTOM_CA_BUNDLE_PATH="/etc/ssl/certs/corporate-ca-bundle.pem"  # Optional
 ```
 
 ## 🚀 Submission to Anthropic

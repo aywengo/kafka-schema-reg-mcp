@@ -198,6 +198,31 @@ cd tests
 
 1. **Copy** the configuration file that best matches your use case
 2. **Edit** the environment variables to match your infrastructure:
+
+### 🔒 SSL/TLS Security Configuration (v2.0.0+)
+
+All configurations now support enhanced SSL/TLS security features:
+
+```bash
+# Essential security settings (recommended for production)
+ENFORCE_SSL_TLS_VERIFICATION=true    # Enable SSL certificate verification (default: true)
+CUSTOM_CA_BUNDLE_PATH=""             # Path to custom CA bundle for enterprise environments
+
+# Example: Enterprise environment with custom CA
+ENFORCE_SSL_TLS_VERIFICATION=true
+CUSTOM_CA_BUNDLE_PATH=/etc/ssl/certs/corporate-ca-bundle.pem
+
+# Example: Development environment (not recommended for production)
+ENFORCE_SSL_TLS_VERIFICATION=false
+```
+
+**Security Features:**
+- 🔒 **Explicit SSL/TLS Certificate Verification** - All HTTP requests use secure sessions
+- 🏢 **Custom CA Bundle Support** - Load corporate/internal CA certificates
+- 🛡️ **Enhanced Error Handling** - Clear SSL-related error messages and logging
+- 📊 **Security Logging** - Comprehensive SSL configuration and event logging
+
+**📚 Complete SSL/TLS Documentation**: [`docs/SSL_TLS_SECURITY.md`](../docs/SSL_TLS_SECURITY.md)
    - Update `SCHEMA_REGISTRY_URL_X` with your registry endpoints
    - Set `SCHEMA_REGISTRY_USER_X` and `SCHEMA_REGISTRY_PASSWORD_X` for authentication
    - Configure `READONLY_X` for production safety
