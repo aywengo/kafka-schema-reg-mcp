@@ -71,7 +71,7 @@ class SensitiveDataFilter(logging.Filter):
             # Mask Authorization headers (various formats)
             # Pattern 1: Standard header format
             msg = re.sub(
-                r'Authorization["\'']?\s*:\s*["\'']?Basic\s+[A-Za-z0-9+/=]+["\'']?',
+                r'Authorization["\']?\s*:\s*["\']?Basic\s+[A-Za-z0-9+/=]+["\']?',
                 "Authorization: Basic ***MASKED***",
                 msg,
                 flags=re.IGNORECASE,
@@ -79,7 +79,7 @@ class SensitiveDataFilter(logging.Filter):
 
             # Pattern 2: JSON format with quotes
             msg = re.sub(
-                r'"Authorization"["\'']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
+                r'"Authorization"["\']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
                 '"Authorization": "Basic ***MASKED***"',
                 msg,
                 flags=re.IGNORECASE,

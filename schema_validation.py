@@ -16,12 +16,16 @@ import asyncio
 import functools
 import json
 import logging
+import warnings
 from typing import Any, Callable, Dict, Optional, Union
 
 try:
     import jsonschema
     from jsonschema import Draft7Validator, ValidationError, validate
-    from jsonschema.validators import RefResolver
+    # Suppress deprecation warning for RefResolver temporarily
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        from jsonschema.validators import RefResolver
 
     JSONSCHEMA_AVAILABLE = True
 except ImportError:
