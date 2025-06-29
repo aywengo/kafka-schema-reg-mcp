@@ -282,6 +282,12 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 
+<a href="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp/badge" />
+</a>
+
+---
+
 **🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 48+ MCP Tools, 8 Registries, OAuth 2.1, Multi-platform
 
 **License:** MIT | **Maintainer:** [@aywengo](https://github.com/aywengo) | **Issues:** [GitHub Issues](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
