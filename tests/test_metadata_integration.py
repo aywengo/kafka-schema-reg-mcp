@@ -32,96 +32,98 @@ class TestMetadataIntegration(unittest.TestCase):
         )
         self.client = RegistryClient(self.config)
 
-    @patch("schema_registry_common.requests.get")
-    def test_get_server_metadata_comprehensive(self, mock_get):
+    def test_get_server_metadata_comprehensive(self):
         """Test that get_server_metadata provides comprehensive metadata."""
 
-        # Mock responses for both endpoints
-        def mock_get_side_effect(url, **kwargs):
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status.return_value = None
+        # Mock the session's get method instead of requests.get
+        with patch.object(self.client.session, 'get') as mock_get:
+            # Mock responses for both endpoints
+            def mock_get_side_effect(url, **kwargs):
+                mock_response = Mock()
+                mock_response.status_code = 200
+                mock_response.raise_for_status.return_value = None
 
-            if "/v1/metadata/id" in url:
-                mock_response.json.return_value = {
-                    "scope": {
-                        "path": [],
-                        "clusters": {
-                            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
-                            "schema-registry-cluster": "schema-registry",
-                        },
+                if "/v1/metadata/id" in url:
+                    mock_response.json.return_value = {
+                        "scope": {
+                            "path": [],
+                            "clusters": {
+                                "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
+                                "schema-registry-cluster": "schema-registry",
+                            },
+                        }
                     }
-                }
-            elif "/v1/metadata/version" in url:
-                mock_response.json.return_value = {
-                    "version": "7.6.0",
-                    "commitId": "02d9aa023a8d034d480a718242df2a880e0be1f7",
-                }
+                elif "/v1/metadata/version" in url:
+                    mock_response.json.return_value = {
+                        "version": "7.6.0",
+                        "commitId": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+                    }
 
-            return mock_response
+                return mock_response
 
-        mock_get.side_effect = mock_get_side_effect
+            mock_get.side_effect = mock_get_side_effect
 
-        # Call the comprehensive metadata method
-        result = self.client.get_server_metadata()
+            # Call the comprehensive metadata method
+            result = self.client.get_server_metadata()
 
-        # Verify both endpoints were called
-        self.assertEqual(mock_get.call_count, 2)
+            # Verify both endpoints were called
+            self.assertEqual(mock_get.call_count, 2)
 
-        # Verify comprehensive response includes all expected fields
-        self.assertIn("version", result)
-        self.assertIn("commit_id", result)
-        self.assertIn("kafka_cluster_id", result)
-        self.assertIn("schema_registry_cluster_id", result)
-        self.assertIn("scope", result)
+            # Verify comprehensive response includes all expected fields
+            self.assertIn("version", result)
+            self.assertIn("commit_id", result)
+            self.assertIn("kafka_cluster_id", result)
+            self.assertIn("schema_registry_cluster_id", result)
+            self.assertIn("scope", result)
 
-        # Verify values are correctly mapped
-        self.assertEqual(result["version"], "7.6.0")
-        self.assertEqual(result["commit_id"], "02d9aa023a8d034d480a718242df2a880e0be1f7")
-        self.assertEqual(result["kafka_cluster_id"], "MkVlNjdqWVF0Q056MWFrUA")
-        self.assertEqual(result["schema_registry_cluster_id"], "schema-registry")
+            # Verify values are correctly mapped
+            self.assertEqual(result["version"], "7.6.0")
+            self.assertEqual(result["commit_id"], "02d9aa023a8d034d480a718242df2a880e0be1f7")
+            self.assertEqual(result["kafka_cluster_id"], "MkVlNjdqWVF0Q056MWFrUA")
+            self.assertEqual(result["schema_registry_cluster_id"], "schema-registry")
 
-    @patch("schema_registry_common.requests.get")
-    def test_test_connection_includes_metadata(self, mock_get):
+    def test_test_connection_includes_metadata(self):
         """Test that test_connection now includes metadata automatically."""
 
-        # Mock responses for connection test and metadata
-        def mock_get_side_effect(url, **kwargs):
-            mock_response = Mock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status.return_value = None
-            mock_response.elapsed.total_seconds.return_value = 0.045
+        # Mock the session's get method instead of requests.get
+        with patch.object(self.client.session, 'get') as mock_get:
+            # Mock responses for connection test and metadata
+            def mock_get_side_effect(url, **kwargs):
+                mock_response = Mock()
+                mock_response.status_code = 200
+                mock_response.raise_for_status.return_value = None
+                mock_response.elapsed.total_seconds.return_value = 0.045
 
-            if "/subjects" in url:
-                # Connection test
-                mock_response.json.return_value = []
-            elif "/v1/metadata/id" in url:
-                mock_response.json.return_value = {
-                    "scope": {
-                        "path": [],
-                        "clusters": {
-                            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
-                            "schema-registry-cluster": "schema-registry",
-                        },
+                if "/subjects" in url:
+                    # Connection test
+                    mock_response.json.return_value = []
+                elif "/v1/metadata/id" in url:
+                    mock_response.json.return_value = {
+                        "scope": {
+                            "path": [],
+                            "clusters": {
+                                "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
+                                "schema-registry-cluster": "schema-registry",
+                            },
+                        }
                     }
-                }
-            elif "/v1/metadata/version" in url:
-                mock_response.json.return_value = {
-                    "version": "7.6.0",
-                    "commitId": "02d9aa023a8d034d480a718242df2a880e0be1f7",
-                }
+                elif "/v1/metadata/version" in url:
+                    mock_response.json.return_value = {
+                        "version": "7.6.0",
+                        "commitId": "02d9aa023a8d034d480a718242df2a880e0be1f7",
+                    }
 
-            return mock_response
+                return mock_response
 
-        mock_get.side_effect = mock_get_side_effect
+            mock_get.side_effect = mock_get_side_effect
 
-        # Test connection
-        result = self.client.test_connection()
+            # Test connection
+            result = self.client.test_connection()
 
-        # Verify it includes basic connection info
-        self.assertIn("status", result)
-        self.assertIn("url", result)
-        self.assertIn("response_time_ms", result)
+            # Verify it includes basic connection info
+            self.assertIn("status", result)
+            self.assertIn("url", result)
+            self.assertIn("response_time_ms", result)
 
     def test_consolidated_approach_no_duplicates(self):
         """Test that we have consolidated to use existing get_registry_info only."""
