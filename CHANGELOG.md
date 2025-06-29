@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Safe Object Representations**: Updated `RegistryClient` and `RegistryConfig` `__repr__` and `__str__` methods to mask credentials
   - **Library Security Configuration**: Enhanced secure logging for requests/urllib3 libraries to prevent credential leakage
   - **Dynamic Authentication**: Modified authentication flow to create headers dynamically without storing credentials as instance variables
+- **🔒 Security Issue #24**: Resolved credential exposure vulnerability in SSL/TLS configuration
+  - **Explicit SSL/TLS Certificate Verification**: All HTTP requests now use explicit SSL certificate verification
+  - **Secure Sessions**: All Schema Registry and OAuth provider communications use secure `requests.Session` with `verify=True`
+  - **SecureHTTPAdapter**: Custom HTTP adapter with enhanced SSL/TLS security configuration
+  - **TLS 1.2+ Enforcement**: Minimum TLS version 1.2 with strong cipher suites only
+  - **Hostname Verification**: Strict hostname verification enabled for all connections
+  - **Custom CA Bundle Support**: Enterprise environment compatibility with custom Certificate Authority bundles
 
 ### Added
 
