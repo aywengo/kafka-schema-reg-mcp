@@ -87,6 +87,11 @@ Migration guide for upgrading between major versions:
 ## 🎉 What's New in v2.0.2 (Latest)
 
 ### **🔒 Security Enhancements**
+- **SSL/TLS Security Enhancement (Issue #24)**: Explicit SSL certificate verification for all HTTP requests
+  - **Secure Sessions**: All Schema Registry and OAuth communications use `verify=True`
+  - **Custom CA Bundle Support**: Enterprise environments with corporate certificates
+  - **Enhanced Error Handling**: Clear SSL-related error messages and comprehensive logging
+  - **Environment Configuration**: `ENFORCE_SSL_TLS_VERIFICATION` and `CUSTOM_CA_BUNDLE_PATH` variables
 - **Security Issue #26 Resolution**: Complete credential protection in logging and object representations
 - **Secure Header Management**: Dynamic credential generation without persistent storage
 - **Logging Security Filter**: Automatic masking of sensitive data in all log messages
