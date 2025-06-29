@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+import ssl
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -22,6 +23,7 @@ from urllib.parse import quote, urlparse
 import aiohttp
 import requests
 import urllib3
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
 # Environment variables for single registry mode (backward compatibility)
@@ -29,6 +31,32 @@ SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
 SINGLE_READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+
+# SSL/TLS Security Configuration
+ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
+CUSTOM_CA_BUNDLE_PATH = os.getenv("CUSTOM_CA_BUNDLE_PATH", "")
+SSL_CERT_PINNING_ENABLED = os.getenv("SSL_CERT_PINNING_ENABLED", "false").lower() in ("true", "1", "yes", "on")
+
+# SSL/TLS Configuration Logging
+def log_ssl_configuration():
+    """Log SSL/TLS configuration for security audit purposes."""
+    logger = logging.getLogger(__name__)
+    logger.info(f"SSL/TLS Verification: {'ENABLED' if ENFORCE_SSL_TLS_VERIFICATION else 'DISABLED'}")
+    if CUSTOM_CA_BUNDLE_PATH:
+        if os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+            logger.info(f"Custom CA Bundle: {CUSTOM_CA_BUNDLE_PATH} (exists)")
+        else:
+            logger.warning(f"Custom CA Bundle: {CUSTOM_CA_BUNDLE_PATH} (FILE NOT FOUND)")
+    else:
+        logger.info("Custom CA Bundle: Using system default CA bundle")
+    
+    if SSL_CERT_PINNING_ENABLED:
+        logger.info("Certificate Pinning: ENABLED (Future enhancement)")
+    else:
+        logger.info("Certificate Pinning: DISABLED")
+
+# Log SSL configuration on import
+log_ssl_configuration()
 
 
 # Sensitive data filter for logging
@@ -43,7 +71,7 @@ class SensitiveDataFilter(logging.Filter):
             # Mask Authorization headers (various formats)
             # Pattern 1: Standard header format
             msg = re.sub(
-                r'Authorization["\']?\s*:\s*["\']?Basic\s+[A-Za-z0-9+/=]+["\']?',
+                r'Authorization["\'']?\s*:\s*["\'']?Basic\s+[A-Za-z0-9+/=]+["\'']?',
                 "Authorization: Basic ***MASKED***",
                 msg,
                 flags=re.IGNORECASE,
@@ -51,7 +79,7 @@ class SensitiveDataFilter(logging.Filter):
 
             # Pattern 2: JSON format with quotes
             msg = re.sub(
-                r'"Authorization"["\']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
+                r'"Authorization"["\'']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
                 '"Authorization": "Basic ***MASKED***"',
                 msg,
                 flags=re.IGNORECASE,
@@ -143,6 +171,28 @@ def validate_url(url: str) -> bool:
         return False
 
 
+class SecureHTTPAdapter(HTTPAdapter):
+    """Custom HTTP adapter with enhanced SSL/TLS security."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+    def init_poolmanager(self, *args, **kwargs):
+        """Initialize the pool manager with secure SSL context."""
+        context = ssl.create_default_context()
+        
+        # Configure SSL context for maximum security
+        context.check_hostname = True
+        context.verify_mode = ssl.CERT_REQUIRED
+        
+        # Disable weak protocols and ciphers
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.set_ciphers('ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS')
+        
+        kwargs['ssl_context'] = context
+        return super().init_poolmanager(*args, **kwargs)
+
+
 @dataclass
 class RegistryConfig:
     """Configuration for a Schema Registry instance."""
@@ -205,6 +255,46 @@ class RegistryClient:
         if config.user and config.password:
             self.auth = HTTPBasicAuth(config.user, config.password)
 
+        # Create secure session with SSL/TLS configuration
+        self.session = self._create_secure_session()
+        
+        # Log SSL configuration for this client
+        logger = logging.getLogger(__name__)
+        logger.info(f"Created secure session for registry '{config.name}' at {config.url}")
+
+    def _create_secure_session(self) -> requests.Session:
+        """Create a secure requests session with proper SSL/TLS configuration."""
+        session = requests.Session()
+        
+        # Configure SSL verification
+        if ENFORCE_SSL_TLS_VERIFICATION:
+            session.verify = True
+            
+            # Use custom CA bundle if specified
+            if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+                session.verify = CUSTOM_CA_BUNDLE_PATH
+                logging.getLogger(__name__).info(f"Using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
+            
+            # Mount secure adapter for HTTPS connections
+            session.mount('https://', SecureHTTPAdapter())
+            
+        else:
+            # SSL verification disabled (not recommended for production)
+            session.verify = False
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            logging.getLogger(__name__).warning("SSL verification is DISABLED - this is not recommended for production use")
+        
+        # Configure session timeouts for security
+        session.timeout = 30  # 30 second default timeout
+        
+        # Add security headers
+        session.headers.update({
+            'User-Agent': 'KafkaSchemaRegistryMCP/2.0.0 (Security Enhanced)',
+            'Connection': 'close',  # Don't keep connections alive unnecessarily
+        })
+        
+        return session
+
     def _get_headers(self, content_type: str = "application/vnd.schemaregistry.v1+json") -> Dict[str, str]:
         """Get headers with authentication, created fresh each time."""
         headers = {"Content-Type": content_type}
@@ -235,7 +325,8 @@ class RegistryClient:
     def __str__(self) -> str:
         """Safe string representation without credentials."""
         auth_status = "authenticated" if self.config.user else "no-auth"
-        return f"Registry '{self.config.name}' at {self.config.url} ({auth_status})"
+        ssl_status = "SSL-enabled" if ENFORCE_SSL_TLS_VERIFICATION else "SSL-disabled"
+        return f"Registry '{self.config.name}' at {self.config.url} ({auth_status}, {ssl_status})"
 
     def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
         """Build URL with optional context support."""
@@ -253,7 +344,7 @@ class RegistryClient:
     def test_connection(self) -> Dict[str, Any]:
         """Test connection to this registry."""
         try:
-            response = requests.get(
+            response = self.session.get(
                 f"{self.config.url}/subjects",
                 auth=self.auth,
                 headers=self.headers,
@@ -265,6 +356,7 @@ class RegistryClient:
                     "registry": self.config.name,
                     "url": self.config.url,
                     "response_time_ms": response.elapsed.total_seconds() * 1000,
+                    "ssl_verified": ENFORCE_SSL_TLS_VERIFICATION,
                 }
             else:
                 return {
@@ -272,6 +364,13 @@ class RegistryClient:
                     "registry": self.config.name,
                     "error": f"HTTP {response.status_code}: {response.text}",
                 }
+        except requests.exceptions.SSLError as e:
+            return {
+                "status": "error", 
+                "registry": self.config.name, 
+                "error": f"SSL verification failed: {str(e)}",
+                "ssl_error": True
+            }
         except Exception as e:
             return {"status": "error", "registry": self.config.name, "error": str(e)}
 
@@ -279,7 +378,7 @@ class RegistryClient:
         """Get subjects from this registry."""
         try:
             url = self.build_context_url("/subjects", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception:
@@ -288,7 +387,7 @@ class RegistryClient:
     def get_contexts(self) -> List[str]:
         """Get contexts from this registry."""
         try:
-            response = requests.get(f"{self.config.url}/contexts", auth=self.auth, headers=self.headers)
+            response = self.session.get(f"{self.config.url}/contexts", auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception:
@@ -298,7 +397,7 @@ class RegistryClient:
         """Delete a subject from this registry."""
         try:
             url = self.build_context_url(f"/subjects/{subject}", context)
-            response = requests.delete(url, auth=self.auth, headers=self.headers, timeout=30)
+            response = self.session.delete(url, auth=self.auth, headers=self.headers, timeout=30)
             return response.status_code in [200, 404]  # 404 means already deleted
         except Exception:
             return False
@@ -307,7 +406,7 @@ class RegistryClient:
         """Get a specific version of a schema."""
         try:
             url = self.build_context_url(f"/subjects/{subject}/versions/{version}", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -329,7 +428,7 @@ class RegistryClient:
                 "schemaType": schema_type,
             }
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
-            response = requests.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
+            response = self.session.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -341,7 +440,7 @@ class RegistryClient:
         """Get global configuration settings."""
         try:
             url = self.build_context_url("/config", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -354,7 +453,7 @@ class RegistryClient:
         try:
             url = self.build_context_url("/config", context)
             payload = {"compatibility": compatibility}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -371,7 +470,7 @@ class RegistryClient:
         """Get configuration settings for a specific subject."""
         try:
             url = self.build_context_url(f"/config/{subject}", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -384,7 +483,7 @@ class RegistryClient:
         try:
             url = self.build_context_url(f"/config/{subject}", context)
             payload = {"compatibility": compatibility}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -401,7 +500,7 @@ class RegistryClient:
         """Get the current mode of the Schema Registry."""
         try:
             url = self.build_context_url("/mode", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -414,7 +513,7 @@ class RegistryClient:
         try:
             url = self.build_context_url("/mode", context)
             payload = {"mode": mode}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -431,7 +530,7 @@ class RegistryClient:
         """Get the mode for a specific subject."""
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -444,7 +543,7 @@ class RegistryClient:
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
             payload = {"mode": mode}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -461,7 +560,7 @@ class RegistryClient:
         """Get all versions of a schema."""
         try:
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -481,7 +580,7 @@ class RegistryClient:
                 "schemaType": schema_type,
             }
             url = self.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
-            response = requests.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
+            response = self.session.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -492,7 +591,7 @@ class RegistryClient:
     def get_metadata_id(self) -> Dict[str, Any]:
         """Get metadata ID information from the registry."""
         try:
-            response = requests.get(
+            response = self.session.get(
                 f"{self.config.url}/v1/metadata/id",
                 auth=self.auth,
                 headers=self.headers,
@@ -508,7 +607,7 @@ class RegistryClient:
     def get_metadata_version(self) -> Dict[str, Any]:
         """Get version and commit information from the registry."""
         try:
-            response = requests.get(
+            response = self.session.get(
                 f"{self.config.url}/v1/metadata/version",
                 auth=self.auth,
                 headers=self.headers,
@@ -589,6 +688,11 @@ class BaseRegistryManager:
             info["response_time_ms"] = connection_test["response_time_ms"]
         if "error" in connection_test:
             info["connection_error"] = connection_test["error"]
+        
+        # Add SSL status information
+        info["ssl_verification_enabled"] = ENFORCE_SSL_TLS_VERIFICATION
+        if "ssl_verified" in connection_test:
+            info["ssl_verified"] = connection_test["ssl_verified"]
 
         # Get server metadata
         server_metadata = client.get_server_metadata()
@@ -609,6 +713,7 @@ class BaseRegistryManager:
             "total_registries": len(results),
             "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
             "failed": sum(1 for r in results.values() if r.get("status") == "error"),
+            "ssl_verification_enabled": ENFORCE_SSL_TLS_VERIFICATION,
         }
 
     async def test_all_registries_async(self) -> Dict[str, Any]:
