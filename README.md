@@ -1,4 +1,4 @@
-[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/aywengo-kafka-schema-reg-mcp-badge.png)](https://mseep.ai/app/aywengo-kafka-schema-reg-mcp)
+[![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/2978f264-313d-4181-b592-145879b471b1)
 
 # Kafka Schema Registry MCP Server
 
