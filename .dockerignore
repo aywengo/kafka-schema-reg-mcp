@@ -5,9 +5,9 @@
 .github/
 
 # Documentation
-README.md
 docs/
 *.md
+!README.md
 
 # Development files
 .vscode/
