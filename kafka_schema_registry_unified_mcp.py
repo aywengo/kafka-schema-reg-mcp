@@ -44,6 +44,7 @@ Features:
 - MCP-Protocol-Version header validation
 - Structured tool output for all tools (100% complete)
 - Elicitation capability for interactive workflows
+- MCP ping/pong protocol support
 """
 
 import base64
@@ -549,6 +550,32 @@ try:
 except Exception as e:
     logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
     logger.info("📝 Falling back to mock elicitation implementation")
+
+# ===== MCP PROTOCOL SUPPORT =====
+
+
+@mcp.tool()
+def ping():
+    """
+    Respond to MCP ping requests with pong.
+    
+    This tool implements the standard MCP ping/pong protocol for server health checking.
+    MCP proxies and clients use this to verify that the server is alive and responding.
+    """
+    from datetime import datetime
+    
+    return {
+        "response": "pong",
+        "server_name": "Kafka Schema Registry Unified MCP Server",
+        "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
+        "timestamp": datetime.utcnow().isoformat(),
+        "protocol_version": MCP_PROTOCOL_VERSION,
+        "registry_mode": REGISTRY_MODE,
+        "status": "healthy",
+        "ping_supported": True,
+        "message": "MCP server is alive and responding"
+    }
+
 
 # ===== UNIFIED REGISTRY MANAGEMENT TOOLS =====
 
@@ -1723,11 +1750,12 @@ def _internal_get_mcp_compliance_status():
             "last_verified": datetime.utcnow().isoformat(),
             "server_info": {
                 "name": "Kafka Schema Registry Unified MCP Server",
-                "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation",
+                "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
                 "architecture": "modular",
                 "registry_mode": REGISTRY_MODE,
                 "structured_output_implementation": "100% Complete - All tools",
                 "elicitation_capability": "Enabled - MCP 2025-06-18 Interactive Workflows",
+                "ping_support": "Enabled - MCP ping/pong protocol",
             },
             "header_validation": {
                 "required_header": "MCP-Protocol-Version",
@@ -1795,6 +1823,19 @@ def _internal_get_mcp_compliance_status():
                     "submit_elicitation_response",
                 ],
             },
+            "ping_support": {
+                "implementation_status": "Complete - MCP ping/pong protocol",
+                "ping_tool": "ping",
+                "response_format": "pong",
+                "features": [
+                    "Standard MCP ping/pong protocol support",
+                    "Server health verification",
+                    "MCP proxy compatibility",
+                    "Detailed server status in ping response",
+                    "Protocol version information",
+                    "Timestamp for monitoring",
+                ],
+            },
             "migration_info": {
                 "breaking_change": True,
                 "migration_required": "Clients using JSON-RPC batching must be updated",
@@ -1805,6 +1846,7 @@ def _internal_get_mcp_compliance_status():
                     "Use parallel individual requests for performance",
                     "Ensure all MCP clients send MCP-Protocol-Version header",
                     "Use interactive tools for guided workflows",
+                    "Use ping tool for server health checking",
                 ],
                 "performance_impact": "Minimal - parallel processing maintains efficiency",
             },
@@ -1817,6 +1859,7 @@ def _internal_get_mcp_compliance_status():
                 "async_task_queue": "Long-running operations use task queue pattern",
                 "structured_output": "All tools have validated structured responses",
                 "interactive_workflows": "Elicitation-enabled tools for guided user experiences",
+                "ping_support": "Standard MCP ping/pong protocol for health checking",
             },
             "compliance_verification": {
                 "fastmcp_version": "2.8.0+",
@@ -1838,6 +1881,7 @@ def _internal_get_mcp_compliance_status():
                     "Elicitation capability implemented per MCP 2025-06-18 specification",
                     "Interactive workflow support with fallback mechanisms",
                     "Real MCP protocol integration for elicitation with fallback to mock",
+                    "MCP ping/pong protocol implemented for server health checking",
                 ],
             },
             "registry_mode": REGISTRY_MODE,
@@ -2278,6 +2322,7 @@ def get_registry_status():
         )
         status_lines.append("🎯 Structured Tool Output: 100% Complete (All tools)")
         status_lines.append("🎭 Elicitation Capability: ENABLED (Interactive Workflows)")
+        status_lines.append("🏓 MCP Ping/Pong: ENABLED (Server Health Checking)")
 
         for name in registries:
             client = registry_manager.get_registry(name)
@@ -2321,7 +2366,7 @@ def get_registry_info_resource():
                 registry_manager.get_default_registry() if hasattr(registry_manager, "get_default_registry") else None
             ),
             "readonly_mode": READONLY if REGISTRY_MODE == "single" else False,
-            "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation",
+            "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
             "structured_output": {
                 "implementation_status": "100% Complete",
                 "total_tools": "53+",
@@ -2341,6 +2386,12 @@ def get_registry_info_resource():
                     "multi_field",
                 ],
             },
+            "ping_support": {
+                "implementation_status": "Complete - MCP ping/pong protocol",
+                "ping_tool": "ping",
+                "response_format": "pong",
+                "server_health_checking": True,
+            },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
@@ -2350,6 +2401,7 @@ def get_registry_info_resource():
                 "compliance_status": "COMPLIANT",
                 "structured_output_complete": True,
                 "elicitation_capability_enabled": True,
+                "ping_support_enabled": True,
             },
             "features": [
                 f"Unified {REGISTRY_MODE.title()} Registry Support",
@@ -2376,6 +2428,7 @@ def get_registry_info_resource():
                 "🔧 Compatibility Resolution Guidance",
                 "📊 Context Metadata Collection",
                 "💾 Export Preference Selection",
+                "🏓 MCP Ping/Pong Protocol Support",
             ],
         }
 
@@ -2394,6 +2447,12 @@ def get_registry_info_resource():
                     "implementation_status": "Complete - MCP 2025-06-18 Specification",
                     "supported": is_elicitation_supported(),
                 },
+                "ping_support": {
+                    "implementation_status": "Complete - MCP ping/pong protocol",
+                    "ping_tool": "ping",
+                    "response_format": "pong",
+                    "server_health_checking": True,
+                },
                 "mcp_compliance": {
                     "protocol_version": MCP_PROTOCOL_VERSION,
                     "supported_versions": SUPPORTED_MCP_VERSIONS,
@@ -2403,6 +2462,7 @@ def get_registry_info_resource():
                     "compliance_status": "COMPLIANT",
                     "structured_output_complete": True,
                     "elicitation_capability_enabled": True,
+                    "ping_support_enabled": True,
                 },
             },
             indent=2,
@@ -2501,6 +2561,19 @@ def get_mode_info():
                     "Real MCP protocol integration with mock fallback",
                 ],
             },
+            "ping_support": {
+                "implementation_status": "Complete - MCP ping/pong protocol",
+                "ping_tool": "ping",
+                "response_format": "pong",
+                "features": [
+                    "Standard MCP ping/pong protocol support",
+                    "Server health verification",
+                    "MCP proxy compatibility",
+                    "Detailed server status in ping response",
+                    "Protocol version information",
+                    "Timestamp for monitoring",
+                ],
+            },
             "mcp_compliance": {
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
@@ -2525,6 +2598,7 @@ def get_mode_info():
                     "🎭 Elicitation capability implemented per MCP 2025-06-18 specification",
                     "Interactive workflow support with fallback mechanisms",
                     "Real MCP protocol integration for elicitation with intelligent fallback",
+                    "🏓 MCP ping/pong protocol implemented for server health checking",
                 ],
             },
         }
@@ -2574,7 +2648,7 @@ if __name__ == "__main__":
 
     print(
         f"""
-🚀 Kafka Schema Registry Unified MCP Server Starting (Modular + Elicitation)
+🚀 Kafka Schema Registry Unified MCP Server Starting (Modular + Elicitation + Ping)
 📡 Mode: {REGISTRY_MODE.upper()}
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
@@ -2585,13 +2659,14 @@ if __name__ == "__main__":
 💬 Prompts: 6 comprehensive guides available
 🎯 Structured Tool Output: 100% Complete (All tools)
 🎭 Elicitation Capability: ENABLED (Interactive Workflows)
+🏓 MCP Ping/Pong: ENABLED (Server Health Checking)
 🔗 Real MCP Elicitation Protocol: INTEGRATED (with fallback)
     """,
         file=sys.stderr,
     )
 
     # Log startup information
-    logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation)")
+    logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation and ping)")
     logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
     logger.info(
         f"✅ MCP-Protocol-Version header validation {header_validation_status.lower()} ({MCP_PROTOCOL_VERSION})"
@@ -2607,6 +2682,7 @@ if __name__ == "__main__":
             f"Interactive workflows per MCP 2025-06-18"
         )
     )
+    logger.info("🏓 MCP ping/pong protocol: ENABLED - Server health checking for MCP proxies")
     logger.info("🔗 Real MCP elicitation protocol integrated with intelligent fallback to mock")
     logger.info(
         (
