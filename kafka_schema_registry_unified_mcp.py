@@ -558,12 +558,12 @@ except Exception as e:
 def ping():
     """
     Respond to MCP ping requests with pong.
-    
+
     This tool implements the standard MCP ping/pong protocol for server health checking.
     MCP proxies and clients use this to verify that the server is alive and responding.
     """
     from datetime import datetime
-    
+
     return {
         "response": "pong",
         "server_name": "Kafka Schema Registry Unified MCP Server",
@@ -573,7 +573,7 @@ def ping():
         "registry_mode": REGISTRY_MODE,
         "status": "healthy",
         "ping_supported": True,
-        "message": "MCP server is alive and responding"
+        "message": "MCP server is alive and responding",
     }
 
 
