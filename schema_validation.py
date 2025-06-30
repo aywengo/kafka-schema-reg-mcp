@@ -481,7 +481,7 @@ __all__ = [
 ]
 
 
-def create_local_validator(schema: Dict[str, Any]) -> Draft7Validator:
+def create_local_validator(schema: Dict[str, Any]):
     """
     Create a JSON Schema validator with local resolver to avoid network requests.
 
@@ -489,7 +489,7 @@ def create_local_validator(schema: Dict[str, Any]) -> Draft7Validator:
         schema: The JSON schema to create a validator for
 
     Returns:
-        Draft7Validator instance with local resolver
+        Draft7Validator instance with local resolver (if jsonschema available)
     """
     if not JSONSCHEMA_AVAILABLE:
         raise ImportError("jsonschema library is not available")
@@ -498,7 +498,7 @@ def create_local_validator(schema: Dict[str, Any]) -> Draft7Validator:
     return Draft7Validator(schema, resolver=resolver)
 
 
-def get_local_resolver(schema: Dict[str, Any]) -> RefResolver:
+def get_local_resolver(schema: Dict[str, Any]):
     """
     Get a RefResolver that uses local draft-07 schema instead of network requests.
 
@@ -506,7 +506,7 @@ def get_local_resolver(schema: Dict[str, Any]) -> RefResolver:
         schema: The referrer schema
 
     Returns:
-        RefResolver instance with local draft-07 schema
+        RefResolver instance with local draft-07 schema (if jsonschema available)
     """
     if not JSONSCHEMA_AVAILABLE:
         raise ImportError("jsonschema library is not available")
