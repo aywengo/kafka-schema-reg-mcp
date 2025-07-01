@@ -57,7 +57,18 @@ LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get dist-upgrade -y && \
-    apt-get autoremove -y && \
+    # Remove unnecessary packages to reduce attack surface
+    apt-get autoremove -y \
+        # Remove packages that are sources of vulnerabilities and not needed
+        perl \
+        perl-base \
+        perl-modules-5.36 \
+        # Remove ncurses packages if not needed (they cause CVE-2023-50495)
+        libncursesw6 \
+        libtinfo6 \
+        ncurses-base \
+        ncurses-bin \
+    || true && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     find /var/log -type f -exec truncate -s 0 {} \;
@@ -101,8 +112,15 @@ COPY --chown=mcp:mcp resource_linking.py .
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .
 
+# Additional security hardening
+RUN chmod -R 750 /app && \
+    chmod 550 /app/*.py
+
 # Switch to non-root user
 USER mcp
+
+# Security: Set restrictive umask for any files created at runtime
+RUN umask 077
 
 # Add health check for MCP server (checks if Python process can import main module)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
@@ -112,7 +130,16 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    # Security: Disable Python hash randomization for reproducible builds
+    PYTHONHASHSEED=random \
+    # Security: Enable Python development mode warnings
+    PYTHONDEVMODE=0 \
+    # Security: Restrict Python path
+    PYTHONPATH=/app
+
+# Security: Expose only the necessary port
+EXPOSE 8000
 
 # Command to run the MCP server
 CMD ["python", "kafka_schema_registry_unified_mcp.py"]

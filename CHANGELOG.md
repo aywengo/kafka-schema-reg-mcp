@@ -5,133 +5,24 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.3] - 2025-06-30
+## [2.0.3] - 2025-07-01
 
 ### Added
-
-#### MCP Ping/Pong Protocol Support
-- **🏓 MCP Ping Tool**: Implemented standard MCP ping/pong protocol for server health checking
-  - **Health Check Response**: Responds with "pong" to MCP ping requests from proxies and clients
-  - **Comprehensive Server Status**: Returns detailed server information including:
-    - Server name and version with ping support indicator
-    - Current timestamp in ISO format for monitoring
-    - MCP protocol version (2025-06-18) compliance
-    - Registry mode (single/multi) configuration
-    - Server health status ("healthy")
-    - Ping support confirmation flag
-    - Informative status message
-  - **MCP Proxy Compatibility**: Resolves Docker container errors where MCP proxy expects server to respond to ping for health verification
-  - **Fast Response Time**: Optimized for health checking scenarios with sub-100ms response times
-  - **Zero Configuration**: Works out-of-the-box without additional setup
-
-#### Comprehensive Testing Suite
-- **🧪 MCP Ping Test Suite**: Added `tests/test_mcp_ping.py` with complete test coverage
-  - **MCP Client Integration Test**: Validates ping functionality through FastMCP client protocol
-  - **Tool Discovery Test**: Verifies ping tool is properly registered and discoverable
-  - **Response Validation Test**: Comprehensive validation of ping response structure and content
-  - **Performance Testing**: Validates response times suitable for health checking
-  - **Unit Testing**: Tests tool availability and server configuration requirements
-- **🔄 Test Runner Integration**: Added ping test to `tests/run_all_tests.sh` in MCP compliance section
-  - **Quick Mode Support**: Included in essential test coverage for faster CI/CD pipelines
-  - **Full Integration**: Part of comprehensive MCP 2025-06-18 compliance test suite
-
-#### Enhanced Server Information
-- **📊 Updated Server Metadata**: Enhanced all server information endpoints to include ping support status
-  - **Registry Status**: Updated `registry://status` resource to show ping capability
-  - **Registry Info**: Enhanced `registry://info` resource with ping protocol details
-  - **Compliance Status**: Updated MCP compliance tool to report ping implementation
-  - **Startup Logging**: Clear indication of ping/pong protocol enablement during server startup
-- **🔧 Version Information**: Updated server version to indicate ping support
-  - **Version String**: `2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping`
-  - **Feature Documentation**: All documentation updated to reflect ping capabilities
+- MCP ping/pong protocol support for health checks and proxy compatibility
+- Comprehensive `SECURITY.md` with vulnerability reporting process and security practices
+- Automatic GitHub issue creation for critical vulnerabilities in security scan workflow
+- Enhanced `.trivyignore` documentation with detailed CVE analysis and security rationale
 
 ### Fixed
-- **🐳 Docker Container Health Checks**: Resolved MCP proxy error "Expected server to respond to ping"
-  - **Container Compatibility**: MCP server now properly responds to health check pings from Docker containers
-  - **Proxy Integration**: Works correctly with MCP proxy deployments requiring ping responses
-  - **Kubernetes Health Checks**: Supports container orchestration health monitoring
+- Docker build failures due to incorrect dependency versions (avro-python3)
+- Security vulnerabilities: 22 CVEs addressed through package removal and documentation
 
-### Improved
-- **🚀 Server Responsiveness**: Enhanced server startup messaging to include ping protocol status
-- **📝 Comprehensive Documentation**: Updated all server information to reflect ping/pong capabilities
-- **🔍 Monitoring Support**: Ping responses include detailed metadata for monitoring and debugging
-- **⚡ Performance**: Ping tool optimized for minimal response time suitable for frequent health checks
-
-### Technical Details
-
-#### MCP Ping Response Format
-```json
-{
-  "response": "pong",
-  "server_name": "Kafka Schema Registry Unified MCP Server",
-  "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
-  "timestamp": "2025-06-30T09:49:13.595000",
-  "protocol_version": "2025-06-18",
-  "registry_mode": "multi",
-  "status": "healthy",
-  "ping_supported": true,
-  "message": "MCP server is alive and responding"
-}
-```
-
-#### Test Coverage Summary
-| Test Category | Test Count | Coverage |
-|---------------|------------|----------|
-| **MCP Client Integration** | 1 | Ping via FastMCP client protocol |
-| **Response Validation** | 1 | Complete response structure verification |
-| **Performance Testing** | 1 | Response time validation (<100ms) |
-| **Unit Testing** | 4 | Tool availability and configuration |
-| **Total Test Functions** | 7 | 100% ping functionality coverage |
-
-#### Health Check Integration
-- **Docker Health Checks**: `ping` tool enables container health monitoring
-- **MCP Proxy Support**: Resolves proxy health verification requirements
-- **Monitoring Systems**: Structured response format supports automated monitoring
-- **Load Balancer Integration**: Fast ping responses work with load balancer health checks
-
-### Maintained
-- **100% Backward Compatibility**: All existing functionality preserved
-- **All 53+ MCP Tools**: Ping tool added without affecting existing tools
-- **Configuration Unchanged**: No new environment variables or configuration required
-- **Performance**: No impact on existing operations
-
-### Usage Examples
-
-#### Docker Health Check
-```dockerfile
-# Docker health check using ping
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import asyncio; from fastmcp import Client; asyncio.run(Client('kafka_schema_registry_unified_mcp.py').call_tool('ping', {}))"
-```
-
-#### MCP Client Ping
-```python
-from fastmcp import Client
-
-async def health_check():
-    client = Client("kafka_schema_registry_unified_mcp.py")
-    async with client:
-        response = await client.call_tool("ping", {})
-        print(f"Server Status: {response[0].text}")
-        # Returns: {"response": "pong", "status": "healthy", ...}
-```
-
-#### Monitoring Integration
-```bash
-# Quick health check via MCP client
-python -c "
-import asyncio
-from fastmcp import Client
-
-async def ping():
-    client = Client('kafka_schema_registry_unified_mcp.py')
-    async with client:
-        result = await client.call_tool('ping', {})
-        print('Server is healthy!' if 'pong' in result[0].text else 'Server issue!')
-
-asyncio.run(ping())
-"
-```
+### Security
+- Enhanced Dockerfile with security hardening (removed perl, ncurses packages)
+- Updated all Python dependencies to latest secure versions with conservative build compatibility
+- Added file permissions (750 for directories, 550 for Python files) and restrictive umask
+- Documented security exceptions for 22 CVEs with detailed non-exploitability rationale
+- Enhanced security scanning workflow with multi-scan dashboard and automated monitoring
 
 ## [2.0.2] - 2025-06-30
 
@@ -399,7 +290,7 @@ This release qualifies as a **major version bump** because it introduces:
       "allow_batch_requests": False,      # Explicitly disabled
       "batch_support": False,             # No batch support
       "protocol_version": "2025-06-18",   # Compliance version
-      "jsonrpc_batching_disabled": True,  # Clear flag
+      "jsonrpc_batching_disabled": True,  # Clear flag,
   }
   ```
 - **Enhanced Logging**: Clear startup messages about batching status
@@ -978,12 +869,12 @@ while True:
 - **⚠️ JSON-RPC Batching**: Breaking change - removed per MCP 2025-06-18 specification
 - **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption (except batching)
 
-### Docker v2.0.0
+### Docker v2.0.3
 ```bash
-# v2.0.0 Release
-docker pull aywengo/kafka-schema-reg-mcp:2.0.0
+# v2.0.3 Release (Security & Ping/Pong)
+docker pull aywengo/kafka-schema-reg-mcp:2.0.3
 docker pull aywengo/kafka-schema-reg-mcp:stable  # Latest stable
 
 # Previous stable
-docker pull aywengo/kafka-schema-reg-mcp:1.8.3
+docker pull aywengo/kafka-schema-reg-mcp:2.0.2
 ``` 
