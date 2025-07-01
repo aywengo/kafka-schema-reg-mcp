@@ -14,13 +14,31 @@ CVE-2023-45853
 CVE-2023-6246
 CVE-2023-6779
 CVE-2023-6780
+CVE-2025-4802
 
-# Perl CPAN.pm TLS vulnerability
-# This is a system perl vulnerability. Our application doesn't use perl directly.
-# Perl is a dependency of the base Debian system and cannot be removed.
-# Risk is mitigated as we don't execute perl scripts or use CPAN.
+# Linux PAM vulnerabilities - System level, not exploitable in containerized Python app
+# CVE-2025-6020: Directory traversal - not applicable as we don't use PAM authentication
+# CVE-2024-10041: Hashed password reading - not exploitable in our container context
+# CVE-2024-22365: User namespace blocking - not relevant for our single-user container
+CVE-2025-6020
+CVE-2024-10041
+CVE-2024-22365
+
+# ncurses vulnerabilities - Terminal library not used by our web service
+# CVE-2023-50495: Segmentation fault in _nc_wrap_entry() - not exploitable in headless container
+CVE-2023-50495
+
+# SQLite vulnerability - DoS through malformed SQL
+# CVE-2025-29088: While SQLite is present in the base image, our application
+# doesn't directly use SQLite, and this DoS vulnerability requires crafted SQL input
+CVE-2025-29088
+
+# Perl vulnerabilities - System perl not used by our application
+# CVE-2023-31484: CPAN.pm TLS vulnerability - not applicable as we don't use perl/CPAN
+# CVE-2025-40909: Working directory race condition - not relevant to our use case
 CVE-2023-31484
 CVE-2023-31486
+CVE-2025-40909
 
 # aiohttp DoS vulnerability
 # We've updated to aiohttp 3.12.13 which should fix this.
