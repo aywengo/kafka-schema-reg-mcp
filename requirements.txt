@@ -13,8 +13,8 @@ aiohttp>=3.12.13
 PyJWT>=2.10.1
 cryptography>=45.0.4
 
-# Data processing for export functionality - Updated to latest versions
-avro-python3>=1.11.3
+# Data processing for export functionality - Updated to latest available versions
+avro-python3>=1.10.2
 jsonschema>=4.24.0
 
 # FastMCP web framework for remote deployment
