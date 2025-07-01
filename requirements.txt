@@ -13,18 +13,18 @@ aiohttp>=3.12.13
 PyJWT>=2.10.1
 cryptography>=45.0.4
 
-# Data processing for export functionality - Updated to latest available versions
+# Data processing for export functionality - Using known stable versions
 avro-python3>=1.10.2
 jsonschema>=4.24.0
 
-# FastMCP web framework for remote deployment
-starlette>=0.46.0
+# FastMCP web framework for remote deployment - Conservative version
+starlette>=0.27.0
 
-# Testing dependencies - Updated to latest versions
+# Testing dependencies - Conservative but recent versions
 pytest>=8.4.1
 pytest-asyncio>=1.0.0
-httpx>=0.28.0
+httpx>=0.27.0
 
-# Additional security dependencies
-safety>=3.2.0
-pip-audit>=2.7.0
+# Additional security dependencies - Conservative versions
+safety>=3.0.0
+pip-audit>=2.6.0
