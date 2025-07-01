@@ -1,26 +1,30 @@
 # FastMCP 2.8.0+ for MCP 2025-06-18 specification compliance - Issue #32
-fastmcp>=2.8.0
+fastmcp>=2.9.0
 
 # FastAPI for MCP-Protocol-Version header validation middleware
-fastapi>=0.100.0
+fastapi>=0.115.0
 
-# Kafka Schema Registry integration
-requests==2.32.4
-python-dotenv==1.1.1
-aiohttp==3.12.13
+# Kafka Schema Registry integration - Updated to latest secure versions
+requests>=2.32.4
+python-dotenv>=1.1.1
+aiohttp>=3.12.13
 
-# OAuth JWT validation dependencies
-PyJWT==2.10.1
-cryptography==45.0.4
+# OAuth JWT validation dependencies - Updated to latest secure versions
+PyJWT>=2.10.1
+cryptography>=45.0.4
 
-# Data processing for export functionality
-avro-python3==1.10.2
-jsonschema==4.24.0
+# Data processing for export functionality - Updated to latest versions
+avro-python3>=1.11.3
+jsonschema>=4.24.0
 
 # FastMCP web framework for remote deployment
-starlette>=0.27.0
+starlette>=0.46.0
 
-# Testing dependencies
-pytest==8.4.1
-pytest-asyncio==1.0.0
-httpx>=0.27
+# Testing dependencies - Updated to latest versions
+pytest>=8.4.1
+pytest-asyncio>=1.0.0
+httpx>=0.28.0
+
+# Additional security dependencies
+safety>=3.2.0
+pip-audit>=2.7.0
