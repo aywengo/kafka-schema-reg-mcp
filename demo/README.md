@@ -10,6 +10,7 @@ This demo extends the Kafka Schema Registry MCP server with local LLama integrat
 - Git
 - At least 4GB RAM available for containers
 - (Optional) NVIDIA GPU for faster LLama inference
+- (Optional) Visual Studio Code for MCP integration
 
 ### 1. Clone and Setup
 
@@ -39,8 +40,9 @@ This will:
 - ✅ Start the MCP-LLama bridge service
 - ✅ Pull the default LLama model (llama3.2:3b)
 
-### 3. Test the Integration
+### 3. Choose Your Interface
 
+#### Option A: Interactive CLI Client
 ```bash
 # Interactive chat mode
 python client-example.py
@@ -52,12 +54,78 @@ python client-example.py --message "List all subjects in the schema registry"
 python client-example.py --health
 ```
 
+#### Option B: VSCode with MCP Integration
+
+1. **Install Claude Dev Extension**:
+   - Open VSCode
+   - Install the "Claude Dev" extension from the marketplace
+   - Or install any MCP-compatible extension
+
+2. **Configure MCP Server Connection**:
+   
+   Create or update your VSCode settings (`settings.json`):
+   ```json
+   {
+     "claudeDev.mcpServers": {
+       "kafka-schema-registry": {
+         "command": "docker",
+         "args": [
+           "exec", "-i", "mcp-server",
+           "python", "-m", "kafka_schema_registry_mcp.server"
+         ],
+         "env": {
+           "SCHEMA_REGISTRY_URL": "http://localhost:38081"
+         }
+       }
+     }
+   }
+   ```
+
+   **Alternative: Direct Connection**
+   ```json
+   {
+     "claudeDev.mcpServers": {
+       "kafka-schema-registry": {
+         "command": "curl",
+         "args": [
+           "-X", "POST",
+           "http://localhost:38000/tools/list_subjects",
+           "-H", "Content-Type: application/json"
+         ]
+       }
+     }
+   }
+   ```
+
+3. **Use Natural Language in VSCode**:
+   - Open the Claude Dev chat panel
+   - Ask questions like: "List all subjects in the schema registry"
+   - The extension will automatically use the MCP tools
+
+4. **Benefits of VSCode Integration**:
+   - 🔥 **Code Context**: Ask about schemas while viewing code
+   - 📝 **Documentation**: Generate docs directly in your workspace
+   - 🔄 **Workflow Integration**: Schema queries while developing
+   - 💡 **IntelliSense**: Schema-aware code completion (with compatible extensions)
+
+#### Option C: Direct API Integration
+```bash
+# Test the bridge API directly
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "List all subjects in the schema registry",
+    "model": "llama3.2:3b",
+    "use_mcp": true
+  }'
+```
+
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Your Client   │    │  MCP-LLama      │    │  Kafka Schema   │
-│                 │◄──►│  Bridge         │◄──►│  Registry MCP   │
+│  (CLI/VSCode)   │◄──►│  Bridge         │◄──►│  Registry MCP   │
 │  Natural Lang.  │    │  Service        │    │  Server         │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │                       │
@@ -151,9 +219,35 @@ cp .env.template .env
 python client-example.py --model codellama:7b
 ```
 
+### VSCode Configuration Examples
+
+#### For Direct MCP Connection:
+```json
+{
+  "claudeDev.mcpServers": {
+    "kafka-schema-registry": {
+      "command": "python",
+      "args": ["-m", "mcp", "connect", "http://localhost:38000"],
+      "env": {
+        "MCP_SERVER_URL": "http://localhost:38000"
+      }
+    }
+  }
+}
+```
+
+#### For LLama Bridge Connection:
+```json
+{
+  "claudeDev.apiEndpoint": "http://localhost:8080/chat",
+  "claudeDev.mcpEnabled": true,
+  "claudeDev.defaultModel": "llama3.2:3b"
+}
+```
+
 ## 📖 Usage Examples
 
-### Interactive Mode
+### CLI Interactive Mode
 ```bash
 python client-example.py
 ```
@@ -177,6 +271,23 @@ The schema registry currently contains the following subjects:
 
 These are the active schema subjects registered in your Kafka Schema Registry.
 ```
+
+### VSCode Integration Examples
+
+1. **Schema Exploration While Coding**:
+   ```
+   In VSCode chat: "Show me the structure of the user-events schema and suggest how to deserialize it in Python"
+   ```
+
+2. **Schema Validation During Development**:
+   ```
+   In VSCode chat: "Check if my current JSON matches the user-profile schema requirements"
+   ```
+
+3. **Documentation Generation**:
+   ```
+   In VSCode chat: "Generate documentation for all schemas in the payments context"
+   ```
 
 ### Single Command Mode
 ```bash
@@ -251,6 +362,20 @@ docker info
 ./run-llama-mcp.sh restart
 ```
 
+### VSCode Connection Issues
+```bash
+# Verify MCP server is accessible
+curl http://localhost:38000/health
+
+# Check if bridge service is running
+curl http://localhost:8080/health
+
+# Test MCP tools directly
+curl -X POST http://localhost:38000/tools/list_subjects \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
 ### Model Issues
 ```bash
 # Check available models
@@ -314,6 +439,37 @@ python client-example.py --model codellama:7b
 python client-example.py --model mistral:7b
 ```
 
+### VSCode Extension Development
+To create custom VSCode extensions that work with this setup:
+
+```typescript
+// Example VSCode extension code
+import * as vscode from 'vscode';
+
+export function activate(context: vscode.ExtensionContext) {
+    const provider = new SchemaRegistryProvider();
+    vscode.languages.registerCompletionItemProvider(
+        { scheme: 'file', language: 'json' },
+        provider
+    );
+}
+
+class SchemaRegistryProvider implements vscode.CompletionItemProvider {
+    async provideCompletionItems(): Promise<vscode.CompletionItem[]> {
+        // Query schema registry via MCP bridge
+        const response = await fetch('http://localhost:8080/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: 'List all subjects',
+                use_mcp: true
+            })
+        });
+        // Process response and return completion items
+    }
+}
+```
+
 ## 📝 API Reference
 
 ### Bridge Service Endpoints
@@ -336,10 +492,24 @@ python client-example.py --model mistral:7b
 }
 ```
 
+### MCP Server Endpoints
+
+#### Direct MCP Tool Access
+```bash
+# List all available tools
+curl http://localhost:38000/tools
+
+# Execute specific tool
+curl -X POST http://localhost:38000/tools/list_subjects \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
 ## 🎯 Quick Demo Commands
 
 Once everything is running, try these commands:
 
+### CLI Commands
 ```bash
 # Basic registry info
 python client-example.py --message "Show me registry statistics"
@@ -351,13 +521,30 @@ python client-example.py --message "List all subjects"
 python client-example.py
 ```
 
+### VSCode Commands
+- Open Command Palette (`Ctrl+Shift+P`)
+- Type "Claude: Ask about schema registry"
+- Ask: "What subjects are available in my schema registry?"
+
+### API Commands
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Ask a question
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "List all subjects", "use_mcp": true}'
+```
+
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes in the `demo/` folder
 4. Test with `cd demo && ./run-llama-mcp.sh start`
-5. Submit a pull request
+5. Test both CLI and VSCode integrations
+6. Submit a pull request
 
 ## 📄 License
 
@@ -367,6 +554,7 @@ Same as the main repository.
 
 - This demo is designed for **local development** and testing
 - Always run commands from the `demo/` directory
+- VSCode integration requires compatible MCP extensions
 - For production use, consider security, scaling, and monitoring requirements
 - LLama models can be resource-intensive; adjust model size based on your hardware
 - The bridge service provides a simple integration layer - extend it for your specific needs
@@ -377,7 +565,7 @@ After trying the demo, you might want to:
 
 - **Integrate with your existing Schema Registry** - Update connection settings in `.env`
 - **Try different models** - Experiment with various LLama models for different use cases
-- **Build custom tools** - Extend the MCP server with additional functionality
+- **Build custom VSCode extensions** - Create schema-aware development tools
 - **Add authentication** - Implement security for production deployments
 - **Scale the setup** - Deploy across multiple environments
 
