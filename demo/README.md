@@ -18,9 +18,6 @@ This demo extends the Kafka Schema Registry MCP server with local LLama integrat
 git clone https://github.com/aywengo/kafka-schema-reg-mcp.git
 cd kafka-schema-reg-mcp
 
-# Switch to the LLama integration branch
-git checkout local-llama-integration
-
 # Navigate to the demo directory
 cd demo
 
@@ -373,3 +370,15 @@ Same as the main repository.
 - For production use, consider security, scaling, and monitoring requirements
 - LLama models can be resource-intensive; adjust model size based on your hardware
 - The bridge service provides a simple integration layer - extend it for your specific needs
+
+## 🌟 What's Next?
+
+After trying the demo, you might want to:
+
+- **Integrate with your existing Schema Registry** - Update connection settings in `.env`
+- **Try different models** - Experiment with various LLama models for different use cases
+- **Build custom tools** - Extend the MCP server with additional functionality
+- **Add authentication** - Implement security for production deployments
+- **Scale the setup** - Deploy across multiple environments
+
+**Happy exploring!** 🚀
