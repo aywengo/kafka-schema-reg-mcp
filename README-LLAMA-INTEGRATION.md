@@ -15,8 +15,11 @@ cd kafka-schema-reg-mcp/demo
 chmod +x run-llama-mcp.sh
 ./run-llama-mcp.sh start
 
-# Test the integration
+# Choose your interface:
+# Option A: CLI client
 python client-example.py
+
+# Option B: Use with VSCode (see setup below)
 ```
 
 ## 📁 What's in the Demo Folder
@@ -38,6 +41,41 @@ Ask natural language questions about your Schema Registry:
 - "Check if this schema is compatible with the latest version"
 - "Export all schemas from the production context"
 
+## 💻 Interface Options
+
+### Option A: Interactive CLI Client
+```bash
+python client-example.py
+```
+Perfect for quick queries and testing.
+
+### Option B: VSCode Integration
+Use Schema Registry directly in your development workflow:
+
+1. **Install MCP Extension**: Install "Claude Dev" or similar MCP-compatible extension
+2. **Configure Connection**: Add to your VSCode `settings.json`:
+   ```json
+   {
+     "claudeDev.mcpServers": {
+       "kafka-schema-registry": {
+         "command": "docker",
+         "args": ["exec", "-i", "mcp-server", "python", "-m", "kafka_schema_registry_mcp.server"],
+         "env": {
+           "SCHEMA_REGISTRY_URL": "http://localhost:38081"
+         }
+       }
+     }
+   }
+   ```
+3. **Start Chatting**: Use the extension chat to ask schema questions while coding
+
+### Option C: Direct API
+```bash
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "List all subjects", "use_mcp": true}'
+```
+
 ## 🏗️ Architecture
 
 ```
@@ -46,11 +84,19 @@ Your Questions → LLama (Ollama) → MCP Bridge → Schema Registry MCP → Kaf
      └─────────────── Natural Language Responses ←─────────────────────────────┘
 ```
 
+## 🔧 VSCode Benefits
+
+- 🔥 **Code Context**: Ask about schemas while viewing your code
+- 📝 **Documentation**: Generate schema docs directly in workspace
+- 🔄 **Workflow Integration**: Schema queries during development
+- 💡 **IntelliSense**: Schema-aware suggestions (with compatible extensions)
+
 ## 📖 Full Documentation
 
 See [`demo/README.md`](demo/README.md) for complete documentation, including:
 
 - Installation and setup instructions
+- VSCode configuration examples
 - Usage examples and commands
 - Configuration options
 - Troubleshooting guide
@@ -65,7 +111,10 @@ This repository maintains full compatibility with the original MCP server functi
 1. **Go to the demo folder**: `cd demo`
 2. **Read the documentation**: `cat README.md`
 3. **Start the demo**: `./run-llama-mcp.sh start`
-4. **Start chatting**: `python client-example.py`
+4. **Choose your interface**:
+   - **CLI**: `python client-example.py`
+   - **VSCode**: Configure extension and chat in your editor
+   - **API**: `curl http://localhost:8080/chat`
 
 ---
 
