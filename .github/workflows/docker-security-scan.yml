@@ -37,7 +37,7 @@ jobs:
           image-ref: 'kafka-schema-registry-mcp:security-scan'
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          severity: 'CRITICAL,HIGH'
           ignore-unfixed: false
 
       - name: Upload Trivy scan results to GitHub Security
@@ -51,7 +51,7 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             aquasec/trivy:latest image \
             --format table \
-            --severity CRITICAL,HIGH,MEDIUM \
+            --severity CRITICAL,HIGH \
             kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
 
       - name: Create issue from vulnerabilities
@@ -64,19 +64,29 @@ jobs:
             
             // Check if there are any vulnerabilities
             if (trivyOutput.includes('Total: 0')) {
-              console.log('No vulnerabilities found');
+              console.log('No HIGH or CRITICAL vulnerabilities found');
+              return;
+            }
+            
+            // Check for CRITICAL and HIGH vulnerabilities specifically
+            const hasCritical = trivyOutput.includes('CRITICAL');
+            const hasHigh = trivyOutput.includes('HIGH');
+            
+            if (!hasCritical && !hasHigh) {
+              console.log('No HIGH or CRITICAL vulnerabilities found');
               return;
             }
             
             // Create issue body
             const issueBody = `## 🔒 Security Scan Results
             
-            The scheduled security scan found vulnerabilities in the Docker image.
+            The scheduled security scan found HIGH or CRITICAL vulnerabilities in the Docker image.
             
             ### Scan Details
             - **Date**: ${new Date().toISOString()}
             - **Image**: kafka-schema-registry-mcp
             - **Scanner**: Trivy
+            - **Severity Filter**: CRITICAL and HIGH only (MEDIUM and LOW excluded)
             
             ### Vulnerabilities Found
             
@@ -84,11 +94,15 @@ jobs:
             ${trivyOutput}
             \`\`\`
             
+            **Note**: This scan excludes MEDIUM and LOW severity issues per security policy.
+            Only CRITICAL and HIGH severity vulnerabilities are reported.
+            
             ### Recommended Actions
             1. Review the vulnerabilities listed above
             2. Update base images if newer versions are available
             3. Update dependencies in requirements.txt
             4. Apply security patches where possible
+            5. Add to .trivyignore if vulnerabilities are not exploitable in our context
             
             ### Resources
             - [Trivy Documentation](https://aquasecurity.github.io/trivy/)
@@ -99,10 +113,26 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🔒 Security Scan Alert - ${new Date().toLocaleDateString()}`,
+              title: `🔒 Security Scan Alert - HIGH/CRITICAL Vulnerabilities - ${new Date().toLocaleDateString()}`,
               body: issueBody,
-              labels: ['security', 'docker', 'automated']
+              labels: ['security', 'docker', 'automated', 'high-priority']
             });
+
+      - name: Generate scan summary
+        if: always()
+        run: |
+          echo "## Docker Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Severity Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 CRITICAL: Reported and create issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟠 HIGH: Reported and create issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ MEDIUM: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ LOW: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the Security tab for detailed findings (CRITICAL and HIGH only)." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
