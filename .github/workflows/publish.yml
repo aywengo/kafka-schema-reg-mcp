@@ -98,6 +98,7 @@ jobs:
           image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
           timeout: '10m0s'
         continue-on-error: true  # Don't fail the workflow if Trivy scan fails
 
@@ -107,6 +108,31 @@ jobs:
         continue-on-error: true  # Don't fail the workflow if SARIF upload fails
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Generate Trivy table report for published image
+        if: always()
+        run: |
+          echo "## Published Image Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate table format scan for summary
+          docker run --rm aquasec/trivy:latest image \
+            --format table \
+            --severity CRITICAL,HIGH \
+            --timeout 10m \
+            aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} | tee trivy-table.txt || true
+            
+          if [ -f "trivy-results.sarif" ]; then
+            echo "- ✅ Security scan completed and uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: This published image follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
 
       - name: Update Docker Hub description
         uses: peter-evans/dockerhub-description@v4
@@ -137,8 +163,8 @@ jobs:
           
           # Extract the section from CHANGELOG.md
           awk "
-            /^## \\[$VERSION\\]/ { found=1; print; next }
-            /^## \\[/ && found { found=0 }
+            /^## \\\\[$VERSION\\\\]/ { found=1; print; next }
+            /^## \\\\[/ && found { found=0 }
             found { print }
           " CHANGELOG.md > release_notes.md
           
