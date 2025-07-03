@@ -40,7 +40,7 @@ jobs:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'sarif'
         output: 'trivy-results.sarif'
-        severity: 'CRITICAL,HIGH,MEDIUM'
+        severity: 'CRITICAL,HIGH'
         
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
@@ -54,7 +54,7 @@ jobs:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'json'
         output: 'trivy-results.json'
-        severity: 'CRITICAL,HIGH,MEDIUM'
+        severity: 'CRITICAL,HIGH'
         
     - name: Process Trivy results and create issue if critical vulnerabilities found
       uses: actions/github-script@v7
@@ -73,8 +73,8 @@ jobs:
             return;
           }
           
-          // Count vulnerabilities by severity
-          let critical = 0, high = 0, medium = 0;
+          // Count vulnerabilities by severity (only CRITICAL and HIGH)
+          let critical = 0, high = 0;
           let criticalVulns = [], highVulns = [];
           
           if (trivyResults.Results) {
@@ -90,9 +90,7 @@ jobs:
                       high++;
                       highVulns.push(vuln);
                       break;
-                    case 'MEDIUM':
-                      medium++;
-                      break;
+                    // Note: MEDIUM and LOW severity issues are excluded from processing
                   }
                 });
               }
@@ -119,15 +117,17 @@ jobs:
             - Date: ${new Date().toISOString()}
             - Image: kafka-schema-registry-mcp:${context.sha}
             - Scanner: Trivy
+            - Severity Filter: CRITICAL and HIGH only (MEDIUM and LOW excluded)
             
             ## Critical Vulnerabilities Found
             
             ${vulnDetails}
             
-            ## Summary
+            ## Summary (CRITICAL and HIGH only)
             - 🔴 Critical: ${critical}
-            - 🟠 High: ${high}  
-            - 🟡 Medium: ${medium}
+            - 🟠 High: ${high}
+            
+            **Note**: This scan excludes MEDIUM and LOW severity issues per security policy.
             
             ## Recommended Actions
             1. Review the vulnerabilities listed above
@@ -172,9 +172,15 @@ jobs:
       if: always()
       run: |
         echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Trivy vulnerability scan completed (CRITICAL and HIGH severity only)" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Security reports uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
         echo "- 📋 Security exceptions documented in \`.trivyignore\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Severity Filter Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ CRITICAL vulnerabilities: Reported and block builds" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ HIGH vulnerabilities: Reported for review" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ MEDIUM vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ LOW vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Security Exception Handling" >> $GITHUB_STEP_SUMMARY
         echo "- Vulnerabilities marked as 'will_not_fix' by upstream maintainers are documented and ignored" >> $GITHUB_STEP_SUMMARY
@@ -250,6 +256,7 @@ jobs:
         if [ -f "pip-audit-report.json" ]; then
           echo "- ✅ Pip-audit check completed" >> $GITHUB_STEP_SUMMARY
         fi
+        echo "- 📋 Focus: HIGH and CRITICAL severity issues only" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
     - name: Upload security reports
@@ -300,12 +307,19 @@ jobs:
       run: |
         echo "## 🔒 Comprehensive Security Scan Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Severity Filter: CRITICAL and HIGH Only" >> $GITHUB_STEP_SUMMARY
+        echo "This security scan configuration excludes MEDIUM and LOW severity issues per security policy." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
         echo "| Container Vulnerability Scan | ${{ needs.trivy-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Docker Security Best Practices | ${{ needs.docker-security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Python Dependency Check | ${{ needs.dependency-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Secrets Detection | ${{ needs.secrets-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Excluded Severity Levels" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ MEDIUM severity issues: Not reported" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ LOW severity issues: Not reported" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
         echo "- Review individual scan results above" >> $GITHUB_STEP_SUMMARY
