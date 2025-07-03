@@ -1,0 +1,23 @@
+# Dependabot configuration disabled
+# 
+# This repository relies exclusively on Trivy for security scanning
+# with CRITICAL and HIGH severity filtering only.
+#
+# To re-enable Dependabot:
+# 1. Uncomment the configuration below
+# 2. Adjust settings as needed
+#
+# version: 2
+# updates:
+#   - package-ecosystem: "pip"
+#     directory: "/"
+#     schedule:
+#       interval: "weekly"
+#   - package-ecosystem: "docker" 
+#     directory: "/"
+#     schedule:
+#       interval: "weekly"
+#   - package-ecosystem: "github-actions"
+#     directory: "/"
+#     schedule:
+#       interval: "weekly"
