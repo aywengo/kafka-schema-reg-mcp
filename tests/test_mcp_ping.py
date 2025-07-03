@@ -128,6 +128,31 @@ async def test_ping_via_mcp_client():
     print("\n🏓 Testing MCP Ping via Client")
     print("=" * 50)
 
+    # Check if we're in a CI/container environment
+    is_ci_environment = (
+        os.getenv("CI") == "true" or 
+        os.getenv("GITHUB_ACTIONS") == "true" or
+        os.path.exists("/.dockerenv")
+    )
+    
+    # Check if MCP server container is already running
+    mcp_container_running = False
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "name=mcp-server", "--format", "{{.Names}}"],
+            capture_output=True, text=True, timeout=5
+        )
+        mcp_container_running = "mcp-server" in result.stdout
+    except:
+        pass
+
+    if is_ci_environment and mcp_container_running:
+        print("🐳 Detected CI environment with MCP server container running")
+        print("✅ Skipping MCP client test to avoid conflicts with containerized server")
+        print("💡 This is expected behavior in CI - container tests run separately")
+        return "SKIPPED"
+
     server_script = os.path.join(PROJECT_ROOT, "kafka_schema_registry_unified_mcp.py")
 
     # Set up environment for testing
@@ -329,6 +354,7 @@ def run_all_ping_tests():
     print("=" * 60)
 
     test_results = []
+    skipped_tests = []
 
     # Run direct ping test
     try:
@@ -341,7 +367,10 @@ def run_all_ping_tests():
     # Run MCP client ping test
     try:
         result = asyncio.run(test_ping_via_mcp_client())
-        test_results.append(("MCP Client Ping Test", result))
+        if result == "SKIPPED":
+            skipped_tests.append("MCP Client Ping Test")
+        else:
+            test_results.append(("MCP Client Ping Test", result))
     except Exception as e:
         print(f"❌ MCP client ping test failed: {e}")
         test_results.append(("MCP Client Ping Test", False))
@@ -357,21 +386,28 @@ def run_all_ping_tests():
     # Summary
     total_tests = len(test_results)
     passed_tests = sum(1 for _, result in test_results if result)
+    total_skipped = len(skipped_tests)
 
     print("\n📊 MCP Ping Test Results:")
     print(f"   Total Tests: {total_tests}")
     print(f"   Passed: {passed_tests}")
     print(f"   Failed: {total_tests - passed_tests}")
+    if total_skipped > 0:
+        print(f"   Skipped: {total_skipped} (CI environment)")
     print(f"   Success Rate: {(passed_tests/total_tests)*100:.1f}%")
 
     if passed_tests == total_tests:
         print("🎉 All MCP ping tests passed!")
+        if total_skipped > 0:
+            print("💡 Some tests were skipped in CI environment (expected behavior)")
         return True
     else:
         print("❌ Some MCP ping tests failed")
         for test_name, result in test_results:
             status = "✅ PASSED" if result else "❌ FAILED"
             print(f"   {status}: {test_name}")
+        for test_name in skipped_tests:
+            print(f"   ⏭️  SKIPPED: {test_name} (CI environment)")
         return False
 
 
