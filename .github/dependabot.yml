@@ -15,16 +15,14 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
-    # Only allow non-security version updates
+    # Only allow patch and minor version updates (excludes major security updates)
     allow:
       - dependency-type: "direct"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-type: "indirect"
-        update-types: ["version-update:semver-patch"]
-    # Explicitly ignore security updates (handled by Trivy)
+    # Ignore major version updates (where most security fixes are published)
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-major", "security-update"]
+        update-types: ["version-update:semver-major"]
 
   # Docker base image updates - VERSION UPDATES ONLY (Security handled by Trivy)
   - package-ecosystem: "docker"
@@ -41,14 +39,13 @@ updates:
     commit-message:
       prefix: "docker"
       include: "scope"
-    # Only allow minor version updates for Docker
+    # Allow all dependency types but ignore major updates
     allow:
       - dependency-type: "direct"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
-    # Explicitly ignore security updates (handled by Trivy)
+    # Ignore major version updates (where most security fixes are published)
     ignore:
       - dependency-name: "*"
-        update-types: ["version-update:semver-major", "security-update"]
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions updates - FULL UPDATES INCLUDING SECURITY
   # (Actions security is still important for CI/CD pipeline security)
@@ -72,6 +69,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # GitHub Actions security updates are still allowed
+    # GitHub Actions - allow all updates including security
     allow:
       - dependency-type: "all"
