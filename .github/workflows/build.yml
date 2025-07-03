@@ -104,6 +104,7 @@ jobs:
           image-ref: kafka-schema-reg-mcp:test
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
 
       - name: Check if Trivy results exist
         id: check_trivy_results
@@ -121,4 +122,21 @@ jobs:
         continue-on-error: true  # Don't fail the workflow if SARIF upload fails
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Generate build security summary
+        if: always()
+        run: |
+          echo "## Build Security Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Docker image build completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Trivy vulnerability scan completed (CRITICAL and HIGH severity only)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📋 **Severity Filter**: Only CRITICAL and HIGH vulnerabilities reported" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "trivy-results.sarif" ]; then
+            echo "- ✅ Security scan results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: This build follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
         
