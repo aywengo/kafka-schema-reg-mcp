@@ -1,78 +1,63 @@
 version: 2
 updates:
-  # Python dependencies - DISABLED security scanning
+  # Python dependencies - VERSION UPDATES ONLY (no security)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
+      - "version-update"
     commit-message:
       prefix: "deps"
       include: "scope"
-    # Group non-security updates
-    groups:
-      development-dependencies:
-        patterns:
-          - "pytest*"
-          - "black"
-          - "ruff"
-          - "mypy"
-        update-types:
-          - "minor"
-          - "patch"
-      production-dependencies:
-        patterns:
-          - "mcp*"
-          - "requests"
-          - "aiohttp"
-        update-types:
-          - "patch"
-    # ONLY allow non-security updates (disable security alerts)
+    # Only allow non-security version updates
     allow:
       - dependency-type: "direct"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-type: "indirect"
         update-types: ["version-update:semver-patch"]
+    # Explicitly ignore security updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "security-update"]
 
-  # Docker base image updates - DISABLED security scanning
+  # Docker base image updates - VERSION UPDATES ONLY (no security)  
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "tuesday"
       time: "06:00"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 2
     labels:
       - "docker"
+      - "version-update"
     commit-message:
       prefix: "docker"
       include: "scope"
-    # ONLY allow non-security updates
+    # Only allow minor version updates for Docker
     allow:
       - dependency-type: "direct"
-        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+    # Explicitly ignore security updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "security-update"]
 
-  # GitHub Actions updates - Keep security scanning for actions
+  # GitHub Actions updates - KEEP AS IS (Actions security is still important)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "wednesday"
       time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 3
     labels:
       - "github-actions"
-      - "security"
     commit-message:
       prefix: "ci"
       include: "scope"
