@@ -7,7 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 12
     labels:
       - "dependencies"
       - "version-update"
@@ -31,7 +31,7 @@ updates:
       interval: "weekly"
       day: "tuesday"
       time: "06:00"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 12
     labels:
       - "docker"
       - "version-update"
@@ -55,7 +55,7 @@ updates:
       interval: "weekly"
       day: "wednesday"
       time: "06:00"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 12
     labels:
       - "github-actions"
       - "security"
