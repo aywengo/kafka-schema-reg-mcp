@@ -8,6 +8,12 @@ services:
       - SCHEMA_REGISTRY_URL=http://schema-registry-mcp:8081
       - SCHEMA_REGISTRY_USER=${SCHEMA_REGISTRY_USER:-}
       - SCHEMA_REGISTRY_PASSWORD=${SCHEMA_REGISTRY_PASSWORD:-}
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - MCP_PATH=/mcp
+      - ENABLE_AUTH=false
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
     depends_on:
       - schema-registry-mcp
     networks:
@@ -15,6 +21,13 @@ services:
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
+    command: ["python", "remote-mcp-server.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # LLama via Ollama
   ollama:
@@ -31,15 +44,16 @@ services:
     networks:
       - kafka-network-mcp
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # Uncomment the following section if you have an NVIDIA GPU for faster inference
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -131,6 +145,7 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     hostname: kafka-mcp
     container_name: kafka-mcp
+    user: root
     ports:
       - "39092:9092"
       - "39094:9094"
@@ -154,13 +169,17 @@ services:
       KAFKA_LOG4J_LOGGERS: "kafka=WARN,kafka.controller=WARN,kafka.log.LogCleaner=WARN,state.change.logger=WARN,kafka.producer.async.DefaultEventHandler=WARN"
     command: >
       bash -c "
-        echo 'Waiting for Kafka to be ready...' &&
+        echo 'Setting up Kafka directories...' &&
+        mkdir -p /tmp/kraft-combined-logs &&
+        chown -R appuser:appuser /tmp/kraft-combined-logs &&
+        echo 'Starting Kafka...' &&
         /etc/confluent/docker/run"
     healthcheck:
       test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
       interval: 10s
       timeout: 10s
       retries: 10
+      start_period: 60s
     networks:
       - kafka-network-mcp
     volumes:

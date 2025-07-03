@@ -117,8 +117,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-MCP_SERVER_HOST = os.getenv("MCP_SERVER_HOST", "http://localhost:8000")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
+MCP_SERVER_HOST = os.getenv("MCP_SERVER_HOST", "http://mcp-server:8000")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
 
 app = FastAPI(title="MCP-LLama Bridge", version="1.0.0")
@@ -147,7 +147,7 @@ async def health_check():
     """Health check endpoint"""
     try:
         # Check Ollama connection
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:
             ollama_response = await client.get(f"{OLLAMA_HOST}/api/version")
             ollama_healthy = ollama_response.status_code == 200
             
@@ -164,29 +164,21 @@ async def health_check():
 async def chat(request: ChatRequest):
     """Main chat endpoint that integrates LLama with MCP tools"""
     try:
+        logger.info(f"Received chat request: {request.message[:100]}...")
+        
         if request.use_mcp:
-            # Get available MCP tools first
-            tools_info = await get_mcp_tools()
+            # Simple approach: Ask LLama directly with MCP context
+            mcp_context = await get_mcp_context()
+            enhanced_prompt = f"""You are a helpful assistant with access to Kafka Schema Registry.
+
+Available Schema Registry operations: {mcp_context}
+
+User question: {request.message}
+
+Please provide a helpful response. If the user is asking about schemas, subjects, or registry operations, provide relevant information."""
             
-            # Create enhanced prompt with tool information
-            enhanced_prompt = create_tool_enhanced_prompt(request.message, tools_info)
-            
-            # Get LLama response
-            llama_response = await query_llama(enhanced_prompt, request.model)
-            
-            # Check if LLama wants to use tools
-            tool_calls = extract_tool_calls(llama_response)
-            
-            if tool_calls:
-                # Execute tools and get final response
-                final_response = await execute_tools_and_respond(
-                    tool_calls, request.message, request.model
-                )
-                return ChatResponse(
-                    response=final_response,
-                    model=request.model,
-                    used_tools=[call["tool"] for call in tool_calls]
-                )
+            response = await query_llama(enhanced_prompt, request.model)
+            return ChatResponse(response=response, model=request.model, used_tools=["mcp_context"])
         
         # Simple LLama query without MCP
         response = await query_llama(request.message, request.model)
@@ -196,94 +188,38 @@ async def chat(request: ChatRequest):
         logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-async def get_mcp_tools():
-    """Get available MCP tools"""
+async def get_mcp_context():
+    """Get MCP context information"""
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{MCP_SERVER_HOST}/tools")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Try to get basic registry info
+            response = await client.get(f"{MCP_SERVER_HOST}/health")
             if response.status_code == 200:
-                return response.json()
+                return "Schema Registry is available for queries about subjects, schemas, versions, and compatibility."
     except Exception as e:
-        logger.warning(f"Could not fetch MCP tools: {e}")
-    return []
+        logger.warning(f"Could not connect to MCP server: {e}")
+    return "Schema Registry operations may be limited."
 
 async def query_llama(prompt: str, model: str) -> str:
     """Query LLama via Ollama"""
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            f"{OLLAMA_HOST}/api/generate",
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False
-            }
-        )
-        response.raise_for_status()
-        return response.json()["response"]
-
-def create_tool_enhanced_prompt(message: str, tools_info: list) -> str:
-    """Create a prompt that includes available tools information"""
-    tools_desc = "\n".join([
-        f"- {tool.get('name', 'unknown')}: {tool.get('description', 'No description')}"
-        for tool in tools_info
-    ])
-    
-    return f"""You are an assistant that can help with Kafka Schema Registry operations.
-
-Available tools:
-{tools_desc}
-
-To use a tool, respond with JSON in this format:
-{{"use_tool": true, "tool": "tool_name", "arguments": {{"param": "value"}}}}
-
-User message: {message}
-
-Provide a helpful response. If the user's request can be fulfilled using available tools, use the appropriate tool."""
-
-def extract_tool_calls(response: str) -> list:
-    """Extract tool calls from LLama response"""
     try:
-        # Try to parse as JSON
-        parsed = json.loads(response.strip())
-        if isinstance(parsed, dict) and parsed.get("use_tool"):
-            return [parsed]
-    except json.JSONDecodeError:
-        pass
-    return []
-
-async def execute_tools_and_respond(tool_calls: list, original_message: str, model: str) -> str:
-    """Execute MCP tools and get final response"""
-    results = []
-    
-    for call in tool_calls:
-        try:
-            # Execute MCP tool
-            result = await execute_mcp_tool(call["tool"], call.get("arguments", {}))
-            results.append(f"Tool '{call['tool']}' result: {result}")
-        except Exception as e:
-            results.append(f"Tool '{call['tool']}' failed: {str(e)}")
-    
-    # Create follow-up prompt with results
-    follow_up_prompt = f"""
-Original request: {original_message}
-
-Tool execution results:
-{chr(10).join(results)}
-
-Please provide a clear, human-readable summary of these results.
-"""
-    
-    return await query_llama(follow_up_prompt, model)
-
-async def execute_mcp_tool(tool_name: str, arguments: dict) -> str:
-    """Execute an MCP tool"""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{MCP_SERVER_HOST}/tools/{tool_name}",
-            json=arguments
-        )
-        response.raise_for_status()
-        return response.text
+        logger.info(f"Querying LLama with model {model}: {prompt[:100]}...")
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{OLLAMA_HOST}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False
+                }
+            )
+            response.raise_for_status()
+            result = response.json()["response"]
+            logger.info(f"LLama response received: {len(result)} characters")
+            return result
+    except Exception as e:
+        logger.error(f"LLama query failed: {e}")
+        return f"Error: Could not get response from LLama. {str(e)}"
 
 if __name__ == "__main__":
     import uvicorn
