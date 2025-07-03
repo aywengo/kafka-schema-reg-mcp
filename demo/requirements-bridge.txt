@@ -5,5 +5,5 @@ pydantic==2.5.0
 python-multipart==0.0.20
 aiofiles==23.2.1
 python-json-logger==2.0.7
-asyncio-mqtt==0.16.1
+asyncio-mqtt==0.16.2
 websockets==12.0
