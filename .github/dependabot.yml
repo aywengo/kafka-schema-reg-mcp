@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Python dependencies - VERSION UPDATES ONLY (no security)
+  # Python dependencies - VERSION UPDATES ONLY (Security handled by Trivy)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -11,6 +11,7 @@ updates:
     labels:
       - "dependencies"
       - "version-update"
+      - "trivy-security-scanning"
     commit-message:
       prefix: "deps"
       include: "scope"
@@ -20,12 +21,12 @@ updates:
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
       - dependency-type: "indirect"
         update-types: ["version-update:semver-patch"]
-    # Explicitly ignore security updates
+    # Explicitly ignore security updates (handled by Trivy)
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major", "security-update"]
 
-  # Docker base image updates - VERSION UPDATES ONLY (no security)  
+  # Docker base image updates - VERSION UPDATES ONLY (Security handled by Trivy)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -36,6 +37,7 @@ updates:
     labels:
       - "docker"
       - "version-update"
+      - "trivy-security-scanning"
     commit-message:
       prefix: "docker"
       include: "scope"
@@ -43,12 +45,13 @@ updates:
     allow:
       - dependency-type: "direct"
         update-types: ["version-update:semver-minor", "version-update:semver-patch"]
-    # Explicitly ignore security updates
+    # Explicitly ignore security updates (handled by Trivy)
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major", "security-update"]
 
-  # GitHub Actions updates - KEEP AS IS (Actions security is still important)
+  # GitHub Actions updates - FULL UPDATES INCLUDING SECURITY
+  # (Actions security is still important for CI/CD pipeline security)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -58,6 +61,7 @@ updates:
     open-pull-requests-limit: 3
     labels:
       - "github-actions"
+      - "security"
     commit-message:
       prefix: "ci"
       include: "scope"
@@ -68,3 +72,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # GitHub Actions security updates are still allowed
+    allow:
+      - dependency-type: "all"
