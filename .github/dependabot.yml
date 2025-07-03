@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Python dependencies
+  # Python dependencies - DISABLED security scanning
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -12,9 +12,8 @@ updates:
       - "security-team"
     labels:
       - "dependencies"
-      - "security"
     commit-message:
-      prefix: "security"
+      prefix: "deps"
       include: "scope"
     # Group non-security updates
     groups:
@@ -34,11 +33,14 @@ updates:
           - "aiohttp"
         update-types:
           - "patch"
-    # Automatically approve security updates
+    # ONLY allow non-security updates (disable security alerts)
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+      - dependency-type: "indirect"
+        update-types: ["version-update:semver-patch"]
 
-  # Docker base image updates
+  # Docker base image updates - DISABLED security scanning
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -50,12 +52,15 @@ updates:
       - "security-team"
     labels:
       - "docker"
-      - "security"
     commit-message:
       prefix: "docker"
       include: "scope"
+    # ONLY allow non-security updates
+    allow:
+      - dependency-type: "direct"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
 
-  # GitHub Actions updates
+  # GitHub Actions updates - Keep security scanning for actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -77,4 +82,4 @@ updates:
           - "*"
         update-types:
           - "minor"
-          - "patch" 
+          - "patch"
