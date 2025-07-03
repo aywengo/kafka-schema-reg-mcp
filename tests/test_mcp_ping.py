@@ -130,21 +130,22 @@ async def test_ping_via_mcp_client():
 
     # Check if we're in a CI/container environment
     is_ci_environment = (
-        os.getenv("CI") == "true" or 
-        os.getenv("GITHUB_ACTIONS") == "true" or
-        os.path.exists("/.dockerenv")
+        os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.path.exists("/.dockerenv")
     )
-    
+
     # Check if MCP server container is already running
     mcp_container_running = False
     try:
         import subprocess
+
         result = subprocess.run(
             ["docker", "ps", "--filter", "name=mcp-server", "--format", "{{.Names}}"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         mcp_container_running = "mcp-server" in result.stdout
-    except:
+    except Exception:
         pass
 
     if is_ci_environment and mcp_container_running:
