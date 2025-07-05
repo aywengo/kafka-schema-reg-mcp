@@ -232,34 +232,34 @@ class TestBatchCleanupIntegration:
         # Should handle gracefully - either empty result or appropriate error
         assert "error" in result or result["subjects_found"] == 0, "Should handle nonexistent context gracefully"
 
-    def test_readonly_mode_protection(self):
-        """Test READONLY mode blocks actual deletions but allows dry runs"""
-        context_name = f"test-readonly-{uuid.uuid4().hex[:8]}"
+    def test_viewonly_mode_protection(self):
+        """Test VIEWONLY mode blocks actual deletions but allows dry runs"""
+        context_name = f"test-viewonly-{uuid.uuid4().hex[:8]}"
         subjects = self._create_test_context_with_subjects(context_name, self.dev_url, 2)
 
-        # Set READONLY mode
-        original_readonly = os.environ.get("READONLY", "false")
-        os.environ["READONLY"] = "true"
+        # Set VIEWONLY mode
+        original_viewonly = os.environ.get("VIEWONLY", "false")
+        os.environ["VIEWONLY"] = "true"
 
         try:
-            # Reload modules to pick up READONLY setting
+            # Reload modules to pick up VIEWONLY setting
             import importlib
 
             importlib.reload(single_mcp)
 
-            # Dry run should work in READONLY mode
+            # Dry run should work in VIEWONLY mode
             dry_result = single_mcp.clear_context_batch(context=context_name, dry_run=True)
-            assert dry_result["dry_run"] == True, "Dry run should work in READONLY mode"
+            assert dry_result["dry_run"] == True, "Dry run should work in VIEWONLY mode"
 
             # Actual deletion should be blocked
             delete_result = single_mcp.clear_context_batch(context=context_name, dry_run=False)
-            assert "readonly_mode" in delete_result or "READONLY" in str(
+            assert "viewonly_mode" in delete_result or "VIEWONLY" in str(
                 delete_result
-            ), "Should block deletion in READONLY mode"
+            ), "Should block deletion in VIEWONLY mode"
 
         finally:
-            # Restore original READONLY setting
-            os.environ["READONLY"] = original_readonly
+            # Restore original VIEWONLY setting
+            os.environ["VIEWONLY"] = original_viewonly
             importlib.reload(single_mcp)
 
     def test_large_context_performance(self):

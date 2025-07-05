@@ -374,7 +374,7 @@ async def test_batch_cleanup():
 
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
-    os.environ["READONLY"] = "false"
+    os.environ["VIEWONLY"] = "false"
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))

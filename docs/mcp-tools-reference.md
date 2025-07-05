@@ -29,7 +29,7 @@ The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** tha
 - ✅ **48 MCP Tools**: Complete schema operations without API knowledge
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
-- ✅ **Production Safety**: READONLY mode blocks modifications in production
+- ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 
@@ -1665,4 +1665,4 @@ Common error scenarios:
 
 ---
 
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 
+This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional VIEWONLY mode for production safety. 

@@ -36,18 +36,18 @@ SCHEMA_REGISTRY_BASE_URL = "http://localhost:38081"
 SIMULATED_REGISTRIES = {
     "development": {
         "context": "development",
-        "readonly": False,
+        "viewonly": False,
         "description": "Development environment",
     },
     "staging": {
         "context": "staging",
-        "readonly": False,
+        "viewonly": False,
         "description": "Staging environment",
     },
     "production": {
         "context": "production",
-        "readonly": True,
-        "description": "Production environment (readonly)",
+        "viewonly": True,
+        "description": "Production environment (viewonly)",
     },
 }
 
@@ -138,7 +138,7 @@ class IntegrationTestSetup:
         # Register some schemas in staging
         await self._register_schema("staging", "user-events", user_schema)
 
-        # Register schema in production (this will work since we register before setting readonly)
+        # Register schema in production (this will work since we register before setting viewonly)
         await self._register_schema("production", "user-events", user_schema)
 
         print("✅ Test schemas registered")
@@ -184,8 +184,8 @@ async def test_numbered_config_integration():
     # Test 3: Cross-Registry Operations
     await test_cross_registry_operations()
 
-    # Test 4: Per-Registry READONLY Mode
-    await test_per_registry_readonly()
+    # Test 4: Per-Registry VIEWONLY Mode
+    await test_per_registry_viewonly()
 
     print("\n" + "=" * 70)
     print("🎉 Integration Test Complete!")
@@ -202,7 +202,7 @@ async def test_single_registry_mode():
     env["SCHEMA_REGISTRY_URL"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER"] = ""
     env["SCHEMA_REGISTRY_PASSWORD"] = ""
-    env["READONLY"] = "false"
+    env["VIEWONLY"] = "false"
 
     # Clear numbered variables
     for i in range(1, 9):
@@ -210,7 +210,7 @@ async def test_single_registry_mode():
         env.pop(f"SCHEMA_REGISTRY_URL_{i}", None)
         env.pop(f"SCHEMA_REGISTRY_USER_{i}", None)
         env.pop(f"SCHEMA_REGISTRY_PASSWORD_{i}", None)
-        env.pop(f"READONLY_{i}", None)
+        env.pop(f"VIEWONLY_{i}", None)
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -268,19 +268,19 @@ async def test_multi_registry_mode():
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_1"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_1"] = ""
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_2"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_2"] = ""
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_3"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_3"] = ""
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -309,8 +309,8 @@ async def _test_multi_registry_with_client(server_params):
                 print(f"✅ Multi mode: Found {len(registries)} registries")
                 for registry in registries:
                     name = registry.get("name")
-                    readonly = registry.get("readonly", False)
-                    print(f"   • {name}: readonly={readonly}")
+                    viewonly = registry.get("viewonly", False)
+                    print(f"   • {name}: viewonly={viewonly}")
 
             # Test connection to all registries
             result = await session.call_tool("test_all_registries", {})
@@ -344,15 +344,15 @@ async def test_cross_registry_operations():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -422,22 +422,22 @@ async def _test_cross_registry_with_client(server_params):
 
 
 @pytest.mark.asyncio
-async def test_per_registry_readonly():
-    """Test per-registry READONLY mode protection."""
-    print("\n🔧 Testing Per-Registry READONLY Mode (Integration)")
+async def test_per_registry_viewonly():
+    """Test per-registry VIEWONLY mode protection."""
+    print("\n🔧 Testing Per-Registry VIEWONLY Mode (Integration)")
     print("-" * 50)
 
-    # Configure with production as readonly
+    # Configure with production as viewonly
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "production"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_2"] = "true"
+    env["VIEWONLY_2"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -446,15 +446,15 @@ async def test_per_registry_readonly():
     server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(_test_per_registry_readonly_with_client(server_params), timeout=30.0)
+        await asyncio.wait_for(_test_per_registry_viewonly_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
-        print("❌ Per-registry readonly test timed out after 30 seconds")
+        print("❌ Per-registry viewonly test timed out after 30 seconds")
     except Exception as e:
-        print(f"❌ Per-registry READONLY test failed: {e}")
+        print(f"❌ Per-registry VIEWONLY test failed: {e}")
 
 
-async def _test_per_registry_readonly_with_client(server_params):
-    """Helper function for per-registry readonly test with timeout protection."""
+async def _test_per_registry_viewonly_with_client(server_params):
+    """Helper function for per-registry viewonly test with timeout protection."""
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -495,11 +495,11 @@ async def _test_per_registry_readonly_with_client(server_params):
             )
             if result.content and len(result.content) > 0:
                 response = json.loads(result.content[0].text)
-                if "readonly_mode" in response:
-                    print("✅ Production schema registration blocked by READONLY mode")
+                if "viewonly_mode" in response:
+                    print("✅ Production schema registration blocked by VIEWONLY mode")
                     print(f"   Message: {response.get('error', 'Blocked')}")
                 else:
-                    print("❌ Production READONLY mode not working correctly")
+                    print("❌ Production VIEWONLY mode not working correctly")
 
             # Test read operations in production (should work)
             result = await session.call_tool("list_subjects", {"context": "production"})
@@ -523,7 +523,7 @@ async def test_numbered_integration():
             "name": "Single Registry",
             "env": {
                 "SCHEMA_REGISTRY_URL": "http://localhost:38081",
-                "READONLY": "false",
+                "VIEWONLY": "false",
             },
         },
         {
@@ -533,7 +533,7 @@ async def test_numbered_integration():
                 "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
                 "SCHEMA_REGISTRY_NAME_1": "dev",
                 "SCHEMA_REGISTRY_NAME_2": "prod",
-                "READONLY": "false",
+                "VIEWONLY": "false",
             },
         },
     ]

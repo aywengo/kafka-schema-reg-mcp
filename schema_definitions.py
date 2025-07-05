@@ -247,9 +247,9 @@ REGISTRY_INFO_SCHEMA = {
             "enum": ["none", "basic", "oauth", "ssl"],
             "description": "Authentication type",
         },
-        "readonly": {
+        "viewonly": {
             "type": "boolean",
-            "description": "Whether registry is in readonly mode",
+            "description": "Whether registry is in viewonly mode",
         },
         "version": {"type": "string", "description": "Schema Registry server version"},
         "capabilities": {
