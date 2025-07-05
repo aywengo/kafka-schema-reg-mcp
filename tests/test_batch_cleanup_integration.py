@@ -7,7 +7,7 @@ This test suite thoroughly validates all BATCH CLEANUP TOOLS including:
 - Error handling and edge cases
 - Performance under load
 - Multi-registry scenarios
-- READONLY mode protection
+- VIEWONLY mode protection
 - Rollback and partial failure scenarios
 """
 

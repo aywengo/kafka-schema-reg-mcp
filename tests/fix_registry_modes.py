@@ -4,7 +4,7 @@ Fix Schema Registry Modes for Migration Testing
 
 This script checks and fixes the modes of DEV and PROD registries:
 - DEV (38081): Should be READWRITE or IMPORT for testing
-- PROD (38082): Can be READONLY for production safety
+- PROD (38082): Can be VIEWONLY for production safety
 """
 
 

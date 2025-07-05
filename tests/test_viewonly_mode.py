@@ -49,8 +49,8 @@ async def test_viewonly_mode():
             print("✅ MCP connection established")
 
             # Test the check_viewonly_mode tool (now handles both VIEWONLY and READONLY)
-            readonly_check = await client.call_tool("check_viewonly_mode", {})
-            if readonly_check and ("viewonly_mode" in str(readonly_check) or "readonly_mode" in str(readonly_check)):
+            viewonly_check = await client.call_tool("check_viewonly_mode", {})
+            if viewonly_check and ("viewonly_mode" in str(viewonly_check) or "readonly_mode" in str(viewonly_check)):
                 print("✅ VIEWONLY check working: view-only mode is active")
             else:
                 print("❌ VIEWONLY check failed - should return error in viewonly mode")
@@ -113,7 +113,7 @@ async def test_viewonly_mode():
                     else:
                         print(f"✅ {func_name}: Correctly allowed in VIEWONLY mode")
                 except Exception as e:
-                    # These might fail due to connection issues, but shouldn't be blocked by readonly mode
+                    # These might fail due to connection issues, but shouldn't be blocked by viewonly mode
                     if "viewonly" in str(e).lower() or "readonly" in str(e).lower():
                         print(f"❌ {func_name}: Incorrectly blocked by viewonly mode")
                     else:

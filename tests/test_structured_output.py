@@ -259,7 +259,7 @@ class TestToolIntegration(unittest.TestCase):
 
     @patch("core_registry_tools.requests")
     @patch("schema_registry_common.check_viewonly_mode")
-    @patch.dict("os.environ", {"VIEWONLY": "false", "READONLY": ""}, clear=False)
+    @patch.dict("os.environ", {"VIEWONLY": "false"}, clear=False)
     def test_register_schema_tool_structured_output(self, mock_viewonly_check, mock_requests):
         """Test register_schema tool with structured output."""
         # Force reload modules to clear any cached VIEWONLY state

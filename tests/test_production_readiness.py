@@ -190,8 +190,8 @@ async def _test_high_availability_with_client(server_params):
             print(f"     Primary only: {primary_only}")
             print(f"     DR only: {dr_only}")
 
-            # Test 4: Failover simulation (readonly enforcement)
-            print("\nTest 4: Failover simulation - DR readonly protection")
+            # Test 4: Failover simulation (viewonly enforcement)
+            print("\nTest 4: Failover simulation - DR viewonly protection")
             result = await session.call_tool(
                 "register_schema",
                 {
@@ -963,7 +963,7 @@ async def test_production_mcp_deployment():
                             if not any(keyword in str(e).lower() for keyword in ["connection", "refused", "timeout"]):
                                 config_passed = False
 
-                # Test readonly enforcement if applicable
+                # Test viewonly enforcement if applicable
                 if config["env"].get("VIEWONLY") == "true" or config["env"].get("VIEWONLY_2") == "true":
                     print("🔒 Testing viewonly enforcement...")
                     modification_tools = [
@@ -1144,7 +1144,7 @@ async def main():
 
         print("\n🔒 **Security & Compliance:**")
         print("• Multi-environment isolation")
-        print("• READONLY mode enforcement")
+        print("• VIEWONLY mode enforcement")
         print("• PII and financial data schemas")
         print("• Audit logging capabilities")
         print("• GDPR compliance fields")
