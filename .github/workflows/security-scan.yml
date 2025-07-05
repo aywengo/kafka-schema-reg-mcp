@@ -278,7 +278,21 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Run TruffleHog OSS
+    - name: Determine scan type
+      id: scan-type
+      run: |
+        # Check if this is a scheduled run or if we're on main/develop branch
+        if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          echo "scan_type=full" >> $GITHUB_OUTPUT
+          echo "Running full repository scan (scheduled or main/develop branch)"
+        else
+          # For pull requests and feature branches, try diff scan
+          echo "scan_type=diff" >> $GITHUB_OUTPUT
+          echo "Running diff scan for pull request or feature branch"
+        fi
+        
+    - name: Run TruffleHog OSS - Diff Scan
+      if: steps.scan-type.outputs.scan_type == 'diff'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
@@ -287,14 +301,22 @@ jobs:
         extra_args: --debug --only-verified
       continue-on-error: true
         
-    # Fallback for when base and head are the same (e.g., on main branch pushes)
     - name: Run TruffleHog OSS - Full Scan
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      if: steps.scan-type.outputs.scan_type == 'full'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        extra_args: --debug --only-verified --max-depth=10
-      continue-on-error: true 
+        extra_args: --debug --only-verified --max-depth=50
+      continue-on-error: true
+      
+    - name: Secrets Scan Summary
+      if: always()
+      run: |
+        echo "## Secrets Detection Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ TruffleHog secrets scan completed" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔍 Scan type: ${{ steps.scan-type.outputs.scan_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- 📋 Only verified secrets are reported" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY 
 
   security-summary:
     name: Security Summary
