@@ -586,7 +586,7 @@ async def migrate_schema_interactive(
                     else:
                         versions_url = f"{target_client.config.url}/subjects/{subject}/versions"
 
-                    response = requests.get(
+                    response = target_client.session.get(
                         versions_url,
                         auth=target_client.auth,
                         headers=target_client.headers,

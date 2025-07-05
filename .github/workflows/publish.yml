@@ -162,11 +162,9 @@ jobs:
           echo "Looking for changelog section: $CHANGELOG_SECTION"
           
           # Extract the section from CHANGELOG.md
-          awk "
-            /^## \\\\[$VERSION\\\\]/ { found=1; print; next }
-            /^## \\\\[/ && found { found=0 }
-            found { print }
-          " CHANGELOG.md > release_notes.md
+          awk '/^## \['"$VERSION"'\]/ { found=1; print; next }
+               /^## \[/ && found { found=0 }
+               found { print }' CHANGELOG.md > release_notes.md
           
           # Check if we found content
           if [ ! -s release_notes.md ]; then

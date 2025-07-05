@@ -257,10 +257,9 @@ class TestToolIntegration(unittest.TestCase):
         if not MODULES_AVAILABLE:
             self.skipTest("Required modules not available")
 
-    @patch("core_registry_tools.requests")
     @patch("schema_registry_common.check_viewonly_mode")
     @patch.dict("os.environ", {"VIEWONLY": "false"}, clear=False)
-    def test_register_schema_tool_structured_output(self, mock_viewonly_check, mock_requests):
+    def test_register_schema_tool_structured_output(self, mock_viewonly_check):
         """Test register_schema tool with structured output."""
         # Force reload modules to clear any cached VIEWONLY state
         import importlib
@@ -278,11 +277,17 @@ class TestToolIntegration(unittest.TestCase):
         mock_response = Mock()
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"id": 123}
-        mock_requests.post.return_value = mock_response
+
+        # Mock client and its session
+        mock_client = Mock()
+        mock_client.session.post.return_value = mock_response
+        mock_client.build_context_url.return_value = "http://localhost:8081/subjects/test-subject/versions"
+        mock_client.auth = None
+        mock_client.headers = {"Content-Type": "application/json"}
 
         # Mock registry manager
         mock_registry_manager = Mock()
-        mock_registry_manager.get_default_registry.return_value = "default-registry"
+        mock_registry_manager.get_default_registry.return_value = mock_client
 
         try:
             from core_registry_tools import register_schema_tool

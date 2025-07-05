@@ -1,5 +1,5 @@
 # FastMCP 2.8.0+ for MCP 2025-06-18 specification compliance - Issue #32
-fastmcp>=2.9.0
+fastmcp>=2.10.1
 
 # FastAPI for MCP-Protocol-Version header validation middleware
 fastapi>=0.115.0

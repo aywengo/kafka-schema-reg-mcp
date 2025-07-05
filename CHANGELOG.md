@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Security vulnerabilities: 22 CVEs addressed through package removal and documentation
 - Deprecated `READONLY_X` environment variable replaced with `VIEWONLY_X`
+- CVE-2025-53365
 
 
 ## [2.0.3] - 2025-07-01

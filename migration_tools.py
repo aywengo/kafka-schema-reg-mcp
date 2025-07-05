@@ -480,7 +480,7 @@ def _execute_schema_migration(
             else:
                 source_versions_url = f"{source_client.config.url}/subjects/{subject}/versions"
 
-            response = requests.get(
+            response = source_client.session.get(
                 source_versions_url,
                 auth=source_client.auth,
                 headers=source_client.headers,
@@ -552,7 +552,7 @@ def _execute_schema_migration(
         if preserve_ids:
             try:
                 # Get current target registry mode
-                mode_response = requests.get(
+                mode_response = target_client.session.get(
                     f"{target_client.config.url}/mode",
                     auth=target_client.auth,
                     headers=target_client.headers,
@@ -567,7 +567,7 @@ def _execute_schema_migration(
                             f"Setting target registry to IMPORT mode for ID preservation "
                             f"(was {original_target_mode})"
                         )
-                        import_response = requests.put(
+                        import_response = target_client.session.put(
                             f"{target_client.config.url}/mode",
                             json={"mode": "IMPORT"},
                             auth=target_client.auth,
@@ -712,7 +712,7 @@ def _execute_schema_migration(
                     else:
                         schema_url = f"{source_client.config.url}/subjects/{subject}/versions/{version}"
 
-                    schema_response = requests.get(
+                    schema_response = source_client.session.get(
                         schema_url,
                         auth=source_client.auth,
                         headers=source_client.headers,
@@ -752,7 +752,7 @@ def _execute_schema_migration(
                         # Also preserve version number in IMPORT mode
                         payload_with_id["version"] = version
 
-                        target_response = requests.post(
+                        target_response = target_client.session.post(
                             target_url,
                             json=payload_with_id,
                             auth=target_client.auth,
@@ -794,7 +794,7 @@ def _execute_schema_migration(
                             )
 
                     # Fallback: register without ID preservation
-                    target_response = requests.post(
+                    target_response = target_client.session.post(
                         target_url,
                         json=payload,
                         auth=target_client.auth,
@@ -846,7 +846,7 @@ def _execute_schema_migration(
             if original_target_mode and original_target_mode != "IMPORT":
                 try:
                     logger.info(f"Restoring target registry to original mode: {original_target_mode}")
-                    restore_response = requests.put(
+                    restore_response = target_client.session.put(
                         f"{target_client.config.url}/mode",
                         json={"mode": original_target_mode},
                         auth=target_client.auth,

@@ -80,15 +80,23 @@ def register_schema_tool(
 
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
             payload = {
                 "schema": json.dumps(schema_definition),
                 "schemaType": schema_type,
             }
 
-            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
+            url = client.build_context_url(f"/subjects/{subject}/versions", context)
 
-            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
+            response = client.session.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -129,7 +137,7 @@ def register_schema_tool(
 
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
 
-            response = requests.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
+            response = client.session.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -183,10 +191,18 @@ def get_schema_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}/versions/{version}", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=headers)
+            url = client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -226,7 +242,7 @@ def get_schema_tool(
 
             url = client.build_context_url(f"/subjects/{subject}/versions/{version}", context)
 
-            response = requests.get(url, auth=client.auth, headers=client.headers)
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -282,10 +298,18 @@ def get_schema_versions_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}/versions", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=headers)
+            url = client.build_context_url(f"/subjects/{subject}/versions", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
 
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
@@ -325,7 +349,7 @@ def get_schema_versions_tool(
 
             url = client.build_context_url(f"/subjects/{subject}/versions", context)
 
-            response = requests.get(url, auth=client.auth, headers=client.headers)
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
 
             # Handle 404 specifically - subject doesn't exist
             if response.status_code == 404:
@@ -379,10 +403,18 @@ def list_subjects_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy("/subjects", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=headers)
+            url = client.build_context_url("/subjects", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             subjects_list = response.json()
 
@@ -458,14 +490,18 @@ def check_compatibility_tool(
         payload = {"schema": json.dumps(schema_definition), "schemaType": schema_type}
 
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(
-                f"/compatibility/subjects/{subject}/versions/latest",
-                schema_registry_url,
-                context,
-            )
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.post(url, data=json.dumps(payload), auth=auth, headers=headers)
+            url = client.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
+
+            response = client.session.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -493,7 +529,7 @@ def check_compatibility_tool(
 
             url = client.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
 
-            response = requests.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
+            response = client.session.post(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -544,10 +580,18 @@ def get_global_config_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy("/config", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=standard_headers)
+            url = client.build_context_url("/config", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -572,7 +616,7 @@ def get_global_config_tool(
 
             url = client.build_context_url("/config", context)
 
-            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -620,10 +664,18 @@ def update_global_config_tool(
         payload = {"compatibility": compatibility}
 
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy("/config", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
+            url = client.build_context_url("/config", context)
+
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -648,12 +700,7 @@ def update_global_config_tool(
 
             url = client.build_context_url("/config", context)
 
-            response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers={"Content-Type": "application/json"},
-            )
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -694,10 +741,18 @@ def get_subject_config_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=standard_headers)
+            url = client.build_context_url(f"/config/{subject}", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -722,7 +777,7 @@ def get_subject_config_tool(
 
             url = client.build_context_url(f"/config/{subject}", context)
 
-            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -776,8 +831,17 @@ def update_subject_config_tool(
         payload = {"compatibility": compatibility}
 
         if registry_mode == "single":
-            url = build_context_url_legacy(f"/config/{subject}", schema_registry_url, context)
-            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            url = client.build_context_url(f"/config/{subject}", context)
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -800,12 +864,7 @@ def update_subject_config_tool(
                 )
 
             url = client.build_context_url(f"/config/{subject}", context)
-            response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers={"Content-Type": "application/json"},
-            )
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -851,10 +910,18 @@ def get_mode_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy("/mode", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=standard_headers)
+            url = client.build_context_url("/mode", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -879,7 +946,7 @@ def get_mode_tool(
 
             url = client.build_context_url("/mode", context)
 
-            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -927,10 +994,18 @@ def update_mode_tool(
         payload = {"mode": mode}
 
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy("/mode", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
+            url = client.build_context_url("/mode", context)
+
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -955,12 +1030,7 @@ def update_mode_tool(
 
             url = client.build_context_url("/mode", context)
 
-            response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers={"Content-Type": "application/json"},
-            )
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1001,10 +1071,18 @@ def get_subject_mode_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.get(url, auth=auth, headers=standard_headers)
+            url = client.build_context_url(f"/mode/{subject}", context)
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1029,7 +1107,7 @@ def get_subject_mode_tool(
 
             url = client.build_context_url(f"/mode/{subject}", context)
 
-            response = requests.get(url, auth=client.auth, headers={"Content-Type": "application/json"})
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1083,10 +1161,18 @@ def update_subject_mode_tool(
         payload = {"mode": mode}
 
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/mode/{subject}", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
 
-            response = requests.put(url, data=json.dumps(payload), auth=auth, headers=standard_headers)
+            url = client.build_context_url(f"/mode/{subject}", context)
+
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1111,12 +1197,7 @@ def update_subject_mode_tool(
 
             url = client.build_context_url(f"/mode/{subject}", context)
 
-            response = requests.put(
-                url,
-                data=json.dumps(payload),
-                auth=client.auth,
-                headers={"Content-Type": "application/json"},
-            )
+            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
 
@@ -1156,8 +1237,16 @@ def list_contexts_tool(
     """
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            response = requests.get(f"{schema_registry_url}/contexts", auth=auth, headers=headers)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            response = client.session.get(f"{client.config.url}/contexts", auth=client.auth, headers=client.headers)
             response.raise_for_status()
             contexts_list = response.json()
 
@@ -1228,8 +1317,16 @@ def create_context_tool(
 
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            response = requests.post(f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            response = client.session.post(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = create_success_response(f"Context '{context}' created successfully", registry_mode="single")
 
@@ -1248,11 +1345,7 @@ def create_context_tool(
                     registry_mode="multi",
                 )
 
-            response = requests.post(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers,
-            )
+            response = client.session.post(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = create_success_response(
                 f"Context '{context}' created successfully",
@@ -1295,8 +1388,16 @@ def delete_context_tool(
 
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            response = requests.delete(f"{schema_registry_url}/contexts/{context}", auth=auth, headers=headers)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            response = client.session.delete(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = create_success_response(f"Context '{context}' deleted successfully", registry_mode="single")
 
@@ -1315,11 +1416,7 @@ def delete_context_tool(
                     registry_mode="multi",
                 )
 
-            response = requests.delete(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers,
-            )
+            response = client.session.delete(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = create_success_response(
                 f"Context '{context}' deleted successfully",
@@ -1366,14 +1463,22 @@ async def delete_subject_tool(
 
     try:
         if registry_mode == "single":
-            # Single-registry mode: use legacy approach
-            url = build_context_url_legacy(f"/subjects/{subject}", schema_registry_url, context)
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            url = client.build_context_url(f"/subjects/{subject}", context)
 
             # Add permanent parameter if specified
             if permanent:
                 url += "?permanent=true"
 
-            response = requests.delete(url, auth=auth, headers=headers)
+            response = client.session.delete(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             deleted_versions = response.json()
 

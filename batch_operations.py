@@ -378,7 +378,7 @@ def _delete_subject_from_context(registry_client, subject: str, context: Optiona
     """
     try:
         url = registry_client.build_context_url(f"/subjects/{subject}", context)
-        response = requests.delete(url, auth=registry_client.auth, headers=registry_client.headers)
+        response = registry_client.session.delete(url, auth=registry_client.auth, headers=registry_client.headers)
         return response.status_code in [200, 404]  # 404 is OK, subject already deleted
     except Exception:
         return False
