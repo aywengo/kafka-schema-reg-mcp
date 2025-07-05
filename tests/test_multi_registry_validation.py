@@ -51,11 +51,11 @@ class MultiRegistryValidationTest:
         # Setup environment for multi-registry mode
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
         os.environ["SCHEMA_REGISTRY_URL_1"] = self.dev_url
-        os.environ["READONLY_1"] = "false"
+        os.environ["VIEWONLY_1"] = "false"
 
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
-        os.environ["READONLY_2"] = "true"  # PROD should be read-only
+        os.environ["VIEWONLY_2"] = "true"  # PROD should be viewonly
 
         # Clear any other registry configurations
         for i in range(3, 9):
@@ -128,10 +128,10 @@ class MultiRegistryValidationTest:
             for registry in registries:
                 name = registry.get("name", "unknown")
                 url = registry.get("url", "unknown")
-                readonly = registry.get("readonly", False)
+                viewonly = registry.get("viewonly", False)
                 connection_status = registry.get("connection_status", "unknown")
 
-                print(f"   📊 {name}: {url} (readonly: {readonly}, status: {connection_status})")
+                print(f"   📊 {name}: {url} (readonly: {viewonly}, status: {connection_status})")
 
                 if connection_status != "connected":
                     print(f"   ⚠️  Registry {name} is not connected")

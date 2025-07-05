@@ -73,7 +73,7 @@ async def test_invalid_registry_configuration():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "invalid_registry"
     env["SCHEMA_REGISTRY_URL_1"] = "http://nonexistent.registry:9999"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -127,7 +127,7 @@ async def test_readonly_mode_enforcement():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "readonly_test"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "true"  # Set to readonly
+    env["VIEWONLY_1"] = "true"  # Set to viewonly
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -219,7 +219,7 @@ async def test_invalid_parameters():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "param_test"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -313,15 +313,15 @@ async def test_cross_registry_error_scenarios():
     # Setup one valid and one invalid registry
     env["SCHEMA_REGISTRY_NAME_1"] = "valid_registry"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "invalid_registry"
     env["SCHEMA_REGISTRY_URL_2"] = "http://invalid.host:9999"
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "readonly_registry"
     env["SCHEMA_REGISTRY_URL_3"] = "http://localhost:38081"
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -421,7 +421,7 @@ async def test_resource_limits_and_timeouts():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "timeout_test"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -494,7 +494,7 @@ async def test_authentication_errors():
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
     env["SCHEMA_REGISTRY_USER_1"] = "invalid_user"
     env["SCHEMA_REGISTRY_PASSWORD_1"] = "invalid_password"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -687,7 +687,7 @@ async def test_connection_error_handling():
 
     # Setup environment with invalid registry URL
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:99999"  # Invalid port
-    os.environ["READONLY"] = "false"
+    os.environ["VIEWONLY"] = "false"
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -759,7 +759,7 @@ async def test_invalid_input_handling():
 
     # Setup environment with valid registry URL
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
-    os.environ["READONLY"] = "false"
+    os.environ["VIEWONLY"] = "false"
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -826,7 +826,7 @@ async def test_error_recovery():
 
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
-    os.environ["READONLY"] = "false"
+    os.environ["VIEWONLY"] = "false"
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))

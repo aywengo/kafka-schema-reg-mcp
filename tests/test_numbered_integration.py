@@ -10,7 +10,7 @@ Test Strategy:
 1. Use contexts to simulate different "registries": development, staging, production
 2. Configure MCP server with numbered environment variables pointing to same registry but different contexts
 3. Test schema operations across different "registries"
-4. Test per-registry READONLY mode
+4. Test per-registry VIEWONLY mode
 5. Test cross-registry operations (comparison, migration)
 """
 
