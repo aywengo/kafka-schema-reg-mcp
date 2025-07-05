@@ -1325,7 +1325,9 @@ def create_context_tool(
                     registry_mode="single",
                 )
 
-            response = client.session.post(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
+            response = client.session.post(
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
+            )
             response.raise_for_status()
             result = create_success_response(f"Context '{context}' created successfully", registry_mode="single")
 
@@ -1344,7 +1346,9 @@ def create_context_tool(
                     registry_mode="multi",
                 )
 
-            response = client.session.post(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
+            response = client.session.post(
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
+            )
             response.raise_for_status()
             result = create_success_response(
                 f"Context '{context}' created successfully",
@@ -1397,9 +1401,7 @@ def delete_context_tool(
                 )
 
             response = client.session.delete(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             result = create_success_response(f"Context '{context}' deleted successfully", registry_mode="single")
@@ -1420,9 +1422,7 @@ def delete_context_tool(
                 )
 
             response = client.session.delete(
-                f"{client.config.url}/contexts/{context}",
-                auth=client.auth,
-                headers=client.headers
+                f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers
             )
             response.raise_for_status()
             result = create_success_response(
