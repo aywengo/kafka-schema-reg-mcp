@@ -265,11 +265,12 @@ class TestToolIntegration(unittest.TestCase):
         # Force reload modules to clear any cached VIEWONLY state
         import importlib
         import sys
-        if 'kafka_schema_registry_unified_mcp' in sys.modules:
-            importlib.reload(sys.modules['kafka_schema_registry_unified_mcp'])
-        if 'schema_registry_common' in sys.modules:
-            importlib.reload(sys.modules['schema_registry_common'])
-        
+
+        if "kafka_schema_registry_unified_mcp" in sys.modules:
+            importlib.reload(sys.modules["kafka_schema_registry_unified_mcp"])
+        if "schema_registry_common" in sys.modules:
+            importlib.reload(sys.modules["schema_registry_common"])
+
         # Mock viewonly check to return None (not viewonly)
         mock_viewonly_check.return_value = None
 
@@ -303,7 +304,7 @@ class TestToolIntegration(unittest.TestCase):
             self.assertIsInstance(result, dict)
             self.assertEqual(result["registry_mode"], "single")
             self.assertEqual(result["mcp_protocol_version"], "2025-06-18")
-            
+
             # Check if operation was blocked by VIEWONLY mode or succeeded
             if "error" in result and "viewonly_mode" in result:
                 # Operation was blocked by VIEWONLY mode - this is expected

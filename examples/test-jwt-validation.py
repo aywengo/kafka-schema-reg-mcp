@@ -259,28 +259,28 @@ def print_testing_guide():
     print(
         """
 1. **Test OAuth 2.1 Discovery:**
-   
+
    # Test discovery endpoint
    curl https://your-oauth-provider.com/.well-known/oauth-authorization-server | jq
-   
+
    # Test MCP server discovery
    curl http://localhost:8000/.well-known/oauth-authorization-server | jq
 
 2. **Get a real JWT token from your OAuth 2.1 provider:**
-   
+
    Azure AD:
    curl -X POST https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\
      -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET&scope=your-client-id/.default"
-   
+
    Google:
    # Use Google OAuth Playground: https://developers.google.com/oauthplayground
-   
+
    Keycloak:
    curl -X POST https://keycloak.example.com/realms/your-realm/protocol/openid-connect/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\
      -d "grant_type=client_credentials&client_id=CLIENT_ID&client_secret=CLIENT_SECRET"
-   
+
    Any OAuth 2.1 Provider:
    curl -X POST https://your-oauth-provider.com/token \\
      -H "Content-Type: application/x-www-form-urlencoded" \\

@@ -242,7 +242,7 @@ def migrate_schema_tool(
 
             return migration_result
 
-        except MigrationConfirmationRequired as e:
+        except MigrationConfirmationRequired:
             # Re-raise confirmation required exceptions - don't convert them to generic errors
             raise
         except Exception as e:
@@ -650,7 +650,6 @@ def _execute_schema_migration(
                 # Re-raise confirmation required exceptions
                 raise
             except Exception as e:
-                id_preservation_failed = True
                 id_preservation_error = str(e)
                 logger.warning(f"Error setting IMPORT mode: {str(e)}.")
 

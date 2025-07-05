@@ -398,10 +398,10 @@ from registry_management_tools import (  # noqa: E402
 
 # Import common library functionality
 from schema_registry_common import (  # noqa: E402
-    SINGLE_VIEWONLY,
     SINGLE_REGISTRY_PASSWORD,
     SINGLE_REGISTRY_URL,
     SINGLE_REGISTRY_USER,
+    SINGLE_VIEWONLY,
     LegacyRegistryManager,
     MultiRegistryManager,
 )

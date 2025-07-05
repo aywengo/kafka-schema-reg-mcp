@@ -93,7 +93,7 @@ class TestConfig:
             dev_response = requests.get("http://localhost:38081/subjects", timeout=2)
             prod_response = requests.get("http://localhost:38082/subjects", timeout=2)
             return dev_response.status_code == 200 and prod_response.status_code == 200
-        except:
+        except Exception:
             return False
 
     def get_primary_registry_config(self) -> Dict[str, str]:

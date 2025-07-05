@@ -143,23 +143,18 @@ async def test_viewonly_mode_enforcement():
 
                 # Test operations that should be blocked
                 viewonly_operations = [
-                    ("register_schema", {
-                        "subject": "test-subject",
-                        "schema_definition": {"type": "string"},
-                        "registry": "viewonly_test",
-                    }),
-                    ("create_context", {
-                        "context": "test-context", "registry": "viewonly_test"
-                    }),
-                    ("delete_context", {
-                        "context": "default", "registry": "viewonly_test"
-                    }),
-                    ("delete_subject", {
-                        "subject": "test-subject", "registry": "viewonly_test"
-                    }),
-                    ("update_global_config", {
-                        "compatibility": "BACKWARD", "registry": "viewonly_test"
-                    }),
+                    (
+                        "register_schema",
+                        {
+                            "subject": "test-subject",
+                            "schema_definition": {"type": "string"},
+                            "registry": "viewonly_test",
+                        },
+                    ),
+                    ("create_context", {"context": "test-context", "registry": "viewonly_test"}),
+                    ("delete_context", {"context": "default", "registry": "viewonly_test"}),
+                    ("delete_subject", {"subject": "test-subject", "registry": "viewonly_test"}),
+                    ("update_global_config", {"compatibility": "BACKWARD", "registry": "viewonly_test"}),
                     ("update_mode", {"mode": "READWRITE", "registry": "viewonly_test"}),
                 ]
 
@@ -167,7 +162,7 @@ async def test_viewonly_mode_enforcement():
                     try:
                         response = await session.call_tool(operation_name, params)
                         result = json.loads(response.content[0].text) if response.content else {}
-                        
+
                         if "viewonly" in result.get("error", "").lower() or result.get("viewonly_mode"):
                             print(f"  ✅ {operation_name} properly blocked by viewonly mode")
                         else:

@@ -27,7 +27,7 @@ async def test_viewonly_mode():
     # Store original environment state
     original_viewonly = os.environ.get("VIEWONLY")
     original_readonly = os.environ.get("READONLY")
-    
+
     try:
         # Test with VIEWONLY=false first (normal mode)
         print("\n🟢 Testing NORMAL mode (VIEWONLY=false)...")
@@ -84,7 +84,11 @@ async def test_viewonly_mode():
                 try:
                     result = await client.call_tool(func_name, args)
                     result_text = str(result)
-                    if "viewonly_mode" in result_text.lower() or "view-only" in result_text.lower() or "readonly_mode" in result_text.lower():
+                    if (
+                        "viewonly_mode" in result_text.lower()
+                        or "view-only" in result_text.lower()
+                        or "readonly_mode" in result_text.lower()
+                    ):
                         print(f"✅ {func_name}: Correctly blocked in VIEWONLY mode")
                     else:
                         print(f"❌ {func_name}: Should be blocked but wasn't! Result: {result_text}")
@@ -183,7 +187,7 @@ async def test_viewonly_mode():
             os.environ["VIEWONLY"] = original_viewonly
         else:
             os.environ.pop("VIEWONLY", None)
-        
+
         if original_readonly is not None:
             os.environ["READONLY"] = original_readonly
         else:
@@ -198,11 +202,11 @@ def test_viewonly_environment_variations():
 
     import kafka_schema_registry_unified_mcp
     import schema_registry_common
-    
+
     # Store original environment state
     original_viewonly = os.environ.get("VIEWONLY")
     original_readonly = os.environ.get("READONLY")
-    
+
     try:
         test_values = [
             ("true", True),
@@ -233,7 +237,7 @@ def test_viewonly_environment_variations():
             actual = kafka_schema_registry_unified_mcp.VIEWONLY
             status = "✅" if actual == expected else "❌"
             print(f"{status} VIEWONLY='{value}' → {actual} (expected: {expected})")
-        
+
         # Test backward compatibility with READONLY
         print("\nTesting backward compatibility with READONLY:")
         for value, expected in test_values:
@@ -245,7 +249,7 @@ def test_viewonly_environment_variations():
             actual = kafka_schema_registry_unified_mcp.VIEWONLY
             status = "✅" if actual == expected else "❌"
             print(f"{status} READONLY='{value}' → {actual} (expected: {expected})")
-        
+
         # Test VIEWONLY takes precedence over READONLY
         print("\nTesting VIEWONLY takes precedence over READONLY:")
         os.environ["READONLY"] = "false"
@@ -261,7 +265,7 @@ def test_viewonly_environment_variations():
             os.environ["VIEWONLY"] = original_viewonly
         else:
             os.environ.pop("VIEWONLY", None)
-        
+
         if original_readonly is not None:
             os.environ["READONLY"] = original_readonly
         else:

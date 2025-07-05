@@ -36,11 +36,12 @@ SINGLE_VIEWONLY = os.getenv("VIEWONLY", os.getenv("READONLY", "false")).lower() 
 # Warn if deprecated READONLY parameter is used
 if os.getenv("READONLY") is not None and os.getenv("VIEWONLY") is None:
     import warnings
+
     warnings.warn(
         "READONLY parameter is deprecated. Please use VIEWONLY instead. "
         "Support for READONLY will be removed in a future version.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     print("⚠️  WARNING: READONLY parameter is deprecated. Please use VIEWONLY instead.")
     print("   Example: export VIEWONLY=true")
@@ -817,16 +818,17 @@ class BaseRegistryManager:
         if not client:
             return False
         return client.config.viewonly
-    
+
     # Backward compatibility alias
     def is_readonly(self, registry_name: Optional[str] = None) -> bool:
         """Deprecated: Use is_viewonly instead."""
         import warnings
+
         warnings.warn(
             "is_readonly() is deprecated. Please use is_viewonly() instead. "
             "Support for is_readonly() will be removed in a future version.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         return self.is_viewonly(registry_name)
 
@@ -904,15 +906,16 @@ class MultiRegistryManager(BaseRegistryManager):
                     "yes",
                     "on",
                 )
-                
+
                 # Warn if deprecated READONLY_{i} parameter is used
                 if os.getenv(readonly_var) is not None and os.getenv(viewonly_var) is None:
                     import warnings
+
                     warnings.warn(
                         f"{readonly_var} parameter is deprecated. Please use {viewonly_var} instead. "
                         f"Support for {readonly_var} will be removed in a future version.",
                         DeprecationWarning,
-                        stacklevel=2
+                        stacklevel=2,
                     )
                     print(f"⚠️  WARNING: {readonly_var} parameter is deprecated. Please use {viewonly_var} instead.")
                     print(f"   Example: export {viewonly_var}=true")
@@ -995,20 +998,23 @@ class LegacyRegistryManager(BaseRegistryManager):
                     try:
                         # Support both viewonly (new) and readonly (deprecated) for backward compatibility
                         viewonly = config_data.get("viewonly", config_data.get("readonly", False))
-                        
+
                         # Warn if deprecated "readonly" field is used in JSON config
                         if "readonly" in config_data and "viewonly" not in config_data:
                             import warnings
+
                             warnings.warn(
                                 f"'readonly' field in JSON configuration is deprecated. Please use 'viewonly' instead for registry '{name}'. "
                                 "Support for 'readonly' will be removed in a future version.",
                                 DeprecationWarning,
-                                stacklevel=2
+                                stacklevel=2,
                             )
-                            print(f"⚠️  WARNING: 'readonly' field in JSON configuration is deprecated for registry '{name}'.")
+                            print(
+                                f"⚠️  WARNING: 'readonly' field in JSON configuration is deprecated for registry '{name}'."
+                            )
                             print("   Please use 'viewonly' instead in your JSON configuration.")
                             print("   Support for 'readonly' will be removed in a future version.")
-                        
+
                         config = RegistryConfig(
                             name=name,
                             url=config_data["url"],
@@ -1044,17 +1050,19 @@ def check_viewonly_mode(
         }
     return None
 
+
 # Backward compatibility alias
 def check_readonly_mode(
     registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
 ) -> Optional[Dict[str, str]]:
     """Deprecated: Use check_viewonly_mode instead."""
     import warnings
+
     warnings.warn(
         "check_readonly_mode() is deprecated. Please use check_viewonly_mode() instead. "
         "Support for check_readonly_mode() will be removed in a future version.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return check_viewonly_mode(registry_manager, registry_name)
 

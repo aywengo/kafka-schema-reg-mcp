@@ -111,7 +111,7 @@ def test_test_bulk_migration():
                     try:
                         error_details = create_response.json()
                         print(f"      Error details: {error_details}")
-                    except:
+                    except Exception:
                         print(f"      Error response: {create_response.text}")
 
             except Exception as e:

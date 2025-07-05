@@ -47,7 +47,7 @@ def check_and_fix_registry_mode(registry_name, url, desired_mode="READWRITE"):
                     try:
                         error_details = change_response.json()
                         print(f"      Error: {error_details}")
-                    except:
+                    except Exception:
                         print(f"      Raw response: {change_response.text}")
                     return False
         else:

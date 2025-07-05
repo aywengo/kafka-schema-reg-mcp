@@ -139,7 +139,7 @@ class TestBatchCleanupIntegration:
         # Test single-registry dry run default
         result = single_mcp.clear_context_batch(context=context_name)
 
-        assert result["dry_run"] == True, "dry_run should be True by default"
+        assert result["dry_run"] is True, "dry_run should be True by default"
         assert result["subjects_found"] >= 1, "Should find created subjects"
         assert result["subjects_deleted"] == len(subjects), "Should report what would be deleted"
         assert "DRY RUN" in result["message"], "Message should indicate dry run"
@@ -160,7 +160,7 @@ class TestBatchCleanupIntegration:
         # Perform actual deletion
         result = single_mcp.clear_context_batch(context=context_name, dry_run=False)
 
-        assert result["dry_run"] == False, "dry_run should be False when explicitly set"
+        assert result["dry_run"] is False, "dry_run should be False when explicitly set"
         assert result["subjects_deleted"] >= 1, "Should actually delete subjects"
         assert result["success_rate"] == 100.0, "Should have 100% success rate"
         assert "Successfully cleared" in result["message"], "Should indicate successful cleanup"

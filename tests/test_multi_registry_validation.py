@@ -189,21 +189,21 @@ class MultiRegistryValidationTest:
     def test_viewonly_enforcement(self) -> bool:
         """Test VIEWONLY mode enforcement in multi-registry setup."""
         print("\n🔒 Testing VIEWONLY Mode Enforcement")
-        
+
         # Check that PROD registry is in viewonly mode
         prod_info = mcp_server.get_registry_info("prod")
         if not prod_info.get("viewonly", False):
             print("   ❌ PROD registry should be in viewonly mode")
             return False
-        
+
         print("   ✅ PROD registry is in viewonly mode")
-        
+
         # Check that DEV registry is NOT in viewonly mode
         dev_info = mcp_server.get_registry_info("dev")
         if dev_info.get("viewonly", False):
             print("   ❌ DEV registry should NOT be in viewonly mode")
             return False
-        
+
         print("   ✅ DEV registry is NOT in viewonly mode")
         return True
 

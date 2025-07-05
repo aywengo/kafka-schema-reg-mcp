@@ -159,11 +159,11 @@ class VIEWONLYValidationTest:
                     # Check if write operation was blocked (look for error and viewonly indicators)
                     blocked_indicators = [
                         prod_result.get("viewonly_mode"),
-                        prod_result.get("VIEWONLY_mode"), 
+                        prod_result.get("VIEWONLY_mode"),
                         "VIEWONLY mode" in str(prod_result.get("error", "")),
-                        "view-only mode" in str(prod_result.get("error", ""))
+                        "view-only mode" in str(prod_result.get("error", "")),
                     ]
-                    
+
                     if any(blocked_indicators):
                         print(f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'view-only mode')}")
                     else:
@@ -191,11 +191,11 @@ class VIEWONLYValidationTest:
                     # Check if DEV write operation was incorrectly blocked
                     blocked_indicators = [
                         dev_result.get("viewonly_mode"),
-                        dev_result.get("VIEWONLY_mode"), 
+                        dev_result.get("VIEWONLY_mode"),
                         "VIEWONLY mode" in str(dev_result.get("error", "")),
-                        "view-only mode" in str(dev_result.get("error", ""))
+                        "view-only mode" in str(dev_result.get("error", "")),
                     ]
-                    
+
                     if any(blocked_indicators):
                         print(f"   ❌ DEV incorrectly blocked by VIEWONLY mode: {dev_result}")
                         return False
@@ -219,11 +219,11 @@ class VIEWONLYValidationTest:
                     # Check if config update was blocked
                     blocked_indicators = [
                         config_result.get("viewonly_mode"),
-                        config_result.get("VIEWONLY_mode"), 
+                        config_result.get("VIEWONLY_mode"),
                         "VIEWONLY mode" in str(config_result.get("error", "")),
-                        "view-only mode" in str(config_result.get("error", ""))
+                        "view-only mode" in str(config_result.get("error", "")),
                     ]
-                    
+
                     if any(blocked_indicators):
                         print("   ✅ Config update correctly blocked")
                     else:
@@ -243,11 +243,11 @@ class VIEWONLYValidationTest:
                     # Check if context creation was blocked
                     blocked_indicators = [
                         context_result.get("viewonly_mode"),
-                        context_result.get("VIEWONLY_mode"), 
+                        context_result.get("VIEWONLY_mode"),
                         "VIEWONLY mode" in str(context_result.get("error", "")),
-                        "view-only mode" in str(context_result.get("error", ""))
+                        "view-only mode" in str(context_result.get("error", "")),
                     ]
-                    
+
                     if any(blocked_indicators):
                         print("   ✅ Context creation correctly blocked")
                     else:
@@ -275,11 +275,11 @@ class VIEWONLYValidationTest:
                     # Check if migration was blocked
                     blocked_indicators = [
                         migration_result.get("viewonly_mode"),
-                        migration_result.get("VIEWONLY_mode"), 
+                        migration_result.get("VIEWONLY_mode"),
                         "VIEWONLY mode" in str(migration_result.get("error", "")),
-                        "view-only mode" in str(migration_result.get("error", ""))
+                        "view-only mode" in str(migration_result.get("error", "")),
                     ]
-                    
+
                     if any(blocked_indicators):
                         print("   ✅ Migration to PROD correctly blocked")
                     else:
