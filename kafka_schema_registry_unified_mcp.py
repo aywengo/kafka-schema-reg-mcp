@@ -38,7 +38,7 @@ Features:
 - Cross-Registry Comparison and Migration
 - Schema Export/Import with multiple formats
 - Async Task Queue for long-running operations
-- READONLY Mode protection
+- VIEWONLY Mode protection (with READONLY backward compatibility)
 - OAuth scopes support
 - MCP 2025-06-18 specification compliance (JSON-RPC batching disabled)
 - MCP-Protocol-Version header validation

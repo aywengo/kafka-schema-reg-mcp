@@ -16,7 +16,7 @@ import aiohttp
 import requests
 
 from resource_linking import add_links_to_response
-from schema_registry_common import check_readonly_mode as _check_readonly_mode
+from schema_registry_common import check_viewonly_mode as _check_viewonly_mode, check_readonly_mode as _check_readonly_mode
 from schema_validation import (
     create_error_response,
     create_success_response,

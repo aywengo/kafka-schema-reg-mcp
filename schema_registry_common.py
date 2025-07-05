@@ -30,7 +30,8 @@ from requests.auth import HTTPBasicAuth
 SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
-SINGLE_READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+# Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
+SINGLE_VIEWONLY = os.getenv("VIEWONLY", os.getenv("READONLY", "false")).lower() in ("true", "1", "yes", "on")
 
 # SSL/TLS Security Configuration
 ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
@@ -204,7 +205,7 @@ class RegistryConfig:
     user: str = ""
     password: str = ""
     description: str = ""
-    readonly: bool = False
+    viewonly: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary with sensitive data masked."""
@@ -216,7 +217,7 @@ class RegistryConfig:
     def __repr__(self) -> str:
         """Safe representation without credentials."""
         password_masked = "***MASKED***" if self.password else ""
-        return f"RegistryConfig(name={self.name!r}, url={self.url!r}, user={self.user!r}, password={password_masked!r}, description={self.description!r}, readonly={self.readonly})"
+        return f"RegistryConfig(name={self.name!r}, url={self.url!r}, user={self.user!r}, password={password_masked!r}, description={self.description!r}, viewonly={self.viewonly})"
 
     def __str__(self) -> str:
         """Safe string representation without credentials."""
@@ -326,7 +327,7 @@ class RegistryClient:
 
     def __repr__(self) -> str:
         """Safe representation without credentials."""
-        return f"RegistryClient(name={self.config.name!r}, url={self.config.url!r}, readonly={self.config.readonly})"
+        return f"RegistryClient(name={self.config.name!r}, url={self.config.url!r}, viewonly={self.config.viewonly})"
 
     def __str__(self) -> str:
         """Safe string representation without credentials."""
@@ -797,12 +798,17 @@ class BaseRegistryManager:
         except Exception:
             return []
 
-    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
-        """Check if a registry is in readonly mode."""
+    def is_viewonly(self, registry_name: Optional[str] = None) -> bool:
+        """Check if a registry is in viewonly mode."""
         client = self.get_registry(registry_name)
         if not client:
             return False
-        return client.config.readonly
+        return client.config.viewonly
+    
+    # Backward compatibility alias
+    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
+        """Deprecated: Use is_viewonly instead."""
+        return self.is_viewonly(registry_name)
 
     def get_default_registry(self) -> Optional[str]:
         """Get the default registry name."""
@@ -833,11 +839,11 @@ class SingleRegistryManager(BaseRegistryManager):
                     user=SINGLE_REGISTRY_USER,
                     password=SINGLE_REGISTRY_PASSWORD,
                     description="Default Schema Registry",
-                    readonly=SINGLE_READONLY,
+                    viewonly=SINGLE_VIEWONLY,
                 )
                 self.registries["default"] = RegistryClient(config)
                 self.default_registry = "default"
-                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})")
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (viewonly: {SINGLE_VIEWONLY})")
             except ValueError as e:
                 logging.error(f"Failed to load single registry: {e}")
 
@@ -860,7 +866,8 @@ class MultiRegistryManager(BaseRegistryManager):
             url_var = f"SCHEMA_REGISTRY_URL_{i}"
             user_var = f"SCHEMA_REGISTRY_USER_{i}"
             password_var = f"SCHEMA_REGISTRY_PASSWORD_{i}"
-            readonly_var = f"READONLY_{i}"
+            viewonly_var = f"VIEWONLY_{i}"
+            readonly_var = f"READONLY_{i}"  # For backward compatibility
 
             name = os.getenv(name_var, "")
             url = os.getenv(url_var, "")
@@ -870,7 +877,8 @@ class MultiRegistryManager(BaseRegistryManager):
 
                 user = os.getenv(user_var, "")
                 password = os.getenv(password_var, "")
-                readonly = os.getenv(readonly_var, "false").lower() in (
+                # Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
+                viewonly = os.getenv(viewonly_var, os.getenv(readonly_var, "false")).lower() in (
                     "true",
                     "1",
                     "yes",
@@ -884,7 +892,7 @@ class MultiRegistryManager(BaseRegistryManager):
                         user=user,
                         password=password,
                         description=f"{name} Schema Registry (instance {i})",
-                        readonly=readonly,
+                        viewonly=viewonly,
                     )
 
                     self.registries[name] = RegistryClient(config)
@@ -893,7 +901,7 @@ class MultiRegistryManager(BaseRegistryManager):
                     if self.default_registry is None:
                         self.default_registry = name
 
-                    logging.info(f"Loaded registry {i}: {name} at {url} (readonly: {readonly})")
+                    logging.info(f"Loaded registry {i}: {name} at {url} (viewonly: {viewonly})")
                 except ValueError as e:
                     logging.error(f"Failed to load registry {i} ({name}): {e}")
 
@@ -906,11 +914,11 @@ class MultiRegistryManager(BaseRegistryManager):
                     user=SINGLE_REGISTRY_USER,
                     password=SINGLE_REGISTRY_PASSWORD,
                     description="Default Schema Registry",
-                    readonly=SINGLE_READONLY,
+                    viewonly=SINGLE_VIEWONLY,
                 )
                 self.registries["default"] = RegistryClient(config)
                 self.default_registry = "default"
-                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})")
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (viewonly: {SINGLE_VIEWONLY})")
             except ValueError as e:
                 logging.error(f"Failed to load single registry: {e}")
 
@@ -939,7 +947,7 @@ class LegacyRegistryManager(BaseRegistryManager):
                     user=SINGLE_REGISTRY_USER,
                     password=SINGLE_REGISTRY_PASSWORD,
                     description="Default Schema Registry",
-                    readonly=SINGLE_READONLY,
+                    viewonly=SINGLE_VIEWONLY,
                 )
                 self.registries["default"] = RegistryClient(config)
                 self.default_registry = "default"
@@ -958,7 +966,8 @@ class LegacyRegistryManager(BaseRegistryManager):
                             user=config_data.get("user", ""),
                             password=config_data.get("password", ""),
                             description=config_data.get("description", f"{name} registry"),
-                            readonly=config_data.get("readonly", False),
+                            # Support both viewonly (new) and readonly (deprecated) for backward compatibility
+                            viewonly=config_data.get("viewonly", config_data.get("readonly", False)),
                         )
                         self.registries[name] = RegistryClient(config)
 
@@ -975,17 +984,24 @@ class LegacyRegistryManager(BaseRegistryManager):
 # ===== UTILITY FUNCTIONS =====
 
 
-def check_readonly_mode(
+def check_viewonly_mode(
     registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
 ) -> Optional[Dict[str, str]]:
-    """Check if operations should be blocked due to readonly mode."""
-    if registry_manager.is_readonly(registry_name):
+    """Check if operations should be blocked due to viewonly mode."""
+    if registry_manager.is_viewonly(registry_name):
         return {
-            "error": "Registry is in READONLY mode. Modification operations are disabled for safety.",
-            "readonly_mode": "true",
+            "error": "Registry is in VIEWONLY mode. Modification operations are disabled for safety.",
+            "viewonly_mode": "true",
             "registry": registry_name or registry_manager.get_default_registry() or "unknown",
         }
     return None
+
+# Backward compatibility alias
+def check_readonly_mode(
+    registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
+) -> Optional[Dict[str, str]]:
+    """Deprecated: Use check_viewonly_mode instead."""
+    return check_viewonly_mode(registry_manager, registry_name)
 
 
 def build_context_url(base_url: str, registry_url: str, context: Optional[str] = None) -> str:

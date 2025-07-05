@@ -1,20 +1,20 @@
 {
   "mcpServers": {
-    "kafka-schema-registry-readonly": {
+    "kafka-schema-registry-viewonly": {
       "command": "docker",
       "args": [
         "run", "--rm", "-i", "--network", "host",
         "-e", "SCHEMA_REGISTRY_URL",
         "-e", "SCHEMA_REGISTRY_USER",
         "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "-e", "READONLY",
+        "-e", "VIEWONLY",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_URL": "http://localhost:38081",
         "SCHEMA_REGISTRY_USER": "",
         "SCHEMA_REGISTRY_PASSWORD": "",
-        "READONLY": "true"
+        "VIEWONLY": "true"
       }
     }
   }

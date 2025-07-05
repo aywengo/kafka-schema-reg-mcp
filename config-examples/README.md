@@ -8,7 +8,7 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_config.json`** - Basic local Python configuration (unified)
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
-- **`claude_desktop_readonly_config.json`** - Read-only mode for production safety
+- **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
 
 ### Version-Specific Configurations
 
