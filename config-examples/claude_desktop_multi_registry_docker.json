@@ -9,17 +9,17 @@
         "-e", "SCHEMA_REGISTRY_URL_1", 
         "-e", "SCHEMA_REGISTRY_USER_1",
         "-e", "SCHEMA_REGISTRY_PASSWORD_1",
-        "-e", "READONLY_1",
+        "-e", "VIEWONLY_1",
         "-e", "SCHEMA_REGISTRY_NAME_2",
         "-e", "SCHEMA_REGISTRY_URL_2",
         "-e", "SCHEMA_REGISTRY_USER_2", 
         "-e", "SCHEMA_REGISTRY_PASSWORD_2",
-        "-e", "READONLY_2",
+        "-e", "VIEWONLY_2",
         "-e", "SCHEMA_REGISTRY_NAME_3",
         "-e", "SCHEMA_REGISTRY_URL_3",
         "-e", "SCHEMA_REGISTRY_USER_3",
         "-e", "SCHEMA_REGISTRY_PASSWORD_3", 
-        "-e", "READONLY_3",
+        "-e", "VIEWONLY_3",
         "aywengo/kafka-schema-reg-mcp:stable",
         "python", "kafka_schema_registry_unified_mcp.py"
       ],
@@ -28,19 +28,19 @@
         "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
         "SCHEMA_REGISTRY_USER_1": "",
         "SCHEMA_REGISTRY_PASSWORD_1": "",
-        "READONLY_1": "false",
+        "VIEWONLY_1": "false",
         
         "SCHEMA_REGISTRY_NAME_2": "staging", 
         "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
         "SCHEMA_REGISTRY_USER_2": "",
         "SCHEMA_REGISTRY_PASSWORD_2": "",
-        "READONLY_2": "false",
+        "VIEWONLY_2": "false",
         
         "SCHEMA_REGISTRY_NAME_3": "production",
         "SCHEMA_REGISTRY_URL_3": "http://localhost:38083", 
         "SCHEMA_REGISTRY_USER_3": "prod-user",
         "SCHEMA_REGISTRY_PASSWORD_3": "prod-password",
-        "READONLY_3": "true"
+        "VIEWONLY_3": "true"
       }
     }
   }

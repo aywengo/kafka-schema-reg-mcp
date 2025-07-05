@@ -11,7 +11,7 @@
                 "args": [],
                 "environment": {
                     "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-                    "READONLY": "false"
+                    "VIEWONLY": "false"
                 },
                 "network": "host"
             },
@@ -35,13 +35,13 @@
                 "environment": {
                     "SCHEMA_REGISTRY_NAME_1": "development",
                     "SCHEMA_REGISTRY_URL_1": "http://localhost:8081",
-                    "READONLY_1": "false",
+                    "VIEWONLY_1": "false",
                     "SCHEMA_REGISTRY_NAME_2": "staging",
                     "SCHEMA_REGISTRY_URL_2": "http://localhost:8082", 
-                    "READONLY_2": "false",
+                    "VIEWONLY_2": "false",
                     "SCHEMA_REGISTRY_NAME_3": "production",
                     "SCHEMA_REGISTRY_URL_3": "http://localhost:8083",
-                    "READONLY_3": "true"
+                    "VIEWONLY_3": "true"
                 },
                 "network": "host"
             },

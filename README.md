@@ -67,7 +67,7 @@ Restart Claude Desktop and try these prompts:
 - **📋 Schema Contexts** - Logical grouping for production/staging environment isolation
 - **🔄 Schema Migration** - Cross-registry migration with backup and verification
 - **📊 Comprehensive Export** - JSON, Avro IDL formats for backup and documentation
-- **🔒 Production Safety** - READONLY mode and per-registry access control
+- **🔒 Production Safety** - VIEWONLY mode and per-registry access control
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
@@ -111,7 +111,7 @@ docker-compose up -d  # Includes Schema Registry for testing
 export SCHEMA_REGISTRY_URL="http://localhost:8081"
 export SCHEMA_REGISTRY_USER=""           # Optional
 export SCHEMA_REGISTRY_PASSWORD=""       # Optional
-export READONLY="false"                  # Production safety
+export VIEWONLY="false"                  # Production safety
 ```
 
 ### Multi-Registry Mode (Up to 8 Registries)
@@ -119,12 +119,12 @@ export READONLY="false"                  # Production safety
 # Development Registry
 export SCHEMA_REGISTRY_NAME_1="development"
 export SCHEMA_REGISTRY_URL_1="http://dev-registry:8081"
-export READONLY_1="false"
+export VIEWONLY_1="false"
 
 # Production Registry (with safety)
 export SCHEMA_REGISTRY_NAME_2="production"  
 export SCHEMA_REGISTRY_URL_2="http://prod-registry:8081"
-export READONLY_2="true"                     # Read-only protection
+export VIEWONLY_2="true"                     # Read-only protection
 ```
 
 ### Claude Desktop Configuration
@@ -135,7 +135,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 | **Production** | Stable Docker deployment | [`claude_desktop_stable_config.json`](config-examples/claude_desktop_stable_config.json) |
 | **Multi-Environment** | DEV/STAGING/PROD registries | [`claude_desktop_multi_registry_docker.json`](config-examples/claude_desktop_multi_registry_docker.json) |
 | **Local Development** | Python local execution | [`claude_desktop_config.json`](config-examples/claude_desktop_config.json) |
-| **Read-Only Safety** | Production with safety | [`claude_desktop_readonly_config.json`](config-examples/claude_desktop_readonly_config.json) |
+| **View-Only Safety** | Production with safety | [`claude_desktop_viewonly_config.json`](config-examples/claude_desktop_viewonly_config.json) |
 
 > **📖 Complete configuration guide**: [config-examples/README.md](config-examples/README.md)
 
@@ -185,7 +185,7 @@ export AUTH_AUDIENCE="your-client-id"
 - `admin` - Delete subjects, full control (includes write + read)
 
 ### Production Safety Features
-- **READONLY Mode** - Prevent accidental changes in production
+- **VIEWONLY Mode** - Prevent accidental changes in production
 - **URL Validation** - SSRF protection with configurable localhost access
 - **Scope-based Authorization** - Fine-grained tool-level permissions
 - **Per-Registry Controls** - Independent safety settings
@@ -266,13 +266,11 @@ python kafka_schema_registry_unified_mcp.py
 
 ## 🆕 What's New
 
-### v2.0.2 (Latest)
+### v2.0.x (Latest)
 - **🔒 Security Fixes** - Resolved credential exposure in logging
 - **🤖 Interactive Schema Migration** - Smart migration with user preference elicitation
 - **💾 Automatic Backups** - Pre-migration backup creation
-- **✅ Post-Migration Verification** - Comprehensive schema validation
-
-### v2.0.0 (Major Release)  
+- **✅ Post-Migration Verification** - Comprehensive schema validation  
 - **🚀 FastMCP 2.8.0+ Framework** - Complete architecture upgrade
 - **📊 MCP 2025-06-18 Compliance** - Latest protocol specification
 - **🔐 OAuth 2.1 Generic Discovery** - Universal provider compatibility
@@ -281,7 +279,7 @@ python kafka_schema_registry_unified_mcp.py
 > **📖 Full changelog**: [CHANGELOG.md](CHANGELOG.md) | **📖 v2.0.0 features**: [README-v2.0.0-HIGHLIGHTS.md](README-v2.0.0-HIGHLIGHTS.md)
 
 ---
-
+**🐳 Glama.ai:** 
 <a href="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp/badge" />
 </a>

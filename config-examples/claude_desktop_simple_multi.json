@@ -6,10 +6,10 @@
         "run", "--rm", "-i", "--network", "host",
         "-e", "SCHEMA_REGISTRY_NAME_1=dev",
         "-e", "SCHEMA_REGISTRY_URL_1=http://localhost:38081", 
-        "-e", "READONLY_1=false",
+        "-e", "VIEWONLY_1=false",
         "-e", "SCHEMA_REGISTRY_NAME_2=prod",
         "-e", "SCHEMA_REGISTRY_URL_2=http://localhost:38082",
-        "-e", "READONLY_2=true",
+        "-e", "VIEWONLY_2=true",
         "aywengo/kafka-schema-reg-mcp:stable",
         "python", "kafka_schema_registry_unified_mcp.py"
       ]

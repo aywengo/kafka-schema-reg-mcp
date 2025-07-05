@@ -734,7 +734,7 @@ This release completes the async transformation with comprehensive task queue im
 ### Added
 - **Multi-Registry Mode**: Support for up to 8 Schema Registry instances
 - **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
-- **Per-Registry READONLY**: Independent `READONLY_X` control for each registry
+- **Per-Registry VIEWONLY**: Independent `VIEWONLY_X` control for each registry
 - **Registry Management Tools**: List, test, and manage multiple registries
 - **Cross-Registry Operations**: Compare and migrate between registries
 
@@ -853,7 +853,7 @@ while True:
 - **48 MCP Tools**: Comprehensive schema registry operations
 - **Context Support**: Production/staging environment isolation
 - **Schema Export**: JSON and Avro IDL export formats
-- **READONLY Mode**: Production safety features
+- **VIEWONLY Mode**: Production safety features
 - **Docker Support**: Multi-platform images (AMD64/ARM64)
 
 ### Changed

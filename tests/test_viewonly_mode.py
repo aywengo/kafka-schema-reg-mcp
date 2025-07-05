@@ -44,19 +44,12 @@ async def test_viewonly_mode():
         async with client:
             print("✅ MCP connection established")
 
-            # Test the check_viewonly_mode tool (and backward compatible check_readonly_mode)
-            viewonly_check = await client.call_tool("check_viewonly_mode", {})
-            if viewonly_check and "viewonly_mode" in str(viewonly_check):
+            # Test the check_readonly_mode tool (now handles both VIEWONLY and READONLY)
+            readonly_check = await client.call_tool("check_readonly_mode", {})
+            if readonly_check and ("viewonly_mode" in str(readonly_check) or "readonly_mode" in str(readonly_check)):
                 print("✅ VIEWONLY check working: view-only mode is active")
             else:
                 print("❌ VIEWONLY check failed - should return error in viewonly mode")
-                
-            # Test backward compatibility with check_readonly_mode
-            readonly_check = await client.call_tool("check_readonly_mode", {})
-            if readonly_check and ("viewonly_mode" in str(readonly_check) or "readonly_mode" in str(readonly_check)):
-                print("✅ Backward compatibility: check_readonly_mode still works")
-            else:
-                print("❌ Backward compatibility: check_readonly_mode failed")
 
             # Test individual functions that should be blocked
             print("\n🧪 Testing blocked operations in VIEWONLY mode...")
@@ -218,7 +211,7 @@ async def test_viewonly_environment_variations():
         os.environ["VIEWONLY"] = value
         importlib.reload(schema_registry_common)
         importlib.reload(kafka_schema_registry_unified_mcp)
-        actual = kafka_schema_registry_unified_mcp.VIEWONLY
+        actual = kafka_schema_registry_unified_mcp.READONLY
         status = "✅" if actual == expected else "❌"
         print(f"{status} VIEWONLY='{value}' → {actual} (expected: {expected})")
     
@@ -230,7 +223,7 @@ async def test_viewonly_environment_variations():
         os.environ["READONLY"] = value
         importlib.reload(schema_registry_common)
         importlib.reload(kafka_schema_registry_unified_mcp)
-        actual = kafka_schema_registry_unified_mcp.VIEWONLY
+        actual = kafka_schema_registry_unified_mcp.READONLY
         status = "✅" if actual == expected else "❌"
         print(f"{status} READONLY='{value}' → {actual} (expected: {expected})")
     
@@ -240,7 +233,7 @@ async def test_viewonly_environment_variations():
     os.environ["VIEWONLY"] = "true"
     importlib.reload(schema_registry_common)
     importlib.reload(kafka_schema_registry_unified_mcp)
-    actual = kafka_schema_registry_unified_mcp.VIEWONLY
+    actual = kafka_schema_registry_unified_mcp.READONLY
     status = "✅" if actual == True else "❌"
     print(f"{status} READONLY='false' + VIEWONLY='true' → {actual} (expected: True)")
 

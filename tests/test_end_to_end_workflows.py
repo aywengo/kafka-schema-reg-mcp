@@ -261,15 +261,15 @@ async def test_schema_evolution_workflow():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38081"  # Same registry, different contexts
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = "http://localhost:38081"
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -384,11 +384,11 @@ async def test_multi_schema_deployment_workflow():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = "http://localhost:38081"
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -486,7 +486,7 @@ async def test_context_management_workflow():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "primary"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 
@@ -586,7 +586,7 @@ async def test_configuration_management_workflow():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "config_test"
     env["SCHEMA_REGISTRY_URL_1"] = "http://localhost:38081"
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     server_params = StdioServerParameters(command="python", args=["kafka_schema_registry_unified_mcp.py"], env=env)
 

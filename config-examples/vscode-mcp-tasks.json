@@ -29,10 +29,10 @@
                 "--network", "host",
                 "-e", "SCHEMA_REGISTRY_NAME_1=development",
                 "-e", "SCHEMA_REGISTRY_URL_1=http://localhost:8081",
-                "-e", "READONLY_1=false",
+                "-e", "VIEWONLY_1=false",
                 "-e", "SCHEMA_REGISTRY_NAME_2=production",
                 "-e", "SCHEMA_REGISTRY_URL_2=http://localhost:8083",
-                "-e", "READONLY_2=true",
+                "-e", "VIEWONLY_2=true",
                 "aywengo/kafka-schema-reg-mcp:stable"
             ],
             "group": "build",

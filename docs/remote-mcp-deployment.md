@@ -357,14 +357,14 @@ export ENFORCE_SSL_TLS_VERIFICATION="false"  # Development only - not recommende
 # Staging  
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
-export READONLY_1="false"  # Allow write operations
+export VIEWONLY_1="false"  # Allow write operations
 export ENFORCE_SSL_TLS_VERIFICATION="true"
 export CUSTOM_CA_BUNDLE_PATH=""
 
 # Production
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
-export READONLY_1="true"   # Read-only for safety
+export VIEWONLY_1="true"   # Read-only for safety
 export ENFORCE_SSL_TLS_VERIFICATION="true"
 export CUSTOM_CA_BUNDLE_PATH="/etc/ssl/certs/corporate-ca-bundle.pem"  # Optional
 ```
