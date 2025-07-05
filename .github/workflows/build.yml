@@ -85,12 +85,12 @@ jobs:
             -e PYTHONDONTWRITEBYTECODE=1 \
             -e SCHEMA_REGISTRY_NAME_1=test \
             -e SCHEMA_REGISTRY_URL_1=http://test:8081 \
-            -e READONLY_1=false \
+            -e VIEWONLY_1=false \
             kafka-schema-reg-mcp:test python -c "
           import os
           print(f'SCHEMA_REGISTRY_NAME_1: {os.getenv(\"SCHEMA_REGISTRY_NAME_1\", \"not set\")}')
           print(f'SCHEMA_REGISTRY_URL_1: {os.getenv(\"SCHEMA_REGISTRY_URL_1\", \"not set\")}')
-          print(f'READONLY_1: {os.getenv(\"READONLY_1\", \"not set\")}')
+          print(f'VIEWONLY_1: {os.getenv(\"VIEWONLY_1\", \"not set\")}')
           import kafka_schema_registry_unified_mcp
           print('✅ Unified MCP server environment variables handled correctly')
           "

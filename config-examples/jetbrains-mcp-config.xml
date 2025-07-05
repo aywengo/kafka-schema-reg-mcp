@@ -15,7 +15,7 @@
             <arg>-e</arg>
             <arg>SCHEMA_REGISTRY_URL=http://localhost:8081</arg>
             <arg>-e</arg>
-            <arg>READONLY=false</arg>
+            <arg>VIEWONLY=false</arg>
             <arg>aywengo/kafka-schema-reg-mcp:stable</arg>
           </args>
         </transport>
@@ -43,13 +43,13 @@
             <arg>-e</arg>
             <arg>SCHEMA_REGISTRY_URL_1=http://localhost:8081</arg>
             <arg>-e</arg>
-            <arg>READONLY_1=false</arg>
+            <arg>VIEWONLY_1=false</arg>
             <arg>-e</arg>
             <arg>SCHEMA_REGISTRY_NAME_2=production</arg>
             <arg>-e</arg>
             <arg>SCHEMA_REGISTRY_URL_2=http://localhost:8083</arg>
             <arg>-e</arg>
-            <arg>READONLY_2=true</arg>
+            <arg>VIEWONLY_2=true</arg>
             <arg>aywengo/kafka-schema-reg-mcp:stable</arg>
           </args>
         </transport>
