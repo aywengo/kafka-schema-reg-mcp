@@ -13,7 +13,6 @@ import json
 from typing import Any, Dict, Optional
 
 import aiohttp
-import requests
 
 from resource_linking import add_links_to_response
 from schema_registry_common import check_viewonly_mode as _check_viewonly_mode
@@ -1397,7 +1396,11 @@ def delete_context_tool(
                     registry_mode="single",
                 )
 
-            response = client.session.delete(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
+            response = client.session.delete(
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers
+            )
             response.raise_for_status()
             result = create_success_response(f"Context '{context}' deleted successfully", registry_mode="single")
 
@@ -1416,7 +1419,11 @@ def delete_context_tool(
                     registry_mode="multi",
                 )
 
-            response = client.session.delete(f"{client.config.url}/contexts/{context}", auth=client.auth, headers=client.headers)
+            response = client.session.delete(
+                f"{client.config.url}/contexts/{context}",
+                auth=client.auth,
+                headers=client.headers
+            )
             response.raise_for_status()
             result = create_success_response(
                 f"Context '{context}' deleted successfully",
