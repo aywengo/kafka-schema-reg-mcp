@@ -24,7 +24,7 @@ schemaRegistry:
 
 # Application settings
 app:
-  readonly: false
+  viewonly: false
   logLevel: "DEBUG"
   port: 8080
 

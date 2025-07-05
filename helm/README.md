@@ -144,12 +144,12 @@ schemaRegistry:
     registries:
       - name: "production"
         url: "http://prod-schema-registry:8081"
-        readonly: false
+        viewonly: false
         user: "prod-user"
         password: "prod-pass"
       - name: "staging"
         url: "http://staging-schema-registry:8081"
-        readonly: true
+        viewonly: true
         user: "staging-user"
         password: "staging-pass"
 ```
@@ -244,8 +244,8 @@ helm install mcp-multi . -n kafka-mcp --create-namespace \
   --set auth.existingSecret.name=google-oauth2-credentials \
   --set schemaRegistry.multiRegistry.enabled=true \
   --set-json 'schemaRegistry.multiRegistry.registries=[
-    {"name":"prod","url":"http://prod-sr:8081","readonly":false},
-    {"name":"dr","url":"http://dr-sr:8081","readonly":true}
+    {"name":"prod","url":"http://prod-sr:8081","viewonly":false},
+    {"name":"dr","url":"http://dr-sr:8081","viewonly":true}
   ]'
 ```
 

@@ -107,23 +107,23 @@ class SparseVersionMigrationTest:
         # Set up environment variables for multi-registry setup
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
         os.environ["SCHEMA_REGISTRY_URL_1"] = self.dev_url
-        os.environ["READONLY_1"] = "false"
+        os.environ["VIEWONLY_1"] = "false"
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
-        os.environ["READONLY_2"] = "false"
+        os.environ["VIEWONLY_2"] = "false"
 
         # Clear any other registry configurations
         for i in range(3, 9):
             for var in [
                 f"SCHEMA_REGISTRY_NAME_{i}",
                 f"SCHEMA_REGISTRY_URL_{i}",
-                f"READONLY_{i}",
+                f"VIEWONLY_{i}",
             ]:
                 if var in os.environ:
                     del os.environ[var]
 
-        # Clear any global READONLY setting
-        os.environ.pop("READONLY", None)
+        # Clear any global VIEWONLY setting
+        os.environ.pop("VIEWONLY", None)
 
         # Force reload the registry manager with new configuration
         mcp_server.registry_manager._load_multi_registries()

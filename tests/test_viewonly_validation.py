@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for READONLY mode validation using MCP client.
+Test script for VIEWONLY mode validation using MCP client.
 Validates that all modification operations are properly blocked.
 """
 
@@ -13,7 +13,7 @@ import pytest
 
 # SET UP ENVIRONMENT VARIABLES FIRST - BEFORE ANY SERVER IMPORTS
 # Clear any conflicting settings first
-for var in ["READONLY", "SCHEMA_REGISTRY_URL", "SCHEMA_REGISTRY_NAME"]:
+for var in ["VIEWONLY", "SCHEMA_REGISTRY_URL", "SCHEMA_REGISTRY_NAME"]:
     if var in os.environ:
         del os.environ[var]
 
@@ -21,10 +21,10 @@ for var in ["READONLY", "SCHEMA_REGISTRY_URL", "SCHEMA_REGISTRY_NAME"]:
 env_vars = {
     "SCHEMA_REGISTRY_NAME_1": "development",
     "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
-    "READONLY_1": "false",
+    "VIEWONLY_1": "false",
     "SCHEMA_REGISTRY_NAME_2": "production",
     "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
-    "READONLY_2": "true",
+    "VIEWONLY_2": "true",
     "ALLOW_LOCALHOST": "true",  # Allow localhost URLs in test mode
     "TESTING": "true",  # Mark as testing environment
 }
@@ -33,7 +33,7 @@ env_vars = {
 for key, value in env_vars.items():
     os.environ[key] = value
 
-print("🔧 Setting up environment variables for readonly test...")
+print("🔧 Setting up environment variables for VIEWONLY test...")
 for key, value in env_vars.items():
     print(f"   {key}={value}")
 
@@ -41,12 +41,12 @@ for key, value in env_vars.items():
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class ReadOnlyValidationTest:
-    """Test class for read-only validation scenarios"""
+class VIEWONLYValidationTest:
+    """Test class for view-only validation scenarios"""
 
     def __init__(self):
         """Initialize test - environment already set at module level"""
-        print("   Environment configured for multi-registry with readonly PROD")
+        print("   Environment configured for multi-registry with VIEWONLY PROD")
 
     def parse_result(self, result):
         """Parse MCP tool result with simple error handling"""
@@ -62,9 +62,9 @@ class ReadOnlyValidationTest:
             return result if isinstance(result, (list, dict)) else {"response": str(result)}
 
     async def run_test(self):
-        """Test unified server in multi-registry mode's read-only enforcement for PROD registry"""
+        """Test unified server in multi-registry mode's view-only enforcement for PROD registry"""
 
-        print("🧪 Starting MCP read-only validation test...")
+        print("🧪 Starting MCP view-only validation test...")
 
         try:
             # Get the path to the parent directory where the server script is located
@@ -76,10 +76,10 @@ class ReadOnlyValidationTest:
             for i in range(1, 3):
                 name_var = f"SCHEMA_REGISTRY_NAME_{i}"
                 url_var = f"SCHEMA_REGISTRY_URL_{i}"
-                readonly_var = f"READONLY_{i}"
+                VIEWONLY_var = f"VIEWONLY_{i}"
                 print(f"   {name_var}={os.environ.get(name_var, 'NOT_SET')}")
                 print(f"   {url_var}={os.environ.get(url_var, 'NOT_SET')}")
-                print(f"   {readonly_var}={os.environ.get(readonly_var, 'NOT_SET')}")
+                print(f"   {VIEWONLY_var}={os.environ.get(VIEWONLY_var, 'NOT_SET')}")
 
             # Use subprocess approach to ensure environment variables are passed
             print("\n🚀 Starting MCP server subprocess with environment...")
@@ -134,18 +134,18 @@ class ReadOnlyValidationTest:
 
                     test_schema = {
                         "type": "record",
-                        "name": "ReadOnlyTestSchema",
+                        "name": "VIEWONLYTestSchema",
                         "fields": [
                             {"name": "id", "type": "int"},
                             {"name": "message", "type": "string"},
                         ],
                     }
 
-                    # Try to register schema in PROD (should be blocked by readonly mode)
+                    # Try to register schema in PROD (should be blocked by VIEWONLY mode)
                     result = await session.call_tool(
                         "register_schema",
                         {
-                            "subject": "readonly-test-value",
+                            "subject": "VIEWONLY-test-value",
                             "schema_definition": test_schema,
                             "registry": "production",
                         },
@@ -156,20 +156,28 @@ class ReadOnlyValidationTest:
                     else:
                         prod_result = {}
 
-                    if isinstance(prod_result, dict) and prod_result.get("readonly_mode"):
-                        print(f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'Read-only mode')}")
+                    # Check if write operation was blocked (look for error and viewonly indicators)
+                    blocked_indicators = [
+                        prod_result.get("viewonly_mode"),
+                        prod_result.get("VIEWONLY_mode"),
+                        "VIEWONLY mode" in str(prod_result.get("error", "")),
+                        "view-only mode" in str(prod_result.get("error", "")),
+                    ]
+
+                    if any(blocked_indicators):
+                        print(f"   ✅ PROD write correctly blocked: {prod_result.get('error', 'view-only mode')}")
                     else:
-                        print(f"   ❌ PROD write NOT blocked by readonly mode! Result: {prod_result}")
+                        print(f"   ❌ PROD write NOT blocked by VIEWONLY mode! Result: {prod_result}")
                         return False
 
                     # Test 3: Test write operations on DEV registry (should work)
                     print("\n✏️  Testing write operations on DEV registry...")
 
-                    # Try to register schema in DEV (should succeed or fail due to connection, not readonly)
+                    # Try to register schema in DEV (should succeed or fail due to connection, not VIEWONLY)
                     result = await session.call_tool(
                         "register_schema",
                         {
-                            "subject": "readonly-test-value",
+                            "subject": "VIEWONLY-test-value",
                             "schema_definition": test_schema,
                             "registry": "development",
                         },
@@ -180,11 +188,19 @@ class ReadOnlyValidationTest:
                     else:
                         dev_result = {}
 
-                    if isinstance(dev_result, dict) and dev_result.get("readonly_mode"):
-                        print(f"   ❌ DEV incorrectly blocked by readonly mode: {dev_result}")
+                    # Check if DEV write operation was incorrectly blocked
+                    blocked_indicators = [
+                        dev_result.get("viewonly_mode"),
+                        dev_result.get("VIEWONLY_mode"),
+                        "VIEWONLY mode" in str(dev_result.get("error", "")),
+                        "view-only mode" in str(dev_result.get("error", "")),
+                    ]
+
+                    if any(blocked_indicators):
+                        print(f"   ❌ DEV incorrectly blocked by VIEWONLY mode: {dev_result}")
                         return False
                     else:
-                        print("   ✅ DEV write operations: Not blocked by readonly mode")
+                        print("   ✅ DEV write operations: Not blocked by VIEWONLY mode")
 
                     # Test 4: Test other modification operations on PROD
                     print("\n🚫 Testing other modification operations on PROD...")
@@ -200,7 +216,15 @@ class ReadOnlyValidationTest:
                     else:
                         config_result = {}
 
-                    if isinstance(config_result, dict) and config_result.get("readonly_mode"):
+                    # Check if config update was blocked
+                    blocked_indicators = [
+                        config_result.get("viewonly_mode"),
+                        config_result.get("VIEWONLY_mode"),
+                        "VIEWONLY mode" in str(config_result.get("error", "")),
+                        "view-only mode" in str(config_result.get("error", "")),
+                    ]
+
+                    if any(blocked_indicators):
                         print("   ✅ Config update correctly blocked")
                     else:
                         print(f"   ❌ Config update not blocked: {config_result}")
@@ -208,7 +232,7 @@ class ReadOnlyValidationTest:
                     # Try to create context (should be blocked)
                     result = await session.call_tool(
                         "create_context",
-                        {"context": "readonly-test-context", "registry": "production"},
+                        {"context": "VIEWONLY-test-context", "registry": "production"},
                     )
 
                     if result.content and len(result.content) > 0:
@@ -216,7 +240,15 @@ class ReadOnlyValidationTest:
                     else:
                         context_result = {}
 
-                    if isinstance(context_result, dict) and context_result.get("readonly_mode"):
+                    # Check if context creation was blocked
+                    blocked_indicators = [
+                        context_result.get("viewonly_mode"),
+                        context_result.get("VIEWONLY_mode"),
+                        "VIEWONLY mode" in str(context_result.get("error", "")),
+                        "view-only mode" in str(context_result.get("error", "")),
+                    ]
+
+                    if any(blocked_indicators):
                         print("   ✅ Context creation correctly blocked")
                     else:
                         print(f"   ❌ Context creation not blocked: {context_result}")
@@ -228,7 +260,7 @@ class ReadOnlyValidationTest:
                     result = await session.call_tool(
                         "migrate_schema",
                         {
-                            "subject": "readonly-test-value",
+                            "subject": "VIEWONLY-test-value",
                             "source_registry": "development",
                             "target_registry": "production",
                             "dry_run": False,
@@ -240,12 +272,20 @@ class ReadOnlyValidationTest:
                     else:
                         migration_result = {}
 
-                    if isinstance(migration_result, dict) and migration_result.get("readonly_mode"):
+                    # Check if migration was blocked
+                    blocked_indicators = [
+                        migration_result.get("viewonly_mode"),
+                        migration_result.get("VIEWONLY_mode"),
+                        "VIEWONLY mode" in str(migration_result.get("error", "")),
+                        "view-only mode" in str(migration_result.get("error", "")),
+                    ]
+
+                    if any(blocked_indicators):
                         print("   ✅ Migration to PROD correctly blocked")
                     else:
                         print(f"   ⚠️  Migration response: {migration_result}")
 
-                    print("\n✅ Read-only validation test completed successfully!")
+                    print("\n✅ view-only validation test completed successfully!")
                     return True
 
         except Exception as e:
@@ -257,25 +297,25 @@ class ReadOnlyValidationTest:
 
 
 @pytest.mark.asyncio
-async def test_readonly_validation():
+async def test_VIEWONLY_validation():
     """Async wrapper for the test."""
-    test_instance = ReadOnlyValidationTest()
+    test_instance = VIEWONLYValidationTest()
     return await test_instance.run_test()
 
 
-def run_readonly_validation():
+def run_VIEWONLY_validation():
     """Synchronous wrapper for the async test."""
-    return asyncio.run(test_readonly_validation())
+    return asyncio.run(test_VIEWONLY_validation())
 
 
 @pytest.mark.asyncio
-async def validate_readonly_mode():
-    """Comprehensive validation of READONLY mode functionality."""
-    print("🔍 Validating READONLY mode...")
+async def validate_VIEWONLY_mode():
+    """Comprehensive validation of VIEWONLY mode functionality."""
+    print("🔍 Validating VIEWONLY mode...")
     print("=" * 60)
 
-    # Set environment for readonly mode
-    os.environ["READONLY"] = "true"
+    # Set environment for VIEWONLY mode
+    os.environ["VIEWONLY"] = "true"
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
 
     # Get server script path
@@ -304,7 +344,7 @@ async def validate_readonly_mode():
                 tool_names = [tool.name for tool in tools]
                 print(f"📋 Available tools: {len(tool_names)}")
 
-                # Define operations that should be blocked in READONLY mode
+                # Define operations that should be blocked in VIEWONLY mode
                 modification_operations = [
                     "register_schema",
                     "create_context",
@@ -321,8 +361,8 @@ async def validate_readonly_mode():
                     "bulk_cleanup",
                 ]
 
-                # Define operations that should still work (read-only)
-                readonly_operations = [
+                # Define operations that should still work (view-only)
+                VIEWONLY_operations = [
                     "list_subjects",
                     "list_contexts",
                     "get_global_config",
@@ -359,7 +399,7 @@ async def validate_readonly_mode():
                         elif "config" in operation:
                             args = {"compatibility": "BACKWARD"}
                         elif "mode" in operation:
-                            args = {"mode": "READONLY"}
+                            args = {"mode": "VIEWONLY"}
 
                         result = await session.call_tool(operation, args)
                         if result.content and len(result.content) > 0:
@@ -367,7 +407,7 @@ async def validate_readonly_mode():
                         else:
                             result_text = str(result).lower()
 
-                        if "readonly" in result_text or "read-only" in result_text:
+                        if "VIEWONLY" in result_text or "view-only" in result_text:
                             print(f"✅ {operation}: Correctly blocked")
                             blocked_count += 1
                         else:
@@ -376,16 +416,16 @@ async def validate_readonly_mode():
 
                     except Exception as e:
                         error_text = str(e).lower()
-                        if "readonly" in error_text or "read-only" in error_text:
+                        if "VIEWONLY" in error_text or "view-only" in error_text:
                             print(f"✅ {operation}: Correctly blocked (exception)")
                             blocked_count += 1
                         else:
-                            print(f"⚠️  {operation}: Exception (not readonly): {e}")
+                            print(f"⚠️  {operation}: Exception (not VIEWONLY): {e}")
 
-                print(f"\n✅ Testing {len(readonly_operations)} read-only operations (should work)...")
+                print(f"\n✅ Testing {len(VIEWONLY_operations)} view-only operations (should work)...")
                 allowed_count = 0
 
-                for operation in readonly_operations:
+                for operation in VIEWONLY_operations:
                     if operation not in tool_names:
                         print(f"⚠️  {operation}: Tool not found (skipping)")
                         continue
@@ -409,7 +449,7 @@ async def validate_readonly_mode():
                         else:
                             result_text = str(result).lower()
 
-                        if "readonly" in result_text or "read-only" in result_text:
+                        if "VIEWONLY" in result_text or "view-only" in result_text:
                             print(f"❌ {operation}: Incorrectly blocked")
                         else:
                             print(f"✅ {operation}: Correctly allowed")
@@ -417,32 +457,32 @@ async def validate_readonly_mode():
 
                     except Exception as e:
                         error_text = str(e).lower()
-                        if "readonly" in error_text or "read-only" in error_text:
-                            print(f"❌ {operation}: Incorrectly blocked by readonly mode")
+                        if "VIEWONLY" in error_text or "view-only" in error_text:
+                            print(f"❌ {operation}: Incorrectly blocked by VIEWONLY mode")
                         else:
                             # Connection errors are expected and OK
-                            print(f"✅ {operation}: Not blocked by readonly mode (connection error OK)")
+                            print(f"✅ {operation}: Not blocked by VIEWONLY mode (connection error OK)")
                             allowed_count += 1
 
-                print("\n📊 READONLY Mode Validation Summary:")
+                print("\n📊 VIEWONLY Mode Validation Summary:")
                 print(f"   🚫 Modification operations blocked: {blocked_count}/{len(modification_operations)}")
-                print(f"   ✅ Read-only operations allowed: {allowed_count}/{len(readonly_operations)}")
+                print(f"   ✅ view-only operations allowed: {allowed_count}/{len(VIEWONLY_operations)}")
 
                 # Validate that most operations behave as expected
                 min_blocked = len(modification_operations) * 0.8  # At least 80% should be blocked
-                min_allowed = len(readonly_operations) * 0.8  # At least 80% should be allowed
+                min_allowed = len(VIEWONLY_operations) * 0.8  # At least 80% should be allowed
 
                 if blocked_count >= min_blocked and allowed_count >= min_allowed:
-                    print("\n✅ READONLY mode validation PASSED!")
+                    print("\n✅ VIEWONLY mode validation PASSED!")
                     return True
                 else:
-                    print("\n❌ READONLY mode validation FAILED!")
+                    print("\n❌ VIEWONLY mode validation FAILED!")
                     print(f"   Expected at least {min_blocked:.0f} operations blocked, got {blocked_count}")
                     print(f"   Expected at least {min_allowed:.0f} operations allowed, got {allowed_count}")
                     return False
 
     except Exception as e:
-        print(f"❌ READONLY mode validation failed: {e}")
+        print(f"❌ VIEWONLY mode validation failed: {e}")
         import traceback
 
         traceback.print_exc()
@@ -450,14 +490,14 @@ async def validate_readonly_mode():
 
     finally:
         # Clean up environment
-        if "READONLY" in os.environ:
-            del os.environ["READONLY"]
+        if "VIEWONLY" in os.environ:
+            del os.environ["VIEWONLY"]
         if "SCHEMA_REGISTRY_URL" in os.environ:
             del os.environ["SCHEMA_REGISTRY_URL"]
 
 
 if __name__ == "__main__":
-    success = run_readonly_validation()
+    success = run_VIEWONLY_validation()
     if not success:
         print("❌ Test failed")
         sys.exit(1)

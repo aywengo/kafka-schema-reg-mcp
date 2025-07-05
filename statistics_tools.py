@@ -426,7 +426,6 @@ def count_schemas_task_queue_tool(
 
         # Start async execution
         try:
-            loop = asyncio.get_running_loop()
             asyncio.create_task(
                 task_manager.execute_task(
                     task,
@@ -644,7 +643,6 @@ def get_registry_statistics_task_queue_tool(
 
         # Start async execution
         try:
-            loop = asyncio.get_running_loop()
             asyncio.create_task(
                 task_manager.execute_task(
                     task,

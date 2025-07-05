@@ -88,16 +88,16 @@ schemaRegistry:
     # Example:
     # - name: "production"
     #   url: "http://prod-schema-registry:8081"
-    #   readonly: false
+    #   viewonly: false
     #   user: ""
     #   password: ""
     # - name: "staging"
     #   url: "http://staging-schema-registry:8081"
-    #   readonly: true
+    #   viewonly: true
 
 # Application settings
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 

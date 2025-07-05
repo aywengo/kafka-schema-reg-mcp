@@ -16,7 +16,7 @@ import aiohttp
 import requests
 
 from resource_linking import add_links_to_response
-from schema_registry_common import check_readonly_mode as _check_readonly_mode
+from schema_registry_common import check_viewonly_mode as _check_viewonly_mode
 from schema_validation import (
     create_error_response,
     create_success_response,
@@ -73,10 +73,10 @@ def register_schema_tool(
     Returns:
         Dictionary containing the schema ID with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         if registry_mode == "single":
@@ -611,10 +611,10 @@ def update_global_config_tool(
     Returns:
         Updated configuration with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         payload = {"compatibility": compatibility}
@@ -767,10 +767,10 @@ def update_subject_config_tool(
     Returns:
         Updated configuration with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         payload = {"compatibility": compatibility}
@@ -918,10 +918,10 @@ def update_mode_tool(
     Returns:
         Updated mode information with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         payload = {"mode": mode}
@@ -1074,10 +1074,10 @@ def update_subject_mode_tool(
     Returns:
         Updated mode information with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         payload = {"mode": mode}
@@ -1221,10 +1221,10 @@ def create_context_tool(
     Returns:
         Success message with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         if registry_mode == "single":
@@ -1288,10 +1288,10 @@ def delete_context_tool(
     Returns:
         Success message with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         if registry_mode == "single":
@@ -1359,10 +1359,10 @@ async def delete_subject_tool(
     Returns:
         Dictionary containing deleted version numbers with structured validation and resource links
     """
-    # Check readonly mode
-    readonly_check = _check_readonly_mode(registry_manager, registry)
-    if readonly_check:
-        return validate_registry_response(readonly_check, registry_mode)
+    # Check viewonly mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
 
     try:
         if registry_mode == "single":

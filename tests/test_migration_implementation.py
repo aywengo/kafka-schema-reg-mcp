@@ -54,7 +54,7 @@ def test_implemented_migration_files():
         "test_compatibility_migration.py",
         "test_bulk_migration.py",
         "test_registry_comparison.py",
-        "test_readonly_validation.py",
+        "test_viewonly_validation.py",
         "test_schema_drift.py",
         "test_version_migration.py",
         "test_migration_integration.py",

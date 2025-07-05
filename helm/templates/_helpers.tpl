@@ -113,8 +113,8 @@ Generate multi-registry environment variables
   value: {{ $registry.name | quote }}
 - name: SCHEMA_REGISTRY_URL_{{ $registryIndex }}
   value: {{ $registry.url | quote }}
-- name: READONLY_{{ $registryIndex }}
-  value: {{ $registry.readonly | quote }}
+- name: VIEWONLY_{{ $registryIndex }}
+  value: {{ $registry.viewonly | quote }}
 {{- if $registry.user }}
 - name: SCHEMA_REGISTRY_USER_{{ $registryIndex }}
   value: {{ $registry.user | quote }}

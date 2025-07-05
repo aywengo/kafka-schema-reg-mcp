@@ -29,7 +29,7 @@ The unified server automatically detects whether to run in single-registry or mu
 - `test_user_roles.py` - OAuth user role assignment and scope extraction
 
 ### Mode-Specific Tests
-- `test_readonly_mode.py` - READONLY mode enforcement
+- `test_viewonly_mode.py` - VIEWONLY mode enforcement
 - `test_multi_registry_mcp.py` - Multi-registry mode functionality
 - `test_numbered_integration.py` - Numbered environment variable configuration
 
@@ -153,12 +153,12 @@ export SCHEMA_REGISTRY_URL="http://localhost:38081"
 # Registry 1 (Development)
 export SCHEMA_REGISTRY_NAME_1="dev"
 export SCHEMA_REGISTRY_URL_1="http://localhost:38081"
-export READONLY_1="false"
+export VIEWONLY_1="false"
 
 # Registry 2 (Production)
 export SCHEMA_REGISTRY_NAME_2="prod"
 export SCHEMA_REGISTRY_URL_2="http://localhost:38082"
-export READONLY_2="false"
+export VIEWONLY_2="false"
 ```
 
 **Note**: Authentication variables (`SCHEMA_REGISTRY_USER_*`, `SCHEMA_REGISTRY_PASSWORD_*`) are optional for the test environment.
@@ -193,7 +193,7 @@ The tests are organized in logical progression from basic to advanced:
 
 ### ⚡ Integration Tests (Core Operations)
 - Schema operations (register, get, list, versions)
-- READONLY mode enforcement
+- VIEWONLY mode enforcement
 - Schema counting and statistics
 - Context management
 - Docker integration
@@ -217,7 +217,7 @@ The tests are organized in logical progression from basic to advanced:
 - Production readiness validation
 
 ### 🛡️ Safety Features (Tested Throughout)
-- READONLY mode protection
+- VIEWONLY mode protection
 - Error handling and recovery
 - Input validation
 - Production safety measures

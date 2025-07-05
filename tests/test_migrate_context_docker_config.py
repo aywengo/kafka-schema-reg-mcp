@@ -31,7 +31,7 @@ async def test_docker_command_generation():
     os.environ["SCHEMA_REGISTRY_URL_2"] = "http://target-registry:8082"
     os.environ["SCHEMA_REGISTRY_USER_2"] = "target_user"
     os.environ["SCHEMA_REGISTRY_PASSWORD_2"] = "target_pass"
-    os.environ["READONLY_2"] = "false"
+    os.environ["VIEWONLY_2"] = "false"
 
     # Reload registry manager to pick up new environment
     mcp_server.registry_manager._load_multi_registries()

@@ -122,13 +122,13 @@ services:
       SCHEMA_REGISTRY_URL_1: "http://schema-registry:8081"
       SCHEMA_REGISTRY_USER_1: "${PROD_REGISTRY_USER}"
       SCHEMA_REGISTRY_PASSWORD_1: "${PROD_REGISTRY_PASSWORD}"
-      READONLY_1: "false"
+      VIEWONLY_1: "false"
       
       SCHEMA_REGISTRY_NAME_2: "backup"
       SCHEMA_REGISTRY_URL_2: "http://backup-registry:8081"
       SCHEMA_REGISTRY_USER_2: "${BACKUP_REGISTRY_USER}"
       SCHEMA_REGISTRY_PASSWORD_2: "${BACKUP_REGISTRY_PASSWORD}"
-      READONLY_2: "true"
+      VIEWONLY_2: "true"
       
       # Security Configuration (v2.0.x)
       ENABLE_AUTH: "${ENABLE_AUTH:-false}"
@@ -191,11 +191,11 @@ data:
   # Multi-Registry Configuration (v1.5.0+)
   SCHEMA_REGISTRY_NAME_1: "default"
   SCHEMA_REGISTRY_URL_1: "http://schema-registry-service:8081"
-  READONLY_1: "false"
+  VIEWONLY_1: "false"
   
   SCHEMA_REGISTRY_NAME_2: "backup"
   SCHEMA_REGISTRY_URL_2: "http://backup-registry-service:8081"
-  READONLY_2: "true"
+  VIEWONLY_2: "true"
   
   # SSL/TLS Security Configuration (v2.0.0+)
   ENFORCE_SSL_TLS_VERIFICATION: "true"
@@ -343,7 +343,7 @@ spec:
 | `SCHEMA_REGISTRY_URL` | Primary Schema Registry URL | `http://localhost:8081` | v1.0.0 |
 | `SCHEMA_REGISTRY_USER` | Username for backend Schema Registry | *(empty)* | v1.0.0 |
 | `SCHEMA_REGISTRY_PASSWORD` | Password for backend Schema Registry | *(empty)* | v1.0.0 |
-| `READONLY` | Enable read-only mode | `false` | v1.3.0 |
+| `VIEWONLY` | Enable view-only mode | `false` | v1.3.0 |
 
 #### Multi-Registry Configuration (v1.5.0+)
 | Variable | Description | Default | Example |
@@ -352,7 +352,7 @@ spec:
 | `SCHEMA_REGISTRY_URL_X` | Registry endpoint (X=1-8) | *(required)* | `http://prod-registry:8081` |
 | `SCHEMA_REGISTRY_USER_X` | Username (X=1-8) | *(empty)* | `prod-user` |
 | `SCHEMA_REGISTRY_PASSWORD_X` | Password (X=1-8) | *(empty)* | `prod-password` |
-| `READONLY_X` | Per-registry readonly (X=1-8) | `false` | `true` |
+| `VIEWONLY_X` | Per-registry viewonly (X=1-8) | `false` | `true` |
 
 #### Authentication & Authorization (v2.0.x)
 | Variable | Description | Default | Applies To |
@@ -404,19 +404,19 @@ export SCHEMA_REGISTRY_NAME_1="development"
 export SCHEMA_REGISTRY_URL_1="http://dev-registry:8081"
 export SCHEMA_REGISTRY_USER_1="dev-user"
 export SCHEMA_REGISTRY_PASSWORD_1="dev-pass"
-export READONLY_1="false"
+export VIEWONLY_1="false"
 
 # Production Registry (with safety)
 export SCHEMA_REGISTRY_NAME_2="production"
 export SCHEMA_REGISTRY_URL_2="https://prod-registry:8081"
 export SCHEMA_REGISTRY_USER_2="prod-user"
 export SCHEMA_REGISTRY_PASSWORD_2="prod-pass"
-export READONLY_2="true"  # Production safety
+export VIEWONLY_2="true"  # Production safety
 
 # Staging Registry
 export SCHEMA_REGISTRY_NAME_3="staging"
 export SCHEMA_REGISTRY_URL_3="https://staging-registry:8081"
-export READONLY_3="false"
+export VIEWONLY_3="false"
 ```
 
 ---
@@ -450,7 +450,7 @@ The v2.0.2 release includes significant performance improvements:
 - [ ] Enable authentication on Schema Registry (backend)
 - [ ] Enable MCP Server authentication with `ENABLE_AUTH=true` (frontend)
 - [ ] Use HTTPS/TLS for all connections
-- [ ] Set `READONLY=true` for production MCP instances
+- [ ] Set `VIEWONLY=true` for production MCP instances
 - [ ] Implement network policies in Kubernetes
 - [ ] Use secrets management for credentials
 - [ ] Enable audit logging

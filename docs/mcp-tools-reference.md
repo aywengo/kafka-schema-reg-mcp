@@ -29,7 +29,7 @@ The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** tha
 - ✅ **48 MCP Tools**: Complete schema operations without API knowledge
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
-- ✅ **Production Safety**: READONLY mode blocks modifications in production
+- ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 
@@ -723,44 +723,44 @@ Claude: I'll check the Schema Registry status for you.
 
 ---
 
-## 🔒 READONLY Mode (Production Safety)
+## 🔒 VIEWONLY Mode (Production Safety)
 
-The MCP server includes a **production safety feature** that can be enabled by setting the `READONLY=true` environment variable. When enabled, all modification operations are blocked while read and export operations remain fully functional.
+The MCP server includes a **production safety feature** that can be enabled by setting the `VIEWONLY=true` environment variable. When enabled, all modification operations are blocked while read and export operations remain fully functional.
 
 ### **Environment Setup**
 ```bash
-# Enable READONLY mode for production safety
-export READONLY=true
+# Enable VIEWONLY mode for production safety
+export VIEWONLY=true
 
 # Or in Docker/Claude Desktop
 "env": {
-  "READONLY": "true",
+  "VIEWONLY": "true",
   "SCHEMA_REGISTRY_URL": "http://localhost:8081"
 }
 ```
 
-### **Blocked Operations in READONLY Mode**
-When READONLY mode is enabled, the following tools will return an error:
+### **Blocked Operations in VIEWONLY Mode**
+When VIEWONLY mode is enabled, the following tools will return an error:
 - 🚫 `register_schema` - Cannot register new schemas
 - 🚫 `create_context` / `delete_context` - Cannot modify contexts
 - 🚫 `delete_subject` - Cannot delete subjects
 - 🚫 `update_global_config` / `update_subject_config` - Cannot modify configuration
 - 🚫 `update_mode` / `update_subject_mode` - Cannot change operational modes
 
-### **Allowed Operations in READONLY Mode**
+### **Allowed Operations in VIEWONLY Mode**
 These tools continue to work normally:
 - ✅ All `get_*` tools - Read schema information and configuration
 - ✅ All `list_*` tools - Browse available schemas and contexts
 - ✅ `check_compatibility` - Test schema compatibility (no modifications)
 - ✅ All `export_*` tools - Generate backups and documentation
 
-### **Claude Desktop Usage in READONLY Mode**
+### **Claude Desktop Usage in VIEWONLY Mode**
 ```
 Human: "Register a new user schema with id and name fields"
 
-Claude: I attempted to register the schema, but the operation was blocked because the MCP server is running in READONLY mode for production safety. 
+Claude: I attempted to register the schema, but the operation was blocked because the MCP server is running in VIEWONLY mode for production safety. 
 
-Error: Operation blocked: MCP server is running in READONLY mode. Set READONLY=false to enable modification operations.
+Error: Operation blocked: MCP server is running in VIEWONLY mode. Set VIEWONLY=false to enable modification operations.
 
 However, I can help you with read-only operations like:
 - Viewing existing schemas
@@ -823,7 +823,7 @@ Get detailed information about a specific registry including connection status, 
     "user": "",
     "password": "",
     "description": "Default Schema Registry",
-    "readonly": false,
+    "viewonly": false,
     "is_default": true,
     "connection_status": "connected",
     "response_time_ms": 45.2,
@@ -1665,4 +1665,4 @@ Common error scenarios:
 
 ---
 
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional READONLY mode for production safety. 
+This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional VIEWONLY mode for production safety. 

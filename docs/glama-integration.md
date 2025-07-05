@@ -105,7 +105,7 @@ chmod +x test-docker-glama.sh
 | `MCP_HOST` | Server bind address | `0.0.0.0` |
 | `MCP_PORT` | Server port | `8000` |
 | `MCP_PATH` | API path | `/mcp` |
-| `READONLY` | Read-only mode | `false` |
+| `VIEWONLY` | View-only mode | `false` |
 | `MCP_PROXY_DEBUG` | Debug logging | `false` |
 
 ### Production Configuration
@@ -117,7 +117,7 @@ docker run -d \
     -e SCHEMA_REGISTRY_URL="https://schema-registry.prod.company.com" \
     -e SCHEMA_REGISTRY_USER="$SR_USERNAME" \
     -e SCHEMA_REGISTRY_PASSWORD="$SR_PASSWORD" \
-    -e READONLY=true \
+    -e VIEWONLY=true \
     -p 8000:8000 \
     --restart unless-stopped \
     mcp-server-glama

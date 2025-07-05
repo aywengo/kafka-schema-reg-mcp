@@ -4,7 +4,7 @@ Fix Schema Registry Modes for Migration Testing
 
 This script checks and fixes the modes of DEV and PROD registries:
 - DEV (38081): Should be READWRITE or IMPORT for testing
-- PROD (38082): Can be READONLY for production safety
+- PROD (38082): Can be VIEWONLY for production safety
 """
 
 
@@ -47,7 +47,7 @@ def check_and_fix_registry_mode(registry_name, url, desired_mode="READWRITE"):
                     try:
                         error_details = change_response.json()
                         print(f"      Error: {error_details}")
-                    except:
+                    except Exception:
                         print(f"      Raw response: {change_response.text}")
                     return False
         else:

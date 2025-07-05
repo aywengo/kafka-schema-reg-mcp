@@ -342,12 +342,12 @@ Claude: I'll configure different compatibility levels for your environments.
 
 **Mode Management:**
 ```
-Human: "Switch the schema registry to READONLY mode during our maintenance window"
+Human: "Switch the schema registry to VIEWONLY mode during our maintenance window"
 
 Claude: I'll switch to read-only mode for your maintenance.
 
 [Uses update_mode MCP tool]
-✅ Global mode: Changed to READONLY
+✅ Global mode: Changed to VIEWONLY
 🚫 Schema registration temporarily disabled
 ⏰ Ready for maintenance operations
 ```

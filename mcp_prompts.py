@@ -189,7 +189,7 @@ I can help you manage multiple Schema Registry instances for different environme
 
 ## ⚙️ Registry Configuration
 - **Default registry**: "Set production as the default registry"
-- **READONLY mode**: Some registries may be read-only for safety
+- **VIEWONLY mode**: Some registries may be read-only for safety
 - **Authentication**: Each registry can have different credentials
 
 ## 🚀 Workflow Examples
@@ -338,7 +338,7 @@ This advanced troubleshooting guide helps you diagnose and resolve complex Schem
 **Solutions**:
 - Verify required scopes (read, write, admin)
 - Check authentication configuration
-- Review READONLY mode settings
+- Review VIEWONLY mode settings
 
 ## 📝 Data Issues
 **Symptoms**: Missing schemas, unexpected versions
@@ -389,7 +389,7 @@ I can help you implement sophisticated schema management workflows:
 
 ### 🔐 Access Control & Safety
 **Production protection**:
-- "Set production registry to READONLY mode during maintenance"
+- "Set production registry to VIEWONLY mode during maintenance"
 - "Configure production context with FULL compatibility requirement"
 - "Monitor all schema changes with task tracking"
 

@@ -336,8 +336,8 @@ class TestConfigurationManagementPrompts:
             result = update_global_config(compatibility="BACKWARD")
 
             assert isinstance(result, dict)
-            # Should either succeed or indicate readonly mode
-            assert "error" not in result or "readonly" in result.get("error", "").lower()
+            # Should either succeed or indicate viewonly mode
+            assert "error" not in result or "viewonly" in result.get("error", "").lower()
             print("✅ Updated global compatibility to BACKWARD")
 
         except Exception as e:

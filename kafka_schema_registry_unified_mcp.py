@@ -38,7 +38,7 @@ Features:
 - Cross-Registry Comparison and Migration
 - Schema Export/Import with multiple formats
 - Async Task Queue for long-running operations
-- READONLY Mode protection
+- VIEWONLY Mode protection (with READONLY backward compatibility)
 - OAuth scopes support
 - MCP 2025-06-18 specification compliance (JSON-RPC batching disabled)
 - MCP-Protocol-Version header validation
@@ -398,14 +398,14 @@ from registry_management_tools import (  # noqa: E402
 
 # Import common library functionality
 from schema_registry_common import (  # noqa: E402
-    SINGLE_READONLY,
     SINGLE_REGISTRY_PASSWORD,
     SINGLE_REGISTRY_URL,
     SINGLE_REGISTRY_USER,
+    SINGLE_VIEWONLY,
     LegacyRegistryManager,
     MultiRegistryManager,
 )
-from schema_registry_common import check_readonly_mode as _check_readonly_mode  # noqa: E402
+from schema_registry_common import check_viewonly_mode as _check_viewonly_mode  # noqa: E402
 
 # Import schema validation utilities for structured output
 from schema_validation import (  # noqa: E402
@@ -511,7 +511,7 @@ if REGISTRY_MODE == "single":
     SCHEMA_REGISTRY_URL = SINGLE_REGISTRY_URL
     SCHEMA_REGISTRY_USER = SINGLE_REGISTRY_USER
     SCHEMA_REGISTRY_PASSWORD = SINGLE_REGISTRY_PASSWORD
-    READONLY = SINGLE_READONLY
+    VIEWONLY = SINGLE_VIEWONLY
 
     # Set up authentication if configured
     auth = None
@@ -530,7 +530,7 @@ else:
     SCHEMA_REGISTRY_URL = ""
     SCHEMA_REGISTRY_USER = ""
     SCHEMA_REGISTRY_PASSWORD = ""
-    READONLY = False
+    VIEWONLY = False
     auth = None
     headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
     standard_headers = {"Content-Type": "application/json"}
@@ -2001,11 +2001,11 @@ def get_default_registry_tool():
         )
 
 
-@structured_output("check_readonly_mode", fallback_on_error=True)
-def check_readonly_mode_tool(registry: str = None):
-    """Check if a registry is in readonly mode with structured output validation."""
+@structured_output("check_viewonly_mode", fallback_on_error=True)
+def check_viewonly_mode_tool(registry: str = None):
+    """Check if a registry is in viewonly mode with structured output validation."""
     try:
-        result = _check_readonly_mode(registry_manager, registry)
+        result = _check_viewonly_mode(registry_manager, registry)
 
         # If the original function returns an error dict, pass it through
         if isinstance(result, dict) and "error" in result:
@@ -2017,7 +2017,7 @@ def check_readonly_mode_tool(registry: str = None):
         # If it returns a boolean or other simple result, structure it
         if isinstance(result, bool):
             return {
-                "readonly": result,
+                "viewonly": result,
                 "registry": registry or "default",
                 "registry_mode": REGISTRY_MODE,
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
@@ -2031,14 +2031,14 @@ def check_readonly_mode_tool(registry: str = None):
 
         # Default case
         return {
-            "readonly": False,
+            "viewonly": False,
             "registry": registry or "default",
             "registry_mode": REGISTRY_MODE,
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
         }
 
     except Exception as e:
-        return create_error_response(str(e), error_code="READONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE)
+        return create_error_response(str(e), error_code="VIEWONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE)
 
 
 @structured_output("get_oauth_scopes_info_tool", fallback_on_error=True)
@@ -2115,9 +2115,9 @@ def get_default_registry():
 
 @mcp.tool()
 @require_scopes("read")
-def check_readonly_mode(registry: str = None):
-    """Check if a registry is in readonly mode."""
-    return check_readonly_mode_tool(registry)
+def check_viewonly_mode(registry: str = None):
+    """Check if a registry is in viewonly mode."""
+    return check_viewonly_mode_tool(registry)
 
 
 @mcp.tool()
@@ -2365,7 +2365,7 @@ def get_registry_info_resource():
             "default_registry": (
                 registry_manager.get_default_registry() if hasattr(registry_manager, "get_default_registry") else None
             ),
-            "readonly_mode": READONLY if REGISTRY_MODE == "single" else False,
+            "viewonly_mode": VIEWONLY if REGISTRY_MODE == "single" else False,
             "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
             "structured_output": {
                 "implementation_status": "100% Complete",
@@ -2410,7 +2410,7 @@ def get_registry_info_resource():
                 "Schema Migration",
                 "Context Management",
                 "Schema Export (JSON, Avro IDL)",
-                "READONLY Mode Protection",
+                "VIEWONLY Mode Protection",
                 "OAuth Scopes Support",
                 "Async Task Queue",
                 "Modular Architecture",

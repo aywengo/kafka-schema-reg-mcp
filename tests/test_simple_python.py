@@ -10,8 +10,6 @@ print("1. Python is working")
 
 # Test 2: Standard library imports
 try:
-    import asyncio
-    import json
     import os
     import sys
 

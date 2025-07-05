@@ -36,7 +36,7 @@ class TestConfig:
                     "url": url,
                     "user": os.getenv(f"SCHEMA_REGISTRY_USER_{i}", ""),
                     "password": os.getenv(f"SCHEMA_REGISTRY_PASSWORD_{i}", ""),
-                    "readonly": os.getenv(f"READONLY_{i}", "false").lower() == "true",
+                    "viewonly": os.getenv(f"VIEWONLY_{i}", "false").lower() == "true",
                 }
 
         # If no numbered configs found, detect test environment and create appropriate defaults
@@ -51,14 +51,14 @@ class TestConfig:
                     "url": "http://localhost:38081",
                     "user": "",
                     "password": "",
-                    "readonly": False,
+                    "viewonly": False,
                 }
                 configs["registry_2"] = {
                     "name": "production",
                     "url": "http://localhost:38082",
                     "user": "",
                     "password": "",
-                    "readonly": True,
+                    "viewonly": True,
                 }
             else:
                 # Single registry or custom configuration
@@ -70,7 +70,7 @@ class TestConfig:
                         "url": self.schema_registry_url,
                         "user": self.schema_registry_user,
                         "password": self.schema_registry_password,
-                        "readonly": False,
+                        "viewonly": False,
                     }
                 else:
                     # Single registry test environment
@@ -79,7 +79,7 @@ class TestConfig:
                         "url": f"http://localhost:{base_port}",
                         "user": "",
                         "password": "",
-                        "readonly": False,
+                        "viewonly": False,
                     }
 
         return configs
@@ -93,7 +93,7 @@ class TestConfig:
             dev_response = requests.get("http://localhost:38081/subjects", timeout=2)
             prod_response = requests.get("http://localhost:38082/subjects", timeout=2)
             return dev_response.status_code == 200 and prod_response.status_code == 200
-        except:
+        except Exception:
             return False
 
     def get_primary_registry_config(self) -> Dict[str, str]:
@@ -106,7 +106,7 @@ class TestConfig:
             "url": self.schema_registry_url,
             "user": self.schema_registry_user,
             "password": self.schema_registry_password,
-            "readonly": False,
+            "viewonly": False,
         }
 
     def get_multi_registry_configs(self) -> Dict[str, Dict[str, str]]:
@@ -130,7 +130,7 @@ class TestConfig:
             os.environ[f"SCHEMA_REGISTRY_URL_{i}"] = config["url"]
             os.environ[f"SCHEMA_REGISTRY_USER_{i}"] = config["user"]
             os.environ[f"SCHEMA_REGISTRY_PASSWORD_{i}"] = config["password"]
-            os.environ[f"READONLY_{i}"] = str(config["readonly"]).lower()
+            os.environ[f"VIEWONLY_{i}"] = str(config["viewonly"]).lower()
 
 
 # Global test configuration instance

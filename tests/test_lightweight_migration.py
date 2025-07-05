@@ -54,18 +54,18 @@ async def test_env():
     # Setup environment for multi-registry mode
     os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
     os.environ["SCHEMA_REGISTRY_URL_1"] = dev_url
-    os.environ["READONLY_1"] = "false"
+    os.environ["VIEWONLY_1"] = "false"
 
     os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
     os.environ["SCHEMA_REGISTRY_URL_2"] = prod_url
-    os.environ["READONLY_2"] = "false"  # Allow writes for testing
+    os.environ["VIEWONLY_2"] = "false"  # Allow writes for testing
 
     # Clear any other registry configurations
     for i in range(3, 9):
         for var in [
             f"SCHEMA_REGISTRY_NAME_{i}",
             f"SCHEMA_REGISTRY_URL_{i}",
-            f"READONLY_{i}",
+            f"VIEWONLY_{i}",
         ]:
             if var in os.environ:
                 del os.environ[var]

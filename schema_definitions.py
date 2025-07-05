@@ -247,9 +247,9 @@ REGISTRY_INFO_SCHEMA = {
             "enum": ["none", "basic", "oauth", "ssl"],
             "description": "Authentication type",
         },
-        "readonly": {
+        "viewonly": {
             "type": "boolean",
-            "description": "Whether registry is in readonly mode",
+            "description": "Whether registry is in viewonly mode",
         },
         "version": {"type": "string", "description": "Schema Registry server version"},
         "capabilities": {
@@ -827,9 +827,9 @@ TOOL_OUTPUT_SCHEMAS = {
     # Utility Tools
     "set_default_registry": SUCCESS_RESPONSE_SCHEMA,
     "get_default_registry": REGISTRY_INFO_SCHEMA,
-    "check_readonly_mode": {
+    "check_viewonly_mode": {
         "type": "object",
-        "properties": {"readonly": {"type": "boolean"}},
+        "properties": {"viewonly": {"type": "boolean"}},
     },
     "get_oauth_scopes_info_tool": {"type": "object", "additionalProperties": True},
     "get_operation_info_tool": {"type": "object", "additionalProperties": True},

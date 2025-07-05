@@ -81,7 +81,7 @@ curl http://localhost:38000/
 docker run --rm -i \
   -e SCHEMA_REGISTRY_NAME_1=test1 \
   -e SCHEMA_REGISTRY_URL_1=http://localhost:8081 \
-  -e READONLY_1=false \
+  -e VIEWONLY_1=false \
   aywengo/kafka-schema-reg-mcp:stable \
   python kafka_schema_registry_multi_mcp.py
 ```
@@ -135,7 +135,7 @@ Before creating a release:
 - [ ] Numbered config integration tests passing (real Schema Registry operations)
 - [ ] All 68 MCP tools functional (20 original enhanced + 48 multi-registry)
 - [ ] Multi-registry support tested (up to 8 registries)
-- [ ] Per-registry READONLY mode working
+- [ ] Per-registry VIEWONLY mode working
 - [ ] Cross-registry operations functional (compare, migrate, sync)
 - [ ] Documentation updated
 - [ ] Version bumped in relevant files

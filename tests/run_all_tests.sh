@@ -352,7 +352,7 @@ run_essential_integration_tests() {
     local tests=(
         "test_integration.py:Core schema operations"
         "test_prompts.py:MCP prompts functionality and workflow scenarios"
-        "test_readonly_mode.py:READONLY mode enforcement"
+        "test_viewonly_mode.py:VIEWONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_ssl_tls_integration.py:SSL/TLS security enhancement integration (issue #24)"
@@ -373,11 +373,11 @@ run_integration_tests() {
     
     local tests=(
         "test_integration.py:Comprehensive schema operations"
-        "test_readonly_mode.py:READONLY mode enforcement"
+        "test_viewonly_mode.py:VIEWONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
-        "test_readonly_mcp_client.py:READONLY mode with MCP client"
-        "test_readonly_validation.py:READONLY mode validation"
+        "test_viewonly_mcp_client.py:VIEWONLY mode with MCP client"
+        "test_viewonly_validation.py:VIEWONLY mode validation"
         "test_docker_mcp.py:Docker integration"
         "test_ssl_tls_integration.py:SSL/TLS security enhancement integration (issue #24)"
         "test_oauth.py:OAuth 2.1 generic discovery and authentication"
@@ -577,7 +577,7 @@ $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Multi-Registry Core Tests
 - MCP Container Integration Tests
 - MCP 2025-06-18 Compliance Tests ⭐" || echo "- Basic Unified Server Tests (imports, connectivity)
-- Integration Tests (schema operations, readonly mode)
+- Integration Tests (schema operations, viewonly mode)
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
 - MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐

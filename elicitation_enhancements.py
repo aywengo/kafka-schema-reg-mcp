@@ -275,7 +275,6 @@ class EnhancedElicitationManager(ElicitationManager):
         # Schema registration rules
         if "field_name" in response.values and "field_type" in response.values:
             field_name = response.values["field_name"]
-            field_type = response.values["field_type"]
 
             # Check naming conventions
             if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", field_name):

@@ -22,7 +22,7 @@ docker run -it --rm \
     -e MCP_HOST=0.0.0.0 \
     -e MCP_PATH=/mcp \
     -e MCP_PORT=8000 \
-    -e READONLY=false \
+    -e VIEWONLY=false \
     -e SCHEMA_REGISTRY_PASSWORD="s3cr3t-p@ssw0rd!" \
     -e SCHEMA_REGISTRY_URL="http://schema-registry.example.com:8081" \
     -e SCHEMA_REGISTRY_USER="schema_admin" \

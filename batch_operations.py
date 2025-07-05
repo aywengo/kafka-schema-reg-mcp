@@ -232,9 +232,9 @@ def _execute_clear_context_batch(
 
         update_progress(10.0, "Registry client connected")
 
-        # Check readonly mode
-        readonly_check = registry_manager.is_readonly(registry)
-        if readonly_check:
+        # Check viewonly mode
+        viewonly_check = registry_manager.is_viewonly(registry)
+        if viewonly_check:
             return {
                 "subjects_found": 0,
                 "subjects_deleted": 0,
@@ -243,8 +243,8 @@ def _execute_clear_context_batch(
                 "duration_seconds": time.time() - start_time,
                 "success_rate": 0.0,
                 "performance": 0.0,
-                "message": f"Registry '{registry}' is in READONLY mode",
-                "error": f"Registry '{registry}' is in READONLY mode",
+                "message": f"Registry '{registry}' is in VIEWONLY mode",
+                "error": f"Registry '{registry}' is in VIEWONLY mode",
                 "registry": registry,
                 "batching_method": "application_level",
             }
@@ -579,9 +579,9 @@ def _execute_clear_multiple_contexts_batch(
 
         update_progress(8.0, "Registry client connected")
 
-        # Check readonly mode
-        readonly_check = registry_manager.is_readonly(registry)
-        if readonly_check:
+        # Check viewonly mode
+        viewonly_check = registry_manager.is_viewonly(registry)
+        if viewonly_check:
             return {
                 "contexts_processed": 0,
                 "total_subjects_found": 0,
@@ -591,8 +591,8 @@ def _execute_clear_multiple_contexts_batch(
                 "duration_seconds": time.time() - start_time,
                 "success_rate": 0.0,
                 "performance": 0.0,
-                "message": f"Registry '{registry}' is in READONLY mode",
-                "errors": [f"Registry '{registry}' is in READONLY mode"],
+                "message": f"Registry '{registry}' is in VIEWONLY mode",
+                "errors": [f"Registry '{registry}' is in VIEWONLY mode"],
                 "batching_method": "application_level",
             }
 

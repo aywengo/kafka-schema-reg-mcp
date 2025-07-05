@@ -229,7 +229,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" http://mcp-server/health
 
 - [ ] ✅ Users have minimum required scope (principle of least privilege)
 - [ ] ✅ Admin scope limited to platform administrators only
-- [ ] ✅ Production registries use READONLY mode for most users
+- [ ] ✅ Production registries use VIEWONLY mode for most users
 - [ ] ✅ JWT tokens have short expiration (1-4 hours)
 - [ ] ✅ Role assignments are group-based, not individual
 - [ ] ✅ Regular audit of user role assignments (quarterly)

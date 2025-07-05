@@ -195,14 +195,14 @@ class RemoteMCPMetrics:
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
-                            except:
+                            except Exception:
                                 pass  # Skip subjects that can't be queried
 
                         # Get contexts (if available)
                         try:
                             contexts = client.list_contexts() or ["."]
                             context_count = len(contexts)
-                        except:
+                        except Exception:
                             context_count = 1  # Default context
 
                         stats[registry_name] = {

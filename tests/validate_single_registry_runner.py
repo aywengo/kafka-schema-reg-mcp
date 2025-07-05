@@ -25,7 +25,7 @@ def validate_single_registry_tests():
         "test_basic_server.py",
         "test_mcp_server.py",
         "test_config.py",
-        "test_readonly_mcp_client.py",
+        "test_viewonly_mcp_client.py",
         "test_integration.py",
         "advanced_mcp_test.py",
         "test_docker_mcp.py",

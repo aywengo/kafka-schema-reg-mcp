@@ -169,7 +169,7 @@ def test_okta_custom_attributes():
     okta_token_payload = {
         "sub": "reader-user-456",
         "name": "Read Only User",
-        "email": "readonly@company.com",
+        "email": "viewonly@company.com",
         "mcp_scopes": ["read"],  # Custom attribute
         "groups": ["Everyone", "IT-Team"],
         "iss": "https://company.okta.com/oauth2/default",

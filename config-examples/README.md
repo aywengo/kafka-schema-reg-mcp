@@ -8,7 +8,7 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_config.json`** - Basic local Python configuration (unified)
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
-- **`claude_desktop_readonly_config.json`** - Read-only mode for production safety
+- **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
 
 ### Version-Specific Configurations
 
@@ -174,7 +174,7 @@ cd tests
 - ⚠️ **Pre-release**: Use for testing only until promoted to stable
 
 ### Use Case: Production Safety
-**Recommended:** `claude_desktop_readonly_config.json`
+**Recommended:** `claude_desktop_viewonly_config.json`
 - ✅ Read-only mode enforced
 - ✅ Prevents accidental modifications
 - ✅ Safe production monitoring
@@ -225,7 +225,7 @@ ENFORCE_SSL_TLS_VERIFICATION=false
 **📚 Complete SSL/TLS Documentation**: [`docs/SSL_TLS_SECURITY.md`](../docs/SSL_TLS_SECURITY.md)
    - Update `SCHEMA_REGISTRY_URL_X` with your registry endpoints
    - Set `SCHEMA_REGISTRY_USER_X` and `SCHEMA_REGISTRY_PASSWORD_X` for authentication
-   - Configure `READONLY_X` for production safety
+   - Configure `VIEWONLY_X` for production safety
 3. **Test** the configuration before deploying to Claude Desktop
 4. **Save** to your Claude Desktop configuration location
 5. **Restart** Claude Desktop

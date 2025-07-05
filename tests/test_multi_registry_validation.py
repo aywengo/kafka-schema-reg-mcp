@@ -51,18 +51,18 @@ class MultiRegistryValidationTest:
         # Setup environment for multi-registry mode
         os.environ["SCHEMA_REGISTRY_NAME_1"] = "dev"
         os.environ["SCHEMA_REGISTRY_URL_1"] = self.dev_url
-        os.environ["READONLY_1"] = "false"
+        os.environ["VIEWONLY_1"] = "false"
 
         os.environ["SCHEMA_REGISTRY_NAME_2"] = "prod"
         os.environ["SCHEMA_REGISTRY_URL_2"] = self.prod_url
-        os.environ["READONLY_2"] = "true"  # PROD should be read-only
+        os.environ["VIEWONLY_2"] = "true"  # PROD should be viewonly
 
         # Clear any other registry configurations
         for i in range(3, 9):
             for var in [
                 f"SCHEMA_REGISTRY_NAME_{i}",
                 f"SCHEMA_REGISTRY_URL_{i}",
-                f"READONLY_{i}",
+                f"VIEWONLY_{i}",
             ]:
                 if var in os.environ:
                     del os.environ[var]
@@ -128,10 +128,10 @@ class MultiRegistryValidationTest:
             for registry in registries:
                 name = registry.get("name", "unknown")
                 url = registry.get("url", "unknown")
-                readonly = registry.get("readonly", False)
+                viewonly = registry.get("viewonly", False)
                 connection_status = registry.get("connection_status", "unknown")
 
-                print(f"   📊 {name}: {url} (readonly: {readonly}, status: {connection_status})")
+                print(f"   📊 {name}: {url} (viewonly: {viewonly}, status: {connection_status})")
 
                 if connection_status != "connected":
                     print(f"   ⚠️  Registry {name} is not connected")
@@ -186,41 +186,26 @@ class MultiRegistryValidationTest:
             print(f"   ❌ Cross-registry operations test failed: {e}")
             return False
 
-    def test_readonly_enforcement(self) -> bool:
-        """Test that PROD registry is properly configured as read-only"""
-        print("\n🔒 Testing read-only enforcement...")
+    def test_viewonly_enforcement(self) -> bool:
+        """Test VIEWONLY mode enforcement in multi-registry setup."""
+        print("\n🔒 Testing VIEWONLY Mode Enforcement")
 
-        try:
-            # Test that PROD registry is marked as read-only in config
-            prod_info = mcp_server.get_registry_info("prod")
-
-            if "error" in prod_info:
-                print(f"   ❌ Could not get PROD registry info: {prod_info['error']}")
-                return False
-
-            if not prod_info.get("readonly", False):
-                print("   ⚠️  PROD registry not marked as read-only in configuration")
-                # This is a warning, not a failure for this test
-            else:
-                print("   ✅ PROD registry correctly marked as read-only")
-
-            # Test DEV registry (should not be read-only)
-            dev_info = mcp_server.get_registry_info("dev")
-
-            if "error" in dev_info:
-                print(f"   ❌ Could not get DEV registry info: {dev_info['error']}")
-                return False
-
-            if dev_info.get("readonly", False):
-                print("   ⚠️  DEV registry incorrectly marked as read-only")
-            else:
-                print("   ✅ DEV registry correctly configured as read-write")
-
-            return True
-
-        except Exception as e:
-            print(f"   ❌ Read-only enforcement test failed: {e}")
+        # Check that PROD registry is in viewonly mode
+        prod_info = mcp_server.get_registry_info("prod")
+        if not prod_info.get("viewonly", False):
+            print("   ❌ PROD registry should be in viewonly mode")
             return False
+
+        print("   ✅ PROD registry is in viewonly mode")
+
+        # Check that DEV registry is NOT in viewonly mode
+        dev_info = mcp_server.get_registry_info("dev")
+        if dev_info.get("viewonly", False):
+            print("   ❌ DEV registry should NOT be in viewonly mode")
+            return False
+
+        print("   ✅ DEV registry is NOT in viewonly mode")
+        return True
 
     async def test_multi_registry_tools(self) -> bool:
         """Test that multi-registry specific tools work"""
@@ -275,8 +260,8 @@ class MultiRegistryValidationTest:
         if not await self.test_cross_registry_operations():
             return False
 
-        # Test readonly enforcement
-        if not self.test_readonly_enforcement():
+        # Test viewonly enforcement
+        if not self.test_viewonly_enforcement():
             return False
 
         # Test multi-registry tools

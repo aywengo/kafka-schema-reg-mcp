@@ -95,7 +95,7 @@ class RemoteMCPTester:
                 if response.status == 200:
                     print(f"✅ Health check passed: {response.status}")
                     return True
-        except:
+        except Exception:
             pass  # Health endpoint might not exist
 
         # Test MCP endpoint with initialize

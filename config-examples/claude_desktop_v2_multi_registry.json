@@ -11,12 +11,12 @@
         "-e", "SCHEMA_REGISTRY_URL_1",
         "-e", "SCHEMA_REGISTRY_USER_1",
         "-e", "SCHEMA_REGISTRY_PASSWORD_1",
-        "-e", "READONLY_1",
+        "-e", "VIEWONLY_1",
         "-e", "SCHEMA_REGISTRY_NAME_2",
         "-e", "SCHEMA_REGISTRY_URL_2",
         "-e", "SCHEMA_REGISTRY_USER_2", 
         "-e", "SCHEMA_REGISTRY_PASSWORD_2",
-        "-e", "READONLY_2",
+        "-e", "VIEWONLY_2",
         "aywengo/kafka-schema-reg-mcp:2.0.0"
       ],
       "env": {
@@ -24,12 +24,12 @@
         "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
         "SCHEMA_REGISTRY_USER_1": "",
         "SCHEMA_REGISTRY_PASSWORD_1": "",
-        "READONLY_1": "false",
+        "VIEWONLY_1": "false",
         "SCHEMA_REGISTRY_NAME_2": "production",
         "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
         "SCHEMA_REGISTRY_USER_2": "",
         "SCHEMA_REGISTRY_PASSWORD_2": "",
-        "READONLY_2": "true"
+        "VIEWONLY_2": "true"
       }
     }
   }

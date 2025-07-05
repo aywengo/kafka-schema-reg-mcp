@@ -173,7 +173,7 @@ def test_registry_connection_tool(
             "name": client.config.name,
             "url": client.config.url,
             "description": client.config.description,
-            "readonly": client.config.readonly,
+            "viewonly": client.config.readonly,
             "has_authentication": bool(client.config.user and client.config.password),
         }
 
@@ -181,7 +181,7 @@ def test_registry_connection_tool(
         result["health_assessment"] = {
             "status": "healthy" if result.get("status") == "connected" else "unhealthy",
             "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
-            "readonly_mode": client.config.readonly,
+            "viewonly_mode": client.config.readonly,
         }
 
         # Add resource links
@@ -228,7 +228,7 @@ async def test_all_registries_tool(registry_manager, registry_mode: str) -> Dict
                     result["health_assessment"] = {
                         "status": ("healthy" if result.get("status") == "connected" else "unhealthy"),
                         "can_perform_operations": result.get("status") == "connected" and not client.config.readonly,
-                        "readonly_mode": client.config.readonly,
+                        "viewonly_mode": client.config.readonly,
                     }
 
                     # Convert to enhanced response format
@@ -277,7 +277,7 @@ async def test_all_registries_tool(registry_manager, registry_mode: str) -> Dict
                                     "name": client.config.name,
                                     "url": client.config.url,
                                     "description": client.config.description,
-                                    "readonly": client.config.readonly,
+                                    "viewonly": client.config.readonly,
                                     "has_authentication": bool(client.config.user and client.config.password),
                                 }
 
@@ -286,7 +286,7 @@ async def test_all_registries_tool(registry_manager, registry_mode: str) -> Dict
                                     "status": ("healthy" if test_result.get("status") == "connected" else "unhealthy"),
                                     "can_perform_operations": test_result.get("status") == "connected"
                                     and not client.config.readonly,
-                                    "readonly_mode": client.config.readonly,
+                                    "viewonly_mode": client.config.readonly,
                                 }
                         except Exception as e:
                             test_result["metadata_error"] = str(e)

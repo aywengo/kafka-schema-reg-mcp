@@ -175,7 +175,7 @@ async def test_schema_registration_performance():
     env = {
         "SCHEMA_REGISTRY_NAME_1": "perf_test",
         "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
-        "READONLY_1": "false",
+        "VIEWONLY_1": "false",
     }
 
     for key, value in env.items():
