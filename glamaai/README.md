@@ -53,7 +53,7 @@ docker run -it --rm \
     -e MCP_HOST=0.0.0.0 \
     -e MCP_PATH=/mcp \
     -e MCP_PORT=8000 \
-    -e READONLY=false \
+    -e VIEWONLY=false \
     -e SCHEMA_REGISTRY_PASSWORD="your-password" \
     -e SCHEMA_REGISTRY_URL="http://your-schema-registry:8081" \
     -e SCHEMA_REGISTRY_USER="your-username" \
@@ -71,7 +71,7 @@ docker run -it --rm \
 | `MCP_HOST` | Server bind address | No | `0.0.0.0` |
 | `MCP_PORT` | Server port | No | `8000` |
 | `MCP_PATH` | Server path | No | `/mcp` |
-| `READONLY` | Read-only mode | No | `false` |
+| `VIEWONLY` | View-only mode | No | `false` |
 | `MCP_PROXY_DEBUG` | Enable proxy debug mode | No | - |
 
 ## Architecture

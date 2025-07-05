@@ -37,13 +37,13 @@ schemaRegistry:
     registries:
       - name: "development"
         url: "http://schema-registry-dev.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "staging"
         url: "http://schema-registry-staging.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "production"
         url: "http://schema-registry-prod.kafka.svc.cluster.local:8081"
-        readonly: true
+        viewonly: true
 
 # Service configuration
 service:
@@ -90,7 +90,7 @@ autoscaling:
 
 # App configuration
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 

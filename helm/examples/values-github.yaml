@@ -55,21 +55,21 @@ schemaRegistry:
     registries:
       - name: "production"
         url: "https://prod-schema-registry.company.com:8081"
-        readonly: true
+        viewonly: true
         user: "${PROD_REGISTRY_USER}"
         password: "${PROD_REGISTRY_PASSWORD}"
       - name: "staging"
         url: "https://staging-schema-registry.company.com:8081"
-        readonly: false
+        viewonly: false
         user: "${STAGING_REGISTRY_USER}"
         password: "${STAGING_REGISTRY_PASSWORD}"
       - name: "development"
         url: "https://dev-schema-registry.company.com:8081"
-        readonly: false
+        viewonly: false
 
 # Application settings
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 
