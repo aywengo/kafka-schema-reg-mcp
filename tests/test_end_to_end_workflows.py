@@ -343,7 +343,7 @@ async def test_schema_evolution_workflow():
                 )
                 print(f"✅ Comparison: {result.content[0].text if result.content else 'Success'}")
 
-                # Step 7: Try to migrate to production (should fail due to readonly)
+                # Step 7: Try to migrate to production (should fail due to viewonly)
                 print("\nStep 7: Try to migrate to production (should fail)")
                 result = await session.call_tool(
                     "migrate_schema",
@@ -691,7 +691,7 @@ async def test_complete_schema_lifecycle():
 
     # Setup environment
     os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
-    os.environ["READONLY"] = "false"
+    os.environ["VIEWONLY"] = "false"
 
     # Get server script path
     script_dir = os.path.dirname(os.path.abspath(__file__))

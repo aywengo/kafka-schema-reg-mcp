@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Test script to verify READONLY mode works correctly with an actual MCP client connection.
-This simulates how Claude Desktop would interact with the server in READONLY mode.
+Test script to verify VIEWONLY mode works correctly with an actual MCP client connection.
+This simulates how Claude Desktop would interact with the server in VIEWONLY mode.
 """
 
 import asyncio
@@ -11,13 +11,13 @@ import os
 from fastmcp import Client
 
 
-async def test_readonly_with_mcp_client():
-    print("🔒 Testing READONLY mode with MCP client...")
+async def test_viewonly_with_mcp_client():
+    print("🔒 Testing VIEWONLY mode with MCP client...")
     print("=" * 50)
 
-    # Set READONLY mode
+    # Set VIEWONLY mode
     env = os.environ.copy()
-    env["READONLY"] = "true"
+    env["VIEWONLY"] = "true"
     env["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
 
     # Get the path to the parent directory where the server script is located
@@ -43,7 +43,7 @@ async def test_readonly_with_mcp_client():
             result = await client.call_tool(
                 "register_schema",
                 {
-                    "subject": "test-readonly-schema",
+                    "subject": "test-viewonly-schema",
                     "schema_definition": {"type": "string"},
                     "schema_type": "AVRO",
                 },
@@ -52,15 +52,15 @@ async def test_readonly_with_mcp_client():
             if result:
                 try:
                     response = json.loads(result)
-                    if "readonly_mode" in response:
-                        print("✅ register_schema correctly blocked in READONLY mode")
+                    if "viewonly_mode" in response:
+                        print("✅ register_schema correctly blocked in VIEWONLY mode")
                         print(f"   Error: {response['error']}")
                     else:
                         print("❌ register_schema should be blocked but wasn't!")
                         print(f"   Response: {response}")
                 except json.JSONDecodeError:
-                    if "readonly" in result.lower():
-                        print("✅ register_schema correctly blocked in READONLY mode")
+                    if "viewonly" in result.lower():
+                        print("✅ register_schema correctly blocked in VIEWONLY mode")
                         print(f"   Error: {result}")
                     else:
                         print("❌ register_schema should be blocked but wasn't!")
@@ -79,24 +79,24 @@ async def test_readonly_with_mcp_client():
             if result:
                 try:
                     response = json.loads(result)
-                    if "readonly_mode" in response:
+                    if "viewonly_mode" in response:
                         print("❌ list_subjects should NOT be blocked")
                         print(f"   Error: {response['error']}")
                     else:
-                        print("✅ list_subjects correctly allowed in READONLY mode")
+                        print("✅ list_subjects correctly allowed in VIEWONLY mode")
                         print(f"   Response type: {type(response)}")
                 except json.JSONDecodeError:
-                    print("✅ list_subjects correctly allowed in READONLY mode")
+                    print("✅ list_subjects correctly allowed in VIEWONLY mode")
                     print(f"   Response: {result}")
             else:
                 print("✅ list_subjects allowed (empty response)")
 
         except Exception as e:
             # Connection error is expected if Schema Registry isn't running
-            if "readonly" in str(e).lower():
-                print("❌ list_subjects incorrectly blocked by readonly mode")
+            if "viewonly" in str(e).lower():
+                print("❌ list_subjects incorrectly blocked by viewonly mode")
             else:
-                print("✅ list_subjects not blocked by readonly mode (connection error expected)")
+                print("✅ list_subjects not blocked by viewonly mode (connection error expected)")
 
         # Test 4: Try an export operation (should work)
         print("\n🧪 Testing allowed operation: export_global")
@@ -106,23 +106,23 @@ async def test_readonly_with_mcp_client():
             if result:
                 try:
                     response = json.loads(result)
-                    if "readonly_mode" in response:
+                    if "viewonly_mode" in response:
                         print("❌ export_global should NOT be blocked")
                         print(f"   Error: {response['error']}")
                     else:
-                        print("✅ export_global correctly allowed in READONLY mode")
+                        print("✅ export_global correctly allowed in VIEWONLY mode")
                         print(f"   Response type: {type(response)}")
                 except json.JSONDecodeError:
-                    print("✅ export_global correctly allowed in READONLY mode")
+                    print("✅ export_global correctly allowed in VIEWONLY mode")
                     print(f"   Response: {result}")
             else:
                 print("✅ export_global allowed (empty response)")
 
         except Exception as e:
-            if "readonly" in str(e).lower():
-                print("❌ export_global incorrectly blocked by readonly mode")
+            if "viewonly" in str(e).lower():
+                print("❌ export_global incorrectly blocked by viewonly mode")
             else:
-                print("✅ export_global not blocked by readonly mode (connection error expected)")
+                print("✅ export_global not blocked by viewonly mode (connection error expected)")
 
         # Test 5: Check server info resource
         print("\n🧪 Testing registry info resource")
@@ -136,8 +136,8 @@ async def test_readonly_with_mcp_client():
                     if result:
                         try:
                             info = json.loads(result)
-                            readonly_status = info.get("readonly_mode", "unknown")
-                            print(f"✅ Server info shows readonly_mode: {readonly_status}")
+                            viewonly_status = info.get("viewonly_mode", "unknown")
+                            print(f"✅ Server info shows viewonly_mode: {viewonly_status}")
                         except json.JSONDecodeError:
                             print(f"✅ Server info resource available: {result[:100]}...")
                     break
@@ -146,7 +146,7 @@ async def test_readonly_with_mcp_client():
             print(f"⚠️  Error reading server info: {e}")
 
         print("\n" + "=" * 50)
-        print("🎉 READONLY mode MCP client test completed!")
+        print("🎉 VIEWONLY mode MCP client test completed!")
         print("\nSummary:")
         print("- ❌ Modification operations should be blocked")
         print("- ✅ Read operations should be allowed")
@@ -154,4 +154,4 @@ async def test_readonly_with_mcp_client():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_readonly_with_mcp_client())
+    asyncio.run(test_viewonly_with_mcp_client())

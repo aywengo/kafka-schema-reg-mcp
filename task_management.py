@@ -81,7 +81,7 @@ OPERATION_METADATA = {
         "duration": OperationDuration.QUICK,
         "pattern": AsyncPattern.DIRECT,
     },
-    "check_readonly_mode": {
+    "check_viewonly_mode": {
         "duration": OperationDuration.QUICK,
         "pattern": AsyncPattern.DIRECT,
     },

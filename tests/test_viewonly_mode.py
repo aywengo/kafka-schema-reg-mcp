@@ -24,28 +24,32 @@ async def test_viewonly_mode():
     print("🔒 Testing VIEWONLY mode functionality...")
     print("=" * 50)
 
-    # Test with VIEWONLY=false first (normal mode)
-    print("\n🟢 Testing NORMAL mode (VIEWONLY=false)...")
-    os.environ["VIEWONLY"] = "false"
-    os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
-
-    # Test with VIEWONLY=true (viewonly mode)
-    print("\n🔴 Testing VIEWONLY mode (VIEWONLY=true)...")
-    os.environ["VIEWONLY"] = "true"
-
-    # Get absolute path to server script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
-
-    # Create client with the server script
-    client = Client(server_script)
-
+    # Store original environment state
+    original_viewonly = os.environ.get("VIEWONLY")
+    original_readonly = os.environ.get("READONLY")
+    
     try:
+        # Test with VIEWONLY=false first (normal mode)
+        print("\n🟢 Testing NORMAL mode (VIEWONLY=false)...")
+        os.environ["VIEWONLY"] = "false"
+        os.environ["SCHEMA_REGISTRY_URL"] = "http://localhost:38081"
+
+        # Test with VIEWONLY=true (viewonly mode)
+        print("\n🔴 Testing VIEWONLY mode (VIEWONLY=true)...")
+        os.environ["VIEWONLY"] = "true"
+
+        # Get absolute path to server script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
+
+        # Create client with the server script
+        client = Client(server_script)
+
         async with client:
             print("✅ MCP connection established")
 
-            # Test the check_readonly_mode tool (now handles both VIEWONLY and READONLY)
-            readonly_check = await client.call_tool("check_readonly_mode", {})
+            # Test the check_viewonly_mode tool (now handles both VIEWONLY and READONLY)
+            readonly_check = await client.call_tool("check_viewonly_mode", {})
             if readonly_check and ("viewonly_mode" in str(readonly_check) or "readonly_mode" in str(readonly_check)):
                 print("✅ VIEWONLY check working: view-only mode is active")
             else:
@@ -160,23 +164,33 @@ async def test_viewonly_mode():
                 else:
                     print("✅ check_compatibility: Not blocked by viewonly mode (connection error is OK)")
 
+        print("\n" + "=" * 50)
+        print("🎉 VIEWONLY mode test completed!")
+        print("\nSummary:")
+        print("- Modification operations should be blocked ❌")
+        print("- Read operations should continue working ✅")
+        print("- Export operations should continue working ✅")
+        return True
     except Exception as e:
         print(f"❌ Error during test: {e}")
         import traceback
 
         traceback.print_exc()
         return False
+    finally:
+        # Restore original environment state
+        if original_viewonly is not None:
+            os.environ["VIEWONLY"] = original_viewonly
+        else:
+            os.environ.pop("VIEWONLY", None)
+        
+        if original_readonly is not None:
+            os.environ["READONLY"] = original_readonly
+        else:
+            os.environ.pop("READONLY", None)
 
-    print("\n" + "=" * 50)
-    print("🎉 VIEWONLY mode test completed!")
-    print("\nSummary:")
-    print("- Modification operations should be blocked ❌")
-    print("- Read operations should continue working ✅")
-    print("- Export operations should continue working ✅")
-    return True
 
-
-async def test_viewonly_environment_variations():
+def test_viewonly_environment_variations():
     """Test different ways to set VIEWONLY=true and backward compatibility with READONLY"""
     print("\n🧪 Testing different VIEWONLY environment variable values...")
 
@@ -184,60 +198,76 @@ async def test_viewonly_environment_variations():
 
     import kafka_schema_registry_unified_mcp
     import schema_registry_common
+    
+    # Store original environment state
+    original_viewonly = os.environ.get("VIEWONLY")
+    original_readonly = os.environ.get("READONLY")
+    
+    try:
+        test_values = [
+            ("true", True),
+            ("TRUE", True),
+            ("True", True),
+            ("1", True),
+            ("yes", True),
+            ("YES", True),
+            ("on", True),
+            ("ON", True),
+            ("false", False),
+            ("FALSE", False),
+            ("0", False),
+            ("no", False),
+            ("off", False),
+            ("", False),
+            ("invalid", False),
+        ]
 
-    test_values = [
-        ("true", True),
-        ("TRUE", True),
-        ("True", True),
-        ("1", True),
-        ("yes", True),
-        ("YES", True),
-        ("on", True),
-        ("ON", True),
-        ("false", False),
-        ("FALSE", False),
-        ("0", False),
-        ("no", False),
-        ("off", False),
-        ("", False),
-        ("invalid", False),
-    ]
-
-    # Test VIEWONLY
-    print("\nTesting VIEWONLY:")
-    for value, expected in test_values:
-        # Clear both variables first
-        os.environ.pop("READONLY", None)
-        os.environ["VIEWONLY"] = value
+        # Test VIEWONLY
+        print("\nTesting VIEWONLY:")
+        for value, expected in test_values:
+            # Clear both variables first
+            os.environ.pop("READONLY", None)
+            os.environ["VIEWONLY"] = value
+            importlib.reload(schema_registry_common)
+            importlib.reload(kafka_schema_registry_unified_mcp)
+            actual = kafka_schema_registry_unified_mcp.VIEWONLY
+            status = "✅" if actual == expected else "❌"
+            print(f"{status} VIEWONLY='{value}' → {actual} (expected: {expected})")
+        
+        # Test backward compatibility with READONLY
+        print("\nTesting backward compatibility with READONLY:")
+        for value, expected in test_values:
+            # Clear both variables first
+            os.environ.pop("VIEWONLY", None)
+            os.environ["READONLY"] = value
+            importlib.reload(schema_registry_common)
+            importlib.reload(kafka_schema_registry_unified_mcp)
+            actual = kafka_schema_registry_unified_mcp.VIEWONLY
+            status = "✅" if actual == expected else "❌"
+            print(f"{status} READONLY='{value}' → {actual} (expected: {expected})")
+        
+        # Test VIEWONLY takes precedence over READONLY
+        print("\nTesting VIEWONLY takes precedence over READONLY:")
+        os.environ["READONLY"] = "false"
+        os.environ["VIEWONLY"] = "true"
         importlib.reload(schema_registry_common)
         importlib.reload(kafka_schema_registry_unified_mcp)
-        actual = kafka_schema_registry_unified_mcp.READONLY
-        status = "✅" if actual == expected else "❌"
-        print(f"{status} VIEWONLY='{value}' → {actual} (expected: {expected})")
-    
-    # Test backward compatibility with READONLY
-    print("\nTesting backward compatibility with READONLY:")
-    for value, expected in test_values:
-        # Clear both variables first
-        os.environ.pop("VIEWONLY", None)
-        os.environ["READONLY"] = value
-        importlib.reload(schema_registry_common)
-        importlib.reload(kafka_schema_registry_unified_mcp)
-        actual = kafka_schema_registry_unified_mcp.READONLY
-        status = "✅" if actual == expected else "❌"
-        print(f"{status} READONLY='{value}' → {actual} (expected: {expected})")
-    
-    # Test VIEWONLY takes precedence over READONLY
-    print("\nTesting VIEWONLY takes precedence over READONLY:")
-    os.environ["READONLY"] = "false"
-    os.environ["VIEWONLY"] = "true"
-    importlib.reload(schema_registry_common)
-    importlib.reload(kafka_schema_registry_unified_mcp)
-    actual = kafka_schema_registry_unified_mcp.READONLY
-    status = "✅" if actual == True else "❌"
-    print(f"{status} READONLY='false' + VIEWONLY='true' → {actual} (expected: True)")
+        actual = kafka_schema_registry_unified_mcp.VIEWONLY
+        status = "✅" if actual == True else "❌"
+        print(f"{status} READONLY='false' + VIEWONLY='true' → {actual} (expected: True)")
+    finally:
+        # Restore original environment state
+        if original_viewonly is not None:
+            os.environ["VIEWONLY"] = original_viewonly
+        else:
+            os.environ.pop("VIEWONLY", None)
+        
+        if original_readonly is not None:
+            os.environ["READONLY"] = original_readonly
+        else:
+            os.environ.pop("READONLY", None)
 
 
 if __name__ == "__main__":
     asyncio.run(test_viewonly_mode())
-    asyncio.run(test_viewonly_environment_variations())
+    test_viewonly_environment_variations()
