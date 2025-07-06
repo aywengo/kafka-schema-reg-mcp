@@ -10,472 +10,781 @@ examples, and best practices.
 
 def get_schema_getting_started_prompt():
     """Getting started with Schema Registry operations"""
-    return """# Getting Started with Schema Registry Guide
+    return """# Getting Started with Schema Registry 🚀
 
-This guide will help you get started with essential schema operations. Here are some common tasks:
+## Quick Actions
 
-## 📋 Basic Operations
-1. **List all schemas**: "List all schema contexts and subjects"
-2. **Register a schema**: "Register a new user schema with fields for id, name, and email"
-3. **Get schema details**: "Show me the latest version of the user schema"
-4. **Check compatibility**: "Check if adding an 'age' field to user schema is backward compatible"
+### Essential Commands (Copy & Use)
+```
+"List all schema contexts"
+"Show all schemas in production"
+"Test all registry connections"
+"Register a user schema with id, name, email fields"
+"Export all schemas for backup"
+```
 
-## 🏗️ Context Management
-- **Create contexts**: "Create development and production contexts"
-- **List context schemas**: "Show all schemas in the development context"
-- **Context isolation**: "Create a GDPR context for compliance schemas"
+## 🎯 First Steps
 
-## 📊 Configuration & Monitoring
-- **Check status**: "Test all registry connections"
-- **View configuration**: "Show the global compatibility configuration"
-- **Export for backup**: "Export all schemas from production context"
+### 1. Check Your Environment
+- **Command**: `"Test all registry connections"`
+- **Why**: Ensures everything is connected properly
 
-What would you like to do first?"""
+### 2. Explore What You Have
+- **Command**: `"List all schema contexts and subjects"`
+- **Why**: See your current schema landscape
+
+### 3. Try a Simple Registration
+- **Command**: `"Register a test schema with id and name fields in development"`
+- **Why**: Verify write permissions and understand the flow
+
+## 📋 Common Tasks
+
+| Task | Command Example |
+|------|----------------|
+| View schemas | `"Show all schemas in development context"` |
+| Register schema | `"Register user schema with id, name, email"` |
+| Check compatibility | `"Is adding age field to user schema safe?"` |
+| Export for backup | `"Export production schemas as JSON"` |
+| Compare environments | `"Compare dev and prod registries"` |
+
+## 💡 Pro Tips
+- Start in `development` context for testing
+- Always check compatibility before production changes
+- Use contexts to organize by environment or team
+
+**Ready?** Try: `"List all schema contexts"` to begin!"""
 
 
 def get_schema_registration_prompt():
     """Guide for registering new schemas"""
-    return """# Schema Registration Guide
+    return """# Schema Registration Guide 📝
 
-I'll help you register a new schema. Here's what you need to know:
+## Quick Registration
 
-## 🎯 Quick Registration
-**Basic command**: "Register a [entity] schema with fields [field1], [field2], [field3]"
+### 🎯 Copy & Paste Templates
 
-**Example**: "Register a user schema with fields id (int), name (string), and email (optional string)"
+**Basic User Schema:**
+```
+"Register a user schema with:
+- id (long, required)
+- name (string, required)
+- email (string, optional)
+- created_at (timestamp-millis)"
+```
 
-## 📝 Schema Types Supported
-- **AVRO** (default): Most common, supports evolution
-- **JSON**: Simple structure validation
-- **PROTOBUF**: Protocol buffer schemas
+**Order Schema:**
+```
+"Register an order schema with:
+- order_id (string)
+- customer_id (long)
+- amount (double)
+- status (enum: PENDING, COMPLETED, CANCELLED)
+- items (array of records with product_id, quantity, price)"
+```
 
-## 🏗️ Context-Aware Registration
-**With context**: "Register a user schema in the development context"
-**Multi-registry**: "Register the order schema in the production registry"
+**Event Schema:**
+```
+"Register an event schema with:
+- event_id (string)
+- event_type (string)
+- timestamp (long)
+- payload (map of strings)"
+```
 
-## ⚙️ Advanced Options
-- **Compatibility checking**: I'll automatically check compatibility before registration
-- **Version control**: Each registration creates a new version
-- **Validation**: Schema structure is validated before registration
+## 🏗️ Advanced Registration
 
-## 📋 Common Schema Examples
-1. **User schema**: id, name, email, created_at
-2. **Order schema**: order_id, customer_id, amount, status, timestamp
-3. **Event schema**: event_id, event_type, timestamp, payload
+### With Context
+```
+"Register user schema in production context"
+"Register order schema in development registry"
+```
 
-What type of schema would you like to register?"""
+### With Namespace
+```
+"Register com.company.User schema with id and name fields"
+```
+
+### Complete Example
+```
+"Register a Product schema with:
+- namespace: com.example.inventory
+- fields:
+  - sku (string, required)
+  - name (string, required)
+  - description (string, optional with default '')
+  - price (decimal with precision 10,2)
+  - in_stock (boolean, default true)
+  - categories (array of strings)
+in the production context"
+```
+
+## ⚡ Schema Types
+
+| Type | When to Use | Example Field |
+|------|------------|--------------|
+| AVRO (default) | Most cases, supports evolution | All examples above |
+| JSON | Simple validation, web APIs | `"Register JSON schema for REST endpoint"` |
+| PROTOBUF | gRPC services, binary efficiency | `"Register protobuf User message"` |
+
+## ✅ Validation Features
+- Automatic syntax validation
+- Compatibility checking
+- Duplicate detection
+- Field type validation
+
+## 🚨 Common Errors & Solutions
+
+**"Invalid schema"** → Check JSON syntax, missing commas
+**"Incompatible schema"** → Add fields as optional with defaults
+**"Subject not found"** → Create subject first or check context
+
+**Next step?** Try registering a simple test schema!"""
 
 
 def get_context_management_prompt():
     """Guide for managing schema contexts"""
-    return """# Schema Context Management
+    return """# Schema Context Management 🏢
 
-Contexts help organize schemas by environment, team, or purpose. Let me help you manage them:
+## Quick Context Commands
 
-## 🚀 Getting Started with Contexts
-**List existing**: "List all schema contexts"
-**Create new**: "Create a [environment] context" (e.g., development, production, staging)
+### 🚀 Essential Operations
+```
+"List all contexts"
+"Create production context"
+"Show schemas in development context"
+"Delete empty test-context"
+```
 
-## 🏢 Common Context Patterns
-1. **By Environment**:
-   - development → Testing and iteration
-   - staging → Pre-production validation
-   - production → Live schemas
+## 🎯 Context Strategies
 
-2. **By Team/Domain**:
-   - user-service → User-related schemas
-   - order-service → Order processing schemas
-   - analytics → Analytics and reporting schemas
+### 1. Environment-Based (Recommended)
+```
+development/   → Active development
+staging/       → Pre-production testing  
+production/    → Live schemas
+```
+**Create all**: `"Create development, staging, and production contexts"`
 
-3. **By Compliance**:
-   - gdpr → GDPR-compliant schemas
-   - pci → Payment-related schemas
-   - public → Public API schemas
+### 2. Team-Based
+```
+user-service/     → User team schemas
+order-service/    → Order team schemas
+analytics/        → Analytics team schemas
+```
+**Example**: `"Create user-service context for team isolation"`
 
-## 🔧 Context Operations
-- **View schemas**: "Show all schemas in the [context] context"
-- **Register in context**: "Register [schema] in the [context] context"
-- **Export context**: "Export all schemas from [context] for backup"
-- **Clean up**: "Delete empty contexts that are no longer needed"
+### 3. Compliance-Based
+```
+gdpr/      → GDPR-compliant schemas
+pci/       → Payment schemas
+public/    → External API schemas
+```
+**Example**: `"Create gdpr context with description 'GDPR-compliant schemas only'"`
 
-## 🔄 Schema Promotion Workflow
-1. **Develop**: Register schema in development context
-2. **Test**: Check compatibility with staging
-3. **Promote**: Move to production context
-4. **Monitor**: Export for documentation and compliance
+## 📋 Context Operations
 
-Which context operation would you like to perform?"""
+| Operation | Command Example |
+|-----------|----------------|
+| List schemas | `"Show all schemas in production"` |
+| Count schemas | `"How many schemas in development?"` |
+| Register in context | `"Register user schema in staging context"` |
+| Export context | `"Export all production schemas"` |
+| Clear context | `"Delete all schemas from test context"` |
+| Remove context | `"Delete empty development context"` |
+
+## 🔄 Schema Promotion Flow
+```
+1. "Register schema in development"
+2. "Test and validate"
+3. "Check compatibility with staging"
+4. "Migrate schema to staging"
+5. "After QA, migrate to production"
+```
+
+## 💡 Best Practices
+- Use consistent naming (lowercase, hyphens)
+- Document context purpose
+- Regular cleanup of test contexts
+- Implement access controls per context
+
+**Start with**: `"Create development and production contexts"`"""
 
 
 def get_schema_export_prompt():
     """Guide for exporting schemas and documentation"""
-    return """# Schema Export & Documentation
+    return """# Schema Export & Documentation 📤
 
-I can help you export schemas for backup, documentation, migration, or compliance:
+## Quick Export Commands
 
-## 📋 Export Options
-
-### 🎯 Single Schema Export
-**JSON format**: "Export the user schema as JSON"
-**Avro IDL**: "Export the user schema as Avro IDL for documentation"
-**Specific version**: "Export version 2 of the user schema"
-
-### 📚 Subject Export (All Versions)
-**Complete history**: "Export all versions of the user schema"
-**With metadata**: "Export user schema with configuration and metadata"
-
-### 🏗️ Context Export
-**Environment backup**: "Export all schemas from production context"
-**Team schemas**: "Export all user-service schemas"
-**Compliance report**: "Export all GDPR schemas with full metadata"
-
-### 🌐 Global Export
-**Complete backup**: "Export all schemas from the registry"
-**Multi-registry**: "Export all schemas from the development registry"
+### 🎯 Copy & Use
+```
+"Export user schema as JSON"
+"Export all production schemas"
+"Generate documentation for order schema"
+"Create backup of entire registry"
+```
 
 ## 📊 Export Formats
-- **JSON**: Machine-readable, easy to parse
-- **Avro IDL**: Human-readable, great for documentation
-- **Bundle**: ZIP format with all metadata
 
-## 🎯 Common Use Cases
-1. **Documentation**: "Generate human-readable documentation for all user schemas"
-2. **Backup**: "Create a complete backup of production schemas"
-3. **Migration**: "Export development schemas for promotion to production"
-4. **Compliance**: "Generate audit report of all schemas with metadata"
-5. **Code Generation**: "Export order schema as Avro IDL for Java client generation"
+### JSON (Machine-Readable)
+```
+"Export user schema as JSON"
+"Export all development schemas as JSON bundle"
+```
+**Use for**: Backups, migrations, CI/CD
 
-## 📝 Export Features
-- **Metadata included**: Version history, compatibility settings, timestamps
-- **Configuration included**: Compatibility levels, mode settings
-- **Structured output**: Ready for documentation tools or migration
+### Avro IDL (Human-Readable)
+```
+"Export user schema as Avro IDL"
+"Generate readable documentation for all schemas"
+```
+**Use for**: Documentation, code reviews, wikis
 
-What would you like to export?"""
+## 🎯 Export Scopes
+
+### Single Schema
+```
+"Export latest user schema"
+"Export version 3 of order schema"
+"Export user schema with all metadata"
+```
+
+### By Context
+```
+"Export all production schemas"
+"Export development context for backup"
+"Export gdpr context with full history"
+```
+
+### Global Export
+```
+"Export entire registry for disaster recovery"
+"Create complete backup with all contexts"
+"Export all schemas across all registries"
+```
+
+## 📋 Common Use Cases
+
+| Purpose | Command |
+|---------|---------|
+| **Daily Backup** | `"Export all production schemas with metadata"` |
+| **Documentation** | `"Generate Avro IDL docs for all public schemas"` |
+| **Migration** | `"Export development schemas for promotion"` |
+| **Audit** | `"Export all schemas with version history"` |
+| **DR Setup** | `"Export complete registry for backup site"` |
+
+## 🚀 Advanced Exports
+
+### With Filters
+```
+"Export only schemas modified this week"
+"Export schemas matching 'user*' pattern"
+```
+
+### For Code Generation
+```
+"Export order schema as Avro IDL for Java generation"
+"Export all event schemas for Python client"
+```
+
+### Compliance Reports
+```
+"Export GDPR schemas with metadata and ownership"
+"Generate audit report of all schema changes"
+```
+
+## 💡 Pro Tips
+- Schedule regular exports for backup
+- Use IDL format for documentation
+- Include metadata for compliance
+- Version your exports
+
+**Try now**: `"Export all development schemas as JSON"`"""
 
 
 def get_multi_registry_prompt():
     """Guide for multi-registry operations"""
-    return """# Multi-Registry Management
+    return """# Multi-Registry Management 🌐
 
-I can help you manage multiple Schema Registry instances for different environments:
+## Quick Multi-Registry Commands
 
-## 🌐 Multi-Registry Overview
-**List registries**: "Show me all available Schema Registry instances"
-**Test connections**: "Test connections to all registries"
-**Registry status**: "Check the health of all registry connections"
+### 🎯 Essential Operations
+```
+"List all registries"
+"Test all registry connections"
+"Compare dev and prod registries"
+"Migrate user schema from dev to prod"
+"Set production as default registry"
+```
 
-## 🔄 Cross-Registry Operations
+## 🏗️ Registry Setup Examples
 
-### 📊 Comparison
-**Compare all**: "Compare development and production registries"
-**Find differences**: "Find schemas in development that are missing in production"
-**Context comparison**: "Compare user-service context between dev and prod"
+### Development Pipeline
+```
+dev-registry     → Development (read-write)
+staging-registry → Staging (read-write)
+prod-registry    → Production (VIEWONLY)
+```
 
-### 🚚 Migration
-**Single schema**: "Migrate user schema from development to production"
-**Context migration**: "Migrate all analytics schemas from staging to production"
-**Bulk migration**: "Generate Docker configuration for migrating development context"
+### Regional Deployment
+```
+us-east-registry → Primary US East
+us-west-registry → US West replica
+eu-registry      → European region
+```
 
-### 🔍 Discovery
-**Schema inventory**: "List all schemas across all registries"
-**Missing schemas**: "Find schemas that exist in dev but not in production"
-**Version differences**: "Compare schema versions between registries"
+## 📊 Comparison Operations
 
-## 🏗️ Environment Patterns
-1. **Development → Staging → Production**: Standard promotion pipeline
-2. **Regional deployments**: US-East, US-West, EU registries
-3. **Team isolation**: Separate registries per team or service
-4. **Disaster recovery**: Primary and backup registries
+### Find Differences
+```
+"Compare development and production registries"
+"Find schemas in dev missing from prod"
+"Show version differences for user schema"
+```
 
-## ⚙️ Registry Configuration
-- **Default registry**: "Set production as the default registry"
-- **VIEWONLY mode**: Some registries may be read-only for safety
-- **Authentication**: Each registry can have different credentials
+### Detailed Analysis
+```
+"Compare user-service context between registries"
+"List all schemas unique to development"
+"Show configuration differences"
+```
 
-## 🚀 Workflow Examples
-1. **Schema promotion**: Develop → Test → Deploy across environments
-2. **Disaster recovery**: Compare and sync between primary and backup
-3. **Multi-region**: Sync schemas across geographical deployments
-4. **Team coordination**: Compare team registries before merging
+## 🚚 Migration Workflows
 
-Which multi-registry operation would you like to perform?"""
+### Single Schema
+```
+"Migrate user schema from dev to prod"
+"Copy order schema v2 from staging to production"
+```
+
+### Bulk Migration
+```
+"Migrate all analytics schemas to production"
+"Copy entire development context to staging"
+"Generate migration plan for disaster recovery"
+```
+
+### Safe Migration Steps
+1. `"Compare source and target registries"`
+2. `"Check compatibility in target"`
+3. `"Migrate with dry-run first"`
+4. `"Verify migration success"`
+
+## 🔧 Registry Management
+
+| Task | Command |
+|------|---------|
+| Set default | `"Set production as default registry"` |
+| Check health | `"Test connection to staging registry"` |
+| View config | `"Show production registry configuration"` |
+| Count schemas | `"How many schemas in each registry?"` |
+
+## 🎯 Common Scenarios
+
+### Promotion Pipeline
+```
+1. "Develop in dev-registry"
+2. "Test compatibility with staging"
+3. "Migrate to staging-registry"
+4. "Validate in staging"
+5. "Promote to prod-registry"
+```
+
+### Disaster Recovery
+```
+1. "Compare primary and backup registries"
+2. "Find missing schemas in backup"
+3. "Sync all schemas to backup"
+4. "Verify backup completeness"
+```
+
+## 💡 Best Practices
+- Keep production in VIEWONLY mode
+- Regular registry synchronization
+- Monitor registry drift
+- Document registry purposes
+
+**Start with**: `"List all registries and their status"`"""
 
 
 def get_schema_compatibility_prompt():
     """Guide for schema compatibility and evolution"""
-    return """# Schema Compatibility & Evolution Guide
+    return """# Schema Compatibility Guide 🔄
 
-I'll help you understand and manage schema compatibility for safe evolution:
+## Quick Compatibility Checks
 
-## 🔍 Compatibility Basics
-**Check compatibility**: "Check if adding a field to user schema is backward compatible"
-**View settings**: "Show the compatibility configuration for user schema"
-**Global settings**: "Show the global compatibility configuration"
+### 🎯 Common Checks
+```
+"Is adding email field to user schema safe?"
+"Check compatibility before adding age field"
+"Can I remove the legacy_field safely?"
+"What's the compatibility setting for user schema?"
+```
+
+## ✅ Safe Changes (Backward Compatible)
+
+### Always Safe:
+- ✅ Add optional field with default
+- ✅ Add new enum value
+- ✅ Widen types (int → long)
+- ✅ Add aliases
+
+### Examples:
+```
+"Add optional phone field with default empty string"
+"Add CANCELLED to order status enum"
+"Change user_id from int to long"
+```
+
+## ❌ Breaking Changes
+
+### Never Safe Without Coordination:
+- ❌ Rename fields
+- ❌ Change types incompatibly
+- ❌ Remove required fields
+- ❌ Change namespace
+
+### Examples That Break:
+```
+"Rename username to user_name"  ❌
+"Change ID from long to string" ❌
+"Remove required email field"   ❌
+```
 
 ## 📊 Compatibility Levels
-1. **BACKWARD** (default): New schema can read old data
-2. **FORWARD**: Old schema can read new data
-3. **FULL**: Both backward and forward compatible
-4. **NONE**: No compatibility checking
 
-## ✅ Safe Schema Changes
-### Backward Compatible:
-- Add optional fields (with defaults)
-- Remove fields
-- Add enum values
-- Widen field types (int → long)
+| Level | What It Means | Use When |
+|-------|--------------|----------|
+| **BACKWARD** | New schema reads old data | Default, most common |
+| **FORWARD** | Old schema reads new data | Careful planning needed |
+| **FULL** | Both ways compatible | Maximum safety |
+| **NONE** | No checking | Development only |
 
-### Forward Compatible:
-- Remove optional fields
-- Add fields
-- Remove enum values
-- Narrow field types (long → int)
+### Setting Compatibility:
+```
+"Set user schema to BACKWARD compatibility"
+"Set global compatibility to FULL"
+"Use NONE compatibility in development context"
+```
 
-## ⚠️ Breaking Changes
-- Change field names
-- Change field types (incompatibly)
-- Remove required fields
-- Change record names
+## 🔄 Evolution Patterns
 
-## 🛠️ Configuration Management
-**Set global**: "Set global compatibility to FULL for maximum safety"
-**Subject-specific**: "Set user schema to BACKWARD compatibility"
-**Context-specific**: "Configure production context for FULL compatibility"
+### Adding a Field Safely:
+```
+1. "Check current user schema"
+2. "Add optional 'preferences' field with default {}"
+3. "Check compatibility"
+4. "Register if compatible"
+```
 
-## 🔄 Evolution Workflow
-1. **Design change**: Plan your schema modification
-2. **Check compatibility**: "Check if my updated user schema is compatible"
-3. **Test in development**: Register in dev context first
-4. **Validate**: Ensure existing consumers continue working
-5. **Promote**: Move to production after validation
+### Deprecating a Field:
+```
+1. "Mark field as deprecated in documentation"
+2. "Stop writing to field"
+3. "Wait for consumers to update"
+4. "Remove field in major version"
+```
 
-## 📋 Common Evolution Scenarios
-1. **Add user preference**: "Check if adding 'preferences' field to user schema is safe"
-2. **Deprecate field**: "How do I safely remove the 'deprecated_field' from order schema?"
-3. **Type migration**: "Can I change user ID from int to string safely?"
-4. **Enum expansion**: "Is it safe to add new status values to order schema?"
+### Type Migration:
+```
+1. "Add new field with new type"
+2. "Write to both fields"
+3. "Migrate readers to new field"
+4. "Remove old field later"
+```
 
-## 🎯 Best Practices
-- Always check compatibility before registration
-- Use optional fields with defaults for new additions
-- Plan breaking changes with version coordination
-- Test schema changes in development first
+## 🚨 Compatibility Errors
 
-What compatibility question can I help you with?"""
+| Error | Solution |
+|-------|----------|
+| "Field removed" | Add back as optional |
+| "Type changed" | Use union types or aliases |
+| "Required field added" | Make optional with default |
+| "Namespace changed" | Add alias for old namespace |
+
+## 💡 Best Practices
+- Always check before registering
+- Use optional fields for new additions
+- Plan breaking changes carefully
+- Test in development first
+
+**Try**: `"Check if adding age field to user schema is safe"`"""
 
 
 def get_troubleshooting_prompt():
     """Troubleshooting guide for common issues"""
-    return """# Schema Registry Troubleshooting
+    return """# Troubleshooting Guide 🔧
 
-This advanced troubleshooting guide helps you diagnose and resolve complex Schema Registry issues:
+## Quick Diagnostics
 
-## 🔍 Quick Diagnostics
-**Health check**: "Test all registry connections"
-**Status overview**: "Show me the current registry status"
-**Configuration check**: "Display the current registry configuration"
+### 🚨 First Steps
+```
+"Test all registry connections"
+"Show current registry status"
+"List active tasks"
+"Check my permissions"
+```
 
-## 🚨 Common Issues & Solutions
+## Common Issues & Solutions
 
-### 🔌 Connection Problems
-**Symptoms**: Registry unreachable, timeout errors
-**Diagnosis**: "Test connection to [registry]"
+### 🔌 Connection Errors
+
+**Symptoms**: "Connection refused", timeouts
+**Quick fixes**:
+```
+"Test connection to production registry"
+"Show registry configuration"
+"Check if registry URL is correct"
+```
+
 **Solutions**:
-- Check registry URL and network connectivity
-- Verify authentication credentials
-- Check firewall and security group settings
+- Verify URL includes http:// or https://
+- Check network/firewall settings
+- Verify credentials if auth enabled
 
-### 📋 Schema Registration Failures
-**Symptoms**: "Schema registration failed" errors
-**Diagnosis**: "Check compatibility of [subject] schema"
-**Solutions**:
-- Verify schema syntax (valid JSON/Avro)
-- Check compatibility with existing versions
-- Ensure proper permissions (write scope)
+### 📝 Registration Failures
 
-### 🔄 Compatibility Errors
-**Symptoms**: "Schema incompatible" messages
-**Diagnosis**: "Show compatibility configuration for [subject]"
-**Solutions**:
-- Review compatibility level settings
-- Check what changes are causing conflicts
-- Consider schema evolution strategy
+**Symptoms**: "Failed to register schema"
+**Quick fixes**:
+```
+"Validate my schema syntax"
+"Check compatibility for user schema"
+"Show current compatibility settings"
+```
 
-### 🏗️ Context Issues
-**Symptoms**: Schemas not found, wrong context
-**Diagnosis**: "List all contexts" and "Show schemas in [context]"
-**Solutions**:
-- Verify context names and spelling
-- Check if schema exists in different context
-- Ensure context was created properly
+**Common causes**:
+- Invalid JSON/Avro syntax (missing comma, quotes)
+- Incompatible changes (see compatibility guide)
+- Insufficient permissions (need write scope)
 
-### 🌐 Multi-Registry Problems
-**Symptoms**: Registry not found, wrong target
-**Diagnosis**: "List all registries" and "Test registry connections"
+### 🏗️ Context/Subject Not Found
+
+**Symptoms**: "Subject not found", "Context does not exist"
+**Quick fixes**:
+```
+"List all contexts"
+"Show all subjects in development"
+"Create missing context"
+```
+
 **Solutions**:
-- Verify registry configuration
-- Check default registry settings
-- Confirm registry names match configuration
+- Check spelling (case-sensitive)
+- Verify context exists: `"List all contexts"`
+- Create if missing: `"Create development context"`
+
+### 🔐 Permission Denied
+
+**Symptoms**: "Access denied", "Insufficient permissions"
+**Quick fixes**:
+```
+"Check my current permissions"
+"Show OAuth scopes"
+"Is this registry in VIEWONLY mode?"
+```
+
+**Solutions**:
+- Verify OAuth scopes (need write for registration)
+- Check VIEWONLY mode settings
+- Contact admin for permission updates
+
+### ⏱️ Performance Issues
+
+**Symptoms**: Slow operations, timeouts
+**Quick fixes**:
+```
+"Show active tasks"
+"List running operations"
+"Check registry statistics"
+```
+
+**Solutions**:
+- Use async operations for bulk tasks
+- Monitor with: `"Show task progress"`
+- Cancel if needed: `"Cancel task [ID]"`
 
 ## 🛠️ Diagnostic Commands
-1. **System health**: "Test all registries and show their status"
-2. **Schema audit**: "List all schemas and their versions"
-3. **Configuration review**: "Show all compatibility settings"
-4. **Context inventory**: "List all contexts with schema counts"
-5. **Task monitoring**: "Show all active tasks and their progress"
 
-## 📊 Performance Issues
-**Symptoms**: Slow operations, timeouts
-**Diagnosis**: "Show active tasks and their progress"
-**Solutions**:
-- Monitor long-running operations
-- Use async task monitoring for bulk operations
-- Check registry resource usage
+| Issue Type | Diagnostic Command |
+|------------|-------------------|
+| Connection | `"Test connection to [registry]"` |
+| Schema | `"Validate schema syntax"` |
+| Compatibility | `"Check why schema is incompatible"` |
+| Permissions | `"Show my current permissions"` |
+| Performance | `"Show registry statistics"` |
 
-## 🔐 Permission Issues
-**Symptoms**: "Access denied", "Insufficient permissions"
-**Diagnosis**: "Show OAuth scopes and current permissions"
-**Solutions**:
-- Verify required scopes (read, write, admin)
-- Check authentication configuration
-- Review VIEWONLY mode settings
+## 📋 Debug Checklist
 
-## 📝 Data Issues
-**Symptoms**: Missing schemas, unexpected versions
-**Diagnosis**: "Export [subject] with full metadata"
-**Solutions**:
-- Check schema history and versions
-- Verify context and registry locations
-- Compare with expected schema structure
+1. ✓ Registry URL correct and accessible
+2. ✓ Credentials valid (if auth enabled)
+3. ✓ Schema syntax valid
+4. ✓ Compatibility level appropriate
+5. ✓ Context/subject names correct
+6. ✓ Sufficient permissions
+7. ✓ Not in VIEWONLY mode
 
-## 🆘 Getting Help
-If you're still having issues:
-1. **Export diagnostics**: "Generate a complete system status report"
-2. **Check logs**: Review server logs for detailed error messages
-3. **Test minimal case**: Try with a simple schema first
-4. **Environment validation**: Ensure all components are properly configured
+## 🆘 Still Stuck?
 
-What issue are you experiencing? I'll help you diagnose and resolve it."""
+### Generate Full Report:
+```
+"Generate complete diagnostic report"
+"Export system status for debugging"
+"Show all error details"
+```
+
+### Check Logs:
+- Server logs for detailed errors
+- Task logs for operation failures
+- Network logs for connectivity
+
+**Need help?** Start with: `"Test all registry connections"`"""
 
 
 def get_advanced_workflows_prompt():
     """Guide for complex Schema Registry workflows"""
-    return """# Advanced Schema Registry Workflows
+    return """# Advanced Workflows 🚀
 
-I can help you implement sophisticated schema management workflows:
+## CI/CD Integration
 
-## 🚀 CI/CD Integration Workflows
-
-### 📋 Schema Validation Pipeline
-1. **Development**: "Register schema in development context"
-2. **Validation**: "Check compatibility before promotion"
-3. **Testing**: "Export schemas for integration testing"
-4. **Promotion**: "Migrate schemas from dev to staging"
-5. **Production**: "Deploy to production with safety checks"
-
-### 🔄 Automated Promotion
-**Command sequence**:
-- "Check if user schema in development is compatible with staging"
-- "If compatible, migrate user schema from development to staging"
-- "Export staging schemas for production readiness review"
-
-## 🏢 Enterprise Governance Workflows
-
-### 📊 Compliance Auditing
-1. **Inventory**: "Generate complete schema inventory across all registries"
-2. **Classification**: "Export all GDPR-related schemas with metadata"
-3. **Validation**: "Check all schemas meet compliance requirements"
-4. **Reporting**: "Generate audit report with version history"
-
-### 🔐 Access Control & Safety
-**Production protection**:
-- "Set production registry to VIEWONLY mode during maintenance"
-- "Configure production context with FULL compatibility requirement"
-- "Monitor all schema changes with task tracking"
-
-## 🌐 Multi-Environment Orchestration
-
-### 🔄 Environment Synchronization
-**Regional deployment**:
-- "Compare US-East and US-West registries for schema drift"
-- "Find schemas missing in backup registry"
-- "Generate migration plan for disaster recovery"
-
-### 🚚 Bulk Operations
-**Context migration**:
-- "Generate Docker configuration for migrating user-service context"
-- "Batch cleanup of deprecated contexts"
-- "Bulk export of all development schemas"
-
-## 📈 Monitoring & Analytics Workflows
-
-### 📊 Schema Analytics
-1. **Usage tracking**: "Count schemas per context across all registries"
-2. **Growth monitoring**: "Show schema version growth over time"
-3. **Health monitoring**: "Test all registry connections and report status"
-4. **Performance tracking**: "Monitor long-running operations with task queue"
-
-### 🔍 Drift Detection
-**Continuous monitoring**:
-- "Compare development and production registries weekly"
-- "Alert on schema incompatibilities"
-- "Track schema evolution patterns"
-
-## 🛠️ Development Team Workflows
-
-### 👥 Team Collaboration
-**Feature development**:
-1. **Branch schemas**: "Create feature-branch context for schema experimentation"
-2. **Collaboration**: "Export schemas for team review and feedback"
-3. **Integration**: "Merge compatible schemas back to main development"
-4. **Documentation**: "Generate human-readable schema documentation"
-
-### 🧪 Testing & Validation
-**Schema testing pipeline**:
-- "Register test schemas in isolated context"
-- "Validate against existing consumer contracts"
-- "Check backward compatibility with production"
-- "Clean up test contexts after validation"
-
-## 🎯 Performance Optimization Workflows
-
-### ⚡ Async Operations
-**Large-scale operations**:
-- "Start background task for complete registry statistics"
-- "Monitor progress of context migration"
-- "Cancel long-running operations if needed"
-
-### 📦 Batch Processing
-**Efficient bulk operations**:
-- "Process multiple contexts in parallel"
-- "Batch export with progress monitoring"
-- "Optimize large-scale comparisons"
-
-## 🚦 Workflow Orchestration Examples
-
-### 📋 Complete Release Workflow
-```
-1. "Create release-v2.1 context for new feature schemas"
-2. "Register updated schemas in release context"
-3. "Check compatibility with current production schemas"
-4. "Export release schemas for integration testing"
-5. "Migrate compatible schemas to staging"
-6. "Validate in staging environment"
-7. "Promote to production with safety checks"
-8. "Archive release context after successful deployment"
+### 🔄 Automated Schema Pipeline
+```yaml
+# Example CI/CD Commands
+1. "Register schema in development"
+2. "Run compatibility check"
+3. "If compatible, tag for staging"
+4. "Migrate to staging registry"
+5. "After tests, promote to production"
 ```
 
-### 🔄 Disaster Recovery Workflow
+### GitHub Actions Example:
 ```
-1. "Test connection to backup registry"
-2. "Compare primary and backup registries"
-3. "Find missing schemas in backup"
-4. "Generate migration plan for complete sync"
-5. "Execute migration with progress monitoring"
-6. "Validate backup registry completeness"
+"Export schema for CI validation"
+"Check compatibility via API"
+"Migrate if all tests pass"
 ```
 
-Which advanced workflow would you like to implement?"""
+## 🏢 Enterprise Patterns
+
+### Multi-Team Coordination
+```
+Team A: "Register in team-a context"
+Team B: "Register in team-b context"
+Platform: "Migrate to shared context after review"
+```
+
+### Compliance Workflow
+```
+1. "Create gdpr-schemas context"
+2. "Set strict compatibility rules"
+3. "Register with metadata tags"
+4. "Export for audit quarterly"
+5. "Generate compliance report"
+```
+
+## 📊 Monitoring & Analytics
+
+### Schema Metrics Dashboard
+```
+"Count schemas per context"
+"Show schema growth trends"
+"List most-versioned schemas"
+"Find unused schemas"
+"Generate usage statistics"
+```
+
+### Health Monitoring
+```
+"Test all registries hourly"
+"Alert on compatibility breaks"
+"Monitor schema drift"
+"Track registration failures"
+```
+
+## 🚀 Performance Optimization
+
+### Bulk Operations
+```
+# Parallel Processing
+"Start async export of all contexts"
+"Monitor progress with task ID"
+"Process results when complete"
+
+# Batch Registration
+"Register 50 schemas from file"
+"Track progress in real-time"
+"Rollback on any failure"
+```
+
+### Caching Strategy
+```
+"Export frequently-used schemas"
+"Cache in local development"
+"Refresh cache on changes"
+```
+
+## 🔄 Disaster Recovery
+
+### Automated Backup
+```bash
+# Daily backup script
+"Export all production schemas"
+"Compress and timestamp"
+"Store in backup location"
+"Verify backup integrity"
+```
+
+### Recovery Process
+```
+1. "Compare primary and backup"
+2. "Identify missing schemas"
+3. "Restore from backup"
+4. "Verify restoration"
+5. "Update documentation"
+```
+
+## 🧪 Testing Strategies
+
+### Schema Contract Testing
+```
+"Create test context"
+"Register producer schema"
+"Validate consumer compatibility"
+"Clean up after tests"
+```
+
+### Canary Deployments
+```
+"Register in canary context"
+"Test with subset of traffic"
+"Monitor for issues"
+"Promote or rollback"
+```
+
+## 📋 Complex Scenarios
+
+### Blue-Green Deployment
+```
+Blue: "Current production schemas"
+Green: "Register new versions"
+Switch: "Atomically switch traffic"
+Rollback: "Revert if issues"
+```
+
+### Schema Versioning Strategy
+```
+v1: "Original schema"
+v1.1: "Backward compatible additions"
+v2: "Breaking changes with migration"
+v2.1: "Further iterations"
+```
+
+## 💡 Pro Tips
+- Automate repetitive tasks
+- Use contexts for isolation
+- Monitor everything
+- Plan for failure scenarios
+- Document your workflows
+
+**Advanced example**: Try setting up a complete CI/CD pipeline!"""
 
 
 # Prompt registry mapping prompt names to their functions
@@ -520,3 +829,73 @@ def get_prompt_summary():
             "support": ["troubleshooting", "advanced-workflows"],
         },
     }
+
+
+# Quick reference card for users
+def get_quick_reference():
+    """Get a quick reference card of most common commands."""
+    return """# Quick Reference Card 📋
+
+## 🚀 Most Used Commands
+
+### Setup & Status
+```
+"Test all connections"
+"List all contexts"
+"Show all schemas"
+```
+
+### Schema Operations
+```
+"Register user schema with id, name, email"
+"Check if adding field X is safe"
+"Export schema Y as JSON"
+```
+
+### Multi-Registry
+```
+"Compare dev and prod"
+"Migrate schema from dev to prod"
+"Set production as default"
+```
+
+### Troubleshooting
+```
+"Why did registration fail?"
+"Check my permissions"
+"Show active tasks"
+```
+
+## 🎯 Copy-Paste Templates
+
+### New User Schema
+```
+"Register user schema with:
+- id (long)
+- name (string)
+- email (string, optional)
+- created_at (timestamp-millis)"
+```
+
+### Environment Setup
+```
+"Create development, staging, and production contexts"
+```
+
+### Daily Backup
+```
+"Export all production schemas with metadata"
+```
+
+## 💡 Pro Tips
+- Start in development context
+- Always check compatibility
+- Use contexts for organization
+- Export regularly for backup
+
+**Need more?** Ask: "Show me the getting started guide"
+"""
+
+
+# Add quick reference to the registry
+PROMPT_REGISTRY["quick-reference"] = get_quick_reference
