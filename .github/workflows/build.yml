@@ -97,15 +97,46 @@ jobs:
           
           echo "✅ All Docker image tests passed!"
 
+      # Option 3: Enhanced Trivy configuration
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         continue-on-error: true  # Don't fail the workflow if Trivy scan fails
         with:
           image-ref: kafka-schema-reg-mcp:test
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-raw.sarif'
           severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          scanners: 'vuln'
 
+      # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+      - name: Filter SARIF results for HIGH and CRITICAL only
+        run: |
+          if [ -f "trivy-results-raw.sarif" ]; then
+            # Install jq if not available
+            which jq || sudo apt-get update && sudo apt-get install -y jq
+            
+            # Filter SARIF to only include HIGH and CRITICAL severity
+            # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+            jq '
+              .runs[].results |= map(
+                select(.level == "error" or .level == "warning")
+              )
+            ' trivy-results-raw.sarif > trivy-results.sarif
+            
+            # Debug: Show filtered results count
+            echo "Filtered SARIF results:"
+            jq '.runs[].results | length' trivy-results.sarif
+            
+            # Mark as existing
+            echo "trivy_results_exist=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ No Trivy SARIF results to filter"
+            echo "trivy_results_exist=false" >> $GITHUB_ENV
+          fi
+
+      # Option 3: Enhanced Trivy configuration for table output
       - name: Run Trivy vulnerability scanner (Table format)
         uses: aquasecurity/trivy-action@master
         continue-on-error: true
@@ -114,6 +145,9 @@ jobs:
           format: 'table'
           output: 'trivy-table.txt'
           severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          scanners: 'vuln'
 
       - name: Check if Trivy results exist
         id: check_trivy_results
@@ -138,8 +172,10 @@ jobs:
           echo "## Build Security Summary" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Docker image build completed successfully" >> $GITHUB_STEP_SUMMARY
           echo "- 🔍 Trivy vulnerability scan completed (CRITICAL and HIGH severity only)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **SARIF Filtering**: Applied to ensure only HIGH and CRITICAL appear in Security tab" >> $GITHUB_STEP_SUMMARY
           echo "- 📋 **Severity Filter**: Only CRITICAL and HIGH vulnerabilities reported" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Unfixed vulnerabilities**: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Include the actual Trivy scan results if available
@@ -164,7 +200,7 @@ jobs:
           fi
           
           if [ -f "trivy-results.sarif" ]; then
-            echo "- ✅ Security scan results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Filtered security scan results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
           fi
@@ -178,6 +214,7 @@ jobs:
           name: build-security-scan-results
           path: |
             trivy-results.sarif
+            trivy-results-raw.sarif
             trivy-table.txt
           retention-days: 30
         
