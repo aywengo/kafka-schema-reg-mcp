@@ -155,8 +155,17 @@ jobs:
       with:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'table'
+        output: 'trivy-table.txt'
         severity: 'CRITICAL,HIGH'
       continue-on-error: true
+        
+    - name: Display Trivy table output
+      if: always()
+      run: |
+        if [ -f "trivy-table.txt" ]; then
+          echo "Trivy scan results:"
+          cat trivy-table.txt
+        fi
         
     - name: Fail on critical vulnerabilities
       uses: aquasecurity/trivy-action@master
@@ -176,6 +185,25 @@ jobs:
         echo "- ✅ Security reports uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
         echo "- 📋 Security exceptions documented in \`.trivyignore\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Include the actual Trivy scan results if available
+        if [ -f "trivy-table.txt" ]; then
+          echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract vulnerability counts from the table
+          if grep -q "Total:" trivy-table.txt; then
+            TOTAL_LINE=$(grep "Total:" trivy-table.txt)
+            echo "### Vulnerability Counts" >> $GITHUB_STEP_SUMMARY
+            echo "$TOTAL_LINE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
         echo "### Severity Filter Configuration" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ CRITICAL vulnerabilities: Reported and block builds" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ HIGH vulnerabilities: Reported for review" >> $GITHUB_STEP_SUMMARY
@@ -267,6 +295,9 @@ jobs:
         path: |
           safety-report.json
           pip-audit-report.json
+          trivy-table.txt
+          trivy-results.json
+          trivy-results.sarif
 
   secrets-scan:
     name: Secrets Detection

@@ -106,6 +106,15 @@ jobs:
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
 
+      - name: Run Trivy vulnerability scanner (Table format)
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: kafka-schema-reg-mcp:test
+          format: 'table'
+          output: 'trivy-table.txt'
+          severity: 'CRITICAL,HIGH'
+
       - name: Check if Trivy results exist
         id: check_trivy_results
         run: |
@@ -132,6 +141,28 @@ jobs:
           echo "- 📋 **Severity Filter**: Only CRITICAL and HIGH vulnerabilities reported" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Include the actual Trivy scan results if available
+          if [ -f "trivy-table.txt" ]; then
+            echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract vulnerability counts from the table
+            if grep -q "Total:" trivy-table.txt; then
+              TOTAL_LINE=$(grep "Total:" trivy-table.txt)
+              echo "### Vulnerability Counts" >> $GITHUB_STEP_SUMMARY
+              echo "$TOTAL_LINE" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ No detailed vulnerability report available" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           if [ -f "trivy-results.sarif" ]; then
             echo "- ✅ Security scan results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
           else
@@ -139,4 +170,14 @@ jobs:
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note**: This build follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
+        
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-security-scan-results
+          path: |
+            trivy-results.sarif
+            trivy-table.txt
+          retention-days: 30
         

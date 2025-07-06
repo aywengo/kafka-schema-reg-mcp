@@ -126,6 +126,29 @@ jobs:
           echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Include the actual Trivy scan results if available
+          if [ -f "trivy-table.txt" ]; then
+            echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Count vulnerabilities
+            CRITICAL_COUNT=$(grep -c "CRITICAL" trivy-table.txt || echo "0")
+            HIGH_COUNT=$(grep -c "HIGH" trivy-table.txt || echo "0")
+            
+            echo "### Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔴 **CRITICAL vulnerabilities**: $CRITICAL_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟠 **HIGH vulnerabilities**: $HIGH_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No detailed vulnerability report available" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "### Severity Configuration" >> $GITHUB_STEP_SUMMARY
           echo "- 🔴 CRITICAL: Reported and create issues" >> $GITHUB_STEP_SUMMARY
           echo "- 🟠 HIGH: Reported and create issues" >> $GITHUB_STEP_SUMMARY
