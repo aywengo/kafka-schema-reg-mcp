@@ -3,7 +3,6 @@
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/aywengo/kafka-schema-reg-mcp)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
 [![Docker Image Size](https://img.shields.io/docker/image-size/aywengo/kafka-schema-reg-mcp/stable)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/aywengo/kafka-schema-reg-mcp/graphs/commit-activity)
@@ -24,7 +23,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 
 > **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over stdio.
 
-**Latest Version:** [v2.0.3](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.0.4](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -95,7 +94,7 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
 # Specific version
-docker pull aywengo/kafka-schema-reg-mcp:2.0.3
+docker pull aywengo/kafka-schema-reg-mcp:2.0.4
 ```
 
 ### Option B: Local Python
