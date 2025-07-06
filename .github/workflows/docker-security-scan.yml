@@ -31,14 +31,35 @@ jobs:
         run: |
           docker build -t kafka-schema-registry-mcp:security-scan .
 
+      # Option 3: Enhanced Trivy configuration
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'kafka-schema-registry-mcp:security-scan'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-raw.sarif'
           severity: 'CRITICAL,HIGH'
-          ignore-unfixed: false
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          scanners: 'vuln'
+
+      # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+      - name: Filter SARIF results for HIGH and CRITICAL only
+        run: |
+          # Install jq if not available
+          which jq || sudo apt-get update && sudo apt-get install -y jq
+          
+          # Filter SARIF to only include HIGH and CRITICAL severity
+          # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+          jq '
+            .runs[].results |= map(
+              select(.level == "error" or .level == "warning")
+            )
+          ' trivy-results-raw.sarif > trivy-results.sarif
+          
+          # Debug: Show filtered results count
+          echo "Filtered SARIF results:"
+          jq '.runs[].results | length' trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -46,12 +67,16 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      # Option 3: Enhanced Trivy configuration for table output
       - name: Run Trivy in table format
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             aquasec/trivy:latest image \
             --format table \
             --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --scanners vuln \
             kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
 
       - name: Create issue from vulnerabilities
@@ -87,6 +112,7 @@ jobs:
             - **Image**: kafka-schema-registry-mcp
             - **Scanner**: Trivy
             - **Severity Filter**: CRITICAL and HIGH only (MEDIUM and LOW excluded)
+            - **Configuration**: Unfixed vulnerabilities are ignored
             
             ### Vulnerabilities Found
             
@@ -94,8 +120,11 @@ jobs:
             ${trivyOutput}
             \`\`\`
             
-            **Note**: This scan excludes MEDIUM and LOW severity issues per security policy.
-            Only CRITICAL and HIGH severity vulnerabilities are reported.
+            **Note**: This scan excludes:
+            - MEDIUM and LOW severity issues per security policy
+            - Vulnerabilities without available fixes
+            
+            Only CRITICAL and HIGH severity vulnerabilities with available fixes are reported.
             
             ### Recommended Actions
             1. Review the vulnerabilities listed above
@@ -123,8 +152,10 @@ jobs:
         run: |
           echo "## Docker Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **SARIF Filtering**: Applied to ensure only HIGH and CRITICAL appear in Security tab" >> $GITHUB_STEP_SUMMARY
           echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Unfixed vulnerabilities**: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Include the actual Trivy scan results if available
@@ -154,6 +185,7 @@ jobs:
           echo "- 🟠 HIGH: Reported and create issues" >> $GITHUB_STEP_SUMMARY
           echo "- ⚪ MEDIUM: Excluded from reports" >> $GITHUB_STEP_SUMMARY
           echo "- ⚪ LOW: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ Unfixed: Excluded from reports" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Check the Security tab for detailed findings (CRITICAL and HIGH only)." >> $GITHUB_STEP_SUMMARY
 
@@ -164,5 +196,6 @@ jobs:
           name: security-scan-results
           path: |
             trivy-results.sarif
+            trivy-results-raw.sarif
             trivy-table.txt
-          retention-days: 90 
+          retention-days: 90
