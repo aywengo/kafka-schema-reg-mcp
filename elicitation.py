@@ -13,6 +13,7 @@ Key Features:
 - Schema field definition assistance
 - Migration preference collection
 - Compatibility resolution guidance
+- Schema evolution assistant
 
 MCP 2025-06-18 Compliance:
 - Implements elicitation request/response protocol
@@ -674,6 +675,157 @@ def create_migrate_schema_elicitation(
     )
 
 
+def create_schema_evolution_elicitation(
+    subject: str,
+    current_schema: Dict[str, Any],
+    proposed_changes: List[Dict[str, Any]],
+    compatibility_mode: str = "BACKWARD",
+) -> ElicitationRequest:
+    """Create an elicitation request for schema evolution guidance.
+    
+    This helps users understand the impact of schema changes and guides them
+    through safe evolution strategies.
+    
+    Args:
+        subject: The schema subject name
+        current_schema: The current schema definition
+        proposed_changes: List of proposed changes with their impact
+        compatibility_mode: Current compatibility mode setting
+    """
+    # Analyze the proposed changes to determine available strategies
+    change_types = set()
+    for change in proposed_changes:
+        change_types.add(change.get("type", "unknown"))
+    
+    # Build strategy options based on change types
+    strategy_options = []
+    if "add_field" in change_types:
+        strategy_options.extend([
+            "add_optional_field",
+            "add_required_with_default",
+        ])
+    if "remove_field" in change_types:
+        strategy_options.append("deprecate_field")
+    if "modify_field" in change_types:
+        strategy_options.extend([
+            "rename_field",
+            "change_type_safely",
+        ])
+    
+    # Always include these options
+    strategy_options.extend([
+        "create_new_version",
+        "create_new_subject",
+    ])
+    
+    fields = [
+        ElicitationField(
+            name="evolution_strategy",
+            type="choice",
+            label="Evolution Strategy",
+            description="How should we handle this schema change?",
+            required=True,
+            options=strategy_options,
+            default=strategy_options[0] if strategy_options else "create_new_version",
+        ),
+        ElicitationField(
+            name="consumer_notification",
+            type="choice",
+            label="Consumer Notification",
+            description="How should we notify consumers about this change?",
+            required=True,
+            options=[
+                "automatic_notification",
+                "manual_review",
+                "changelog_entry",
+                "no_notification",
+            ],
+            default="automatic_notification",
+        ),
+        ElicitationField(
+            name="rollback_strategy",
+            type="choice",
+            label="Rollback Strategy",
+            description="If issues arise, how should we handle rollback?",
+            required=True,
+            options=[
+                "automatic_rollback",
+                "manual_decision",
+                "dual_support",
+                "no_rollback",
+            ],
+            default="manual_decision",
+        ),
+        ElicitationField(
+            name="testing_approach",
+            type="choice",
+            label="Testing Approach",
+            description="How should this schema change be tested?",
+            required=True,
+            options=[
+                "staging_first",
+                "canary_deployment",
+                "parallel_testing",
+                "direct_production",
+            ],
+            default="staging_first",
+        ),
+        ElicitationField(
+            name="migration_timeline",
+            type="choice",
+            label="Migration Timeline",
+            description="When should consumers migrate to the new schema?",
+            required=True,
+            options=[
+                "immediate",
+                "1_week",
+                "2_weeks",
+                "1_month",
+                "coordinated_date",
+            ],
+            default="2_weeks",
+        ),
+        ElicitationField(
+            name="documentation_notes",
+            type="text",
+            label="Documentation Notes",
+            description="Additional notes about this evolution (migration guide, breaking changes, etc.)",
+            required=False,
+            placeholder="e.g., Field X is being renamed to Y for clarity...",
+        ),
+    ]
+    
+    # Build a description with change summary
+    change_summary = "\n".join([
+        f"- {change.get('type', 'Unknown')}: {change.get('description', 'No description')}"
+        for change in proposed_changes[:5]  # Limit to first 5 changes
+    ])
+    if len(proposed_changes) > 5:
+        change_summary += f"\n... and {len(proposed_changes) - 5} more changes"
+    
+    description = (
+        f"Schema '{subject}' has proposed changes that need evolution planning:\n\n"
+        f"{change_summary}\n\n"
+        f"Current compatibility mode: {compatibility_mode}"
+    )
+    
+    return ElicitationRequest(
+        type=ElicitationType.FORM,
+        title="Schema Evolution Assistant",
+        description=description,
+        fields=fields,
+        context={
+            "subject": subject,
+            "current_schema": current_schema,
+            "proposed_changes": proposed_changes,
+            "compatibility_mode": compatibility_mode,
+            "change_types": list(change_types),
+        },
+        timeout_seconds=600,  # 10 minutes for planning
+        priority=ElicitationPriority.HIGH,  # Schema evolution is critical
+    )
+
+
 # Mock elicitation function for non-supporting clients
 async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationResponse]:
     """
@@ -712,6 +864,19 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
                 values["preserve_ids"] = "true"
             if "dry_run" in values:
                 values["dry_run"] = "true"
+        
+        elif "evolution" in request.title.lower():
+            # For schema evolution, use conservative defaults
+            if "evolution_strategy" in values:
+                # Prefer safe strategies
+                if "add_optional_field" in values.get("evolution_strategy", []):
+                    values["evolution_strategy"] = "add_optional_field"
+                else:
+                    values["evolution_strategy"] = "create_new_version"
+            if "rollback_strategy" in values:
+                values["rollback_strategy"] = "manual_decision"
+            if "testing_approach" in values:
+                values["testing_approach"] = "staging_first"
 
     return ElicitationResponse(
         request_id=request.id,
