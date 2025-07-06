@@ -5,6 +5,60 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2025-07-06
+
+### Added
+- **🚀 New Quick Reference Prompt**: Added `quick-reference` prompt for daily operations and command cheat sheet
+  - Most used commands in copy-paste format
+  - Common schema templates ready to use
+  - Quick troubleshooting steps
+  - Pro tips summary for experienced users
+
+### Improved
+- **📋 Action-Oriented Prompts**: Complete overhaul of all 8 existing prompts with focus on actionable content
+  - Added "Quick Actions" sections with copy-paste commands to all prompts
+  - Reduced verbose explanations in favor of concrete examples
+  - Clear, immediate next steps for users throughout
+
+- **🎯 Better Visual Organization**: Enhanced readability and scannability
+  - Tables for easy scanning of options and comparisons
+  - Emoji markers for visual hierarchy and better navigation
+  - Consistent formatting across all prompts
+  - Clear section separators for improved structure
+
+- **💡 Enhanced Examples and Templates**: More practical, ready-to-use content
+  - Copy-paste schema registration templates (User, Order, Event, Product)
+  - Complete command templates users can modify
+  - Real-world multi-registry setup examples
+  - Step-by-step evolution patterns with concrete examples
+  - CI/CD workflow examples with YAML snippets
+
+- **🔧 Improved Error Handling**: Better troubleshooting support
+  - Common errors mapped directly to solutions
+  - Symptom → fix mappings in troubleshooting section
+  - Debug checklists for systematic problem-solving
+  - Error-to-solution reference tables
+
+- **⚡ Performance & Best Practices**: Integrated guidance throughout
+  - Performance tips for large-scale operations
+  - Pro tips integrated into each prompt section
+  - Best practices highlighted with clear markers
+  - Optimization strategies for bulk operations
+
+### Changed
+- **📚 Updated Documentation**: Refreshed `docs/prompts-guide.md` to reflect all improvements
+  - Added new features section highlighting v2.0.5+ improvements
+  - Updated prompt descriptions with new capabilities
+  - Enhanced usage examples with modern patterns
+  - Added customization and best practices sections
+
+### Developer Experience
+- **Faster Onboarding**: New users can get started immediately with copy-paste commands
+- **Quick Information Access**: Better organization helps find information quickly
+- **Self-Service Troubleshooting**: Enhanced error guidance enables independent problem-solving
+- **Learning Integration**: Best practices and tips integrated throughout the learning flow
+- **Efficiency Boost**: Ready-to-use templates and commands reduce task completion time
+
 ## [2.0.4] - 2025-07-05
 
 ### Fixed
