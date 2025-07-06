@@ -1,5 +1,4 @@
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/2978f264-313d-4181-b592-145879b471b1)
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/aywengo/kafka-schema-reg-mcp)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
@@ -290,6 +289,7 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 **🐳 Glama.ai:** 
+
 <a href="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp/badge" />
 </a>
