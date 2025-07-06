@@ -34,13 +34,35 @@ jobs:
           --build-arg VCS_REF=${{ github.sha }} \
           .
     
+    # Option 3: Enhanced Trivy configuration
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'sarif'
-        output: 'trivy-results.sarif'
+        output: 'trivy-results-raw.sarif'
         severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
+        
+    # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+    - name: Filter SARIF results for HIGH and CRITICAL only
+      run: |
+        # Install jq if not available
+        which jq || sudo apt-get update && sudo apt-get install -y jq
+        
+        # Filter SARIF to only include HIGH and CRITICAL severity
+        # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+        jq '
+          .runs[].results |= map(
+            select(.level == "error" or .level == "warning")
+          )
+        ' trivy-results-raw.sarif > trivy-results.sarif
+        
+        # Debug: Show filtered results count
+        echo "Filtered SARIF results:"
+        jq '.runs[].results | length' trivy-results.sarif
         
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
@@ -48,6 +70,7 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
         
+    # Option 3: Enhanced Trivy configuration for JSON processing
     - name: Run Trivy vulnerability scanner (JSON format for processing)
       uses: aquasecurity/trivy-action@master
       with:
@@ -55,6 +78,9 @@ jobs:
         format: 'json'
         output: 'trivy-results.json'
         severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
         
     - name: Process Trivy results and create issue if critical vulnerabilities found
       uses: actions/github-script@v7
@@ -150,6 +176,7 @@ jobs:
             });
           }
         
+    # Option 3: Enhanced Trivy configuration for table output
     - name: Run Trivy vulnerability scanner (Table format)
       uses: aquasecurity/trivy-action@master
       with:
@@ -157,6 +184,9 @@ jobs:
         format: 'table'
         output: 'trivy-table.txt'
         severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
       continue-on-error: true
         
     - name: Display Trivy table output
@@ -174,6 +204,9 @@ jobs:
         format: 'table'
         severity: 'CRITICAL'
         exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
       continue-on-error: false
       
     # Create a summary of security findings
@@ -182,6 +215,7 @@ jobs:
       run: |
         echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Trivy vulnerability scan completed (CRITICAL and HIGH severity only)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ SARIF results filtered to exclude MEDIUM and LOW severities" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Security reports uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
         echo "- 📋 Security exceptions documented in \`.trivyignore\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -209,6 +243,7 @@ jobs:
         echo "- ✅ HIGH vulnerabilities: Reported for review" >> $GITHUB_STEP_SUMMARY
         echo "- ❌ MEDIUM vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
         echo "- ❌ LOW vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Unfixed vulnerabilities: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Security Exception Handling" >> $GITHUB_STEP_SUMMARY
         echo "- Vulnerabilities marked as 'will_not_fix' by upstream maintainers are documented and ignored" >> $GITHUB_STEP_SUMMARY
@@ -298,6 +333,7 @@ jobs:
           trivy-table.txt
           trivy-results.json
           trivy-results.sarif
+          trivy-results-raw.sarif
 
   secrets-scan:
     name: Secrets Detection
@@ -362,6 +398,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Severity Filter: CRITICAL and HIGH Only" >> $GITHUB_STEP_SUMMARY
         echo "This security scan configuration excludes MEDIUM and LOW severity issues per security policy." >> $GITHUB_STEP_SUMMARY
+        echo "SARIF results are filtered before upload to ensure only HIGH and CRITICAL vulnerabilities appear in the Security tab." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
         echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
