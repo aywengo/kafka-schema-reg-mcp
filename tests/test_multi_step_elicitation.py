@@ -102,8 +102,8 @@ else:
     class WorkflowTransitionType:
         pass
 
-    def create_condition(*args, **kwargs):
-        return lambda x: None
+    def create_condition(field_name, operator, match_value, next_step_id, *args, **kwargs):
+        return lambda state: next_step_id if state.get(field_name) == match_value else None
 
     def create_context_reorganization_workflow():
         return MultiStepWorkflow()
@@ -196,6 +196,29 @@ class TestWorkflowStep:
         assert step.get_next_step({"action": "create"}, {}) == "create_step"
         assert step.get_next_step({"action": "update"}, {}) == "update_step"
         assert step.get_next_step({"action": "delete"}, {}) == "delete_step"
+
+    def test_direct_string_mapping(self):
+        """Test direct string mapping in next_steps."""
+        step = WorkflowStep(
+            id="direct_step",
+            title="Direct Step",
+            fields=[
+                ElicitationField(
+                    name="confirm",
+                    type="confirmation",
+                    required=True,
+                )
+            ],
+            next_steps={"confirm": "finish_step", "default": "default_step"},  # Direct string mapping
+        )
+
+        # Test direct string mapping - should return the step regardless of field value
+        assert step.get_next_step({"confirm": "true"}, {}) == "finish_step"
+        assert step.get_next_step({"confirm": "false"}, {}) == "finish_step"
+        assert step.get_next_step({"confirm": "anything"}, {}) == "finish_step"
+
+        # Test field not present should fall back to default
+        assert step.get_next_step({"other_field": "value"}, {}) == "default_step"
 
 
 @pytest.mark.skipif(not MODULES_AVAILABLE, reason="Required modules not available")
@@ -507,32 +530,32 @@ class TestConditionHelpers:
 
     def test_create_condition_equals(self):
         """Test equals condition."""
-        condition = create_condition("status", "equals", "active")
+        condition = create_condition("status", "equals", "active", "next_step")
 
-        assert condition({"status": "active"}) == "active"
+        assert condition({"status": "active"}) == "next_step"
         assert condition({"status": "inactive"}) is None
         assert condition({}) is None
 
     def test_create_condition_comparisons(self):
         """Test comparison conditions."""
-        gt_condition = create_condition("value", "greater_than", 10)
-        lt_condition = create_condition("value", "less_than", 10)
+        gt_condition = create_condition("value", "greater_than", 10, "greater_step")
+        lt_condition = create_condition("value", "less_than", 10, "less_step")
 
-        assert gt_condition({"value": 15}) == 10
+        assert gt_condition({"value": 15}) == "greater_step"
         assert gt_condition({"value": 5}) is None
-        assert lt_condition({"value": 5}) == 10
+        assert lt_condition({"value": 5}) == "less_step"
         assert lt_condition({"value": 15}) is None
 
     def test_create_condition_contains(self):
         """Test contains condition."""
-        condition = create_condition("text", "contains", "test")
+        condition = create_condition("text", "contains", "test", "contains_step")
 
-        assert condition({"text": "this is a test string"}) == "test"
+        assert condition({"text": "this is a test string"}) == "contains_step"
         assert condition({"text": "no match here"}) is None
 
     def test_create_condition_exists(self):
         """Test exists condition."""
-        condition = create_condition("optional_field", "exists", "field_exists")
+        condition = create_condition("optional_field", "exists", "dummy_match", "field_exists")
 
         assert condition({"optional_field": "any value"}) == "field_exists"
         assert condition({"other_field": "value"}) is None

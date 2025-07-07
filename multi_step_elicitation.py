@@ -78,6 +78,9 @@ class WorkflowStep:
                 # Handle nested dict mapping (e.g., {"confirm": {"true": "finish", "false": "step1"}})
                 if isinstance(next_step_mapping, dict) and field_value in next_step_mapping:
                     return next_step_mapping[field_value]
+                # Handle direct string mapping (e.g., {"confirm": "finish"})
+                elif isinstance(next_step_mapping, str):
+                    return next_step_mapping
 
         # Check if there's a default next step
         if "default" in self.next_steps:
@@ -282,7 +285,7 @@ class MultiStepElicitationManager:
 
         workflow = self.workflows.get(state.metadata["workflow_definition_id"])
         if not workflow:
-            logger.error(f"Workflow definition not found")
+            logger.error("Workflow definition not found")
             return None
 
         # Check if user wants to go back
@@ -368,24 +371,26 @@ class MultiStepElicitationManager:
 
 
 # Helper function to create condition functions
-def create_condition(field_name: str, operator: str, value: Any) -> Callable[[Dict[str, Any]], Optional[str]]:
+def create_condition(
+    field_name: str, operator: str, match_value: Any, next_step_id: str
+) -> Callable[[Dict[str, Any]], Optional[str]]:
     """Create a condition function for workflow transitions."""
 
     def condition(state: Dict[str, Any]) -> Optional[str]:
         field_value = state.get(field_name)
 
         if operator == "equals":
-            return value if field_value == value else None
+            return next_step_id if field_value == match_value else None
         elif operator == "not_equals":
-            return value if field_value != value else None
+            return next_step_id if field_value != match_value else None
         elif operator == "greater_than":
-            return value if field_value > value else None
+            return next_step_id if field_value > match_value else None
         elif operator == "less_than":
-            return value if field_value < value else None
+            return next_step_id if field_value < match_value else None
         elif operator == "contains":
-            return value if value in str(field_value) else None
+            return next_step_id if match_value in str(field_value) else None
         elif operator == "exists":
-            return value if field_name in state else None
+            return next_step_id if field_name in state else None
 
         return None
 

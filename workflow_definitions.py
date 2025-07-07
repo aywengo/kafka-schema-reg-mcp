@@ -402,7 +402,10 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="proceed",
                     type="confirmation",
-                    description="Proceed with context reorganization? (Warning: This will modify context structure across registries)",
+                    description=(
+                        "Proceed with context reorganization? (Warning: This will modify "
+                        "context structure across registries)"
+                    ),
                     required=True,
                 ),
             ],
@@ -419,7 +422,10 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     name="structure_definition",
                     type="text",
                     description="New context structure (YAML or JSON)",
-                    placeholder="contexts:\n  - name: production\n    patterns: ['*.prod', 'prod.*']\n  - name: development\n    patterns: ['*.dev', 'dev.*']",
+                    placeholder=(
+                        "contexts:\n  - name: production\n    patterns: ['*.prod', 'prod.*']\n"
+                        "  - name: development\n    patterns: ['*.dev', 'dev.*']"
+                    ),
                     required=True,
                 ),
                 ElicitationField(
@@ -764,7 +770,10 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="activate_dr",
                     type="confirmation",
-                    description="Activate disaster recovery configuration? (Warning: This will enable the DR configuration across your registries)",
+                    description=(
+                        "Activate disaster recovery configuration? (Warning: This will enable "
+                        "the DR configuration across your registries)"
+                    ),
                     required=True,
                 ),
             ],
