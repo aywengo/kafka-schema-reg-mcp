@@ -84,6 +84,9 @@ async def simulate_user_responses(
         # Handle the response
         result = await handle_workflow_elicitation_response(elicitation_manager, workflow_manager, response)
 
+        if not result or not isinstance(result, dict):
+            print("❌ Error: Invalid response from handle_workflow_elicitation_response")
+            break
         if result.get("workflow_completed"):
             # Workflow completed
             print("\n" + "=" * 60)
