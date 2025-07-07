@@ -283,6 +283,7 @@ def execute_schema_migration(responses: Dict[str, Any]) -> Dict[str, Any]:
     elif migration_type == "bulk_migration":
         result["pattern"] = responses.get("schema_pattern")
         result["include_all_versions"] = responses.get("include_all_versions")
+        result["context_filter"] = responses.get("context_filter")
     elif migration_type == "context_migration":
         result["source_context"] = responses.get("source_context")
         result["include_dependencies"] = responses.get("include_dependencies")
@@ -308,7 +309,7 @@ def execute_context_reorganization(responses: Dict[str, Any]) -> Dict[str, Any]:
     if strategy == "merge":
         result["source_contexts"] = [ctx.strip() for ctx in responses.get("source_contexts", "").split(",")]
         result["target_context"] = responses.get("target_context")
-        result["handle_duplicates"] = responses.get("handle_duplicates") == "true"
+        result["handle_duplicates"] = responses.get("handle_duplicates")
     elif strategy == "split":
         result["source_context"] = responses.get("source_context")
         result["split_criteria"] = responses.get("split_criteria")

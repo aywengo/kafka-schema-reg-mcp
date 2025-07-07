@@ -19,6 +19,9 @@ from multi_step_elicitation import (
     WorkflowStep,
 )
 
+# Global workflow cache
+_cached_workflows = None
+
 
 def create_schema_migration_workflow() -> MultiStepWorkflow:
     """Create the Schema Migration Wizard workflow."""
@@ -799,18 +802,17 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
 
 def get_all_workflows() -> List[MultiStepWorkflow]:
     """Get all pre-defined workflows."""
-    return [
-        create_schema_migration_workflow(),
-        create_context_reorganization_workflow(),
-        create_disaster_recovery_workflow(),
-    ]
+    global _cached_workflows
+    if _cached_workflows is None:
+        _cached_workflows = [
+            create_schema_migration_workflow(),
+            create_context_reorganization_workflow(),
+            create_disaster_recovery_workflow(),
+        ]
+    return _cached_workflows
 
 
 def get_workflow_by_id(workflow_id: str) -> MultiStepWorkflow:
     """Get a specific workflow by ID."""
-    workflows = {
-        "schema_migration_wizard": create_schema_migration_workflow(),
-        "context_reorganization": create_context_reorganization_workflow(),
-        "disaster_recovery_setup": create_disaster_recovery_workflow(),
-    }
+    workflows = {workflow.id: workflow for workflow in get_all_workflows()}
     return workflows.get(workflow_id)
