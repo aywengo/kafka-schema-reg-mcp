@@ -11,18 +11,18 @@ Workflows:
 3. Disaster Recovery Setup - Configure DR strategies
 """
 
-from typing import Dict, Any, List
+from typing import List
+
 from elicitation import ElicitationField, ElicitationType
 from multi_step_elicitation import (
     MultiStepWorkflow,
     WorkflowStep,
-    create_condition,
 )
 
 
 def create_schema_migration_workflow() -> MultiStepWorkflow:
     """Create the Schema Migration Wizard workflow."""
-    
+
     steps = {
         # Step 1: Select migration type
         "migration_type": WorkflowStep(
@@ -35,23 +35,18 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     name="migration_type",
                     type="choice",
                     description="Select the type of migration",
-                    options=[
-                        "single_schema",
-                        "bulk_migration",
-                        "context_migration"
-                    ],
-                    required=True
+                    options=["single_schema", "bulk_migration", "context_migration"],
+                    required=True,
                 )
             ],
             next_steps={
                 "migration_type": {
                     "single_schema": "single_schema_selection",
                     "bulk_migration": "bulk_selection",
-                    "context_migration": "context_selection"
+                    "context_migration": "context_selection",
                 }
-            }
+            },
         ),
-        
         # Step 2a: Single schema selection
         "single_schema_selection": WorkflowStep(
             id="single_schema_selection",
@@ -64,14 +59,14 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Source registry",
                     options=["development", "staging", "production"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="schema_name",
                     type="text",
                     description="Schema name (subject)",
                     placeholder="e.g., com.example.User-value",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="version",
@@ -79,12 +74,11 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     description="Version to migrate (leave empty for latest)",
                     placeholder="e.g., 1, 2, latest",
                     required=False,
-                    default="latest"
-                )
+                    default="latest",
+                ),
             ],
-            next_steps={"default": "migration_options"}
+            next_steps={"default": "migration_options"},
         ),
-        
         # Step 2b: Bulk selection
         "bulk_selection": WorkflowStep(
             id="bulk_selection",
@@ -97,33 +91,32 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Source registry",
                     options=["development", "staging", "production"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="schema_pattern",
                     type="text",
                     description="Schema name pattern (regex supported)",
                     placeholder="e.g., com.example.*, *-value",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="include_all_versions",
                     type="confirmation",
                     description="Include all versions of matching schemas?",
                     default="false",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="context_filter",
                     type="text",
                     description="Filter by context (optional)",
                     placeholder="e.g., production, staging",
-                    required=False
-                )
+                    required=False,
+                ),
             ],
-            next_steps={"default": "migration_options"}
+            next_steps={"default": "migration_options"},
         ),
-        
         # Step 2c: Context selection
         "context_selection": WorkflowStep(
             id="context_selection",
@@ -136,26 +129,25 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Source registry",
                     options=["development", "staging", "production"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="source_context",
                     type="text",
                     description="Source context name",
                     placeholder="e.g., production, staging",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="include_dependencies",
                     type="confirmation",
                     description="Include schema dependencies?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "migration_options"}
+            next_steps={"default": "migration_options"},
         ),
-        
         # Step 3: Migration options
         "migration_options": WorkflowStep(
             id="migration_options",
@@ -168,21 +160,21 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Target registry",
                     options=["development", "staging", "production"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="target_context",
                     type="text",
                     description="Target context (leave empty to keep same)",
                     placeholder="e.g., production-backup",
-                    required=False
+                    required=False,
                 ),
                 ElicitationField(
                     name="preserve_ids",
                     type="confirmation",
                     description="Preserve schema IDs? (Note: Preserving IDs requires admin access and may cause conflicts)",
                     default="false",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="conflict_resolution",
@@ -190,19 +182,18 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     description="How to handle existing schemas?",
                     options=["skip", "overwrite", "version"],
                     default="skip",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="create_backup",
                     type="confirmation",
                     description="Create backup before migration?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "review_confirm"}
+            next_steps={"default": "review_confirm"},
         ),
-        
         # Step 4: Review and confirm
         "review_confirm": WorkflowStep(
             id="review_confirm",
@@ -215,41 +206,32 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     type="confirmation",
                     description="Perform dry run first?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="confirm_migration",
                     type="confirmation",
                     description="Proceed with migration? (Warning: This operation may modify schemas in the target registry)",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={
-                "confirm_migration": {
-                    "true": "finish",
-                    "false": "migration_type"  # Start over
-                }
-            }
-        )
+            next_steps={"confirm_migration": {"true": "finish", "false": "migration_type"}},  # Start over
+        ),
     }
-    
+
     return MultiStepWorkflow(
         id="schema_migration_wizard",
         name="Schema Migration Wizard",
         description="Guide users through schema migration process",
         steps=steps,
         initial_step_id="migration_type",
-        metadata={
-            "estimated_duration": "2-5 minutes",
-            "difficulty": "intermediate",
-            "requires_auth": True
-        }
+        metadata={"estimated_duration": "2-5 minutes", "difficulty": "intermediate", "requires_auth": True},
     )
 
 
 def create_context_reorganization_workflow() -> MultiStepWorkflow:
     """Create the Context Reorganization workflow."""
-    
+
     steps = {
         # Step 1: Select reorganization strategy
         "reorg_strategy": WorkflowStep(
@@ -263,7 +245,7 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Select reorganization strategy",
                     options=["merge", "split", "rename", "restructure"],
-                    required=True
+                    required=True,
                 )
             ],
             next_steps={
@@ -271,11 +253,10 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     "merge": "merge_contexts",
                     "split": "split_context",
                     "rename": "rename_context",
-                    "restructure": "restructure_plan"
+                    "restructure": "restructure_plan",
                 }
-            }
+            },
         ),
-        
         # Step 2a: Merge contexts
         "merge_contexts": WorkflowStep(
             id="merge_contexts",
@@ -288,14 +269,14 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Source contexts (comma-separated)",
                     placeholder="e.g., dev-team-a, dev-team-b",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="target_context",
                     type="text",
                     description="Target context name",
                     placeholder="e.g., development",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="handle_duplicates",
@@ -303,12 +284,11 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     description="How to handle duplicate schemas?",
                     options=["keep_newest", "keep_oldest", "prompt"],
                     default="prompt",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "mapping_review"}
+            next_steps={"default": "mapping_review"},
         ),
-        
         # Step 2b: Split context
         "split_context": WorkflowStep(
             id="split_context",
@@ -316,30 +296,24 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
             description="Define how to split the context",
             elicitation_type=ElicitationType.FORM,
             fields=[
-                ElicitationField(
-                    name="source_context",
-                    type="text",
-                    description="Context to split",
-                    required=True
-                ),
+                ElicitationField(name="source_context", type="text", description="Context to split", required=True),
                 ElicitationField(
                     name="split_criteria",
                     type="choice",
                     description="Split based on",
                     options=["namespace", "prefix", "custom_rules"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="target_contexts",
                     type="text",
                     description="Target context names (comma-separated)",
                     placeholder="e.g., context-a, context-b, context-c",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "split_rules"}
+            next_steps={"default": "split_rules"},
         ),
-        
         # Step 2c: Rename context
         "rename_context": WorkflowStep(
             id="rename_context",
@@ -352,19 +326,18 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Rename mappings (old:new, comma-separated)",
                     placeholder="e.g., dev:development, prod:production",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="update_references",
                     type="confirmation",
                     description="Update all schema references?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "review_changes"}
+            next_steps={"default": "review_changes"},
         ),
-        
         # Step 3: Split rules (conditional)
         "split_rules": WorkflowStep(
             id="split_rules",
@@ -377,18 +350,17 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Split rules (pattern:context, one per line)",
                     placeholder="com.example.user.*:user-context\ncom.example.order.*:order-context",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="default_context",
                     type="text",
                     description="Default context for unmatched schemas",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "mapping_review"}
+            next_steps={"default": "mapping_review"},
         ),
-        
         # Step 4: Mapping review
         "mapping_review": WorkflowStep(
             id="mapping_review",
@@ -401,19 +373,18 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="confirmation",
                     description="Generate detailed mapping report?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="test_mode",
                     type="confirmation",
                     description="Run in test mode first?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "execute_reorg"}
+            next_steps={"default": "execute_reorg"},
         ),
-        
         # Step 5: Execute reorganization
         "execute_reorg": WorkflowStep(
             id="execute_reorg",
@@ -426,23 +397,17 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="confirmation",
                     description="Create full backup before reorganization?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="proceed",
                     type="confirmation",
                     description="Proceed with context reorganization? (Warning: This will modify context structure across registries)",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={
-                "proceed": {
-                    "true": "finish",
-                    "false": "reorg_strategy"
-                }
-            }
+            next_steps={"proceed": {"true": "finish", "false": "reorg_strategy"}},
         ),
-        
         # Alternative path: Complete restructure
         "restructure_plan": WorkflowStep(
             id="restructure_plan",
@@ -455,7 +420,7 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="New context structure (YAML or JSON)",
                     placeholder="contexts:\n  - name: production\n    patterns: ['*.prod', 'prod.*']\n  - name: development\n    patterns: ['*.dev', 'dev.*']",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="migration_strategy",
@@ -463,12 +428,11 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     description="Migration approach",
                     options=["gradual", "immediate", "parallel"],
                     default="gradual",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "mapping_review"}
+            next_steps={"default": "mapping_review"},
         ),
-        
         # Alternative review path
         "review_changes": WorkflowStep(
             id="review_changes",
@@ -477,21 +441,13 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
             elicitation_type=ElicitationType.CONFIRMATION,
             fields=[
                 ElicitationField(
-                    name="confirm_changes",
-                    type="confirmation",
-                    description="Apply these changes?",
-                    required=True
+                    name="confirm_changes", type="confirmation", description="Apply these changes?", required=True
                 )
             ],
-            next_steps={
-                "confirm_changes": {
-                    "true": "finish",
-                    "false": "reorg_strategy"
-                }
-            }
-        )
+            next_steps={"confirm_changes": {"true": "finish", "false": "reorg_strategy"}},
+        ),
     }
-    
+
     return MultiStepWorkflow(
         id="context_reorganization",
         name="Context Reorganization",
@@ -502,14 +458,14 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
             "estimated_duration": "5-10 minutes",
             "difficulty": "advanced",
             "requires_auth": True,
-            "requires_admin": True
-        }
+            "requires_admin": True,
+        },
     )
 
 
 def create_disaster_recovery_workflow() -> MultiStepWorkflow:
     """Create the Disaster Recovery Setup workflow."""
-    
+
     steps = {
         # Step 1: Choose DR strategy
         "dr_strategy": WorkflowStep(
@@ -522,13 +478,8 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     name="dr_strategy",
                     type="choice",
                     description="Select DR strategy",
-                    options=[
-                        "active_passive",
-                        "active_active",
-                        "backup_restore",
-                        "multi_region"
-                    ],
-                    required=True
+                    options=["active_passive", "active_active", "backup_restore", "multi_region"],
+                    required=True,
                 )
             ],
             next_steps={
@@ -536,11 +487,10 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     "active_passive": "active_passive_config",
                     "active_active": "active_active_config",
                     "backup_restore": "backup_config",
-                    "multi_region": "multi_region_config"
+                    "multi_region": "multi_region_config",
                 }
-            }
+            },
         ),
-        
         # Step 2a: Active-Passive configuration
         "active_passive_config": WorkflowStep(
             id="active_passive_config",
@@ -553,14 +503,14 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Primary registry",
                     options=["production", "us-east-1", "eu-west-1"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="standby_registry",
                     type="choice",
                     description="Standby registry",
                     options=["dr-production", "us-west-2", "eu-central-1"],
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="replication_interval",
@@ -568,7 +518,7 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Replication interval",
                     options=["realtime", "1min", "5min", "15min", "hourly"],
                     default="5min",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="failover_mode",
@@ -576,12 +526,11 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Failover mode",
                     options=["manual", "automatic"],
                     default="manual",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "sync_options"}
+            next_steps={"default": "sync_options"},
         ),
-        
         # Step 2b: Active-Active configuration
         "active_active_config": WorkflowStep(
             id="active_active_config",
@@ -594,7 +543,7 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Active registries (comma-separated)",
                     placeholder="e.g., us-east-1, us-west-2, eu-west-1",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="conflict_resolution",
@@ -602,7 +551,7 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Conflict resolution strategy",
                     options=["last_write_wins", "version_vector", "manual"],
                     default="last_write_wins",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="sync_topology",
@@ -610,12 +559,11 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Synchronization topology",
                     options=["mesh", "hub_spoke", "ring"],
                     default="mesh",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "sync_options"}
+            next_steps={"default": "sync_options"},
         ),
-        
         # Step 2c: Backup configuration
         "backup_config": WorkflowStep(
             id="backup_config",
@@ -629,14 +577,14 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Backup schedule",
                     options=["hourly", "daily", "weekly", "custom"],
                     default="daily",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="backup_location",
                     type="text",
                     description="Backup storage location",
                     placeholder="e.g., s3://my-bucket/schema-backups",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="retention_policy",
@@ -644,19 +592,18 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Backup retention",
                     options=["7days", "30days", "90days", "1year", "indefinite"],
                     default="30days",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="encryption",
                     type="confirmation",
                     description="Encrypt backups?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "restore_testing"}
+            next_steps={"default": "restore_testing"},
         ),
-        
         # Step 2d: Multi-region configuration
         "multi_region_config": WorkflowStep(
             id="multi_region_config",
@@ -669,21 +616,21 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Regions (comma-separated)",
                     placeholder="e.g., us-east-1, us-west-2, eu-west-1, ap-southeast-1",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="primary_region",
                     type="text",
                     description="Primary region",
                     placeholder="e.g., us-east-1",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="data_residency",
                     type="confirmation",
                     description="Enforce data residency rules?",
                     default="false",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="cross_region_replication",
@@ -691,12 +638,11 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Cross-region replication",
                     options=["all_regions", "adjacent_only", "custom"],
                     default="all_regions",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "sync_options"}
+            next_steps={"default": "sync_options"},
         ),
-        
         # Step 3: Sync options (for replication strategies)
         "sync_options": WorkflowStep(
             id="sync_options",
@@ -710,21 +656,21 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="What to synchronize?",
                     options=["schemas_only", "schemas_and_metadata", "full_mirror"],
                     default="schemas_and_metadata",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="initial_sync",
                     type="confirmation",
                     description="Perform initial full sync?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="monitor_lag",
                     type="confirmation",
                     description="Enable replication lag monitoring?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="alert_threshold",
@@ -732,12 +678,11 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Alert threshold (seconds)",
                     placeholder="e.g., 300",
                     default="300",
-                    required=False
-                )
+                    required=False,
+                ),
             ],
-            next_steps={"default": "test_validate"}
+            next_steps={"default": "test_validate"},
         ),
-        
         # Step 3b: Restore testing (for backup strategy)
         "restore_testing": WorkflowStep(
             id="restore_testing",
@@ -751,26 +696,25 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Test restore frequency",
                     options=["weekly", "monthly", "quarterly"],
                     default="monthly",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="test_environment",
                     type="text",
                     description="Test restore environment",
                     placeholder="e.g., dr-test",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="auto_validate",
                     type="confirmation",
                     description="Automatically validate restored schemas?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "test_validate"}
+            next_steps={"default": "test_validate"},
         ),
-        
         # Step 4: Test and validate
         "test_validate": WorkflowStep(
             id="test_validate",
@@ -783,7 +727,7 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     type="confirmation",
                     description="Run disaster recovery drill?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="validation_scope",
@@ -791,19 +735,18 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     description="Validation scope",
                     options=["connectivity", "replication", "failover", "full"],
                     default="full",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="generate_runbook",
                     type="confirmation",
                     description="Generate DR runbook?",
                     default="true",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={"default": "finalize_dr"}
+            next_steps={"default": "finalize_dr"},
         ),
-        
         # Step 5: Finalize DR setup
         "finalize_dr": WorkflowStep(
             id="finalize_dr",
@@ -816,24 +759,19 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                     type="confirmation",
                     description="Enable DR monitoring and alerts?",
                     default="true",
-                    required=True
+                    required=True,
                 ),
                 ElicitationField(
                     name="activate_dr",
                     type="confirmation",
                     description="Activate disaster recovery configuration? (Warning: This will enable the DR configuration across your registries)",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
-            next_steps={
-                "activate_dr": {
-                    "true": "finish",
-                    "false": "dr_strategy"
-                }
-            }
-        )
+            next_steps={"activate_dr": {"true": "finish", "false": "dr_strategy"}},
+        ),
     }
-    
+
     return MultiStepWorkflow(
         id="disaster_recovery_setup",
         name="Disaster Recovery Setup",
@@ -845,8 +783,8 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
             "difficulty": "expert",
             "requires_auth": True,
             "requires_admin": True,
-            "compliance_relevant": True
-        }
+            "compliance_relevant": True,
+        },
     )
 
 
@@ -855,7 +793,7 @@ def get_all_workflows() -> List[MultiStepWorkflow]:
     return [
         create_schema_migration_workflow(),
         create_context_reorganization_workflow(),
-        create_disaster_recovery_workflow()
+        create_disaster_recovery_workflow(),
     ]
 
 
@@ -864,6 +802,6 @@ def get_workflow_by_id(workflow_id: str) -> MultiStepWorkflow:
     workflows = {
         "schema_migration_wizard": create_schema_migration_workflow(),
         "context_reorganization": create_context_reorganization_workflow(),
-        "disaster_recovery_setup": create_disaster_recovery_workflow()
+        "disaster_recovery_setup": create_disaster_recovery_workflow(),
     }
     return workflows.get(workflow_id)
