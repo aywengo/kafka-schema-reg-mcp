@@ -5,6 +5,23 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2025-07-06
+
+### Added
+- **🚀 New Quick Reference Prompt**: Added `quick-reference` prompt with copy-paste commands, common templates, and pro tips for daily operations
+
+### Improved
+- **📋 Action-Oriented Prompts**: Complete overhaul of all 8 existing prompts
+  - Added "Quick Actions" sections with copy-paste commands
+  - Replaced verbose explanations with concrete examples
+  - Enhanced visual organization with tables, emojis, and clear formatting
+  - Included ready-to-use templates (User, Order, Event, Product schemas)
+  - Added error-to-solution mappings and troubleshooting guides
+  - Integrated performance tips and best practices throughout
+
+### Changed
+- **📚 Documentation**: Updated `docs/prompts-guide.md` to reflect all improvements and added customization guidelines
+
 ## [2.0.4] - 2025-07-05
 
 ### Fixed
