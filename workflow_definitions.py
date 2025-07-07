@@ -40,14 +40,7 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                         "bulk_migration",
                         "context_migration"
                     ],
-                    required=True,
-                    metadata={
-                        "option_labels": {
-                            "single_schema": "Single Schema - Migrate one schema",
-                            "bulk_migration": "Bulk Migration - Migrate multiple schemas",
-                            "context_migration": "Context Migration - Migrate entire context"
-                        }
-                    }
+                    required=True
                 )
             ],
             next_steps={
@@ -187,12 +180,9 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="preserve_ids",
                     type="confirmation",
-                    description="Preserve schema IDs?",
+                    description="Preserve schema IDs? (Note: Preserving IDs requires admin access and may cause conflicts)",
                     default="false",
-                    required=True,
-                    metadata={
-                        "help": "Preserving IDs requires admin access and may cause conflicts"
-                    }
+                    required=True
                 ),
                 ElicitationField(
                     name="conflict_resolution",
@@ -200,14 +190,7 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                     description="How to handle existing schemas?",
                     options=["skip", "overwrite", "version"],
                     default="skip",
-                    required=True,
-                    metadata={
-                        "option_labels": {
-                            "skip": "Skip - Leave existing schemas unchanged",
-                            "overwrite": "Overwrite - Replace existing schemas",
-                            "version": "Version - Create new versions"
-                        }
-                    }
+                    required=True
                 ),
                 ElicitationField(
                     name="create_backup",
@@ -237,16 +220,10 @@ def create_schema_migration_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="confirm_migration",
                     type="confirmation",
-                    description="Proceed with migration?",
-                    required=True,
-                    metadata={
-                        "warning": "This operation may modify schemas in the target registry"
-                    }
+                    description="Proceed with migration? (Warning: This operation may modify schemas in the target registry)",
+                    required=True
                 )
             ],
-            conditions={
-                "check_confirmation": create_condition("confirm_migration", "equals", "true")
-            },
             next_steps={
                 "confirm_migration": {
                     "true": "finish",
@@ -286,15 +263,7 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="choice",
                     description="Select reorganization strategy",
                     options=["merge", "split", "rename", "restructure"],
-                    required=True,
-                    metadata={
-                        "option_labels": {
-                            "merge": "Merge - Combine multiple contexts",
-                            "split": "Split - Divide a context into multiple",
-                            "rename": "Rename - Change context names",
-                            "restructure": "Restructure - Complete reorganization"
-                        }
-                    }
+                    required=True
                 )
             ],
             next_steps={
@@ -408,8 +377,7 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="Split rules (pattern:context, one per line)",
                     placeholder="com.example.user.*:user-context\ncom.example.order.*:order-context",
-                    required=True,
-                    metadata={"multiline": True}
+                    required=True
                 ),
                 ElicitationField(
                     name="default_context",
@@ -463,11 +431,8 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="proceed",
                     type="confirmation",
-                    description="Proceed with context reorganization?",
-                    required=True,
-                    metadata={
-                        "warning": "This will modify context structure across registries"
-                    }
+                    description="Proceed with context reorganization? (Warning: This will modify context structure across registries)",
+                    required=True
                 )
             ],
             next_steps={
@@ -490,8 +455,7 @@ def create_context_reorganization_workflow() -> MultiStepWorkflow:
                     type="text",
                     description="New context structure (YAML or JSON)",
                     placeholder="contexts:\n  - name: production\n    patterns: ['*.prod', 'prod.*']\n  - name: development\n    patterns: ['*.dev', 'dev.*']",
-                    required=True,
-                    metadata={"multiline": True, "syntax": "yaml"}
+                    required=True
                 ),
                 ElicitationField(
                     name="migration_strategy",
@@ -564,15 +528,7 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                         "backup_restore",
                         "multi_region"
                     ],
-                    required=True,
-                    metadata={
-                        "option_labels": {
-                            "active_passive": "Active-Passive - Primary with standby",
-                            "active_active": "Active-Active - Multiple active registries",
-                            "backup_restore": "Backup & Restore - Periodic backups",
-                            "multi_region": "Multi-Region - Geographic distribution"
-                        }
-                    }
+                    required=True
                 )
             ],
             next_steps={
@@ -865,11 +821,8 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
                 ElicitationField(
                     name="activate_dr",
                     type="confirmation",
-                    description="Activate disaster recovery configuration?",
-                    required=True,
-                    metadata={
-                        "warning": "This will enable the DR configuration across your registries"
-                    }
+                    description="Activate disaster recovery configuration? (Warning: This will enable the DR configuration across your registries)",
+                    required=True
                 )
             ],
             next_steps={

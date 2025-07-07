@@ -362,6 +362,7 @@ run_essential_integration_tests() {
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
+        "test_multi_step_elicitation.py:Multi-step elicitation workflows (Issue #73 - essential functionality)"
     )
     
     run_test_list "${tests[@]}"
@@ -483,6 +484,7 @@ run_advanced_feature_tests() {
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
         "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
+        "test_multi_step_elicitation.py:Multi-step elicitation workflows and complex user interactions (Issue #73)"
     )
     
     run_test_list "${tests[@]}"

@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 from functools import wraps
 
 from fastmcp import FastMCP
-from fastmcp.types import Tool
 
 from elicitation import ElicitationManager, ElicitationResponse
 from multi_step_elicitation import MultiStepElicitationManager, MultiStepWorkflow

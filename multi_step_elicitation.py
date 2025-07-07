@@ -75,9 +75,10 @@ class WorkflowStep:
         # Check simple value-based transitions
         for field_name, field_value in response_values.items():
             if field_name in self.next_steps:
-                # Direct field value mapping
-                if field_value in self.next_steps[field_name]:
-                    return self.next_steps[field_name][field_value]
+                next_step_mapping = self.next_steps[field_name]
+                # Handle nested dict mapping (e.g., {"confirm": {"true": "finish", "false": "step1"}})
+                if isinstance(next_step_mapping, dict) and field_value in next_step_mapping:
+                    return next_step_mapping[field_value]
         
         # Check if there's a default next step
         if "default" in self.next_steps:
@@ -97,6 +98,11 @@ class WorkflowState:
     metadata: Dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
+    
+    def __post_init__(self):
+        """Initialize step_history with current_step_id if empty."""
+        if not self.step_history:
+            self.step_history = [self.current_step_id]
     
     def add_response(self, step_id: str, response_values: Dict[str, Any]):
         """Add a response for a step."""
@@ -149,11 +155,17 @@ class MultiStepWorkflow:
         
         # Validate all referenced steps exist
         for step in self.steps.values():
-            for next_steps in step.next_steps.values():
-                if isinstance(next_steps, dict):
-                    for next_step_id in next_steps.values():
+            for next_step_refs in step.next_steps.values():
+                # Handle both direct string mappings and nested dict mappings
+                if isinstance(next_step_refs, dict):
+                    # Nested dict mapping (e.g., {"confirm": {"true": "finish", "false": "step1"}})
+                    for next_step_id in next_step_refs.values():
                         if next_step_id and next_step_id not in self.steps and next_step_id != "finish":
                             raise ValueError(f"Referenced step '{next_step_id}' not found in workflow")
+                elif isinstance(next_step_refs, str):
+                    # Direct string mapping (e.g., {"default": "finish"})
+                    if next_step_refs and next_step_refs not in self.steps and next_step_refs != "finish":
+                        raise ValueError(f"Referenced step '{next_step_refs}' not found in workflow")
     
     def get_step(self, step_id: str) -> Optional[WorkflowStep]:
         """Get a step by ID."""
@@ -191,7 +203,6 @@ class MultiStepElicitationManager:
         state = WorkflowState(
             workflow_id=workflow_instance_id,
             current_step_id=workflow.initial_step_id,
-            step_history=[workflow.initial_step_id],
             metadata={
                 "workflow_definition_id": workflow_id,
                 "workflow_name": workflow.name,
@@ -230,13 +241,13 @@ class MultiStepElicitationManager:
                 required=False
             ))
         
-        # Create request with workflow metadata
+        # Create request with workflow context
         request = ElicitationRequest(
             type=step.elicitation_type,
             title=step.title,
             description=step.description,
             fields=fields,
-            metadata={
+            context={
                 "workflow_instance_id": workflow_instance_id,
                 "step_id": step.id,
                 "step_number": len(state.step_history),
@@ -246,7 +257,7 @@ class MultiStepElicitationManager:
         )
         
         # Submit to elicitation manager
-        await self.elicitation_manager.submit_request(request)
+        await self.elicitation_manager.create_request(request)
         
         return request
     
@@ -262,13 +273,13 @@ class MultiStepElicitationManager:
             - Dict with final results if workflow is complete
             - None if there's an error
         """
-        # Extract workflow instance ID from response metadata
+        # Extract workflow instance ID from response context
         request = self.elicitation_manager.pending_requests.get(response.request_id)
-        if not request or "workflow_instance_id" not in request.metadata:
+        if not request or "workflow_instance_id" not in request.context:
             logger.error("Response not associated with a workflow")
             return None
             
-        workflow_instance_id = request.metadata["workflow_instance_id"]
+        workflow_instance_id = request.context["workflow_instance_id"]
         state = self.active_states.get(workflow_instance_id)
         if not state:
             logger.error(f"No active state found for workflow instance '{workflow_instance_id}'")

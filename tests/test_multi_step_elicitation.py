@@ -331,7 +331,7 @@ class TestMultiStepElicitationManager:
         
         # Check workflow state was created
         assert len(multi_step_manager.active_states) == 1
-        instance_id = request.metadata["workflow_instance_id"]
+        instance_id = request.context["workflow_instance_id"]
         state = multi_step_manager.active_states[instance_id]
         assert state.current_step_id == "step1"
     
@@ -342,7 +342,7 @@ class TestMultiStepElicitationManager:
         
         # Start workflow
         request1 = await multi_step_manager.start_workflow(simple_workflow.id)
-        instance_id = request1.metadata["workflow_instance_id"]
+        instance_id = request1.context["workflow_instance_id"]
         
         # Submit response for step 1
         response1 = ElicitationResponse(
@@ -411,7 +411,7 @@ class TestMultiStepElicitationManager:
         
         # Start workflow
         request = await multi_step_manager.start_workflow(simple_workflow.id)
-        instance_id = request.metadata["workflow_instance_id"]
+        instance_id = request.context["workflow_instance_id"]
         
         # Abort it
         success = await multi_step_manager.abort_workflow(instance_id)

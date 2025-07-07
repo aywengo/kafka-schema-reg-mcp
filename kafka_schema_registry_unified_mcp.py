@@ -365,6 +365,13 @@ from elicitation_mcp_integration import (  # noqa: E402
     register_elicitation_handlers,
     update_elicitation_implementation,
 )
+
+# Import multi-step elicitation workflow functionality
+from workflow_mcp_integration import (  # noqa: E402
+    register_workflow_tools,
+    handle_workflow_elicitation_response,
+)
+from multi_step_elicitation import MultiStepElicitationManager  # noqa: E402
 from export_tools import (  # noqa: E402
     export_context_tool,
     export_global_tool,
@@ -550,6 +557,20 @@ try:
 except Exception as e:
     logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
     logger.info("📝 Falling back to mock elicitation implementation")
+
+# Initialize multi-step elicitation workflow system
+try:
+    # Create multi-step workflow manager
+    multi_step_manager = MultiStepElicitationManager(elicitation_manager)
+    
+    # Register workflow tools with the MCP server
+    workflow_tools = register_workflow_tools(mcp, elicitation_manager)
+    logger.info("✅ Multi-step elicitation workflows registered with MCP server")
+    logger.info(f"✅ {len(workflow_tools.multi_step_manager.workflows)} workflows available")
+except Exception as e:
+    logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
+    logger.info("📝 Multi-step workflows not available")
+    multi_step_manager = None
 
 # ===== MCP PROTOCOL SUPPORT =====
 
@@ -1449,6 +1470,391 @@ def get_elicitation_status():
             f"Failed to get elicitation status: {str(e)}",
             error_code="ELICITATION_STATUS_FAILED",
             registry_mode=REGISTRY_MODE,
+        )
+
+
+# ===== MULTI-STEP WORKFLOW TOOLS =====
+
+
+@mcp.tool()
+@require_scopes("write")
+async def submit_elicitation_response(
+    request_id: str,
+    response_data: dict,
+    complete: bool = True,
+):
+    """
+    Submit a response to an elicitation request.
+    
+    This tool handles both regular elicitation responses and multi-step workflow responses.
+    When a workflow is in progress, it will automatically advance to the next step.
+    """
+    import json
+    from elicitation import ElicitationResponse
+    
+    try:
+        # Create response object
+        response = ElicitationResponse(
+            request_id=request_id,
+            values=response_data,
+            complete=complete
+        )
+        
+        # Check if multi-step manager is available and handle workflow responses
+        if 'multi_step_manager' in globals() and multi_step_manager:
+            workflow_result = await handle_workflow_elicitation_response(
+                elicitation_manager,
+                multi_step_manager,
+                response
+            )
+            
+            if workflow_result:
+                if workflow_result.get("workflow_completed"):
+                    # Workflow completed - return execution plan
+                    execution_plan = workflow_result.get("execution_plan", {})
+                    return {
+                        "status": "workflow_completed",
+                        "message": "Workflow completed successfully",
+                        "execution_plan": execution_plan,
+                        "next_action": "Execute the generated plan using appropriate tools",
+                        "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                    }
+                elif workflow_result.get("workflow_continuing"):
+                    # More steps needed
+                    return {
+                        "status": "workflow_continuing",
+                        "message": f"Proceeding to: {workflow_result.get('next_step')}",
+                        "request_id": workflow_result.get("request_id"),
+                        "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                    }
+                else:
+                    # Error in workflow
+                    return create_error_response(
+                        workflow_result.get("error", "Unknown workflow error"),
+                        error_code="WORKFLOW_ERROR",
+                        registry_mode=REGISTRY_MODE
+                    )
+        
+        # Original elicitation handling (non-workflow)
+        success = await elicitation_manager.submit_response(response)
+        
+        if success:
+            result = elicitation_manager.get_response(request_id)
+            if result:
+                return {
+                    "status": "success",
+                    "message": "Response submitted successfully",
+                    "values": result.values,
+                    "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                }
+        
+        return create_error_response(
+            "Failed to submit response",
+            error_code="ELICITATION_RESPONSE_FAILED",
+            registry_mode=REGISTRY_MODE
+        )
+        
+    except Exception as e:
+        logger.error(f"Error submitting elicitation response: {e}")
+        return create_error_response(
+            str(e),
+            error_code="ELICITATION_RESPONSE_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_available_workflows():
+    """List all available multi-step workflows for complex operations."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        from workflow_definitions import get_all_workflows
+        
+        workflows = get_all_workflows()
+        workflow_list = []
+        
+        for workflow in workflows:
+            workflow_list.append({
+                "id": workflow.id,
+                "name": workflow.name,
+                "description": workflow.description,
+                "steps": len(workflow.steps),
+                "difficulty": workflow.metadata.get("difficulty", "intermediate"),
+                "estimated_duration": workflow.metadata.get("estimated_duration", "5-10 minutes"),
+                "requires_admin": workflow.metadata.get("requires_admin", False)
+            })
+        
+        return {
+            "workflows": workflow_list,
+            "total": len(workflow_list),
+            "message": "Use 'start_workflow' tool to begin any workflow",
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        }
+        
+    except Exception as e:
+        logger.error(f"Error listing available workflows: {e}")
+        return create_error_response(
+            str(e),
+            error_code="WORKFLOWS_LIST_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("write")
+async def start_workflow(
+    workflow_id: str,
+    initial_context: dict = None,
+):
+    """Start a multi-step workflow for complex operations."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        from datetime import datetime
+        
+        # Prepare initial context
+        if initial_context is None:
+            initial_context = {}
+        
+        initial_context.update({
+            "triggered_by": "start_workflow",
+            "timestamp": datetime.utcnow().isoformat(),
+            "registry_mode": REGISTRY_MODE
+        })
+        
+        # Start the workflow
+        request = await multi_step_manager.start_workflow(
+            workflow_id=workflow_id,
+            initial_context=initial_context
+        )
+        
+        if request:
+            return {
+                "status": "workflow_started",
+                "workflow_id": workflow_id,
+                "message": f"Workflow '{workflow_id}' started successfully",
+                "first_step": request.title,
+                "request_id": request.id,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+        else:
+            return create_error_response(
+                f"Failed to start workflow '{workflow_id}'",
+                error_code="WORKFLOW_START_FAILED",
+                registry_mode=REGISTRY_MODE
+            )
+            
+    except Exception as e:
+        logger.error(f"Error starting workflow: {e}")
+        return create_error_response(
+            str(e),
+            error_code="WORKFLOW_START_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_workflow_status(workflow_id: str = None):
+    """Get the status of active workflows."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        active_workflows = multi_step_manager.get_active_workflows()
+        
+        if workflow_id:
+            # Return status for specific workflow
+            workflow_info = active_workflows.get(workflow_id)
+            if workflow_info:
+                return {
+                    "workflow_id": workflow_id,
+                    "status": workflow_info,
+                    "mcp_protocol_version": MCP_PROTOCOL_VERSION
+                }
+            else:
+                return create_error_response(
+                    f"Workflow '{workflow_id}' not found or not active",
+                    error_code="WORKFLOW_NOT_FOUND",
+                    registry_mode=REGISTRY_MODE
+                )
+        
+        # Return all active workflows
+        return {
+            "active_workflows": active_workflows,
+            "total_active": len(active_workflows),
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting workflow status: {e}")
+        return create_error_response(
+            str(e),
+            error_code="WORKFLOW_STATUS_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("write")
+async def guided_schema_migration():
+    """Start the schema migration wizard for guided migration."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        from datetime import datetime
+        
+        # Start the schema migration workflow
+        request = await multi_step_manager.start_workflow(
+            workflow_id="schema_migration_wizard",
+            initial_context={
+                "triggered_by": "guided_schema_migration",
+                "timestamp": datetime.utcnow().isoformat(),
+                "registry_mode": REGISTRY_MODE
+            }
+        )
+        
+        if request:
+            return {
+                "status": "workflow_started",
+                "workflow": "Schema Migration Wizard",
+                "message": "Migration wizard started. Please respond to the elicitation request.",
+                "first_step": request.title,
+                "request_id": request.id,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+        else:
+            return create_error_response(
+                "Failed to start migration wizard",
+                error_code="MIGRATION_WIZARD_START_FAILED",
+                registry_mode=REGISTRY_MODE
+            )
+            
+    except Exception as e:
+        logger.error(f"Error starting guided schema migration: {e}")
+        return create_error_response(
+            str(e),
+            error_code="MIGRATION_WIZARD_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("write")
+async def guided_context_reorganization():
+    """Start the context reorganization wizard for guided context management."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        from datetime import datetime
+        
+        # Start the context reorganization workflow
+        request = await multi_step_manager.start_workflow(
+            workflow_id="context_reorganization_wizard",
+            initial_context={
+                "triggered_by": "guided_context_reorganization",
+                "timestamp": datetime.utcnow().isoformat(),
+                "registry_mode": REGISTRY_MODE
+            }
+        )
+        
+        if request:
+            return {
+                "status": "workflow_started",
+                "workflow": "Context Reorganization Wizard",
+                "message": "Context reorganization wizard started. Please respond to the elicitation request.",
+                "first_step": request.title,
+                "request_id": request.id,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+        else:
+            return create_error_response(
+                "Failed to start context reorganization wizard",
+                error_code="CONTEXT_WIZARD_START_FAILED",
+                registry_mode=REGISTRY_MODE
+            )
+            
+    except Exception as e:
+        logger.error(f"Error starting guided context reorganization: {e}")
+        return create_error_response(
+            str(e),
+            error_code="CONTEXT_WIZARD_ERROR",
+            registry_mode=REGISTRY_MODE
+        )
+
+
+@mcp.tool()
+@require_scopes("admin")
+async def guided_disaster_recovery():
+    """Start the disaster recovery wizard for guided backup and recovery setup."""
+    try:
+        if 'multi_step_manager' not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE
+            )
+        
+        from datetime import datetime
+        
+        # Start the disaster recovery workflow
+        request = await multi_step_manager.start_workflow(
+            workflow_id="disaster_recovery_wizard",
+            initial_context={
+                "triggered_by": "guided_disaster_recovery",
+                "timestamp": datetime.utcnow().isoformat(),
+                "registry_mode": REGISTRY_MODE
+            }
+        )
+        
+        if request:
+            return {
+                "status": "workflow_started",
+                "workflow": "Disaster Recovery Wizard",
+                "message": "Disaster recovery wizard started. Please respond to the elicitation request.",
+                "first_step": request.title,
+                "request_id": request.id,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION
+            }
+        else:
+            return create_error_response(
+                "Failed to start disaster recovery wizard",
+                error_code="DISASTER_RECOVERY_WIZARD_START_FAILED",
+                registry_mode=REGISTRY_MODE
+            )
+            
+    except Exception as e:
+        logger.error(f"Error starting guided disaster recovery: {e}")
+        return create_error_response(
+            str(e),
+            error_code="DISASTER_RECOVERY_WIZARD_ERROR",
+            registry_mode=REGISTRY_MODE
         )
 
 
