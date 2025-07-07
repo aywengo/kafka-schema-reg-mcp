@@ -387,7 +387,8 @@ from migration_tools import (  # noqa: E402
     migrate_context_tool,
     migrate_schema_tool,
 )
-from multi_step_elicitation import MultiStepElicitationManager  # noqa: E402
+# Import multi-step elicitation functionality
+from multi_step_elicitation import MultiStepElicitationManager
 
 # Import registry management tools
 from registry_management_tools import (  # noqa: E402

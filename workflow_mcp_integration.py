@@ -46,7 +46,7 @@ class WorkflowMCPTools:
                     "workflow_id": {
                         "type": "string",
                         "description": "ID of the workflow to start",
-                        "enum": ["schema_migration_wizard", "context_reorganization", "disaster_recovery_setup"],
+                        "enum": [workflow.id for workflow in get_all_workflows()],
                     },
                     "initial_context": {
                         "type": "object",
@@ -194,7 +194,7 @@ class WorkflowMCPTools:
                     "workflow_id": {
                         "type": "string",
                         "description": "Workflow definition ID",
-                        "enum": ["schema_migration_wizard", "context_reorganization", "disaster_recovery_setup"],
+                        "enum": [workflow.id for workflow in get_all_workflows()],
                     }
                 },
                 "required": ["workflow_id"],
@@ -234,7 +234,7 @@ class WorkflowMCPTools:
                     "workflow_id": workflow.id,
                     "name": workflow.name,
                     "description": workflow.description,
-                    "initial_step": workflow.initial_step_id,
+                    "initial_step_id": workflow.initial_step_id,
                     "total_steps": len(workflow.steps),
                     "steps": step_graph,
                     "metadata": workflow.metadata,
