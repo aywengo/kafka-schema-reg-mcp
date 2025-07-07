@@ -105,6 +105,11 @@ COPY --chown=mcp:mcp elicitation_mcp_integration.py .
 COPY --chown=mcp:mcp interactive_tools.py .
 COPY --chown=mcp:mcp elicitation_enhancements.py .
 
+# Copy multi-step elicitation modules (Issue #73 - complex workflow orchestration)
+COPY --chown=mcp:mcp multi_step_elicitation.py .
+COPY --chown=mcp:mcp workflow_definitions.py .
+COPY --chown=mcp:mcp workflow_mcp_integration.py .
+
 # Copy NEW resource linking modules (MCP 2025-06-18 resource linking)
 COPY --chown=mcp:mcp resource_linking.py .
 

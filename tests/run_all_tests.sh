@@ -362,6 +362,7 @@ run_essential_integration_tests() {
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
+        "test_multi_step_elicitation.py:Multi-step elicitation workflows (Issue #73 - essential functionality)"
     )
     
     run_test_list "${tests[@]}"
