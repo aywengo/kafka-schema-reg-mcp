@@ -562,10 +562,10 @@ except Exception as e:
 try:
     # Register workflow tools with the MCP server and get the manager instance
     workflow_tools = register_workflow_tools(mcp, elicitation_manager)
-    
+
     # Use the same manager instance globally to ensure workflows are shared
     multi_step_manager = workflow_tools.multi_step_manager
-    
+
     logger.info("✅ Multi-step elicitation workflows registered with MCP server")
     logger.info(f"✅ {len(multi_step_manager.workflows)} workflows available")
 except Exception as e:
