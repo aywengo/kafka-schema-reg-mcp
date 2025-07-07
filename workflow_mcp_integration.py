@@ -308,7 +308,7 @@ def execute_context_reorganization(responses: Dict[str, Any]) -> Dict[str, Any]:
     if strategy == "merge":
         result["source_contexts"] = [ctx.strip() for ctx in responses.get("source_contexts", "").split(",")]
         result["target_context"] = responses.get("target_context")
-        result["handle_duplicates"] = responses.get("handle_duplicates")
+        result["handle_duplicates"] = responses.get("handle_duplicates") == "true"
     elif strategy == "split":
         result["source_context"] = responses.get("source_context")
         result["split_criteria"] = responses.get("split_criteria")

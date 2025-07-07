@@ -268,7 +268,7 @@ The workflows are automatically integrated into the main MCP server (`kafka_sche
 
 ```python
 # List available workflows
-workflows = await list_workflows()
+workflows = await list_available_workflows()
 
 # Start a workflow
 result = await start_workflow(

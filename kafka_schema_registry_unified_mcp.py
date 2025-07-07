@@ -560,13 +560,14 @@ except Exception as e:
 
 # Initialize multi-step elicitation workflow system
 try:
-    # Create multi-step workflow manager
-    multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-
-    # Register workflow tools with the MCP server
+    # Register workflow tools with the MCP server and get the manager instance
     workflow_tools = register_workflow_tools(mcp, elicitation_manager)
+    
+    # Use the same manager instance globally to ensure workflows are shared
+    multi_step_manager = workflow_tools.multi_step_manager
+    
     logger.info("✅ Multi-step elicitation workflows registered with MCP server")
-    logger.info(f"✅ {len(workflow_tools.multi_step_manager.workflows)} workflows available")
+    logger.info(f"✅ {len(multi_step_manager.workflows)} workflows available")
 except Exception as e:
     logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
     logger.info("📝 Multi-step workflows not available")
@@ -1590,59 +1591,6 @@ def list_available_workflows():
     except Exception as e:
         logger.error(f"Error listing available workflows: {e}")
         return create_error_response(str(e), error_code="WORKFLOWS_LIST_ERROR", registry_mode=REGISTRY_MODE)
-
-
-@mcp.tool()
-@require_scopes("write")
-async def start_workflow(
-    workflow_id: str,
-    initial_context: dict = None,
-):
-    """Start a multi-step workflow for complex operations."""
-    try:
-        if "multi_step_manager" not in globals() or not multi_step_manager:
-            return create_error_response(
-                "Multi-step workflows are not available",
-                error_code="WORKFLOWS_NOT_AVAILABLE",
-                registry_mode=REGISTRY_MODE,
-            )
-
-        from datetime import datetime
-
-        # Prepare initial context
-        if initial_context is None:
-            initial_context = {}
-
-        initial_context.update(
-            {
-                "triggered_by": "start_workflow",
-                "timestamp": datetime.utcnow().isoformat(),
-                "registry_mode": REGISTRY_MODE,
-            }
-        )
-
-        # Start the workflow
-        request = await multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context=initial_context)
-
-        if request:
-            return {
-                "status": "workflow_started",
-                "workflow_id": workflow_id,
-                "message": f"Workflow '{workflow_id}' started successfully",
-                "first_step": request.title,
-                "request_id": request.id,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            }
-        else:
-            return create_error_response(
-                f"Failed to start workflow '{workflow_id}'",
-                error_code="WORKFLOW_START_FAILED",
-                registry_mode=REGISTRY_MODE,
-            )
-
-    except Exception as e:
-        logger.error(f"Error starting workflow: {e}")
-        return create_error_response(str(e), error_code="WORKFLOW_START_ERROR", registry_mode=REGISTRY_MODE)
 
 
 @mcp.tool()
