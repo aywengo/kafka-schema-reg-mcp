@@ -130,7 +130,8 @@ class WorkflowMCPTools:
                 # Get specific workflow status
                 state = self.multi_step_manager.active_states.get(instance_id)
                 if state:
-                    workflow = get_workflow_by_id(state.metadata.get("workflow_definition_id"))
+                    workflow_id = state.metadata.get("workflow_definition_id")
+                    workflow = get_workflow_by_id(workflow_id) if workflow_id else None
                     return json.dumps(
                         {
                             "instance_id": instance_id,
@@ -305,21 +306,25 @@ def execute_context_reorganization(responses: Dict[str, Any]) -> Dict[str, Any]:
 
     # Add strategy-specific parameters
     if strategy == "merge":
-        result["source_contexts"] = responses.get("source_contexts", "").split(",")
+        result["source_contexts"] = [ctx.strip() for ctx in responses.get("source_contexts", "").split(",")]
         result["target_context"] = responses.get("target_context")
         result["handle_duplicates"] = responses.get("handle_duplicates")
     elif strategy == "split":
         result["source_context"] = responses.get("source_context")
         result["split_criteria"] = responses.get("split_criteria")
-        result["target_contexts"] = responses.get("target_contexts", "").split(",")
+        result["target_contexts"] = [ctx.strip() for ctx in responses.get("target_contexts", "").split(",")]
         result["split_rules"] = responses.get("split_rules")
     elif strategy == "rename":
-        result["rename_mappings"] = {}
-        mappings = responses.get("rename_mappings", "").split(",")
-        for mapping in mappings:
-            if ":" in mapping:
-                old, new = mapping.split(":", 1)
-                result["rename_mappings"][old.strip()] = new.strip()
+        rename_mappings: Dict[str, str] = {}
+        mappings_str = responses.get("rename_mappings", "")
+        if mappings_str and isinstance(mappings_str, str):
+            mappings = [mapping.strip() for mapping in mappings_str.split(",")]
+            for mapping in mappings:
+                if ":" in mapping and isinstance(mapping, str):
+                    old, new = mapping.split(":", 1)
+                    if old and new:
+                        rename_mappings[old.strip()] = new.strip()
+        result["rename_mappings"] = rename_mappings
 
     # Add common options
     result["options"] = {
@@ -347,7 +352,7 @@ def execute_disaster_recovery_setup(responses: Dict[str, Any]) -> Dict[str, Any]
         }
     elif dr_strategy == "active_active":
         result["config"] = {
-            "active_registries": responses.get("active_registries", "").split(","),
+            "active_registries": [reg.strip() for reg in responses.get("active_registries", "").split(",")],
             "conflict_resolution": responses.get("conflict_resolution"),
             "sync_topology": responses.get("sync_topology"),
         }
@@ -360,7 +365,7 @@ def execute_disaster_recovery_setup(responses: Dict[str, Any]) -> Dict[str, Any]
         }
     elif dr_strategy == "multi_region":
         result["config"] = {
-            "regions": responses.get("regions", "").split(","),
+            "regions": [region.strip() for region in responses.get("regions", "").split(",")],
             "primary_region": responses.get("primary_region"),
             "data_residency": responses.get("data_residency") == "true",
             "cross_region_replication": responses.get("cross_region_replication"),
@@ -390,7 +395,7 @@ async def handle_workflow_elicitation_response(
     """
     # Check if this response is part of a workflow
     request = elicitation_manager.pending_requests.get(response.request_id)
-    if not request or "workflow_instance_id" not in request.metadata:
+    if not request or not request.context or "workflow_instance_id" not in request.context:
         # Not a workflow response, handle normally
         return None
 
