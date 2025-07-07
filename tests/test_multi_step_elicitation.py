@@ -474,4 +474,5 @@ class TestWorkflowIntegration:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    # Run the tests with explicit async configuration
+    pytest.main([__file__, "-v", "--asyncio-mode=auto"])
