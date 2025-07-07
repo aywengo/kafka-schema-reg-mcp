@@ -2,13 +2,12 @@
 """
 Tests for Multi-Step Elicitation Module
 
-This module contains comprehensive tests for the multi-step elicitation functionality.
+This module contains comprehensive tests for the multi-step elicitation
+functionality.
 """
 
-import asyncio
 import os
 import sys
-from datetime import datetime
 from typing import Any, Dict
 
 import pytest
@@ -18,13 +17,16 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # Test if we can import the required modules
+
+
 def check_modules_available():
     """Check if all required modules can be imported."""
     try:
         # Test imports without actually importing into global scope
         import importlib
+
         importlib.import_module("elicitation")
-        importlib.import_module("multi_step_elicitation") 
+        importlib.import_module("multi_step_elicitation")
         importlib.import_module("workflow_definitions")
         return True
     except ImportError as e:
@@ -33,6 +35,7 @@ def check_modules_available():
         print(f"Current working directory: {os.getcwd()}")
         print(f"Project root: {project_root}")
         return False
+
 
 MODULES_AVAILABLE = check_modules_available()
 
@@ -58,55 +61,56 @@ if MODULES_AVAILABLE:
         create_disaster_recovery_workflow,
         create_schema_migration_workflow,
     )
+
     print("✅ All required modules imported successfully")
 else:
     # Create minimal dummy classes to prevent syntax errors
     class ElicitationField:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     class ElicitationManager:
         pass
-    
+
     class ElicitationRequest:
         def __init__(self, *args, **kwargs):
             self.id = "dummy"
-    
+
     class ElicitationResponse:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     class ElicitationType:
         pass
-    
+
     class MultiStepElicitationManager:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     class MultiStepWorkflow:
         def __init__(self, *args, **kwargs):
             self.id = "dummy"
-    
+
     class WorkflowState:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     class WorkflowStep:
         def __init__(self, *args, **kwargs):
             pass
-    
+
     class WorkflowTransitionType:
         pass
-    
+
     def create_condition(*args, **kwargs):
         return lambda x: None
-    
+
     def create_context_reorganization_workflow():
         return MultiStepWorkflow()
-    
+
     def create_disaster_recovery_workflow():
         return MultiStepWorkflow()
-    
+
     def create_schema_migration_workflow():
         return MultiStepWorkflow()
 
@@ -121,7 +125,14 @@ class TestWorkflowStep:
             id="test_step",
             title="Test Step",
             description="A test step",
-            fields=[ElicitationField(name="test_field", type="text", description="Test field", required=True)],
+            fields=[
+                ElicitationField(
+                    name="test_field",
+                    type="text",
+                    description="Test field",
+                    required=True,
+                )
+            ],
             next_steps={"default": "next_step"},
         )
 
@@ -145,7 +156,12 @@ class TestWorkflowStep:
             id="conditional_step",
             title="Conditional Step",
             fields=[
-                ElicitationField(name="choice", type="choice", options=["option1", "option2", "option3"], required=True)
+                ElicitationField(
+                    name="choice",
+                    type="choice",
+                    options=["option1", "option2", "option3"],
+                    required=True,
+                )
             ],
             conditions={"check_choice": check_value},
         )
@@ -161,9 +177,20 @@ class TestWorkflowStep:
             id="value_step",
             title="Value Step",
             fields=[
-                ElicitationField(name="action", type="choice", options=["create", "update", "delete"], required=True)
+                ElicitationField(
+                    name="action",
+                    type="choice",
+                    options=["create", "update", "delete"],
+                    required=True,
+                )
             ],
-            next_steps={"action": {"create": "create_step", "update": "update_step", "delete": "delete_step"}},
+            next_steps={
+                "action": {
+                    "create": "create_step",
+                    "update": "update_step",
+                    "delete": "delete_step",
+                }
+            },
         )
 
         assert step.get_next_step({"action": "create"}, {}) == "create_step"
@@ -214,7 +241,11 @@ class TestWorkflowState:
 
     def test_navigation(self):
         """Test workflow navigation."""
-        state = WorkflowState(workflow_id="test_workflow", current_step_id="step1", step_history=["step1"])
+        state = WorkflowState(
+            workflow_id="test_workflow",
+            current_step_id="step1",
+            step_history=["step1"],
+        )
 
         # Initially can't go back
         assert not state.can_go_back()
@@ -262,14 +293,28 @@ class TestMultiStepWorkflow:
         # Test invalid initial step
         with pytest.raises(ValueError, match="Initial step"):
             MultiStepWorkflow(
-                id="invalid", name="Invalid", description="Invalid workflow", steps={}, initial_step_id="nonexistent"
+                id="invalid",
+                name="Invalid",
+                description="Invalid workflow",
+                steps={},
+                initial_step_id="nonexistent",
             )
 
         # Test invalid step reference
         with pytest.raises(ValueError, match="Referenced step"):
-            steps = {"start": WorkflowStep(id="start", title="Start", next_steps={"default": "nonexistent"})}
+            steps = {
+                "start": WorkflowStep(
+                    id="start",
+                    title="Start",
+                    next_steps={"default": "nonexistent"},
+                )
+            }
             MultiStepWorkflow(
-                id="invalid", name="Invalid", description="Invalid workflow", steps=steps, initial_step_id="start"
+                id="invalid",
+                name="Invalid",
+                description="Invalid workflow",
+                steps=steps,
+                initial_step_id="start",
             )
 
 
@@ -385,7 +430,11 @@ class TestMultiStepElicitationManager:
         request2 = await multi_step_manager.handle_response(response1)
 
         # Now request to go back
-        response2 = ElicitationResponse(request_id=request2.id, values={"_workflow_action": "back"}, complete=True)
+        response2 = ElicitationResponse(
+            request_id=request2.id,
+            values={"_workflow_action": "back"},
+            complete=True,
+        )
 
         # Should get step 1 again
         result = await multi_step_manager.handle_response(response2)
@@ -511,7 +560,9 @@ class TestWorkflowIntegration:
 
         # Select single schema migration
         response1 = ElicitationResponse(
-            request_id=request1.id, values={"migration_type": "single_schema"}, complete=True
+            request_id=request1.id,
+            values={"migration_type": "single_schema"},
+            complete=True,
         )
 
         request2 = await multi_step_manager.handle_response(response1)
@@ -520,7 +571,11 @@ class TestWorkflowIntegration:
         # Provide schema details
         response2 = ElicitationResponse(
             request_id=request2.id,
-            values={"source_registry": "development", "schema_name": "com.example.User", "version": "latest"},
+            values={
+                "source_registry": "development",
+                "schema_name": "com.example.User",
+                "version": "latest",
+            },
             complete=True,
         )
 
@@ -545,7 +600,9 @@ class TestWorkflowIntegration:
 
         # Confirm migration
         response4 = ElicitationResponse(
-            request_id=request4.id, values={"dry_run": "true", "confirm_migration": "true"}, complete=True
+            request_id=request4.id,
+            values={"dry_run": "true", "confirm_migration": "true"},
+            complete=True,
         )
 
         # Complete workflow
@@ -561,14 +618,15 @@ class TestWorkflowIntegration:
 if __name__ == "__main__":
     if not MODULES_AVAILABLE:
         print("❌ Cannot run tests - required modules not available")
-        print("Make sure elicitation.py, multi_step_elicitation.py, and workflow_definitions.py are available")
+        print("Make sure elicitation.py, multi_step_elicitation.py, " "and workflow_definitions.py are available")
         print(f"Current working directory: {os.getcwd()}")
         print(f"Python path: {sys.path}")
-        
-        # Exit with success to prevent CI failure when modules are genuinely not available
+
+        # Exit with success to prevent CI failure when modules are
+        # genuinely not available
         # This allows the test to be "skipped" rather than failed
         print("⚠️  Test skipped due to missing dependencies")
         sys.exit(0)
-    
+
     # Run the tests with explicit async configuration
     pytest.main([__file__, "-v", "--asyncio-mode=auto"])

@@ -1748,7 +1748,7 @@ async def guided_context_reorganization():
 
         # Start the context reorganization workflow
         request = await multi_step_manager.start_workflow(
-            workflow_id="context_reorganization_wizard",
+            workflow_id="context_reorganization",
             initial_context={
                 "triggered_by": "guided_context_reorganization",
                 "timestamp": datetime.utcnow().isoformat(),
@@ -1793,7 +1793,7 @@ async def guided_disaster_recovery():
 
         # Start the disaster recovery workflow
         request = await multi_step_manager.start_workflow(
-            workflow_id="disaster_recovery_wizard",
+            workflow_id="disaster_recovery_setup",
             initial_context={
                 "triggered_by": "guided_disaster_recovery",
                 "timestamp": datetime.utcnow().isoformat(),
