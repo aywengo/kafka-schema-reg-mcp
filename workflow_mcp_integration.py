@@ -326,6 +326,9 @@ def execute_context_reorganization(responses: Dict[str, Any]) -> Dict[str, Any]:
                     if old and new:
                         rename_mappings[old.strip()] = new.strip()
         result["rename_mappings"] = rename_mappings
+    elif strategy == "restructure":
+        result["structure_definition"] = responses.get("structure_definition")
+        result["migration_strategy"] = responses.get("migration_strategy")
 
     # Add common options
     result["options"] = {

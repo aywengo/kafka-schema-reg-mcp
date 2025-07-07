@@ -1662,7 +1662,7 @@ async def guided_schema_migration():
         if request:
             return {
                 "status": "workflow_started",
-                "workflow": "Schema Migration Wizard",
+                "workflow_name": "Schema Migration Wizard",
                 "message": "Migration wizard started. Please respond to the elicitation request.",
                 "first_step": request.title,
                 "request_id": request.id,
@@ -1707,7 +1707,7 @@ async def guided_context_reorganization():
         if request:
             return {
                 "status": "workflow_started",
-                "workflow": "Context Reorganization Wizard",
+                "workflow_name": "Context Reorganization Wizard",
                 "message": "Context reorganization wizard started. Please respond to the elicitation request.",
                 "first_step": request.title,
                 "request_id": request.id,
@@ -1752,7 +1752,7 @@ async def guided_disaster_recovery():
         if request:
             return {
                 "status": "workflow_started",
-                "workflow": "Disaster Recovery Wizard",
+                "workflow_name": "Disaster Recovery Wizard",
                 "message": "Disaster recovery wizard started. Please respond to the elicitation request.",
                 "first_step": request.title,
                 "request_id": request.id,
