@@ -387,6 +387,7 @@ from migration_tools import (  # noqa: E402
     migrate_context_tool,
     migrate_schema_tool,
 )
+
 # Import multi-step elicitation functionality
 from multi_step_elicitation import MultiStepElicitationManager
 
