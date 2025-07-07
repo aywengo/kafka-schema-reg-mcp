@@ -1609,7 +1609,7 @@ def get_workflow_status(workflow_id: str = None):
 
         if workflow_id:
             # Return status for specific workflow
-            workflow_info = active_workflows.get(workflow_id)
+            workflow_info = next((wf for wf in active_workflows if wf.get("instance_id") == workflow_id), None)
             if workflow_info:
                 return {
                     "workflow_id": workflow_id,

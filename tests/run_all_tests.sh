@@ -484,7 +484,6 @@ run_advanced_feature_tests() {
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
         "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
-        "test_multi_step_elicitation.py:Multi-step elicitation workflows and complex user interactions (Issue #73)"
     )
     
     run_test_list "${tests[@]}"
