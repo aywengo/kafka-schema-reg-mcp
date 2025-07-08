@@ -678,7 +678,9 @@ Claude: I'll create a comprehensive backup of the entire registry.
 
 ## 📊 MCP Resources
 
-In addition to tools, the MCP server provides **2 resources** for real-time information:
+In addition to tools, the MCP server provides **7 resources** for real-time information:
+
+## 📊 Global Resources
 
 ### registry://status
 Get current Schema Registry connection status and health information.
@@ -686,7 +688,34 @@ Get current Schema Registry connection status and health information.
 ### registry://info  
 Get detailed Schema Registry configuration, capabilities, and server information.
 
-**Usage in Claude Desktop:**
+### registry://mode
+Get information about the current registry mode and how it was detected.
+
+### registry://names
+Get a list of all configured schema registry names with status information.
+
+## 🎯 Registry-Specific Resources
+
+### registry://status/{name}
+Get the connection status and health information for a specific registry.
+
+### registry://info/{name}
+Get detailed configuration and metadata information for a specific registry.
+
+### registry://mode/{name}
+Get mode and operational configuration information for a specific registry.
+
+## 📋 Schema Resources
+
+### schema://{name}/{context}/{subject_name}
+Get schema content for a specific subject in a specific context and registry.
+
+### schema://{name}/{subject_name}
+Get schema content for a specific subject in the default context of a registry.
+
+**Usage Examples in Claude Desktop:**
+
+**Global Resources:**
 ```
 Human: "Check the status of our Schema Registry connection"
 
@@ -697,6 +726,102 @@ Claude: I'll check the Schema Registry status for you.
    URL: http://localhost:8081
    Response Time: 45ms
    Health: All systems operational
+```
+
+**Registry Names:**
+```
+Human: "Show me all available registries"
+
+Claude: I'll list all configured registries for you.
+
+[Uses registry://names resource]
+📋 Available Registries:
+   • production (default) ✅ Connected
+   • staging ✅ Connected  
+   • development ⚠️ Connection failed
+   • testing ✅ Connected
+   Total: 4 registries (3 connected, 1 failed)
+```
+
+**Registry Mode Information:**
+```
+Human: "What mode is the server running in?"
+
+Claude: I'll check the server mode and configuration.
+
+[Uses registry://mode resource]
+🔧 Server Mode: MULTI-REGISTRY
+   Detection: Auto-detected from REGISTRIES_CONFIG
+   Structured Output: 100% Complete
+   Elicitation: Enabled
+   MCP Protocol: 2025-06-18 Compliant
+```
+
+**Registry-Specific Resources:**
+```
+Human: "Check the status of the production registry specifically"
+
+Claude: I'll check the production registry status.
+
+[Uses registry://status/production resource]
+✅ Production Registry Status:
+   URL: https://prod.schema-registry.com
+   Status: Connected (120ms)
+   Mode: READWRITE
+   Viewonly: false
+   Health: Operational
+```
+
+**Schema Content Access:**
+```
+Human: "Show me the user schema from production"
+
+Claude: I'll retrieve the user schema from production.
+
+[Uses schema://production/user resource]
+📋 User Schema (Latest Version):
+   Subject: user
+   Registry: production
+   Context: default
+   Version: 3
+   Schema Type: AVRO
+   
+   Schema Content:
+   {
+     "type": "record",
+     "name": "User",
+     "fields": [
+       {"name": "id", "type": "long"},
+       {"name": "name", "type": "string"},
+       {"name": "email", "type": "string"}
+     ]
+   }
+```
+
+**Context-Specific Schema Access:**
+```
+Human: "Get the user schema from the analytics context in staging"
+
+Claude: I'll retrieve the user schema from the analytics context.
+
+[Uses schema://staging/analytics/user resource]
+📋 User Schema (Analytics Context):
+   Subject: user
+   Registry: staging
+   Context: analytics
+   Version: 2
+   Schema Type: AVRO
+   
+   Schema Content:
+   {
+     "type": "record",
+     "name": "AnalyticsUser",
+     "fields": [
+       {"name": "user_id", "type": "long"},
+       {"name": "username", "type": "string"},
+       {"name": "last_activity", "type": "long"}
+     ]
+   }
 ```
 
 ---

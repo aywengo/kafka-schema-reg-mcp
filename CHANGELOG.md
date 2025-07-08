@@ -15,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced workflow management tools and status monitoring
 - **🔄 Schema Evolution Elicitation**: Complete workflow orchestration for schema evolution (Issue #72)
   - Interactive guided workflows for schema evolution
+- **🔄 Registry-Specific Resources**: Complete MCP compliance for registry-specific resources
+  - `registry://names` - List of all configured registry names with status information
+  - `registry://status/{name}` - Connection status and health for specific registry
+  - `registry://info/{name}` - Detailed configuration and metadata for specific registry  
+  - `registry://mode/{name}` - Mode and operational configuration for specific registry
+  - Single registry mode support with proper default registry handling
+  - Multi-registry mode support with registry validation
+  - Error handling for registry not found, connection failures
+  - Success scenarios with proper data validation and comprehensive metadata
+  - Default registry detection and status indication
+- **📋 Schema Resources**: Direct schema content access via MCP resources
+  - `schema://{name}/{context}/{subject}` - Schema content with explicit context specification
+  - `schema://{name}/{subject}` - Schema content using default context (.)
+  - Comprehensive schema metadata including version, ID, type information
+  - Registry existence validation and error handling
+  - Full integration with existing `get_schema_tool` functionality
+  - Support for both single and multi-registry modes
 
 ### Improved
 - **📋 Action-Oriented Prompts**: Complete overhaul of all 8 existing prompts

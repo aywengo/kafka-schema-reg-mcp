@@ -45,7 +45,7 @@ Comprehensive deployment instructions covering:
 - **Claude Desktop Configuration**: Best practices and troubleshooting
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
-Comprehensive reference for all 48+ MCP tools:
+Comprehensive reference for all 48+ MCP tools and 7 MCP resources:
 - **Schema Management Tools** (4): register, retrieve, versions, compatibility
 - **Context Management Tools** (3): list, create, delete contexts
 - **Subject Management Tools** (2): list, delete subjects  
@@ -56,7 +56,11 @@ Comprehensive reference for all 48+ MCP tools:
 - **Migration Tools** (5): schema and context migration with interactive features
 - **Task Management Tools** (8): progress tracking and monitoring
 - **Statistics Tools** (4): counting and analysis tools
-- **Natural Language Examples**: Claude Desktop usage patterns for each tool
+- **MCP Resources** (7): Real-time information access via URIs
+  - **Global Resources**: `registry://status`, `registry://info`, `registry://mode`, `registry://names`
+  - **Registry-Specific**: `registry://status/{name}`, `registry://info/{name}`, `registry://mode/{name}`
+  - **Schema Resources**: `schema://{name}/{context}/{subject}`, `schema://{name}/{subject}`
+- **Natural Language Examples**: Claude Desktop usage patterns for each tool and resource
 
 ### 🔐 **[OAuth Providers Guide](oauth-providers-guide.md)** - Universal Authentication
 OAuth 2.1 generic discovery setup guide:
@@ -110,6 +114,20 @@ Migration guide for upgrading between major versions:
 - **Elicitation Failures**: Graceful handling when user input cannot be collected
 - **Replacement Protection**: Clear error messages when users decline schema replacement
 - **Network Resilience**: Enhanced handling of registry connectivity issues
+
+### **📊 New MCP Resources (7 Total)**
+- **Global Resources**: Real-time server and registry information via URIs
+  - `registry://status` - Overall registry connection status and health
+  - `registry://info` - Detailed server configuration and capabilities  
+  - `registry://mode` - Registry mode detection and MCP compliance info
+  - `registry://names` - List of all configured registry names with status
+- **Registry-Specific Resources**: Individual registry information
+  - `registry://status/{name}` - Specific registry connection status
+  - `registry://info/{name}` - Detailed registry configuration
+  - `registry://mode/{name}` - Registry operational mode and settings
+- **Schema Resources**: Direct schema content access
+  - `schema://{name}/{context}/{subject}` - Schema content with explicit context
+  - `schema://{name}/{subject}` - Schema content with default context
 
 ## 🎉 What's New in v2.0.1
 

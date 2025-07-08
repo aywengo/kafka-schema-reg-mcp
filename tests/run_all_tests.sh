@@ -423,6 +423,7 @@ run_mcp_compliance_tests() {
         "test_mcp_header_validation.py:MCP header validation middleware and exempt path functionality"
         "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
         "test_mcp_ping.py:MCP ping/pong protocol support and server health checking"
+        "test_registry_specific_resources.py:Registry-specific resources (registry://status/{name}, registry://info/{name}, registry://mode/{name}, registry://names, schema://{name}/{context}/{subject}, schema://{name}/{subject})"
     )
     
     run_test_list "${tests[@]}"
