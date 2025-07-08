@@ -6,10 +6,14 @@ This module tests the multi-step workflow for schema evolution,
 including breaking change detection, strategy selection, and migration planning.
 """
 
-import asyncio
-import json
-import pytest
+import os
+import sys
 from typing import Any, Dict, List, Optional
+
+import pytest
+
+# Add parent directory to path to import modules from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elicitation import ElicitationManager, ElicitationRequest, ElicitationResponse
 from multi_step_elicitation import MultiStepElicitationManager
@@ -22,7 +26,6 @@ from schema_evolution_helpers import (
 )
 from workflow_definitions import create_schema_evolution_workflow
 from workflow_mcp_integration import analyze_schema_changes
-
 
 # Test schemas for evolution scenarios
 TEST_SCHEMAS = {
@@ -89,7 +92,7 @@ class MockRegistryClient:
         self.schemas = {}
         self.compatibility_mode = "BACKWARD"
 
-    async def get_schema(self, subject: str, version: str = "latest") -> Dict[str, Any]:
+    async def get_schema(self, subject: str, version: str = "latest") -> Optional[Dict[str, Any]]:
         """Get schema by subject and version."""
         if subject in self.schemas:
             return self.schemas[subject]
@@ -109,16 +112,16 @@ class MockRegistryClient:
         # Enhanced compatibility check for testing
         current_fields = {f["name"]: f for f in current.get("fields", [])}
         new_fields = {f["name"]: f for f in schema.get("fields", [])}
-        
+
         messages = []
         is_compatible = True
-        
+
         # Check for removed fields (breaking)
         removed_fields = set(current_fields.keys()) - set(new_fields.keys())
         if removed_fields:
             messages.append(f"Removed fields: {', '.join(removed_fields)}")
             is_compatible = False
-        
+
         # Check for type changes (potentially breaking)
         for field_name in set(current_fields.keys()) & set(new_fields.keys()):
             current_type = current_fields[field_name].get("type")
@@ -130,7 +133,7 @@ class MockRegistryClient:
                 else:
                     messages.append(f"Field '{field_name}': type changed from {current_type} to {new_type}")
                     is_compatible = False
-        
+
         # Check for added required fields (breaking)
         added_fields = set(new_fields.keys()) - set(current_fields.keys())
         for field_name in added_fields:
@@ -138,7 +141,7 @@ class MockRegistryClient:
             field_type = field_def.get("type")
             has_default = "default" in field_def
             is_nullable = isinstance(field_type, list) and "null" in field_type
-            
+
             if not has_default and not is_nullable:
                 messages.append(f"Added required field '{field_name}' without default")
                 is_compatible = False
@@ -150,15 +153,15 @@ class MockRegistryClient:
 
 class MockRegistryManager:
     """Mock registry manager for testing."""
-    
+
     def __init__(self, registry_client: MockRegistryClient):
         self.client = registry_client
         self.default_registry = "test"
-    
+
     def get_registry(self, name: Optional[str] = None) -> MockRegistryClient:
         """Get registry by name."""
         return self.client
-    
+
     def get_default_registry(self) -> MockRegistryClient:
         """Get default registry."""
         return self.client
@@ -167,16 +170,16 @@ class MockRegistryManager:
 class MockElicitationManager(ElicitationManager):
     """Mock elicitation manager for testing."""
 
-    def __init__(self, responses: Dict[str, Any] = None):
+    def __init__(self, responses: Optional[Dict[str, Any]] = None):
         super().__init__()  # Don't pass mock_elicit
         self.responses = responses or {}
-        self.requests = []
+        self.requests: List[ElicitationRequest] = []
         self.mock_elicit = True  # Set as attribute instead
 
     async def elicit(self, request: ElicitationRequest) -> ElicitationResponse:
         """Mock elicitation that returns predefined responses."""
         self.requests.append(request)
-        return ElicitationResponse(request_id=request.id, response_data=self.responses)
+        return ElicitationResponse(request_id=request.id, values=self.responses)
 
 
 @pytest.mark.asyncio
@@ -232,7 +235,7 @@ async def test_generate_evolution_recommendations():
     recommendations = generate_evolution_recommendations(changes, "BACKWARD")
 
     assert len(recommendations) > 0
-    
+
     # Should have breaking change strategy recommendation
     breaking_rec = next((r for r in recommendations if r["type"] == "breaking_change_strategy"), None)
     assert breaking_rec is not None
@@ -250,7 +253,7 @@ async def test_generate_evolution_recommendations():
 async def test_create_migration_plan():
     """Test migration plan creation."""
     changes = analyze_schema_changes(TEST_SCHEMAS["user_v1"], TEST_SCHEMAS["user_v2_multiple_changes"])
-    
+
     # Test multi-version migration plan
     plan = create_migration_plan(
         subject="user-events",
@@ -278,7 +281,7 @@ async def test_create_migration_plan():
 async def test_validate_evolution_plan():
     """Test evolution plan validation."""
     changes = analyze_schema_changes(TEST_SCHEMAS["user_v1"], TEST_SCHEMAS["user_v2_multiple_changes"])
-    
+
     # Create a plan with short timeline
     plan = create_migration_plan(
         subject="user-events",
@@ -288,13 +291,13 @@ async def test_validate_evolution_plan():
     )
 
     current_state = {"active_consumers": 20}  # Many consumers
-    
+
     validation = validate_evolution_plan(plan, current_state)
-    
+
     assert not validation["is_valid"]  # Should fail due to risky strategy
     assert len(validation["warnings"]) > 0
     assert len(validation["errors"]) > 0
-    
+
     # Find timeline warning
     timeline_warning = next((w for w in validation["warnings"] if w["type"] == "short_timeline"), None)
     assert timeline_warning is not None
@@ -332,28 +335,32 @@ async def test_schema_evolution_workflow():
         "final_confirmation": "true",
         "monitor_execution": "true",
     }
-    
+
     elicitation_manager = MockElicitationManager(elicitation_responses)
     multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-    
+
     # Register the workflow
     workflow = create_schema_evolution_workflow()
     multi_step_manager.register_workflow(workflow)
-    
+
     # Create mock registry client and manager
     registry_client = MockRegistryClient()
     await registry_client.register_schema("user-events", TEST_SCHEMAS["user_v1"])
     registry_manager = MockRegistryManager(registry_client)
-    
+
     # Mock the check_compatibility_tool function
     from unittest.mock import patch
-    
+
     mock_compatibility_result = {
         "is_compatible": False,
-        "messages": ["Removed fields: created_at", "Added required field 'email' without default", "Field 'id': int promoted to long (compatible)"]
+        "messages": [
+            "Removed fields: created_at",
+            "Added required field 'email' without default",
+            "Field 'id': int promoted to long (compatible)",
+        ],
     }
-    
-    with patch('schema_evolution_helpers.check_compatibility_tool', return_value=mock_compatibility_result):
+
+    with patch("schema_evolution_helpers.check_compatibility_tool", return_value=mock_compatibility_result):
         # Start the evolution workflow
         result = await evolve_schema_with_workflow(
             subject="user-events",
@@ -364,7 +371,7 @@ async def test_schema_evolution_workflow():
             elicitation_manager=elicitation_manager,
             multi_step_manager=multi_step_manager,
         )
-    
+
     assert result["workflow_started"]
     assert result["changes_detected"] == 4
     assert result["has_breaking_changes"]
@@ -399,26 +406,23 @@ async def test_workflow_with_backward_compatible_changes():
         "final_confirmation": "true",
         "monitor_execution": "true",
     }
-    
+
     elicitation_manager = MockElicitationManager(elicitation_responses)
     multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-    
+
     workflow = create_schema_evolution_workflow()
     multi_step_manager.register_workflow(workflow)
-    
+
     registry_client = MockRegistryClient()
     await registry_client.register_schema("user-events", TEST_SCHEMAS["user_v1"])
     registry_manager = MockRegistryManager(registry_client)
-    
+
     # Mock the check_compatibility_tool function for backward compatible changes
     from unittest.mock import patch
-    
-    mock_compatibility_result = {
-        "is_compatible": True,
-        "messages": ["Added optional field 'email' (compatible)"]
-    }
-    
-    with patch('schema_evolution_helpers.check_compatibility_tool', return_value=mock_compatibility_result):
+
+    mock_compatibility_result = {"is_compatible": True, "messages": ["Added optional field 'email' (compatible)"]}
+
+    with patch("schema_evolution_helpers.check_compatibility_tool", return_value=mock_compatibility_result):
         result = await evolve_schema_with_workflow(
             subject="user-events",
             current_schema=TEST_SCHEMAS["user_v1"],
@@ -428,7 +432,7 @@ async def test_workflow_with_backward_compatible_changes():
             elicitation_manager=elicitation_manager,
             multi_step_manager=multi_step_manager,
         )
-    
+
     assert result["workflow_started"]
     assert result["changes_detected"] == 1
     assert not result["has_breaking_changes"]
@@ -451,5 +455,6 @@ async def test_workflow_cancellation():
 
 if __name__ == "__main__":
     import sys
+
     exit_code = pytest.main([__file__, "-v"])
-    sys.exit(exit_code) 
+    sys.exit(exit_code)
