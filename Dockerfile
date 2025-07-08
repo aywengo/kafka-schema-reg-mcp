@@ -43,7 +43,7 @@ RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
-      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 50+ tools, OAuth authentication, remote deployment support, context management, elicitation capability, resource linking, and Claude Desktop integration" \
+      org.opencontainers.image.description="True MCP server for Kafka Schema Registry with 50+ tools, OAuth authentication, remote deployment support, context management, elicitation capability, resource linking, smart defaults, and Claude Desktop integration" \
       org.opencontainers.image.version="$VERSION" \
       org.opencontainers.image.created="$BUILD_DATE" \
       org.opencontainers.image.revision="$VCS_REF" \
@@ -112,6 +112,14 @@ COPY --chown=mcp:mcp workflow_mcp_integration.py .
 
 # Copy NEW resource linking modules (MCP 2025-06-18 resource linking)
 COPY --chown=mcp:mcp resource_linking.py .
+
+# Copy smart defaults modules (Issue #75 - intelligent form pre-population)
+COPY --chown=mcp:mcp smart_defaults.py .
+COPY --chown=mcp:mcp smart_defaults_integration.py .
+COPY --chown=mcp:mcp smart_defaults_config.py .
+
+# Copy schema evolution helpers
+COPY --chown=mcp:mcp schema_evolution_helpers.py .
 
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
