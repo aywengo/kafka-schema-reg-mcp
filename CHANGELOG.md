@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Interactive guided workflows for schema migration, context reorganization, and disaster recovery
   - Multi-step user input collection with validation and progress tracking
   - Enhanced workflow management tools and status monitoring
+- **🔄 Schema Evolution Elicitation**: Complete workflow orchestration for schema evolution (Issue #72)
+  - Interactive guided workflows for schema evolution
 
 ### Improved
 - **📋 Action-Oriented Prompts**: Complete overhaul of all 8 existing prompts

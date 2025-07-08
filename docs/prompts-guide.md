@@ -23,7 +23,7 @@ Our prompts now feature:
 
 ## 📋 Available Prompts
 
-The Kafka Schema Registry MCP Server provides **9 comprehensive prompts** covering all aspects of schema management:
+The Kafka Schema Registry MCP Server provides **10 comprehensive prompts** covering all aspects of schema management:
 
 ### 🚀 **quick-reference** (NEW!)
 **Your cheat sheet** - Essential commands and templates for quick access.
@@ -138,6 +138,22 @@ The Kafka Schema Registry MCP Server provides **9 comprehensive prompts** coveri
 
 ---
 
+### 🔄 **schema-evolution** (NEW!)
+**Safe schema evolution assistant** with guided workflows and strategy selection.
+
+**What it covers:**
+- Quick start commands for evolution workflows
+- When to use the Schema Evolution Assistant
+- Complete workflow explanation (8-step process)
+- Common evolution scenarios with examples
+- Evolution strategies comparison (Direct Update, Multi-Version Migration, Dual Support, Blue-Green)
+- Best practices and troubleshooting
+- Learning path from beginner to advanced
+
+**Best for:** Production schema changes, breaking change management, complex evolution scenarios
+
+---
+
 ### 🚀 **advanced-workflows**
 **Enterprise patterns** with real-world examples and code snippets.
 
@@ -161,6 +177,8 @@ The Kafka Schema Registry MCP Server provides **9 comprehensive prompts** coveri
    "Help me register a schema"
    "I need to troubleshoot an issue"
    "Show multi-registry commands"
+   "Show me the schema evolution guide"
+   "Help me safely evolve my schema"
    ```
 
 2. **Direct Usage:**
@@ -173,13 +191,30 @@ The Kafka Schema Registry MCP Server provides **9 comprehensive prompts** coveri
    - Request specific examples
    - Get clarification on any step
 
-### Example Workflow
+### Example Workflows
 
+**For New Users:**
 ```
 Human: I'm new to this, where should I start?
 
 Claude: Let me show you the getting started guide with quick actions you can try right away...
 [Displays schema-getting-started prompt with copy-paste commands]
+```
+
+**For Schema Evolution:**
+```
+Human: I need to safely change my user schema in production
+
+Claude: I'll show you the Schema Evolution Assistant guide with step-by-step workflows...
+[Displays schema-evolution prompt with evolution strategies and examples]
+```
+
+**For Troubleshooting:**
+```
+Human: My schema registration is failing, help!
+
+Claude: Let me show you the troubleshooting guide with diagnostic commands...
+[Displays troubleshooting prompt with symptom-to-solution mapping]
 ```
 
 ## 💡 Best Practices for Using Prompts
@@ -188,7 +223,34 @@ Claude: Let me show you the getting started guide with quick actions you can try
 2. **Use specific prompts** when diving into a topic
 3. **Copy commands directly** and modify as needed
 4. **Follow the workflows** step-by-step
-5. **Ask for clarification** on any confusing parts
+5. **Use schema-evolution prompt** for any production schema changes
+6. **Ask for clarification** on any confusing parts
+
+## 🔄 Schema Evolution Integration
+
+The **schema-evolution** prompt integrates seamlessly with the Schema Evolution Assistant workflow:
+
+### **Direct Integration**
+```
+Human: "Show me the schema evolution guide"
+→ Displays comprehensive evolution prompt
+→ Copy commands to start workflows
+→ Get guided through 8-step process
+```
+
+### **Natural Language Triggers**
+```
+Human: "Help me safely evolve my user schema"
+→ Automatically starts Schema Evolution Assistant
+→ Pre-populated with context from your request
+→ Interactive workflow with step-by-step guidance
+```
+
+### **Workflow Entry Points**
+- **Direct Tool Call**: `guided_schema_evolution`
+- **Natural Language**: "Start schema evolution assistant"
+- **Auto-Trigger**: When `register_schema_interactive` detects breaking changes
+- **Via Prompts**: Use evolution guide for copy-paste commands
 
 ## 🔧 Prompt Customization
 

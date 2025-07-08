@@ -9,9 +9,10 @@ Workflows:
 1. Schema Migration Wizard - Guide users through schema migration
 2. Context Reorganization - Help reorganize schemas across contexts
 3. Disaster Recovery Setup - Configure DR strategies
+4. Schema Evolution Assistant - Guide through schema evolution with breaking change analysis
 """
 
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from elicitation import ElicitationField, ElicitationType
 from multi_step_elicitation import (
@@ -800,6 +801,459 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
     )
 
 
+def create_schema_evolution_workflow() -> MultiStepWorkflow:
+    """Create the Schema Evolution Assistant workflow."""
+
+    def should_show_compatibility_options(state: Dict[str, Any]) -> Optional[str]:
+        """Conditional logic to show compatibility options based on breaking changes."""
+        if state.get("has_breaking_changes") == "true":
+            return "compatibility_resolution"
+        return "evolution_strategy"
+
+    def determine_strategy_path(state: Dict[str, Any]) -> Optional[str]:
+        """Determine next step based on evolution strategy."""
+        strategy = state.get("evolution_strategy")
+        if strategy == "multi_version_migration":
+            return "version_planning"
+        elif strategy == "dual_support":
+            return "dual_support_config"
+        elif strategy == "gradual_migration":
+            return "migration_phases"
+        else:
+            return "implementation_details"
+
+    steps = {
+        # Step 1: Schema Change Analysis
+        "change_analysis": WorkflowStep(
+            id="change_analysis",
+            title="Schema Evolution Assistant - Change Analysis",
+            description="Let's analyze your schema changes to understand their impact",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="subject",
+                    type="text",
+                    description="Schema subject name",
+                    placeholder="e.g., com.example.User-value",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="change_type",
+                    type="choice",
+                    description="What type of change are you making?",
+                    options=[
+                        "add_fields",
+                        "remove_fields",
+                        "modify_fields",
+                        "restructure_schema",
+                        "multiple_changes",
+                    ],
+                    required=True,
+                ),
+                ElicitationField(
+                    name="change_description",
+                    type="text",
+                    description="Describe your changes",
+                    placeholder="e.g., Adding email field, changing userId from int to string",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="current_consumers",
+                    type="text",
+                    description="Number of active consumers (approximate)",
+                    placeholder="e.g., 10-50",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="production_impact",
+                    type="choice",
+                    description="Is this a production system?",
+                    options=["yes_critical", "yes_non_critical", "no_staging", "no_development"],
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "breaking_changes_check"},
+        ),
+        # Step 2: Breaking Changes Check
+        "breaking_changes_check": WorkflowStep(
+            id="breaking_changes_check",
+            title="Breaking Changes Detection",
+            description="Analyzing your changes for compatibility issues...",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="has_breaking_changes",
+                    type="choice",
+                    description="Based on your changes, we've detected potential breaking changes. How should we proceed?",
+                    options=["true", "false", "unsure"],
+                    required=True,
+                ),
+                ElicitationField(
+                    name="current_compatibility",
+                    type="choice",
+                    description="Current compatibility mode",
+                    options=["BACKWARD", "FORWARD", "FULL", "NONE"],
+                    default="BACKWARD",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="risk_tolerance",
+                    type="choice",
+                    description="Risk tolerance for this change",
+                    options=["very_low", "low", "medium", "high"],
+                    default="low",
+                    required=True,
+                ),
+            ],
+            conditions={"check_breaking": should_show_compatibility_options},
+        ),
+        # Step 3a: Compatibility Resolution (if breaking changes)
+        "compatibility_resolution": WorkflowStep(
+            id="compatibility_resolution",
+            title="Compatibility Resolution",
+            description="Your changes have breaking compatibility. Let's resolve this safely.",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="resolution_approach",
+                    type="choice",
+                    description="How would you like to handle the breaking changes?",
+                    options=[
+                        "make_backward_compatible",
+                        "use_union_types",
+                        "add_defaults",
+                        "create_new_subject",
+                        "force_with_coordination",
+                    ],
+                    required=True,
+                ),
+                ElicitationField(
+                    name="compatibility_override",
+                    type="confirmation",
+                    description="Temporarily change compatibility mode for this operation?",
+                    default="false",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="compatibility_notes",
+                    type="text",
+                    description="Notes about compatibility decisions",
+                    placeholder="e.g., All consumers will be updated by DATE",
+                    required=False,
+                ),
+            ],
+            next_steps={"default": "evolution_strategy"},
+        ),
+        # Step 3b: Evolution Strategy Selection
+        "evolution_strategy": WorkflowStep(
+            id="evolution_strategy",
+            title="Evolution Strategy",
+            description="Choose your schema evolution strategy",
+            elicitation_type=ElicitationType.CHOICE,
+            fields=[
+                ElicitationField(
+                    name="evolution_strategy",
+                    type="choice",
+                    description="Select the evolution approach that best fits your needs",
+                    options=[
+                        "direct_update",
+                        "multi_version_migration",
+                        "dual_support",
+                        "gradual_migration",
+                        "blue_green_deployment",
+                    ],
+                    required=True,
+                ),
+            ],
+            conditions={"strategy_routing": determine_strategy_path},
+        ),
+        # Step 4a: Multi-Version Migration Planning
+        "version_planning": WorkflowStep(
+            id="version_planning",
+            title="Multi-Version Migration Plan",
+            description="Plan your multi-version migration path",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="intermediate_versions",
+                    type="text",
+                    description="Number of intermediate versions needed",
+                    placeholder="e.g., 2",
+                    default="1",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="version_timeline",
+                    type="text",
+                    description="Timeline for each version (days)",
+                    placeholder="e.g., 7,14,30",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="deprecation_strategy",
+                    type="choice",
+                    description="How to handle deprecated fields?",
+                    options=["mark_deprecated", "log_warnings", "dual_write", "ignore"],
+                    default="mark_deprecated",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "consumer_coordination"},
+        ),
+        # Step 4b: Dual Support Configuration
+        "dual_support_config": WorkflowStep(
+            id="dual_support_config",
+            title="Dual Support Configuration",
+            description="Configure dual schema support",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="support_duration",
+                    type="choice",
+                    description="How long to support both schemas?",
+                    options=["1_week", "2_weeks", "1_month", "3_months", "custom"],
+                    default="1_month",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="field_mapping",
+                    type="text",
+                    description="Field mapping rules (old:new)",
+                    placeholder="e.g., userId:user_id, userName:user_name",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="conversion_logic",
+                    type="choice",
+                    description="Conversion handling",
+                    options=["automatic", "custom_code", "consumer_side"],
+                    default="automatic",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "consumer_coordination"},
+        ),
+        # Step 4c: Gradual Migration Phases
+        "migration_phases": WorkflowStep(
+            id="migration_phases",
+            title="Gradual Migration Phases",
+            description="Define migration phases",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="phase_count",
+                    type="choice",
+                    description="Number of migration phases",
+                    options=["2", "3", "4", "5+"],
+                    default="3",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="phase_criteria",
+                    type="choice",
+                    description="Phase progression criteria",
+                    options=["percentage_based", "time_based", "manual_approval", "metric_based"],
+                    default="percentage_based",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="rollback_checkpoints",
+                    type="confirmation",
+                    description="Create rollback checkpoints at each phase?",
+                    default="true",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "consumer_coordination"},
+        ),
+        # Step 4d: Direct Implementation Details
+        "implementation_details": WorkflowStep(
+            id="implementation_details",
+            title="Implementation Details",
+            description="Configure implementation specifics",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="deployment_window",
+                    type="text",
+                    description="Preferred deployment window",
+                    placeholder="e.g., 2024-01-15 02:00 UTC",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="validation_approach",
+                    type="choice",
+                    description="Schema validation approach",
+                    options=["strict_validation", "lenient_validation", "custom_validators"],
+                    default="strict_validation",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "consumer_coordination"},
+        ),
+        # Step 5: Consumer Coordination
+        "consumer_coordination": WorkflowStep(
+            id="consumer_coordination",
+            title="Consumer Coordination",
+            description="Plan consumer coordination and communication",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="notification_method",
+                    type="choice",
+                    description="How to notify consumers?",
+                    options=[
+                        "automatic_alerts",
+                        "email_notification",
+                        "api_deprecation_headers",
+                        "documentation_only",
+                        "multi_channel",
+                    ],
+                    default="multi_channel",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="consumer_testing",
+                    type="choice",
+                    description="Consumer testing approach",
+                    options=["sandbox_environment", "canary_consumers", "parallel_testing", "consumer_managed"],
+                    default="sandbox_environment",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="support_period",
+                    type="choice",
+                    description="Support period for old schema",
+                    options=["1_week", "2_weeks", "1_month", "3_months", "6_months"],
+                    default="1_month",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "rollback_planning"},
+        ),
+        # Step 6: Rollback Planning
+        "rollback_planning": WorkflowStep(
+            id="rollback_planning",
+            title="Rollback Strategy",
+            description="Plan your rollback strategy in case issues arise",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="rollback_trigger",
+                    type="choice",
+                    description="When to trigger rollback?",
+                    options=["error_rate_threshold", "consumer_reports", "manual_decision", "automated_monitoring"],
+                    default="automated_monitoring",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="rollback_time",
+                    type="choice",
+                    description="Maximum rollback time",
+                    options=["5_minutes", "15_minutes", "1_hour", "4_hours"],
+                    default="15_minutes",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="data_handling",
+                    type="choice",
+                    description="How to handle data during rollback?",
+                    options=["preserve_all", "transform_backward", "quarantine_incompatible", "custom_handler"],
+                    default="preserve_all",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="rollback_testing",
+                    type="confirmation",
+                    description="Test rollback procedure before deployment?",
+                    default="true",
+                    required=True,
+                ),
+            ],
+            next_steps={"default": "final_review"},
+        ),
+        # Step 7: Final Review and Documentation
+        "final_review": WorkflowStep(
+            id="final_review",
+            title="Final Review",
+            description="Review your schema evolution plan",
+            elicitation_type=ElicitationType.FORM,
+            fields=[
+                ElicitationField(
+                    name="generate_migration_guide",
+                    type="confirmation",
+                    description="Generate migration guide for consumers?",
+                    default="true",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="create_runbook",
+                    type="confirmation",
+                    description="Create operational runbook?",
+                    default="true",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="schedule_dry_run",
+                    type="confirmation",
+                    description="Schedule a dry run first?",
+                    default="true",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="evolution_notes",
+                    type="text",
+                    description="Additional notes for the evolution",
+                    placeholder="Any special considerations or requirements",
+                    required=False,
+                ),
+            ],
+            next_steps={"default": "execute_evolution"},
+        ),
+        # Step 8: Execute Evolution
+        "execute_evolution": WorkflowStep(
+            id="execute_evolution",
+            title="Execute Schema Evolution",
+            description="Ready to execute your schema evolution plan",
+            elicitation_type=ElicitationType.CONFIRMATION,
+            fields=[
+                ElicitationField(
+                    name="final_confirmation",
+                    type="confirmation",
+                    description=(
+                        "Execute schema evolution? This will implement your planned changes "
+                        "according to the strategy you've selected."
+                    ),
+                    required=True,
+                ),
+                ElicitationField(
+                    name="monitor_execution",
+                    type="confirmation",
+                    description="Enable real-time monitoring during execution?",
+                    default="true",
+                    required=True,
+                ),
+            ],
+            next_steps={"final_confirmation": {"true": "finish", "false": "change_analysis"}},  # Start over
+        ),
+    }
+
+    return MultiStepWorkflow(
+        id="schema_evolution_assistant",
+        name="Schema Evolution Assistant",
+        description="Comprehensive guide for safe schema evolution with breaking change analysis and migration strategies",
+        steps=steps,
+        initial_step_id="change_analysis",
+        metadata={
+            "estimated_duration": "10-20 minutes",
+            "difficulty": "intermediate",
+            "requires_auth": True,
+            "compliance_relevant": True,
+            "supports_rollback": True,
+        },
+    )
+
+
 def get_all_workflows() -> List[MultiStepWorkflow]:
     """Get all pre-defined workflows."""
     global _cached_workflows
@@ -808,6 +1262,7 @@ def get_all_workflows() -> List[MultiStepWorkflow]:
             create_schema_migration_workflow(),
             create_context_reorganization_workflow(),
             create_disaster_recovery_workflow(),
+            create_schema_evolution_workflow(),
         ]
     return _cached_workflows
 

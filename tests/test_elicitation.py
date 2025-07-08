@@ -4,10 +4,15 @@ Tests for the elicitation system functionality
 """
 
 import asyncio
+import os
+import sys
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
 import pytest
+
+# Add parent directory to path to import modules from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import elicitation modules
 from elicitation import (
