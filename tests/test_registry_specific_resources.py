@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 try:
     # Import elicitation support check
     from elicitation import is_elicitation_supported
-    
+
     # Import MCP_PROTOCOL_VERSION and other variables from the main MCP module
     from kafka_schema_registry_unified_mcp import (
         MCP_PROTOCOL_VERSION,

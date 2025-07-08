@@ -1,0 +1,201 @@
+# Cursor Rules for Kafka Schema Registry MCP
+
+## Code Quality & Linting Standards
+
+### Python Version & Compatibility
+- Target Python 3.10+ (project minimum: 3.10)
+- Use type hints consistently for better mypy compatibility
+- Avoid using features newer than Python 3.10 unless absolutely necessary
+
+### Code Formatting (Black)
+- **Line length: 120 characters** (configured in pyproject.toml)
+- Use double quotes for strings
+- Trailing commas in multi-line structures
+- Function and class definitions follow Black's style
+- Never suggest changing Black configuration in pyproject.toml
+
+### Import Organization (isort)
+- **Profile: black** (configured in pyproject.toml)
+- **Line length: 120 characters** for imports
+- Group imports: standard library → third-party → local
+- Use trailing commas in multi-line imports
+- Separate import groups with blank lines
+- Never suggest changing isort configuration in pyproject.toml
+
+### Code Style (Ruff)
+- **Line length: 100 characters** for code content (configured in pyproject.toml)
+- Keep docstrings and comments within 100 characters when possible
+- Use descriptive variable names
+- Avoid complex nested structures
+- Never suggest changing Ruff configuration in pyproject.toml
+
+### Type Checking (MyPy)
+- Add type hints to all function parameters and return values
+- Use `typing` module imports: `List`, `Dict`, `Optional`, `Union`, `Any`
+- For Python 3.10+, prefer built-in generics: `list[str]` over `List[str]`
+- Mark untyped external libraries with `# type: ignore` when necessary
+- Never suggest changing MyPy configuration in pyproject.toml
+
+### Flake8 Compliance
+- Avoid syntax errors and undefined names (E9, F63, F7, F82)
+- Keep complexity under 15 (max-complexity=15)
+- Handle unused imports and variables
+- Use proper exception handling
+
+## Project-Specific Guidelines
+
+### MCP (Model Context Protocol) Standards
+- Use FastMCP framework patterns
+- Implement proper error handling for MCP operations
+- Follow async/await patterns for MCP tools
+- Use descriptive tool names and parameter validation
+
+### Kafka Schema Registry Integration
+- Use httpx for HTTP requests (preferred over requests)
+- Implement proper error handling for registry operations
+- Use environment variables for configuration
+- Follow the existing registry management patterns
+
+### File Organization
+- Keep main functionality in root-level Python files
+- Use descriptive module names
+- Import from local modules using relative imports where appropriate
+- Follow the existing project structure
+
+## Code Generation Rules
+
+### When Writing New Code:
+1. **Always add type hints** to functions and methods
+2. **Use docstrings** for all public functions and classes
+3. **Handle exceptions** appropriately with try/catch blocks
+4. **Use logging** instead of print statements where appropriate
+5. **Follow async patterns** for I/O operations
+
+### When Modifying Existing Code:
+1. **Maintain existing style** and patterns
+2. **Don't change lint configurations** in pyproject.toml
+3. **Run formatters mentally** - ensure code would pass Black, isort, Ruff
+4. **Add missing type hints** if adding new functionality
+5. **Preserve existing import organization**
+
+### Code Examples:
+
+#### Good Function Definition:
+```python
+from typing import Dict, List, Optional
+import httpx
+
+async def get_schema_subjects(
+    registry_url: str, 
+    context: Optional[str] = None
+) -> List[str]:
+    """
+    Retrieve all subjects from the schema registry.
+    
+    Args:
+        registry_url: The base URL of the schema registry
+        context: Optional context name for filtering
+        
+    Returns:
+        List of subject names
+        
+    Raises:
+        httpx.HTTPError: If the request fails
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{registry_url}/subjects")
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        raise httpx.HTTPError(f"Failed to fetch subjects: {e}")
+```
+
+#### Good Import Organization:
+```python
+# Standard library
+import asyncio
+import logging
+from typing import Dict, List, Optional
+
+# Third-party
+import httpx
+from fastmcp import FastMCP
+
+# Local imports
+from schema_registry_common import RegistryManager
+from core_registry_tools import get_registry_config
+```
+
+## Testing & Quality Assurance
+
+### Test Code Requirements:
+- Use pytest conventions
+- Add type hints to test functions
+- Use descriptive test names
+- Mock external dependencies appropriately
+- Follow the existing test structure in `tests/` directory
+- Use test runner `tests\run_all_tests.sh` to run all tests
+
+### Documentation:
+- Include docstrings for all public APIs
+- Use clear parameter descriptions
+- Include example usage where helpful
+- Document any complex logic or algorithms
+
+## Error Handling Patterns
+
+### Preferred Error Handling:
+```python
+try:
+    result = await some_operation()
+    return result
+except SpecificException as e:
+    logger.error(f"Operation failed: {e}")
+    raise
+except Exception as e:
+    logger.error(f"Unexpected error: {e}")
+    raise
+```
+
+## Environment & Configuration
+
+### Environment Variables:
+- Use `python-dotenv` for loading environment variables
+- Provide sensible defaults where possible
+- Document required environment variables
+- Use type conversion for non-string values
+
+### Configuration Management:
+- Follow existing patterns in `schema_registry_common.py`
+- Use environment-based configuration
+- Implement proper validation for configuration values
+
+## Performance & Efficiency
+
+### Async Operations:
+- Use `async`/`await` for I/O operations
+- Use `httpx.AsyncClient` for HTTP requests
+- Implement proper connection pooling
+- Handle timeouts appropriately
+
+### Memory Management:
+- Use context managers for resource cleanup
+- Avoid holding large objects in memory unnecessarily
+- Use generators for large data processing
+
+## Security Considerations
+
+### HTTP Requests:
+- Always validate URLs
+- Use proper authentication headers
+- Implement timeout handling
+- Handle SSL/TLS properly
+
+### Data Validation:
+- Use jsonschema for schema validation
+- Validate input parameters
+- Sanitize user inputs
+- Use proper error messages without exposing internals
+
+Remember: NEVER suggest changing the lint tool configurations in pyproject.toml. The goal is to write code that passes the existing linting rules, not to change the rules to accommodate the code. 
