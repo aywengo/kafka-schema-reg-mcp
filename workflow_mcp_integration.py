@@ -10,7 +10,7 @@ It provides MCP tool wrappers that can initiate and manage multi-step workflows.
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
@@ -241,6 +241,108 @@ class WorkflowMCPTools:
                 }
             )
 
+        @self.mcp.tool(
+            description=(
+                "Start the Schema Evolution Assistant workflow. "
+                "This guided workflow helps you safely evolve schemas by analyzing changes, "
+                "suggesting strategies, and coordinating consumer updates."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "description": "Optional schema subject to pre-populate",
+                    },
+                    "current_schema": {
+                        "type": "string",
+                        "description": "Optional current schema definition (JSON string)",
+                    },
+                },
+                "required": [],
+            },
+        )
+        async def guided_schema_evolution(
+            subject: Optional[str] = None,
+            current_schema: Optional[str] = None,
+        ) -> str:
+            """Start the Schema Evolution Assistant workflow."""
+            initial_context = {}
+            if subject:
+                initial_context["subject"] = subject
+            if current_schema:
+                try:
+                    initial_context["current_schema"] = json.loads(current_schema)
+                except json.JSONDecodeError:
+                    initial_context["current_schema"] = current_schema
+            
+            workflow_id = "schema_evolution_assistant"
+            
+            try:
+                request = await self.multi_step_manager.start_workflow(
+                    workflow_id=workflow_id,
+                    initial_context=initial_context
+                )
+                
+                if request:
+                    return json.dumps({
+                        "status": "started",
+                        "workflow_id": workflow_id,
+                        "workflow_name": "Schema Evolution Assistant",
+                        "request_id": request.id,
+                        "first_step": request.title,
+                        "description": request.description,
+                        "message": (
+                            "Schema Evolution Assistant started. This workflow will guide you through:\n"
+                            "1. Analyzing schema changes\n"
+                            "2. Detecting breaking changes\n"
+                            "3. Selecting evolution strategy\n"
+                            "4. Planning consumer coordination\n"
+                            "5. Setting up rollback procedures"
+                        ),
+                    })
+                else:
+                    return json.dumps({"error": "Failed to start Schema Evolution workflow"})
+            except Exception as e:
+                logger.error(f"Error starting Schema Evolution workflow: {str(e)}")
+                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
+                
+        @self.mcp.tool(
+            description="Start the Schema Migration Wizard workflow for guided schema migration",
+            parameters={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        )
+        async def guided_schema_migration() -> str:
+            """Convenience method to start Schema Migration workflow."""
+            return await start_workflow("schema_migration_wizard")
+            
+        @self.mcp.tool(
+            description="Start the Context Reorganization workflow for reorganizing schemas across contexts",
+            parameters={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        )
+        async def guided_context_reorganization() -> str:
+            """Convenience method to start Context Reorganization workflow."""
+            return await start_workflow("context_reorganization")
+            
+        @self.mcp.tool(
+            description="Start the Disaster Recovery Setup workflow for configuring DR strategies",
+            parameters={
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        )
+        async def guided_disaster_recovery() -> str:
+            """Convenience method to start Disaster Recovery workflow."""
+            return await start_workflow("disaster_recovery_setup")
+
 
 def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -258,6 +360,8 @@ def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
         return execute_context_reorganization(responses)
     elif workflow_name == "Disaster Recovery Setup":
         return execute_disaster_recovery_setup(responses)
+    elif workflow_name == "Schema Evolution Assistant":
+        return execute_schema_evolution(responses)
     else:
         return {"error": f"Unknown workflow: {workflow_name}"}
 
@@ -384,6 +488,142 @@ def execute_disaster_recovery_setup(responses: Dict[str, Any]) -> Dict[str, Any]
     }
 
     return result
+
+
+def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute schema evolution based on workflow responses."""
+    result = {
+        "operation": "schema_evolution",
+        "subject": responses.get("subject"),
+        "status": "pending",
+    }
+    
+    # Basic change information
+    result["change_info"] = {
+        "change_type": responses.get("change_type"),
+        "description": responses.get("change_description"),
+        "current_consumers": responses.get("current_consumers"),
+        "production_impact": responses.get("production_impact"),
+        "has_breaking_changes": responses.get("has_breaking_changes") == "true",
+    }
+    
+    # Evolution strategy
+    strategy = responses.get("evolution_strategy")
+    result["evolution_strategy"] = strategy
+    
+    # Strategy-specific configuration
+    if strategy == "multi_version_migration":
+        result["migration_config"] = {
+            "intermediate_versions": int(responses.get("intermediate_versions", 1)),
+            "version_timeline": responses.get("version_timeline"),
+            "deprecation_strategy": responses.get("deprecation_strategy"),
+        }
+    elif strategy == "dual_support":
+        result["dual_support_config"] = {
+            "support_duration": responses.get("support_duration"),
+            "field_mapping": responses.get("field_mapping"),
+            "conversion_logic": responses.get("conversion_logic"),
+        }
+    elif strategy == "gradual_migration":
+        result["migration_phases"] = {
+            "phase_count": responses.get("phase_count"),
+            "phase_criteria": responses.get("phase_criteria"),
+            "rollback_checkpoints": responses.get("rollback_checkpoints") == "true",
+        }
+    else:
+        result["implementation"] = {
+            "deployment_window": responses.get("deployment_window"),
+            "validation_approach": responses.get("validation_approach"),
+        }
+    
+    # Compatibility resolution (if breaking changes)
+    if result["change_info"]["has_breaking_changes"]:
+        result["compatibility_resolution"] = {
+            "approach": responses.get("resolution_approach"),
+            "override_compatibility": responses.get("compatibility_override") == "true",
+            "notes": responses.get("compatibility_notes"),
+        }
+    
+    # Consumer coordination
+    result["consumer_coordination"] = {
+        "notification_method": responses.get("notification_method"),
+        "testing_approach": responses.get("consumer_testing"),
+        "support_period": responses.get("support_period"),
+    }
+    
+    # Rollback planning
+    result["rollback_plan"] = {
+        "trigger": responses.get("rollback_trigger"),
+        "max_time": responses.get("rollback_time"),
+        "data_handling": responses.get("data_handling"),
+        "test_rollback": responses.get("rollback_testing") == "true",
+    }
+    
+    # Final options
+    result["documentation"] = {
+        "generate_migration_guide": responses.get("generate_migration_guide") == "true",
+        "create_runbook": responses.get("create_runbook") == "true",
+        "schedule_dry_run": responses.get("schedule_dry_run") == "true",
+        "evolution_notes": responses.get("evolution_notes"),
+    }
+    
+    # Execution settings
+    result["execution"] = {
+        "confirmed": responses.get("final_confirmation") == "true",
+        "enable_monitoring": responses.get("monitor_execution") == "true",
+    }
+    
+    return result
+
+
+def analyze_schema_changes(
+    current_schema: Dict[str, Any], 
+    proposed_schema: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Analyze differences between current and proposed schemas.
+    
+    Returns a list of changes with their types and descriptions.
+    """
+    changes = []
+    
+    current_fields = {f["name"]: f for f in current_schema.get("fields", [])}
+    proposed_fields = {f["name"]: f for f in proposed_schema.get("fields", [])}
+    
+    # Check for added fields
+    for field_name, field_def in proposed_fields.items():
+        if field_name not in current_fields:
+            changes.append({
+                "type": "add_field",
+                "field": field_name,
+                "description": f"New field '{field_name}' of type {field_def.get('type')}",
+                "breaking": field_def.get("default") is None  # Required without default is breaking
+            })
+    
+    # Check for removed fields
+    for field_name in current_fields:
+        if field_name not in proposed_fields:
+            changes.append({
+                "type": "remove_field", 
+                "field": field_name,
+                "description": f"Field '{field_name}' removed",
+                "breaking": True  # Removing fields is always breaking for readers
+            })
+    
+    # Check for modified fields
+    for field_name in set(current_fields) & set(proposed_fields):
+        current_field = current_fields[field_name]
+        proposed_field = proposed_fields[field_name]
+        
+        if current_field.get("type") != proposed_field.get("type"):
+            changes.append({
+                "type": "modify_field",
+                "field": field_name,
+                "description": f"Field '{field_name}' type changed from {current_field.get('type')} to {proposed_field.get('type')}",
+                "breaking": True  # Type changes are typically breaking
+            })
+    
+    return changes
 
 
 # Integration with existing elicitation response handler
