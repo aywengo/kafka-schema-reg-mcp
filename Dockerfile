@@ -117,6 +117,7 @@ COPY --chown=mcp:mcp resource_linking.py .
 COPY --chown=mcp:mcp smart_defaults.py .
 COPY --chown=mcp:mcp smart_defaults_integration.py .
 COPY --chown=mcp:mcp smart_defaults_config.py .
+COPY --chown=mcp:mcp smart_defaults_init.py .
 
 # Copy schema evolution helpers
 COPY --chown=mcp:mcp schema_evolution_helpers.py .
