@@ -160,7 +160,7 @@ def get_context_management_prompt():
 ### 1. Environment-Based (Recommended)
 ```
 development/   → Active development
-staging/       → Pre-production testing  
+staging/       → Pre-production testing
 production/    → Live schemas
 ```
 **Create all**: `"Create development, staging, and production contexts"`
@@ -894,7 +894,7 @@ def get_schema_evolution_prompt():
 **Process**: Update schema directly
 **Example**: Adding optional fields with defaults
 
-### 🔄 Multi-Version Migration  
+### 🔄 Multi-Version Migration
 **Best for**: Breaking changes with many consumers
 **Process**: Create intermediate schema versions for gradual migration
 **Timeline**: Usually 2-4 weeks depending on consumer count

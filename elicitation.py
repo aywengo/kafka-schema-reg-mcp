@@ -682,10 +682,10 @@ def create_schema_evolution_elicitation(
     compatibility_mode: str = "BACKWARD",
 ) -> ElicitationRequest:
     """Create an elicitation request for schema evolution guidance.
-    
+
     This helps users understand the impact of schema changes and guides them
     through safe evolution strategies.
-    
+
     Args:
         subject: The schema subject name
         current_schema: The current schema definition
@@ -696,28 +696,34 @@ def create_schema_evolution_elicitation(
     change_types = set()
     for change in proposed_changes:
         change_types.add(change.get("type", "unknown"))
-    
+
     # Build strategy options based on change types
     strategy_options = []
     if "add_field" in change_types:
-        strategy_options.extend([
-            "add_optional_field",
-            "add_required_with_default",
-        ])
+        strategy_options.extend(
+            [
+                "add_optional_field",
+                "add_required_with_default",
+            ]
+        )
     if "remove_field" in change_types:
         strategy_options.append("deprecate_field")
     if "modify_field" in change_types:
-        strategy_options.extend([
-            "rename_field",
-            "change_type_safely",
-        ])
-    
+        strategy_options.extend(
+            [
+                "rename_field",
+                "change_type_safely",
+            ]
+        )
+
     # Always include these options
-    strategy_options.extend([
-        "create_new_version",
-        "create_new_subject",
-    ])
-    
+    strategy_options.extend(
+        [
+            "create_new_version",
+            "create_new_subject",
+        ]
+    )
+
     fields = [
         ElicitationField(
             name="evolution_strategy",
@@ -794,21 +800,23 @@ def create_schema_evolution_elicitation(
             placeholder="e.g., Field X is being renamed to Y for clarity...",
         ),
     ]
-    
+
     # Build a description with change summary
-    change_summary = "\n".join([
-        f"- {change.get('type', 'Unknown')}: {change.get('description', 'No description')}"
-        for change in proposed_changes[:5]  # Limit to first 5 changes
-    ])
+    change_summary = "\n".join(
+        [
+            f"- {change.get('type', 'Unknown')}: {change.get('description', 'No description')}"
+            for change in proposed_changes[:5]  # Limit to first 5 changes
+        ]
+    )
     if len(proposed_changes) > 5:
         change_summary += f"\n... and {len(proposed_changes) - 5} more changes"
-    
+
     description = (
         f"Schema '{subject}' has proposed changes that need evolution planning:\n\n"
         f"{change_summary}\n\n"
         f"Current compatibility mode: {compatibility_mode}"
     )
-    
+
     return ElicitationRequest(
         type=ElicitationType.FORM,
         title="Schema Evolution Assistant",
@@ -864,7 +872,7 @@ async def mock_elicit(request: ElicitationRequest) -> Optional[ElicitationRespon
                 values["preserve_ids"] = "true"
             if "dry_run" in values:
                 values["dry_run"] = "true"
-        
+
         elif "evolution" in request.title.lower():
             # For schema evolution, use conservative defaults
             if "evolution_strategy" in values:

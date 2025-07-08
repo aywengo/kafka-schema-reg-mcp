@@ -27,17 +27,17 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from elicitation import elicitation_manager  # Import the global instance
 from elicitation import (
     ElicitationManager,
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
-    create_migration_preferences_elicitation,
-    create_schema_field_elicitation,
     create_migrate_schema_elicitation,
-    elicit_with_fallback,
+    create_migration_preferences_elicitation,
     create_schema_evolution_elicitation,
-    elicitation_manager,  # Import the global instance
+    create_schema_field_elicitation,
+    elicit_with_fallback,
 )
 from schema_validation import create_error_response
 
@@ -63,7 +63,7 @@ async def register_schema_interactive(
 
     When schema_definition is incomplete or missing fields, this tool will
     elicit the required information from the user interactively.
-    
+
     Additionally, if the schema already exists and breaking changes are detected,
     this will trigger the Schema Evolution Assistant workflow.
     """
@@ -128,8 +128,8 @@ async def register_schema_interactive(
                 )
 
         # Check if schema already exists and if we should trigger evolution workflow
-        from core_registry_tools import get_schema_tool, check_compatibility_tool
-        
+        from core_registry_tools import check_compatibility_tool, get_schema_tool
+
         existing_schema_result = get_schema_tool(
             subject=subject,
             registry_manager=registry_manager,
@@ -138,11 +138,11 @@ async def register_schema_interactive(
             context=context,
             registry=registry,
         )
-        
+
         # If schema exists, check compatibility
         if "error" not in existing_schema_result:
             logger.info(f"Existing schema found for '{subject}', checking compatibility")
-            
+
             compatibility_result = check_compatibility_tool(
                 subject=subject,
                 schema_definition=schema_definition,
@@ -152,20 +152,20 @@ async def register_schema_interactive(
                 context=context,
                 registry=registry,
             )
-            
+
             is_compatible = compatibility_result.get("is_compatible", False)
-            
+
             # If not compatible, trigger Schema Evolution Assistant
             if not is_compatible:
                 logger.info(f"Breaking changes detected for '{subject}', triggering Schema Evolution Assistant")
-                
+
                 # Import schema evolution helpers
-                from schema_evolution_helpers import evolve_schema_with_workflow
                 from multi_step_elicitation import MultiStepElicitationManager
-                
+                from schema_evolution_helpers import evolve_schema_with_workflow
+
                 # Get the multi-step manager (should be available in the context)
                 multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-                
+
                 # Start the evolution workflow
                 evolution_result = await evolve_schema_with_workflow(
                     subject=subject,
@@ -177,7 +177,7 @@ async def register_schema_interactive(
                     context=context,
                     registry=registry,
                 )
-                
+
                 if evolution_result.get("workflow_started"):
                     return {
                         "status": "evolution_workflow_started",

@@ -803,13 +803,13 @@ def create_disaster_recovery_workflow() -> MultiStepWorkflow:
 
 def create_schema_evolution_workflow() -> MultiStepWorkflow:
     """Create the Schema Evolution Assistant workflow."""
-    
+
     def should_show_compatibility_options(state: Dict[str, Any]) -> Optional[str]:
         """Conditional logic to show compatibility options based on breaking changes."""
         if state.get("has_breaking_changes") == "true":
             return "compatibility_resolution"
         return "evolution_strategy"
-    
+
     def determine_strategy_path(state: Dict[str, Any]) -> Optional[str]:
         """Determine next step based on evolution strategy."""
         strategy = state.get("evolution_strategy")
@@ -821,7 +821,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             return "migration_phases"
         else:
             return "implementation_details"
-    
+
     steps = {
         # Step 1: Schema Change Analysis
         "change_analysis": WorkflowStep(
@@ -847,7 +847,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                         "modify_fields",
                         "rename_fields",
                         "restructure_schema",
-                        "multiple_changes"
+                        "multiple_changes",
                     ],
                     required=True,
                 ),
@@ -875,7 +875,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "breaking_changes_check"},
         ),
-        
         # Step 2: Breaking Changes Check
         "breaking_changes_check": WorkflowStep(
             id="breaking_changes_check",
@@ -887,11 +886,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="has_breaking_changes",
                     type="choice",
                     description="Based on your changes, we've detected potential breaking changes. How should we proceed?",
-                    options=[
-                        "true",
-                        "false",
-                        "unsure"
-                    ],
+                    options=["true", "false", "unsure"],
                     required=True,
                 ),
                 ElicitationField(
@@ -913,7 +908,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             conditions={"check_breaking": should_show_compatibility_options},
         ),
-        
         # Step 3a: Compatibility Resolution (if breaking changes)
         "compatibility_resolution": WorkflowStep(
             id="compatibility_resolution",
@@ -930,7 +924,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                         "use_union_types",
                         "add_defaults",
                         "create_new_subject",
-                        "force_with_coordination"
+                        "force_with_coordination",
                     ],
                     required=True,
                 ),
@@ -951,7 +945,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "evolution_strategy"},
         ),
-        
         # Step 3b: Evolution Strategy Selection
         "evolution_strategy": WorkflowStep(
             id="evolution_strategy",
@@ -968,14 +961,13 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                         "multi_version_migration",
                         "dual_support",
                         "gradual_migration",
-                        "blue_green_deployment"
+                        "blue_green_deployment",
                     ],
                     required=True,
                 ),
             ],
             conditions={"strategy_routing": determine_strategy_path},
         ),
-        
         # Step 4a: Multi-Version Migration Planning
         "version_planning": WorkflowStep(
             id="version_planning",
@@ -1002,19 +994,13 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="deprecation_strategy",
                     type="choice",
                     description="How to handle deprecated fields?",
-                    options=[
-                        "mark_deprecated",
-                        "log_warnings",
-                        "dual_write",
-                        "ignore"
-                    ],
+                    options=["mark_deprecated", "log_warnings", "dual_write", "ignore"],
                     default="mark_deprecated",
                     required=True,
                 ),
             ],
             next_steps={"default": "consumer_coordination"},
         ),
-        
         # Step 4b: Dual Support Configuration
         "dual_support_config": WorkflowStep(
             id="dual_support_config",
@@ -1048,7 +1034,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "consumer_coordination"},
         ),
-        
         # Step 4c: Gradual Migration Phases
         "migration_phases": WorkflowStep(
             id="migration_phases",
@@ -1068,12 +1053,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="phase_criteria",
                     type="choice",
                     description="Phase progression criteria",
-                    options=[
-                        "percentage_based",
-                        "time_based",
-                        "manual_approval",
-                        "metric_based"
-                    ],
+                    options=["percentage_based", "time_based", "manual_approval", "metric_based"],
                     default="percentage_based",
                     required=True,
                 ),
@@ -1087,7 +1067,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "consumer_coordination"},
         ),
-        
         # Step 4d: Direct Implementation Details
         "implementation_details": WorkflowStep(
             id="implementation_details",
@@ -1106,18 +1085,13 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="validation_approach",
                     type="choice",
                     description="Schema validation approach",
-                    options=[
-                        "strict_validation",
-                        "lenient_validation",
-                        "custom_validators"
-                    ],
+                    options=["strict_validation", "lenient_validation", "custom_validators"],
                     default="strict_validation",
                     required=True,
                 ),
             ],
             next_steps={"default": "consumer_coordination"},
         ),
-        
         # Step 5: Consumer Coordination
         "consumer_coordination": WorkflowStep(
             id="consumer_coordination",
@@ -1134,7 +1108,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                         "email_notification",
                         "api_deprecation_headers",
                         "documentation_only",
-                        "multi_channel"
+                        "multi_channel",
                     ],
                     default="multi_channel",
                     required=True,
@@ -1143,12 +1117,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="consumer_testing",
                     type="choice",
                     description="Consumer testing approach",
-                    options=[
-                        "sandbox_environment",
-                        "canary_consumers",
-                        "parallel_testing",
-                        "consumer_managed"
-                    ],
+                    options=["sandbox_environment", "canary_consumers", "parallel_testing", "consumer_managed"],
                     default="sandbox_environment",
                     required=True,
                 ),
@@ -1163,7 +1132,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "rollback_planning"},
         ),
-        
         # Step 6: Rollback Planning
         "rollback_planning": WorkflowStep(
             id="rollback_planning",
@@ -1175,12 +1143,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="rollback_trigger",
                     type="choice",
                     description="When to trigger rollback?",
-                    options=[
-                        "error_rate_threshold",
-                        "consumer_reports",
-                        "manual_decision",
-                        "automated_monitoring"
-                    ],
+                    options=["error_rate_threshold", "consumer_reports", "manual_decision", "automated_monitoring"],
                     default="automated_monitoring",
                     required=True,
                 ),
@@ -1196,12 +1159,7 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     name="data_handling",
                     type="choice",
                     description="How to handle data during rollback?",
-                    options=[
-                        "preserve_all",
-                        "transform_backward",
-                        "quarantine_incompatible",
-                        "custom_handler"
-                    ],
+                    options=["preserve_all", "transform_backward", "quarantine_incompatible", "custom_handler"],
                     default="preserve_all",
                     required=True,
                 ),
@@ -1215,7 +1173,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "final_review"},
         ),
-        
         # Step 7: Final Review and Documentation
         "final_review": WorkflowStep(
             id="final_review",
@@ -1254,7 +1211,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
             ],
             next_steps={"default": "execute_evolution"},
         ),
-        
         # Step 8: Execute Evolution
         "execute_evolution": WorkflowStep(
             id="execute_evolution",
@@ -1279,15 +1235,10 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                     required=True,
                 ),
             ],
-            next_steps={
-                "final_confirmation": {
-                    "true": "finish",
-                    "false": "change_analysis"  # Start over
-                }
-            },
+            next_steps={"final_confirmation": {"true": "finish", "false": "change_analysis"}},  # Start over
         ),
     }
-    
+
     return MultiStepWorkflow(
         id="schema_evolution_assistant",
         name="Schema Evolution Assistant",
