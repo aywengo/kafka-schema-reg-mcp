@@ -275,38 +275,39 @@ class WorkflowMCPTools:
                     initial_context["current_schema"] = json.loads(current_schema)
                 except json.JSONDecodeError:
                     initial_context["current_schema"] = current_schema
-            
+
             workflow_id = "schema_evolution_assistant"
-            
+
             try:
                 request = await self.multi_step_manager.start_workflow(
-                    workflow_id=workflow_id,
-                    initial_context=initial_context
+                    workflow_id=workflow_id, initial_context=initial_context
                 )
-                
+
                 if request:
-                    return json.dumps({
-                        "status": "started",
-                        "workflow_id": workflow_id,
-                        "workflow_name": "Schema Evolution Assistant",
-                        "request_id": request.id,
-                        "first_step": request.title,
-                        "description": request.description,
-                        "message": (
-                            "Schema Evolution Assistant started. This workflow will guide you through:\n"
-                            "1. Analyzing schema changes\n"
-                            "2. Detecting breaking changes\n"
-                            "3. Selecting evolution strategy\n"
-                            "4. Planning consumer coordination\n"
-                            "5. Setting up rollback procedures"
-                        ),
-                    })
+                    return json.dumps(
+                        {
+                            "status": "started",
+                            "workflow_id": workflow_id,
+                            "workflow_name": "Schema Evolution Assistant",
+                            "request_id": request.id,
+                            "first_step": request.title,
+                            "description": request.description,
+                            "message": (
+                                "Schema Evolution Assistant started. This workflow will guide you through:\n"
+                                "1. Analyzing schema changes\n"
+                                "2. Detecting breaking changes\n"
+                                "3. Selecting evolution strategy\n"
+                                "4. Planning consumer coordination\n"
+                                "5. Setting up rollback procedures"
+                            ),
+                        }
+                    )
                 else:
                     return json.dumps({"error": "Failed to start Schema Evolution workflow"})
             except Exception as e:
                 logger.error(f"Error starting Schema Evolution workflow: {str(e)}")
                 return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
-                
+
         @self.mcp.tool(
             description="Start the Schema Migration Wizard workflow for guided schema migration",
             parameters={
@@ -318,7 +319,7 @@ class WorkflowMCPTools:
         async def guided_schema_migration() -> str:
             """Convenience method to start Schema Migration workflow."""
             return await start_workflow("schema_migration_wizard")
-            
+
         @self.mcp.tool(
             description="Start the Context Reorganization workflow for reorganizing schemas across contexts",
             parameters={
@@ -330,7 +331,7 @@ class WorkflowMCPTools:
         async def guided_context_reorganization() -> str:
             """Convenience method to start Context Reorganization workflow."""
             return await start_workflow("context_reorganization")
-            
+
         @self.mcp.tool(
             description="Start the Disaster Recovery Setup workflow for configuring DR strategies",
             parameters={
@@ -497,7 +498,7 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
         "subject": responses.get("subject"),
         "status": "pending",
     }
-    
+
     # Basic change information
     result["change_info"] = {
         "change_type": responses.get("change_type"),
@@ -506,11 +507,11 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
         "production_impact": responses.get("production_impact"),
         "has_breaking_changes": responses.get("has_breaking_changes") == "true",
     }
-    
+
     # Evolution strategy
     strategy = responses.get("evolution_strategy")
     result["evolution_strategy"] = strategy
-    
+
     # Strategy-specific configuration
     if strategy == "multi_version_migration":
         result["migration_config"] = {
@@ -535,7 +536,7 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
             "deployment_window": responses.get("deployment_window"),
             "validation_approach": responses.get("validation_approach"),
         }
-    
+
     # Compatibility resolution (if breaking changes)
     if result["change_info"]["has_breaking_changes"]:
         result["compatibility_resolution"] = {
@@ -543,14 +544,14 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
             "override_compatibility": responses.get("compatibility_override") == "true",
             "notes": responses.get("compatibility_notes"),
         }
-    
+
     # Consumer coordination
     result["consumer_coordination"] = {
         "notification_method": responses.get("notification_method"),
         "testing_approach": responses.get("consumer_testing"),
         "support_period": responses.get("support_period"),
     }
-    
+
     # Rollback planning
     result["rollback_plan"] = {
         "trigger": responses.get("rollback_trigger"),
@@ -558,7 +559,7 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
         "data_handling": responses.get("data_handling"),
         "test_rollback": responses.get("rollback_testing") == "true",
     }
-    
+
     # Final options
     result["documentation"] = {
         "generate_migration_guide": responses.get("generate_migration_guide") == "true",
@@ -566,64 +567,386 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
         "schedule_dry_run": responses.get("schedule_dry_run") == "true",
         "evolution_notes": responses.get("evolution_notes"),
     }
-    
+
     # Execution settings
     result["execution"] = {
         "confirmed": responses.get("final_confirmation") == "true",
         "enable_monitoring": responses.get("monitor_execution") == "true",
     }
-    
+
     return result
 
 
-def analyze_schema_changes(
-    current_schema: Dict[str, Any], 
-    proposed_schema: Dict[str, Any]
-) -> List[Dict[str, Any]]:
+def analyze_schema_changes(current_schema: Dict[str, Any], proposed_schema: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Analyze differences between current and proposed schemas.
-    
+
     Returns a list of changes with their types and descriptions.
     """
     changes = []
-    
+
+    # Handle case where current schema is empty (new schema)
+    if not current_schema or not current_schema.get("fields"):
+        if proposed_schema.get("fields"):
+            changes.append(
+                {
+                    "type": "new_schema",
+                    "description": f"Creating new schema with {len(proposed_schema.get('fields', []))} fields",
+                    "breaking": False,
+                }
+            )
+        return changes
+
     current_fields = {f["name"]: f for f in current_schema.get("fields", [])}
     proposed_fields = {f["name"]: f for f in proposed_schema.get("fields", [])}
-    
+
     # Check for added fields
     for field_name, field_def in proposed_fields.items():
         if field_name not in current_fields:
-            changes.append({
-                "type": "add_field",
-                "field": field_name,
-                "description": f"New field '{field_name}' of type {field_def.get('type')}",
-                "breaking": field_def.get("default") is None  # Required without default is breaking
-            })
-    
+            # Check if field has a default value or is nullable
+            has_default = "default" in field_def
+            is_nullable = _is_nullable_type(field_def.get("type"))
+
+            changes.append(
+                {
+                    "type": "add_field",
+                    "field": field_name,
+                    "field_type": field_def.get("type"),
+                    "description": f"New field '{field_name}' of type {field_def.get('type')}",
+                    "breaking": not (has_default or is_nullable),  # Breaking if required without default
+                    "has_default": has_default,
+                    "default_value": field_def.get("default") if has_default else None,
+                    "is_nullable": is_nullable,
+                }
+            )
+
     # Check for removed fields
     for field_name in current_fields:
         if field_name not in proposed_fields:
-            changes.append({
-                "type": "remove_field", 
-                "field": field_name,
-                "description": f"Field '{field_name}' removed",
-                "breaking": True  # Removing fields is always breaking for readers
-            })
-    
+            changes.append(
+                {
+                    "type": "remove_field",
+                    "field": field_name,
+                    "field_type": current_fields[field_name].get("type"),
+                    "description": f"Field '{field_name}' removed",
+                    "breaking": True,  # Removing fields is always breaking for readers
+                }
+            )
+
     # Check for modified fields
     for field_name in set(current_fields) & set(proposed_fields):
         current_field = current_fields[field_name]
         proposed_field = proposed_fields[field_name]
-        
-        if current_field.get("type") != proposed_field.get("type"):
-            changes.append({
-                "type": "modify_field",
-                "field": field_name,
-                "description": f"Field '{field_name}' type changed from {current_field.get('type')} to {proposed_field.get('type')}",
-                "breaking": True  # Type changes are typically breaking
-            })
-    
+
+        field_changes = _analyze_field_changes(field_name, current_field, proposed_field)
+        changes.extend(field_changes)
+
+    # Check for schema-level changes
+    schema_changes = _analyze_schema_level_changes(current_schema, proposed_schema)
+    changes.extend(schema_changes)
+
     return changes
+
+
+def _analyze_field_changes(
+    field_name: str, current_field: Dict[str, Any], proposed_field: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Analyze changes to a specific field."""
+    changes = []
+
+    current_type = current_field.get("type")
+    proposed_type = proposed_field.get("type")
+
+    # Type changes
+    if current_type != proposed_type:
+        type_change = _analyze_type_change(field_name, current_type, proposed_type)
+        changes.append(type_change)
+
+    # Default value changes
+    current_default = current_field.get("default")
+    proposed_default = proposed_field.get("default")
+    if current_default != proposed_default:
+        changes.append(
+            {
+                "type": "modify_field_default",
+                "field": field_name,
+                "description": f"Default value for '{field_name}' changed from {current_default} to {proposed_default}",
+                "breaking": False,  # Default value changes are usually backward compatible
+                "current_default": current_default,
+                "proposed_default": proposed_default,
+            }
+        )
+
+    # Alias changes
+    current_aliases = current_field.get("aliases", [])
+    proposed_aliases = proposed_field.get("aliases", [])
+    if current_aliases != proposed_aliases:
+        changes.append(
+            {
+                "type": "modify_field_aliases",
+                "field": field_name,
+                "description": f"Aliases for '{field_name}' changed",
+                "breaking": False,  # Alias changes are usually backward compatible
+                "added_aliases": list(set(proposed_aliases) - set(current_aliases)),
+                "removed_aliases": list(set(current_aliases) - set(proposed_aliases)),
+            }
+        )
+
+    # Documentation changes
+    current_doc = current_field.get("doc")
+    proposed_doc = proposed_field.get("doc")
+    if current_doc != proposed_doc:
+        changes.append(
+            {
+                "type": "modify_field_doc",
+                "field": field_name,
+                "description": f"Documentation for '{field_name}' changed",
+                "breaking": False,  # Doc changes are never breaking
+            }
+        )
+
+    return changes
+
+
+def _analyze_type_change(field_name: str, current_type: Any, proposed_type: Any) -> Dict[str, Any]:
+    """Analyze a type change and determine if it's a promotion or breaking change."""
+
+    # Check for type promotions (compatible changes)
+    type_promotions = {
+        ("int", "long"): "Type promotion from int to long",
+        ("float", "double"): "Type promotion from float to double",
+        ("string", "bytes"): "Type change from string to bytes (may be compatible)",
+    }
+
+    # Normalize types for comparison
+    current_normalized = _normalize_type(current_type)
+    proposed_normalized = _normalize_type(proposed_type)
+
+    # Check if it's a known promotion
+    promotion_key = (current_normalized, proposed_normalized)
+    if promotion_key in type_promotions:
+        return {
+            "type": "modify_field_type_promotion",
+            "field": field_name,
+            "description": f"{type_promotions[promotion_key]} for field '{field_name}'",
+            "breaking": False,  # These specific promotions are backward compatible
+            "current_type": current_type,
+            "proposed_type": proposed_type,
+            "is_promotion": True,
+        }
+
+    # Check for union type changes
+    if _is_union_type(current_type) or _is_union_type(proposed_type):
+        return _analyze_union_type_change(field_name, current_type, proposed_type)
+
+    # Check for complex type changes (records, arrays, maps)
+    if isinstance(current_type, dict) or isinstance(proposed_type, dict):
+        return _analyze_complex_type_change(field_name, current_type, proposed_type)
+
+    # Default: breaking type change
+    return {
+        "type": "modify_field_type",
+        "field": field_name,
+        "description": f"Field '{field_name}' type changed from {current_type} to {proposed_type}",
+        "breaking": True,
+        "current_type": current_type,
+        "proposed_type": proposed_type,
+    }
+
+
+def _analyze_union_type_change(field_name: str, current_type: Any, proposed_type: Any) -> Dict[str, Any]:
+    """Analyze changes to union types."""
+    current_union = _get_union_types(current_type)
+    proposed_union = _get_union_types(proposed_type)
+
+    added_types = proposed_union - current_union
+    removed_types = current_union - proposed_union
+
+    # Adding types to a union is backward compatible
+    # Removing types from a union is breaking
+    is_breaking = len(removed_types) > 0
+
+    description_parts = []
+    if added_types:
+        description_parts.append(f"added types: {added_types}")
+    if removed_types:
+        description_parts.append(f"removed types: {removed_types}")
+
+    return {
+        "type": "modify_field_union",
+        "field": field_name,
+        "description": f"Union type for '{field_name}' changed: {', '.join(description_parts)}",
+        "breaking": is_breaking,
+        "current_type": current_type,
+        "proposed_type": proposed_type,
+        "added_types": list(added_types),
+        "removed_types": list(removed_types),
+    }
+
+
+def _analyze_complex_type_change(field_name: str, current_type: Any, proposed_type: Any) -> Dict[str, Any]:
+    """Analyze changes to complex types (records, arrays, maps)."""
+    # Handle record types
+    if (
+        isinstance(current_type, dict)
+        and current_type.get("type") == "record"
+        and isinstance(proposed_type, dict)
+        and proposed_type.get("type") == "record"
+    ):
+
+        # Recursively analyze nested record changes
+        nested_changes = analyze_schema_changes(current_type, proposed_type)
+        has_breaking_changes = any(c.get("breaking", False) for c in nested_changes)
+
+        return {
+            "type": "modify_field_record",
+            "field": field_name,
+            "description": f"Nested record '{field_name}' changed with {len(nested_changes)} modifications",
+            "breaking": has_breaking_changes,
+            "current_type": current_type,
+            "proposed_type": proposed_type,
+            "nested_changes": nested_changes,
+        }
+
+    # Handle array types
+    if (
+        isinstance(current_type, dict)
+        and current_type.get("type") == "array"
+        and isinstance(proposed_type, dict)
+        and proposed_type.get("type") == "array"
+    ):
+
+        current_items = current_type.get("items")
+        proposed_items = proposed_type.get("items")
+
+        if current_items != proposed_items:
+            items_change = _analyze_type_change(f"{field_name}.items", current_items, proposed_items)
+            return {
+                "type": "modify_field_array",
+                "field": field_name,
+                "description": f"Array element type changed for '{field_name}'",
+                "breaking": items_change.get("breaking", True),
+                "current_type": current_type,
+                "proposed_type": proposed_type,
+                "items_change": items_change,
+            }
+
+    # Handle map types
+    if (
+        isinstance(current_type, dict)
+        and current_type.get("type") == "map"
+        and isinstance(proposed_type, dict)
+        and proposed_type.get("type") == "map"
+    ):
+
+        current_values = current_type.get("values")
+        proposed_values = proposed_type.get("values")
+
+        if current_values != proposed_values:
+            values_change = _analyze_type_change(f"{field_name}.values", current_values, proposed_values)
+            return {
+                "type": "modify_field_map",
+                "field": field_name,
+                "description": f"Map value type changed for '{field_name}'",
+                "breaking": values_change.get("breaking", True),
+                "current_type": current_type,
+                "proposed_type": proposed_type,
+                "values_change": values_change,
+            }
+
+    # Default complex type change
+    return {
+        "type": "modify_field_type",
+        "field": field_name,
+        "description": f"Complex type change for '{field_name}'",
+        "breaking": True,
+        "current_type": current_type,
+        "proposed_type": proposed_type,
+    }
+
+
+def _analyze_schema_level_changes(
+    current_schema: Dict[str, Any], proposed_schema: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Analyze schema-level changes (name, namespace, aliases, etc.)."""
+    changes = []
+
+    # Schema name change
+    if current_schema.get("name") != proposed_schema.get("name"):
+        changes.append(
+            {
+                "type": "modify_schema_name",
+                "description": (
+                    f"Schema name changed from '{current_schema.get('name')}' " f"to '{proposed_schema.get('name')}'"
+                ),
+                "breaking": True,  # Name changes are typically breaking
+                "current_name": current_schema.get("name"),
+                "proposed_name": proposed_schema.get("name"),
+            }
+        )
+
+    # Namespace change
+    if current_schema.get("namespace") != proposed_schema.get("namespace"):
+        changes.append(
+            {
+                "type": "modify_schema_namespace",
+                "description": (
+                    f"Schema namespace changed from '{current_schema.get('namespace')}' "
+                    f"to '{proposed_schema.get('namespace')}'"
+                ),
+                "breaking": True,  # Namespace changes affect fully qualified names
+                "current_namespace": current_schema.get("namespace"),
+                "proposed_namespace": proposed_schema.get("namespace"),
+            }
+        )
+
+    # Schema-level aliases
+    current_aliases = current_schema.get("aliases", [])
+    proposed_aliases = proposed_schema.get("aliases", [])
+    if current_aliases != proposed_aliases:
+        changes.append(
+            {
+                "type": "modify_schema_aliases",
+                "description": "Schema aliases changed",
+                "breaking": False,  # Alias changes are usually compatible
+                "added_aliases": list(set(proposed_aliases) - set(current_aliases)),
+                "removed_aliases": list(set(current_aliases) - set(proposed_aliases)),
+            }
+        )
+
+    return changes
+
+
+# Helper functions
+def _is_nullable_type(field_type: Any) -> bool:
+    """Check if a type is nullable (includes null in union)."""
+    if _is_union_type(field_type):
+        return "null" in field_type
+    return field_type == "null"
+
+
+def _is_union_type(field_type: Any) -> bool:
+    """Check if a type is a union type."""
+    return isinstance(field_type, list)
+
+
+def _get_union_types(field_type: Any) -> set:
+    """Get the set of types in a union."""
+    if _is_union_type(field_type):
+        return set(field_type)
+    return {field_type}
+
+
+def _normalize_type(field_type: Any) -> str:
+    """Normalize a type for comparison."""
+    if isinstance(field_type, str):
+        return field_type
+    elif isinstance(field_type, dict):
+        return field_type.get("type", "complex")
+    elif isinstance(field_type, list):
+        # For unions, return a normalized representation
+        return "union"
+    return str(field_type)
 
 
 # Integration with existing elicitation response handler

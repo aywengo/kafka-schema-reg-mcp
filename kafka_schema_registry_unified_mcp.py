@@ -166,6 +166,8 @@ try:
 except ImportError:
     pass  # requests not available
 
+from typing import Any, Optional
+
 from fastmcp import FastMCP
 
 # Load environment variables first
@@ -259,7 +261,7 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
             status_code=400,
             content={
                 "error": "Missing MCP-Protocol-Version header",
-                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-06-18 specification",
+                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-06-18 spec",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
                 "example": "MCP-Protocol-Version: 2025-06-18",
             },
@@ -387,9 +389,6 @@ from migration_tools import (  # noqa: E402
     migrate_context_tool,
     migrate_schema_tool,
 )
-
-# Import multi-step elicitation functionality
-from multi_step_elicitation import MultiStepElicitationManager
 
 # Import registry management tools
 from registry_management_tools import (  # noqa: E402
@@ -528,7 +527,7 @@ if REGISTRY_MODE == "single":
     standard_headers = SecureHeaderDict("application/json")
 
     if SCHEMA_REGISTRY_USER and SCHEMA_REGISTRY_PASSWORD:
-        from requests.auth import HTTPBasicAuth
+        from requests.auth import HTTPBasicAuth  # noqa: E402
 
         auth = HTTPBasicAuth(SCHEMA_REGISTRY_USER, SCHEMA_REGISTRY_PASSWORD)
 else:
@@ -566,14 +565,14 @@ try:
     workflow_tools = register_workflow_tools(mcp, elicitation_manager)
 
     # Use the same manager instance globally to ensure workflows are shared
-    multi_step_manager = workflow_tools.multi_step_manager
+    multi_step_manager: Any = workflow_tools.multi_step_manager
 
     logger.info("✅ Multi-step elicitation workflows registered with MCP server")
     logger.info(f"✅ {len(multi_step_manager.workflows)} workflows available")
 except Exception as e:
     logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
     logger.info("📝 Multi-step workflows not available")
-    multi_step_manager = None
+    multi_step_manager: Any = None
 
 # ===== MCP PROTOCOL SUPPORT =====
 
@@ -711,7 +710,7 @@ def register_schema(
 @require_scopes("write")
 async def register_schema_interactive(
     subject: str,
-    schema_definition: dict = None,
+    schema_definition: Optional[dict] = None,
     schema_type: str = "AVRO",
     context: str = None,
     registry: str = None,
@@ -1003,10 +1002,10 @@ def create_context(context: str, registry: str = None):
 async def create_context_interactive(
     context: str,
     registry: str = None,
-    description: str = None,
-    owner: str = None,
-    environment: str = None,
-    tags: list = None,
+    description: Optional[str] = None,
+    owner: Optional[str] = None,
+    environment: Optional[str] = None,
+    tags: Optional[list] = None,
 ):
     """
     Interactive context creation with elicitation for metadata.
@@ -1155,8 +1154,8 @@ async def export_global_interactive(
     include_metadata: bool = None,
     include_config: bool = None,
     include_versions: str = None,
-    format: str = None,
-    compression: str = None,
+    format: Optional[str] = None,
+    compression: Optional[str] = None,
 ):
     """
     Interactive global export with elicitation for export preferences.
@@ -1190,7 +1189,7 @@ def migrate_schema(
     preserve_ids: bool = True,
     source_context: str = ".",
     target_context: str = ".",
-    versions: list = None,
+    versions: Optional[list] = None,
     migrate_all_versions: bool = False,
 ):
     """Migrate a schema from one registry to another."""
@@ -1255,9 +1254,9 @@ async def migrate_context_interactive(
     target_registry: str,
     context: str = None,
     target_context: str = None,
-    preserve_ids: bool = None,
-    dry_run: bool = None,
-    migrate_all_versions: bool = None,
+    preserve_ids: Optional[bool] = None,
+    dry_run: Optional[bool] = None,
+    migrate_all_versions: Optional[bool] = None,
 ):
     """
     Interactive context migration with elicitation for missing preferences.
@@ -1597,7 +1596,7 @@ def list_available_workflows():
 
 @mcp.tool()
 @require_scopes("read")
-def get_workflow_status(workflow_id: str = None):
+def get_workflow_status(workflow_id: Optional[str] = None):
     """Get the status of active workflows."""
     try:
         if "multi_step_manager" not in globals() or not multi_step_manager:
@@ -2386,7 +2385,7 @@ def get_oauth_scopes_info_tool_wrapper():
 
 
 @structured_output("get_operation_info_tool", fallback_on_error=True)
-def get_operation_info_tool_wrapper(operation_name: str = None):
+def get_operation_info_tool_wrapper(operation_name: Optional[str] = None):
     """Get detailed information about MCP operations and their metadata with structured output validation."""
     try:
         from task_management import OPERATION_METADATA
@@ -2608,7 +2607,7 @@ def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
 
 @mcp.tool()
 @require_scopes("read")
-def get_operation_info_tool(operation_name: str = None):
+def get_operation_info_tool(operation_name: Optional[str] = None):
     """Get detailed information about MCP operations and their metadata."""
     return get_operation_info_tool_wrapper(operation_name)
 

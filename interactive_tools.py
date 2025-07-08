@@ -28,14 +28,16 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from elicitation import (
+    ElicitationManager,
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
-    create_migrate_schema_elicitation,
     create_migration_preferences_elicitation,
     create_schema_field_elicitation,
+    create_migrate_schema_elicitation,
     elicit_with_fallback,
-    elicitation_manager,
+    create_schema_evolution_elicitation,
+    elicitation_manager,  # Import the global instance
 )
 from schema_validation import create_error_response
 
@@ -61,6 +63,9 @@ async def register_schema_interactive(
 
     When schema_definition is incomplete or missing fields, this tool will
     elicit the required information from the user interactively.
+    
+    Additionally, if the schema already exists and breaking changes are detected,
+    this will trigger the Schema Evolution Assistant workflow.
     """
     try:
         # Check if schema definition is complete
@@ -121,6 +126,78 @@ async def register_schema_interactive(
                     },
                     error_code="INCOMPLETE_SCHEMA_DEFINITION",
                 )
+
+        # Check if schema already exists and if we should trigger evolution workflow
+        from core_registry_tools import get_schema_tool, check_compatibility_tool
+        
+        existing_schema_result = get_schema_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=registry_mode,
+            version="latest",
+            context=context,
+            registry=registry,
+        )
+        
+        # If schema exists, check compatibility
+        if "error" not in existing_schema_result:
+            logger.info(f"Existing schema found for '{subject}', checking compatibility")
+            
+            compatibility_result = check_compatibility_tool(
+                subject=subject,
+                schema_definition=schema_definition,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                schema_type=schema_type,
+                context=context,
+                registry=registry,
+            )
+            
+            is_compatible = compatibility_result.get("is_compatible", False)
+            
+            # If not compatible, trigger Schema Evolution Assistant
+            if not is_compatible:
+                logger.info(f"Breaking changes detected for '{subject}', triggering Schema Evolution Assistant")
+                
+                # Import schema evolution helpers
+                from schema_evolution_helpers import evolve_schema_with_workflow
+                from multi_step_elicitation import MultiStepElicitationManager
+                
+                # Get the multi-step manager (should be available in the context)
+                multi_step_manager = MultiStepElicitationManager(elicitation_manager)
+                
+                # Start the evolution workflow
+                evolution_result = await evolve_schema_with_workflow(
+                    subject=subject,
+                    proposed_schema=schema_definition,
+                    registry_manager=registry_manager,
+                    registry_mode=registry_mode,
+                    elicitation_manager=elicitation_manager,
+                    multi_step_manager=multi_step_manager,
+                    context=context,
+                    registry=registry,
+                )
+                
+                if evolution_result.get("workflow_started"):
+                    return {
+                        "status": "evolution_workflow_started",
+                        "message": f"Schema evolution workflow started for '{subject}' due to breaking changes",
+                        "workflow_request_id": evolution_result["request_id"],
+                        "changes_detected": evolution_result["changes_detected"],
+                        "has_breaking_changes": evolution_result["has_breaking_changes"],
+                        "compatibility_messages": evolution_result["compatibility_messages"],
+                        "note": "Complete the evolution workflow to safely update your schema",
+                    }
+                else:
+                    # Workflow failed to start, provide compatibility error details
+                    return {
+                        "status": "compatibility_error",
+                        "message": f"Schema registration blocked due to breaking changes",
+                        "is_compatible": False,
+                        "compatibility_errors": compatibility_result.get("messages", []),
+                        "suggestion": "Use the Schema Evolution Assistant workflow or modify your schema to maintain compatibility",
+                        "workflow_error": evolution_result.get("error", "Unknown error"),
+                    }
 
         # Now proceed with the actual schema registration
         result = register_schema_tool(

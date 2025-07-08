@@ -787,6 +787,211 @@ v2.1: "Further iterations"
 **Advanced example**: Try setting up a complete CI/CD pipeline!"""
 
 
+def get_schema_evolution_prompt():
+    """Guide for safe schema evolution with the Schema Evolution Assistant"""
+    return """# Schema Evolution Assistant 🔄
+
+## Quick Start Commands
+
+### 🚀 Start the Assistant
+```
+"Start schema evolution assistant"
+"Guide me through evolving user schema"
+"Help me safely change my order schema"
+```
+
+### With Pre-filled Information
+```
+"Evolve user-events schema - I need to add email field"
+"Change order schema from string ID to long ID safely"
+"Help migrate payment schema to new structure"
+```
+
+## 🎯 When to Use the Assistant
+
+### ✅ Always Use For:
+- **Breaking Changes**: Removing fields, changing types, renaming
+- **Production Schemas**: Any change to live, critical schemas
+- **Complex Changes**: Multiple modifications at once
+- **Team Coordination**: Changes affecting multiple consumers
+
+### Examples:
+```
+"I need to remove deprecated_field from user schema"
+"Change user_id from string to long in production"
+"Add required email field to existing user schema"
+"Restructure nested address object in customer schema"
+```
+
+## 🛠️ What the Assistant Does
+
+### 1. **Change Analysis** 🔍
+- Detects all field additions, removals, type changes
+- Identifies breaking vs. safe changes
+- Analyzes impact on existing consumers
+- Provides detailed compatibility assessment
+
+### 2. **Strategy Planning** 📋
+- **Direct Update**: For safe, backward-compatible changes
+- **Multi-Version Migration**: Gradual transition with intermediate versions
+- **Dual Support**: Support both old and new schemas simultaneously
+- **Blue-Green Deployment**: Zero-downtime migrations
+
+### 3. **Consumer Coordination** 🤝
+- Plans consumer update sequences
+- Suggests testing approaches
+- Coordinates deployment windows
+- Provides rollback procedures
+
+### 4. **Safe Execution** ⚡
+- Step-by-step implementation guidance
+- Real-time compatibility validation
+- Automated rollback triggers
+- Post-deployment monitoring
+
+## 📋 Common Evolution Scenarios
+
+### Adding Fields Safely
+```
+"Add optional phone field to user schema"
+→ Assistant guides: field type, default value, compatibility check
+
+"Add required email field to existing schema"
+→ Assistant plans: migration strategy, consumer updates, rollback plan
+```
+
+### Removing Fields
+```
+"Remove deprecated legacy_id field"
+→ Assistant checks: consumer usage, deprecation timeline, safe removal
+
+"Clean up unused fields from order schema"
+→ Assistant validates: no active readers, safe to remove
+```
+
+### Type Changes
+```
+"Change user_id from string to long"
+→ Assistant plans: dual-field approach, consumer migration, cleanup
+
+"Convert price from float to decimal"
+→ Assistant suggests: precision handling, data migration strategy
+```
+
+### Complex Restructuring
+```
+"Split address field into street, city, zip"
+→ Assistant designs: multi-phase migration, intermediate schemas
+
+"Merge user and profile schemas"
+→ Assistant coordinates: cross-schema migration, consumer updates
+```
+
+## 🔄 Evolution Strategies Explained
+
+### 🎯 Direct Update
+**Best for**: Non-breaking changes, coordinated deployments
+**Process**: Update schema directly
+**Example**: Adding optional fields with defaults
+
+### 🔄 Multi-Version Migration  
+**Best for**: Breaking changes with many consumers
+**Process**: Create intermediate schema versions for gradual migration
+**Timeline**: Usually 2-4 weeks depending on consumer count
+
+### 🔀 Dual Support
+**Best for**: Supporting old and new formats simultaneously
+**Process**: Implement logic to handle both schemas
+**Use case**: Long-term backward compatibility needs
+
+### 📈 Blue-Green Deployment
+**Best for**: Critical systems requiring zero downtime
+**Process**: Parallel environments with atomic switchover
+**Complexity**: High, but maximum safety
+
+## 💡 Best Practices Built-In
+
+### 🛡️ Safety First
+- Always analyze before implementing
+- Validate compatibility at each step
+- Maintain rollback capabilities
+- Monitor post-deployment health
+
+### 📊 Data-Driven Decisions
+- Use compatibility matrices for planning
+- Analyze consumer usage patterns
+- Consider performance implications
+- Plan for future evolution needs
+
+### 🤝 Team Coordination
+- Involve all stakeholders in planning
+- Document evolution decisions
+- Coordinate deployment windows
+- Establish clear rollback procedures
+
+## 🚨 Troubleshooting
+
+### Assistant Won't Start
+```
+"Check if workflows are available"
+"Test multi-step elicitation system"
+"Show workflow status"
+```
+
+### Evolution Fails
+```
+"Show current evolution task status"
+"Check compatibility errors"
+"Review rollback options"
+```
+
+### Consumer Issues
+```
+"Check consumer compatibility after evolution"
+"Monitor schema evolution progress"
+"Get evolution task details"
+```
+
+## 🎓 Learning Path
+
+### Beginner: Start Simple
+```
+1. "Add optional field to test schema"
+2. "Practice with development context"
+3. "Learn compatibility rules"
+```
+
+### Intermediate: Coordinate Changes
+```
+1. "Plan breaking change with assistant"
+2. "Coordinate consumer updates"
+3. "Execute with monitoring"
+```
+
+### Advanced: Complex Migrations
+```
+1. "Multi-schema restructuring"
+2. "Cross-registry migrations"
+3. "Zero-downtime deployments"
+```
+
+## 🚀 Getting Started
+
+### First Time Users
+```
+"Start schema evolution assistant for user schema"
+```
+
+### Experienced Users
+```
+"Evolve order schema - removing legacy fields, adding payment_method enum"
+```
+
+**Pro Tip**: The assistant learns from your preferences and gets better at suggesting strategies over time!
+
+**Ready to evolve safely?** Try: `"Start schema evolution assistant"`"""
+
+
 # Prompt registry mapping prompt names to their functions
 PROMPT_REGISTRY = {
     "schema-getting-started": get_schema_getting_started_prompt,
@@ -797,6 +1002,7 @@ PROMPT_REGISTRY = {
     "schema-compatibility": get_schema_compatibility_prompt,
     "troubleshooting": get_troubleshooting_prompt,
     "advanced-workflows": get_advanced_workflows_prompt,
+    "schema-evolution": get_schema_evolution_prompt,
 }
 
 
@@ -825,6 +1031,7 @@ def get_prompt_summary():
                 "schema-export",
                 "multi-registry",
                 "schema-compatibility",
+                "schema-evolution",
             ],
             "support": ["troubleshooting", "advanced-workflows"],
         },
@@ -849,6 +1056,7 @@ def get_quick_reference():
 ```
 "Register user schema with id, name, email"
 "Check if adding field X is safe"
+"Start schema evolution assistant"
 "Export schema Y as JSON"
 ```
 

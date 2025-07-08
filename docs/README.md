@@ -209,6 +209,14 @@ Human: "Export all development schemas, check their compatibility with productio
 Human: "Generate a compliance report by exporting all schemas from the GDPR context with full metadata"
 ```
 
+### **Schema Evolution (NEW!)**
+```
+Human: "Show me the schema evolution guide"
+Human: "Help me safely evolve my user schema"
+Human: "Start schema evolution assistant for order-events"
+Human: "I need to remove a field from production schema safely"
+```
+
 ### **Configuration Management**
 ```
 Human: "Set the production context to FULL compatibility mode for maximum safety"
@@ -226,6 +234,11 @@ Human: "Show me the configuration differences between our development and produc
 - **Multi-Registry**: [claude_desktop_multi_registry_docker.json](../config-examples/claude_desktop_multi_registry_docker.json)
 - **IDE Configurations**: [VS Code](../config-examples/vscode-mcp-settings.json), [Cursor](../config-examples/cursor-mcp-config.json), [JetBrains](../config-examples/jetbrains-mcp-config.xml)
 - **Complete Configuration Guide**: [config-examples/README.md](../config-examples/README.md)
+
+### **User Guides**
+- **MCP Prompts Guide**: [prompts-guide.md](prompts-guide.md) - All available prompts including Schema Evolution Assistant
+- **Workflows Documentation**: [workflows/README.md](workflows/README.md) - Advanced multi-step workflows
+- **Elicitation Guide**: [elicitation-guide.md](elicitation-guide.md) - Interactive tools and user input
 
 ### **Development & Testing**
 - **Main Server**: [kafka_schema_registry_unified_mcp.py](../kafka_schema_registry_unified_mcp.py)

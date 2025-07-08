@@ -362,6 +362,7 @@ run_essential_integration_tests() {
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
+        "test_elicitation.py:Elicitation framework core functionality"
         "test_multi_step_elicitation.py:Multi-step elicitation workflows (Issue #73 - essential functionality)"
     )
     
@@ -373,19 +374,12 @@ run_integration_tests() {
     print_color $CYAN "🔗 Integration Tests"
     
     local tests=(
-        "test_integration.py:Comprehensive schema operations"
-        "test_viewonly_mode.py:VIEWONLY mode enforcement"
-        "test_counting_tools.py:Schema counting and statistics"
-        "test_statistics_tasks.py:Statistics tasks with async optimization"
         "test_viewonly_mcp_client.py:VIEWONLY mode with MCP client"
         "test_viewonly_validation.py:VIEWONLY mode validation"
         "test_docker_mcp.py:Docker integration"
-        "test_ssl_tls_integration.py:SSL/TLS security enhancement integration (issue #24)"
-        "test_oauth.py:OAuth 2.1 generic discovery and authentication"
-        "test_github_oauth.py:GitHub OAuth 2.1 integration with fallback handling"
-        "test_oauth_discovery.py:OAuth 2.1 discovery endpoints and RFC 8414 compliance"
-        "test_user_roles.py:OAuth user role assignment and scope extraction"
         "advanced_mcp_test.py:Advanced MCP functionality"
+        "test_elicitation_integration.py:Elicitation integration with MCP tools"
+        "test_elicitation_edge_cases.py:Elicitation edge case handling"
     )
     
     run_test_list "${tests[@]}"
@@ -484,6 +478,7 @@ run_advanced_feature_tests() {
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
         "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
+        "test_schema_evolution_assistant.py:Schema Evolution Assistant with breaking change detection and migration strategies"
     )
     
     run_test_list "${tests[@]}"
