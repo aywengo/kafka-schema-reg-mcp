@@ -845,7 +845,6 @@ def create_schema_evolution_workflow() -> MultiStepWorkflow:
                         "add_fields",
                         "remove_fields",
                         "modify_fields",
-                        "rename_fields",
                         "restructure_schema",
                         "multiple_changes",
                     ],

@@ -711,7 +711,6 @@ def create_schema_evolution_elicitation(
     if "modify_field" in change_types:
         strategy_options.extend(
             [
-                "rename_field",
                 "change_type_safely",
             ]
         )
@@ -797,7 +796,7 @@ def create_schema_evolution_elicitation(
             label="Documentation Notes",
             description="Additional notes about this evolution (migration guide, breaking changes, etc.)",
             required=False,
-            placeholder="e.g., Field X is being renamed to Y for clarity...",
+            placeholder="e.g., Field X type is being changed from int to string...",
         ),
     ]
 

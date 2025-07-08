@@ -44,7 +44,6 @@ The assistant begins by analyzing your schema changes:
   - `add_fields` - Adding new fields
   - `remove_fields` - Removing existing fields
   - `modify_fields` - Changing field types or properties
-  - `rename_fields` - Renaming fields
   - `restructure_schema` - Major structural changes
   - `multiple_changes` - Combination of above
 - **Change Description**: Detailed description of your changes
