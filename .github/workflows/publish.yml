@@ -135,13 +135,26 @@ jobs:
           echo "**Note**: This published image follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
 
       - name: Update Docker Hub description
+        id: dockerhub-description
         uses: peter-evans/dockerhub-description@v4
+        continue-on-error: true  # Don't fail the workflow if Docker Hub update fails
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "MCP Server for Kafka Schema Registry - 48 tools, OAuth integration (Azure/Google/Keycloak/Okta), Kubernetes ready"
+          short-description: "MCP Server for Kafka Schema Registry - 48 tools, OAuth, multi-registry, Kubernetes ready"
           readme-filepath: ./dockerhub-readme.md
+          
+      - name: Docker Hub description update status
+        if: always()
+        run: |
+          if [ "${{ steps.dockerhub-description.outcome }}" == "success" ]; then
+            echo "✅ Docker Hub description updated successfully"
+          else
+            echo "⚠️ Docker Hub description update failed - this is non-critical"
+            echo "The Docker image was published successfully but the description update failed"
+            echo "This can happen due to Docker Hub API rate limits or temporary issues"
+          fi
 
   create-release:
     runs-on: ubuntu-latest
