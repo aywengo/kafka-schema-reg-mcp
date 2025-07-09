@@ -23,7 +23,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 
 > **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over stdio.
 
-**Latest Version:** [v2.0.4](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.0.5](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -94,7 +94,7 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
 # Specific version
-docker pull aywengo/kafka-schema-reg-mcp:2.0.4
+docker pull aywengo/kafka-schema-reg-mcp:2.0.5
 ```
 
 ### Option B: Local Python
