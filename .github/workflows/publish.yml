@@ -54,10 +54,11 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
 
-      - name: Build and push multi-platform
+      - name: Build and push multi-platform (Full version)
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -70,34 +71,102 @@ jobs:
             BUILD_DATE=${{ steps.meta.outputs.created }}
             VCS_REF=${{ github.sha }}
 
-      - name: Verify multi-platform build 
+      - name: Extract slim metadata
+        id: meta-slim
+        uses: docker/metadata-action@v5
+        with:
+          images: aywengo/kafka-schema-reg-mcp
+          flavor: |
+            suffix=-slim
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=tag
+            type=raw,value=slim,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }}-slim,enable=${{ github.event_name == 'workflow_dispatch' }}
+          labels: |
+            org.opencontainers.image.title=Kafka Schema Registry MCP Server (Slim)
+            org.opencontainers.image.description=Slim MCP server for Kafka Schema Registry with essential read-only tools only (~15 tools vs 53+)
+            org.opencontainers.image.vendor=aywengo
+            org.opencontainers.image.version={{version}}
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
+            org.opencontainers.image.revision={{sha}}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#slim-version
+
+      - name: Build and push multi-platform (Slim version)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.slim
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-slim.outputs.tags }}
+          labels: ${{ steps.meta-slim.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false  # Disable provenance for multi-platform compatibility
+          build-args: |
+            VERSION=${{ steps.meta-slim.outputs.version }}
+            BUILD_DATE=${{ steps.meta-slim.outputs.created }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Verify multi-platform builds
         run: |
-          echo "Verifying multi-platform manifest..."
-          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} > manifest.txt
-          cat manifest.txt
+          echo "Verifying full version multi-platform manifest..."
+          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} > manifest-full.txt
+          cat manifest-full.txt
           
-          echo "Checking available platforms..."
+          echo "Verifying slim version multi-platform manifest..."
+          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta-slim.outputs.version }} > manifest-slim.txt
+          cat manifest-slim.txt
+          
+          echo "Checking available platforms for full version..."
           # Verify both platforms are present in the buildx inspect output
-          if grep -q "linux/amd64" manifest.txt && grep -q "linux/arm64" manifest.txt; then
-            echo "✅ Multi-platform build verified: AMD64 and ARM64 both available"
+          if grep -q "linux/amd64" manifest-full.txt && grep -q "linux/arm64" manifest-full.txt; then
+            echo "✅ Full version multi-platform build verified: AMD64 and ARM64 both available"
             echo "Available platforms:"
-            grep -E "Platform:\s+linux/(amd64|arm64)" manifest.txt
+            grep -E "Platform:\s+linux/(amd64|arm64)" manifest-full.txt
           else
-            echo "❌ Multi-platform build failed: Missing platforms"
+            echo "❌ Full version multi-platform build failed: Missing platforms"
             echo "Found platforms:"
-            grep -E "Platform:\s+" manifest.txt || echo "No platforms found"
+            grep -E "Platform:\s+" manifest-full.txt || echo "No platforms found"
+            exit 1
+          fi
+          
+          echo "Checking available platforms for slim version..."
+          if grep -q "linux/amd64" manifest-slim.txt && grep -q "linux/arm64" manifest-slim.txt; then
+            echo "✅ Slim version multi-platform build verified: AMD64 and ARM64 both available"
+            echo "Available platforms:"
+            grep -E "Platform:\s+linux/(amd64|arm64)" manifest-slim.txt
+          else
+            echo "❌ Slim version multi-platform build failed: Missing platforms"
+            echo "Found platforms:"
+            grep -E "Platform:\s+" manifest-slim.txt || echo "No platforms found"
             exit 1
           fi
 
       - name: Wait for Docker Hub to sync image
         run: sleep 120
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (Full version)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-full.sarif'
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m0s'
+        continue-on-error: true  # Don't fail the workflow if Trivy scan fails
+
+      - name: Run Trivy vulnerability scanner (Slim version)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta-slim.outputs.version }}'
+          format: 'sarif'
+          output: 'trivy-results-slim.sarif'
           severity: 'CRITICAL,HIGH'
           timeout: '10m0s'
         continue-on-error: true  # Don't fail the workflow if Trivy scan fails
@@ -107,32 +176,63 @@ jobs:
         if: always()
         continue-on-error: true  # Don't fail the workflow if SARIF upload fails
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-results-full.sarif'
+          category: 'trivy-full'
 
-      - name: Generate Trivy table report for published image
+      - name: Upload Trivy slim scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true  # Don't fail the workflow if SARIF upload fails
+        with:
+          sarif_file: 'trivy-results-slim.sarif'
+          category: 'trivy-slim'
+
+      - name: Generate Trivy table report for published images
         if: always()
         run: |
-          echo "## Published Image Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "## Published Images Security Scan" >> $GITHUB_STEP_SUMMARY
           echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
-          echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Generate table format scan for summary
+          echo "### Full Version" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 **Tools**: 53+ tools (full feature set)" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate table format scan for full version
           docker run --rm aquasec/trivy:latest image \
             --format table \
             --severity CRITICAL,HIGH \
             --timeout 10m \
-            aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} | tee trivy-table.txt || true
+            aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} | tee trivy-table-full.txt || true
             
-          if [ -f "trivy-results.sarif" ]; then
+          if [ -f "trivy-results-full.sarif" ]; then
             echo "- ✅ Security scan completed and uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note**: This published image follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
+          echo "### Slim Version" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta-slim.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏪 **Tools**: ~15 tools (essential read-only tools only)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 **Benefits**: Reduced LLM overhead, faster response times" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate table format scan for slim version
+          docker run --rm aquasec/trivy:latest image \
+            --format table \
+            --severity CRITICAL,HIGH \
+            --timeout 10m \
+            aywengo/kafka-schema-reg-mcp:${{ steps.meta-slim.outputs.version }} | tee trivy-table-slim.txt || true
+            
+          if [ -f "trivy-results-slim.sarif" ]; then
+            echo "- ✅ Security scan completed and uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Both images follow the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
 
       - name: Update Docker Hub description
         id: dockerhub-description

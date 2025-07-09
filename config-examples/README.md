@@ -9,6 +9,7 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
+- **`claude_desktop_slim_mode_config.json`** - SLIM_MODE enabled for reduced LLM overhead (~15 tools)
 
 ### Version-Specific Configurations
 
@@ -39,6 +40,47 @@ This directory contains example Claude Desktop configuration files for different
 - **`jetbrains-mcp-config.xml`** - JetBrains IDEs MCP plugin configuration
 - **`docker-compose.mcp.yml`** - Complete MCP development environment
 - **`setup-ide-mcp.sh`** - Automated setup script for all IDE integrations
+
+## 🏪 SLIM_MODE Configuration
+
+**SLIM_MODE** reduces the number of exposed tools from 53+ to ~15 essential tools, significantly improving LLM performance.
+
+### When to Use SLIM_MODE
+- 🚀 When experiencing slow LLM responses due to too many tools
+- 📦 For production environments focused on read-only operations
+- 💰 To reduce token usage and costs
+- 🎯 When you only need basic schema management capabilities
+
+### How to Enable SLIM_MODE
+
+#### Option 1: Use the Pre-configured File
+```bash
+# Use the ready-made SLIM_MODE configuration
+cp config-examples/claude_desktop_slim_mode_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+#### Option 2: Add to Existing Configuration
+Add `SLIM_MODE` to your existing configuration:
+```json
+"env": {
+  "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+  "SLIM_MODE": "true"  // Add this line
+}
+```
+
+### Tools Available in SLIM_MODE
+- **Essential Read-Only**: `get_schema`, `list_subjects`, `list_contexts`, `check_compatibility`
+- **Basic Write**: `register_schema`, `create_context`
+- **Statistics**: `count_contexts`, `count_schemas`
+- **Configuration**: `get_global_config`, `get_mode`
+
+### Tools Hidden in SLIM_MODE
+- ❌ Migration tools (`migrate_schema`, `migrate_context`)
+- ❌ Batch operations (`clear_context_batch`)
+- ❌ Export/import tools
+- ❌ Interactive/elicitation tools
+- ❌ Workflow and task management
+- ❌ Delete operations
 
 ## 🚀 Quick Start
 

@@ -48,7 +48,12 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 ```bash
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
+
+# Run with full feature set (53+ tools)
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+
+# OR run with SLIM_MODE for better performance (~15 tools)
+docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
 ```
 
 ### 2. Configure Claude Desktop
@@ -80,6 +85,7 @@ Restart Claude Desktop and try these prompts:
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
 - **🧪 Full MCP Compliance** - 48+ tools following MCP 2025-06-18 specification
+- **🚀 SLIM_MODE** - Reduce tool overhead from 53+ to ~15 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -96,6 +102,20 @@ docker pull aywengo/kafka-schema-reg-mcp:latest
 # Specific version
 docker pull aywengo/kafka-schema-reg-mcp:2.0.5
 ```
+
+#### Running with SLIM_MODE
+To reduce LLM overhead, run with SLIM_MODE enabled:
+```bash
+# Run with ~15 essential tools instead of 53+
+docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
+```
+
+> **💡 SLIM_MODE Benefits:**
+> - Reduces tool count from 53+ to ~15 essential tools
+> - Significantly faster LLM response times
+> - Lower token usage and reduced costs
+> - Ideal for production read-only operations
+> - Maintains full remote deployment support
 
 ### Option B: Local Python
 ```bash
@@ -120,6 +140,7 @@ export SCHEMA_REGISTRY_URL="http://localhost:8081"
 export SCHEMA_REGISTRY_USER=""           # Optional
 export SCHEMA_REGISTRY_PASSWORD=""       # Optional
 export VIEWONLY="false"                  # Production safety
+export SLIM_MODE="false"                 # Optional: Enable to reduce tool overhead (default: false)
 ```
 
 ### Multi-Registry Mode (Up to 8 Registries)
@@ -146,6 +167,46 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 | **View-Only Safety** | Production with safety | [`claude_desktop_viewonly_config.json`](config-examples/claude_desktop_viewonly_config.json) |
 
 > **📖 Complete configuration guide**: [config-examples/README.md](config-examples/README.md)
+
+### SLIM_MODE Configuration (Performance Optimization)
+
+**SLIM_MODE** reduces the number of exposed MCP tools from 53+ to ~15 essential tools, significantly reducing LLM overhead and improving response times.
+
+#### When to Use SLIM_MODE
+- When experiencing slow LLM responses due to too many tools
+- For production environments focused on read-only operations
+- When you only need basic schema management capabilities
+- To reduce token usage and improve performance
+
+#### Enable SLIM_MODE
+```bash
+export SLIM_MODE="true"  # Reduces tools from 53+ to ~15
+```
+
+#### Tools Available in SLIM_MODE
+**Essential Read-Only Tools:**
+- `ping` - Server health check
+- `list_registries`, `get_registry_info`, `test_registry_connection`
+- `get_schema`, `get_schema_versions`, `list_subjects`, `list_contexts`
+- `check_compatibility` - Schema compatibility checking
+- `count_contexts`, `count_schemas`, `count_schema_versions`
+- Configuration reading: `get_global_config`, `get_mode`, `get_subject_config`
+
+**Basic Write Operations:**
+- `register_schema` - Register new schemas
+- `create_context` - Create new contexts
+
+**Tools Hidden in SLIM_MODE:**
+- All migration tools (`migrate_schema`, `migrate_context`)
+- All batch operations (`clear_context_batch`)
+- All export/import tools
+- All interactive/elicitation tools (`*_interactive` variants)
+- Heavy statistics tools with async operations
+- Task management and workflow tools
+- Configuration update tools
+- Delete operations
+
+> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 53+ tools.
 
 ## 💬 Usage Examples
 
