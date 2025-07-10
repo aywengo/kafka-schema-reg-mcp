@@ -5,6 +5,19 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2025-07-11
+
+### Added
+- **🔄 SLIM_MODE**: Complete MCP compliance for registry-specific resources
+  - lightweight mode for reduced LLM overhead
+  - reduced tool count from 53+ to ~15 essential tools
+  - faster LLM response times
+  - lower token usage and reduced costs
+  - ideal for production read-only operations
+  - maintaned full remote deployment support
+  - SLIM_MODE is enabled by default in slim images
+
+
 ## [2.0.5] - 2025-07-09
 
 ### Added
