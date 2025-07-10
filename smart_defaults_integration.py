@@ -131,7 +131,7 @@ class SmartDefaultsElicitationEnhancer:
                 )
 
             # Update placeholder with suggestion if no default
-            if not enhanced.default and enhanced.placeholder:
+            if enhanced.default is None and enhanced.placeholder:
                 enhanced.placeholder = f"{enhanced.placeholder} (suggestion: {smart_default.value})"
 
             return enhanced
