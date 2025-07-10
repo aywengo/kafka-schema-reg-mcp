@@ -8,14 +8,14 @@ It should be imported and called from the main server file.
 import logging
 from typing import Optional
 
-from schema_registry_common import SchemaRegistryManager
+from schema_registry_common import BaseRegistryManager
 from smart_defaults_config import get_config
 from smart_defaults_integration import enable_smart_defaults_globally
 
 logger = logging.getLogger(__name__)
 
 
-def initialize_smart_defaults(registry_manager: Optional[SchemaRegistryManager] = None) -> bool:
+def initialize_smart_defaults(registry_manager: Optional[BaseRegistryManager] = None) -> bool:
     """
     Initialize the smart defaults system for the MCP server.
 

@@ -365,8 +365,10 @@ async def create_enhanced_export_elicitation(
             existing_data["preferred_compression"] = most_common_compression
 
     # Enhance with smart defaults
+    # Normalize operation name to avoid double "export" prefix
+    operation_name = operation_type if operation_type.startswith("export_") else f"export_{operation_type}"
     enhanced_request = await enhancer.enhance_elicitation_request(
-        request=request, operation=f"export_{operation_type}", context=context, existing_data=existing_data
+        request=request, operation=operation_name, context=context, existing_data=existing_data
     )
 
     return enhanced_request
@@ -453,7 +455,9 @@ def enable_smart_defaults_globally(registry_manager: Optional[BaseRegistryManage
     async def enhanced_export(*args, **kwargs):
         base_request = original_functions["create_export_preferences_elicitation"](*args, **kwargs)
         operation_type = args[0] if args else kwargs.get("operation_type", "")
-        return await enhancer.enhance_elicitation_request(base_request, f"export_{operation_type}", None)
+        # Normalize operation name to avoid double "export" prefix
+        operation_name = operation_type if operation_type.startswith("export_") else f"export_{operation_type}"
+        return await enhancer.enhance_elicitation_request(base_request, operation_name, None)
 
     # Apply patches
     elicitation.create_schema_field_elicitation = enhanced_schema_field

@@ -406,6 +406,15 @@ class SmartDefaultsEngine:
                     reasoning="Recommended for safe schema evolution",
                 )
             },
+            "create_schema_field": {
+                "compatibility": SmartDefault(
+                    field="compatibility",
+                    value="BACKWARD",
+                    confidence=0.7,
+                    source="template",
+                    reasoning="Recommended for safe schema evolution",
+                )
+            },
             "create_context": {
                 "description": SmartDefault(
                     field="description",
@@ -429,6 +438,29 @@ class SmartDefaultsEngine:
                     confidence=0.9,
                     source="template",
                     reasoning="Safety first - preview changes",
+                ),
+            },
+            "export_global": {
+                "include_config": SmartDefault(
+                    field="include_config",
+                    value=True,
+                    confidence=0.8,
+                    source="template",
+                    reasoning="Include configuration for complete export",
+                ),
+                "include_metadata": SmartDefault(
+                    field="include_metadata",
+                    value=True,
+                    confidence=0.8,
+                    source="template",
+                    reasoning="Include metadata for complete export",
+                ),
+                "include_versions": SmartDefault(
+                    field="include_versions",
+                    value="all",
+                    confidence=0.7,
+                    source="template",
+                    reasoning="Include all versions for complete backup",
                 ),
             },
         }
