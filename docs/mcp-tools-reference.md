@@ -1,10 +1,10 @@
 # MCP Tools Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance** **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance** **MCP Tools**, including all 70+ tools and their usage with Claude Desktop.
 
 ## 🏃 SLIM_MODE: Performance Optimization
 
-**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **53+ to ~15 essential tools**, significantly improving LLM response times and reducing token usage.
+**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **70+ to ~20 essential tools**, significantly improving LLM response times and reducing token usage.
 
 ### **Enabling SLIM_MODE**
 ```bash
@@ -27,7 +27,7 @@ export SLIM_MODE=true
 - 🎯 **Focused Functionality**: Essential read-only operations for production
 - 🔍 **Better Tool Discovery**: LLMs can more easily find the right tool
 
-### **Tools Available in SLIM_MODE** (~15 tools)
+### **Tools Available in SLIM_MODE** (~20 tools)
 ✅ **Core Connectivity**
 - `ping` - Server health check
 
@@ -37,7 +37,7 @@ export SLIM_MODE=true
 - `test_registry_connection` - Test specific registry connection
 - `test_all_registries` - Test all registry connections
 - `get_default_registry` - Get current default registry
-- `set_default_registry` - Set default registry
+- `set_default_registry` - Set default registry (single-registry mode only)
 
 ✅ **Schema Operations**
 - `get_schema` - Retrieve schema versions
@@ -61,7 +61,7 @@ export SLIM_MODE=true
 - `count_schemas` - Count schemas
 - `count_schema_versions` - Count schema versions
 
-### **Tools EXCLUDED in SLIM_MODE** (~38 tools)
+### **Tools EXCLUDED in SLIM_MODE** (~50 tools)
 ❌ **Heavy Operations**
 - All migration tools (`migrate_schema`, `migrate_context`, etc.)
 - All batch operations (`clear_context_batch`, etc.)
@@ -101,18 +101,18 @@ export SLIM_MODE=true
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients, now with advanced async operations and multi-registry support.
+The Kafka Schema Registry MCP Server provides **70+ comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients, now with advanced async operations and multi-registry support.
 
 ### **Key Features:**
 - ✅ **Natural Language Interface**: Interact using plain English commands
 - ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **48 MCP Tools**: Complete schema operations without API knowledge (or ~15 in SLIM_MODE)
+- ✅ **70+ MCP Tools**: Complete schema operations without API knowledge (or ~20 in SLIM_MODE)
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
 - ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
-- ✅ **SLIM_MODE**: Reduce tools to ~15 for better LLM performance
+- ✅ **SLIM_MODE**: Reduce tools to ~20 for better LLM performance
 
 ### **Tool Categories:**
 - **Schema Management** (4 tools): register, retrieve, versions, compatibility - *3 available in SLIM_MODE*
@@ -125,6 +125,9 @@ The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** tha
 - **Batch Cleanup Tools** (2 tools): efficient context cleanup - *NOT in SLIM_MODE*
 - **Migration Tools** (5 tools): schema and context migration - *NOT in SLIM_MODE*
 - **Task Management Tools** (10 tools): progress tracking and monitoring - *NOT in SLIM_MODE*
+- **Interactive/Elicitation Tools** (15+ tools): guided workflows and user interaction - *NOT in SLIM_MODE*
+- **Workflow Tools** (9 tools): multi-step guided operations - *NOT in SLIM_MODE*
+- **Utility Tools** (8+ tools): compliance, OAuth, statistics - *2 available in SLIM_MODE*
 
 ---
 
@@ -1063,11 +1066,16 @@ None
 
 ---
 
-### 26. set_default_registry ✅ *(Available in SLIM_MODE)*
+### 26. set_default_registry ✅ *(Available in SLIM_MODE - Single-Registry Mode Only)*
 
 Set the default registry for operations.
 
 **Purpose**: Change the active registry for subsequent operations.
+
+**Availability**: 
+- ✅ Available in SLIM_MODE when using single-registry configuration
+- ❌ Not available in SLIM_MODE when using multi-registry configuration
+- ✅ Always available in full mode
 
 **Parameters:**
 - `registry_name` (string): Registry name to set as default

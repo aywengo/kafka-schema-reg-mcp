@@ -967,7 +967,7 @@ async def oauth_protected_resource_metadata(request):
                 "version": "2.0.0",
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "transport": "streamable-http",  # Only supported transport
-                "tools_count": 48,
+                "tools_count": 70,
                 "supported_registries": ["confluent", "apicurio", "hortonworks"],
                 "compliance": {
                     "specification": "MCP 2025-06-18",

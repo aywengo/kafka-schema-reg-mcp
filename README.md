@@ -170,7 +170,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 ### SLIM_MODE Configuration (Performance Optimization)
 
-**SLIM_MODE** reduces the number of exposed MCP tools from 53+ to ~15 essential tools, significantly reducing LLM overhead and improving response times.
+**SLIM_MODE** reduces the number of exposed MCP tools from 70+ to ~20 essential tools, significantly reducing LLM overhead and improving response times.
 
 #### When to Use SLIM_MODE
 - When experiencing slow LLM responses due to too many tools
@@ -180,7 +180,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 #### Enable SLIM_MODE
 ```bash
-export SLIM_MODE="true"  # Reduces tools from 53+ to ~15
+export SLIM_MODE="true"  # Reduces tools from 70+ to ~20
 ```
 
 #### Tools Available in SLIM_MODE
@@ -206,7 +206,7 @@ export SLIM_MODE="true"  # Reduces tools from 53+ to ~15
 - Configuration update tools
 - Delete operations
 
-> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 53+ tools.
+> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 70+ tools.
 
 ## 💬 Usage Examples
 

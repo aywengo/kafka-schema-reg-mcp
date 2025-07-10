@@ -43,7 +43,7 @@ This directory contains example Claude Desktop configuration files for different
 
 ## 🏪 SLIM_MODE Configuration
 
-**SLIM_MODE** reduces the number of exposed tools from 53+ to ~15 essential tools, significantly improving LLM performance.
+**SLIM_MODE** reduces the number of exposed tools from 70+ to ~20 essential tools, significantly improving LLM performance.
 
 ### When to Use SLIM_MODE
 - 🚀 When experiencing slow LLM responses due to too many tools

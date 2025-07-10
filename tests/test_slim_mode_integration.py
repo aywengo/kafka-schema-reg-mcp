@@ -32,7 +32,7 @@ ESSENTIAL_TOOLS_SLIM_MODE = {
     "test_registry_connection",
     "test_all_registries",
     "get_default_registry",
-    # Note: set_default_registry is not included in current SLIM_MODE implementation
+    # Note: set_default_registry is only included in SLIM_MODE for single-registry configurations
     # Basic schema operations
     "get_schema",
     "get_schema_versions",
@@ -90,7 +90,7 @@ EXCLUDED_TOOLS_SLIM_MODE = {
     "update_subject_config",
     "update_mode",
     "update_subject_mode",
-    "set_default_registry",  # Not included in current SLIM_MODE implementation
+    "set_default_registry",  # Only included in SLIM_MODE for single-registry configurations
     # Heavy statistics with async
     "get_registry_statistics",
     # Task management
@@ -185,11 +185,11 @@ class TestSLIMModeIntegration:
             full_tools
         ), f"SLIM mode should have fewer tools. Full: {len(full_tools)}, Slim: {len(slim_tools)}"
 
-        # Verify significant reduction (should be ~15 vs 53+)
-        assert len(slim_tools) <= 25, f"SLIM mode should have ~15 tools, but has {len(slim_tools)}"
+        # Verify significant reduction (should be ~20 vs 70+)
+        assert len(slim_tools) <= 30, f"SLIM mode should have ~20 tools, but has {len(slim_tools)}"
 
         # Verify full mode has expected tool count
-        assert len(full_tools) >= 45, f"Full mode should have 45+ tools, but has {len(full_tools)}"
+        assert len(full_tools) >= 60, f"Full mode should have 60+ tools, but has {len(full_tools)}"
 
         print(f"✅ Tool count reduction verified: {len(full_tools)} → {len(slim_tools)}")
 
@@ -236,8 +236,8 @@ class TestSLIMModeIntegration:
 
         # Verify the difference
         assert len(slim_tools) < len(full_tools)
-        assert len(slim_tools) <= 25
-        assert len(full_tools) >= 45
+        assert len(slim_tools) <= 30
+        assert len(full_tools) >= 60
 
         print("✅ SLIM_MODE environment variable correctly controls tool exposure")
 

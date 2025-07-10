@@ -7,7 +7,7 @@ and supports both single and multi-registry modes based on environment variables
 
 🚀 NEW: SLIM_MODE - Reduce exposed tools for lower LLM overhead
     When SLIM_MODE=true, only essential read-only tools are exposed.
-    This reduces the number of tools from 53+ to ~15 essential ones.
+    This reduces the number of tools from 70+ to ~20 essential ones.
 
 🎯 NEW: ELICITATION CAPABILITY - Interactive workflow support per MCP 2025-06-18 specification.
     Tools can now interactively request missing information from users for guided workflows.
@@ -34,7 +34,7 @@ This modular version splits functionality across specialized modules:
 Features:
 - Automatic mode detection
 - SLIM_MODE for reduced tool exposure
-- 53+ MCP Tools (all original tools + elicitation-enabled variants) - reduced to ~15 in SLIM_MODE
+- 70+ MCP Tools (all original tools + elicitation-enabled variants) - reduced to ~20 in SLIM_MODE
 - Interactive Schema Registration with guided field definition
 - Interactive Migration with preference elicitation
 - Interactive Compatibility Resolution
@@ -2109,7 +2109,7 @@ def _internal_get_mcp_compliance_status():
             },
             "structured_output": {
                 "implementation_status": "100% Complete",
-                "total_tools": "53+" if not SLIM_MODE else "~15 (SLIM_MODE)",
+                "total_tools": "70+" if not SLIM_MODE else "~20 (SLIM_MODE)",
                 "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
@@ -2272,7 +2272,7 @@ def _internal_get_mcp_compliance_status():
                         else "N/A in SLIM_MODE"
                     ),
                     "MCP ping/pong protocol implemented for server health checking",
-                    f"SLIM_MODE: {'ENABLED - Reduced tool exposure (~15 tools)' if SLIM_MODE else 'DISABLED - Full feature set (53+ tools)'}",
+                    f"SLIM_MODE: {'ENABLED - Reduced tool exposure (~20 tools)' if SLIM_MODE else 'DISABLED - Full feature set (70+ tools)'}",
                 ],
             },
             "registry_mode": REGISTRY_MODE,
@@ -2717,10 +2717,10 @@ if __name__ == "__main__":
 
     # Calculate tool count based on SLIM_MODE
     if SLIM_MODE:
-        tool_count = "~15 (SLIM_MODE)"
+        tool_count = "~20 (SLIM_MODE)"
         features_status = "Essential tools only"
     else:
-        tool_count = "53+"
+        tool_count = "70+"
         features_status = "Full feature set"
 
     print(
