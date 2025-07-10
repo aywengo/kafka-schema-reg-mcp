@@ -668,10 +668,13 @@ if not SLIM_MODE:
     @require_scopes("read")
     async def find_missing_schemas(source_registry: str, target_registry: str, context: str = None):
         """Find schemas that exist in source registry but not in target registry."""
-        return await find_missing_schemas_tool(source_registry, target_registry, registry_manager, REGISTRY_MODE, context)
+        return await find_missing_schemas_tool(
+            source_registry, target_registry, registry_manager, REGISTRY_MODE, context
+        )
 
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
+
 
 # Basic register schema is kept even in SLIM_MODE for essential operations
 @mcp.tool()
@@ -1375,7 +1378,9 @@ if not SLIM_MODE:
     def get_registry_statistics(registry: str = None, include_context_details: bool = True):
         """Get comprehensive statistics about a registry."""
         # Always use task queue version for better performance due to complexity
-        return get_registry_statistics_task_queue_tool(registry_manager, REGISTRY_MODE, registry, include_context_details)
+        return get_registry_statistics_task_queue_tool(
+            registry_manager, REGISTRY_MODE, registry, include_context_details
+        )
 
 
 # ===== ELICITATION MANAGEMENT TOOLS (Hidden in SLIM_MODE) =====
@@ -1777,7 +1782,9 @@ if not SLIM_MODE:
 
         except Exception as e:
             logger.error(f"Error starting guided disaster recovery: {e}")
-            return create_error_response(str(e), error_code="DISASTER_RECOVERY_WIZARD_ERROR", registry_mode=REGISTRY_MODE)
+            return create_error_response(
+                str(e), error_code="DISASTER_RECOVERY_WIZARD_ERROR", registry_mode=REGISTRY_MODE
+            )
 
 
 # ===== TASK MANAGEMENT TOOLS (Hidden in SLIM_MODE) =====
@@ -2074,7 +2081,9 @@ def _internal_get_mcp_compliance_status():
                 "registry_mode": REGISTRY_MODE,
                 "slim_mode": SLIM_MODE,
                 "structured_output_implementation": "100% Complete - All tools",
-                "elicitation_capability": "Enabled - MCP 2025-06-18 Interactive Workflows" if not SLIM_MODE else "Disabled in SLIM_MODE",
+                "elicitation_capability": (
+                    "Enabled - MCP 2025-06-18 Interactive Workflows" if not SLIM_MODE else "Disabled in SLIM_MODE"
+                ),
                 "ping_support": "Enabled - MCP ping/pong protocol",
             },
             "header_validation": {
@@ -2086,7 +2095,11 @@ def _internal_get_mcp_compliance_status():
             },
             "batching_configuration": {
                 "jsonrpc_batching": "DISABLED - Per MCP 2025-06-18 specification",
-                "application_level_batching": "ENABLED - clear_context_batch, clear_multiple_contexts_batch" if not SLIM_MODE else "DISABLED in SLIM_MODE",
+                "application_level_batching": (
+                    "ENABLED - clear_context_batch, clear_multiple_contexts_batch"
+                    if not SLIM_MODE
+                    else "DISABLED in SLIM_MODE"
+                ),
                 "performance_strategy": "Individual requests with parallel processing",
                 "fastmcp_config": {
                     "allow_batch_requests": False,
@@ -2110,38 +2123,56 @@ def _internal_get_mcp_compliance_status():
                 ],
             },
             "elicitation_capability": {
-                "implementation_status": "Complete - MCP 2025-06-18 Specification" if not SLIM_MODE else "Disabled in SLIM_MODE",
-                "interactive_tools": [
-                    "register_schema_interactive",
-                    "migrate_context_interactive",
-                    "check_compatibility_interactive",
-                    "create_context_interactive",
-                    "export_global_interactive",
-                ] if not SLIM_MODE else [],
-                "elicitation_types": [
-                    "text",
-                    "choice",
-                    "confirmation",
-                    "form",
-                    "multi_field",
-                ] if not SLIM_MODE else [],
-                "features": [
-                    "Interactive schema field definition",
-                    "Migration preference collection",
-                    "Compatibility resolution guidance",
-                    "Context metadata elicitation",
-                    "Export format preference selection",
-                    "Multi-round conversation support",
-                    "Timeout handling and validation",
-                    "Graceful fallback for non-supporting clients",
-                ] if not SLIM_MODE else ["Disabled in SLIM_MODE"],
-                "management_tools": [
-                    "list_elicitation_requests",
-                    "get_elicitation_request",
-                    "cancel_elicitation_request",
-                    "get_elicitation_status",
-                    "submit_elicitation_response",
-                ] if not SLIM_MODE else [],
+                "implementation_status": (
+                    "Complete - MCP 2025-06-18 Specification" if not SLIM_MODE else "Disabled in SLIM_MODE"
+                ),
+                "interactive_tools": (
+                    [
+                        "register_schema_interactive",
+                        "migrate_context_interactive",
+                        "check_compatibility_interactive",
+                        "create_context_interactive",
+                        "export_global_interactive",
+                    ]
+                    if not SLIM_MODE
+                    else []
+                ),
+                "elicitation_types": (
+                    [
+                        "text",
+                        "choice",
+                        "confirmation",
+                        "form",
+                        "multi_field",
+                    ]
+                    if not SLIM_MODE
+                    else []
+                ),
+                "features": (
+                    [
+                        "Interactive schema field definition",
+                        "Migration preference collection",
+                        "Compatibility resolution guidance",
+                        "Context metadata elicitation",
+                        "Export format preference selection",
+                        "Multi-round conversation support",
+                        "Timeout handling and validation",
+                        "Graceful fallback for non-supporting clients",
+                    ]
+                    if not SLIM_MODE
+                    else ["Disabled in SLIM_MODE"]
+                ),
+                "management_tools": (
+                    [
+                        "list_elicitation_requests",
+                        "get_elicitation_request",
+                        "cancel_elicitation_request",
+                        "get_elicitation_status",
+                        "submit_elicitation_response",
+                    ]
+                    if not SLIM_MODE
+                    else []
+                ),
             },
             "ping_support": {
                 "implementation_status": "Complete - MCP ping/pong protocol",
@@ -2162,24 +2193,42 @@ def _internal_get_mcp_compliance_status():
                 "migration_required": "Clients using JSON-RPC batching must be updated",
                 "header_requirement": "All MCP requests must include MCP-Protocol-Version header",
                 "alternative_solutions": [
-                    "Use application-level batch operations (clear_context_batch, etc.)" if not SLIM_MODE else "Use SLIM_MODE=true to reduce tool overhead",
+                    (
+                        "Use application-level batch operations (clear_context_batch, etc.)"
+                        if not SLIM_MODE
+                        else "Use SLIM_MODE=true to reduce tool overhead"
+                    ),
                     "Implement client-side request queuing",
                     "Use parallel individual requests for performance",
                     "Ensure all MCP clients send MCP-Protocol-Version header",
-                    "Use interactive tools for guided workflows" if not SLIM_MODE else "Enable full mode for interactive tools",
+                    (
+                        "Use interactive tools for guided workflows"
+                        if not SLIM_MODE
+                        else "Enable full mode for interactive tools"
+                    ),
                     "Use ping tool for server health checking",
                 ],
                 "performance_impact": "Minimal - parallel processing maintains efficiency",
             },
             "supported_operations": {
                 "individual_requests": "All MCP tools support individual requests",
-                "application_batch_operations": [
-                    "clear_context_batch",
-                    "clear_multiple_contexts_batch",
-                ] if not SLIM_MODE else [],
-                "async_task_queue": "Long-running operations use task queue pattern" if not SLIM_MODE else "Limited in SLIM_MODE",
+                "application_batch_operations": (
+                    [
+                        "clear_context_batch",
+                        "clear_multiple_contexts_batch",
+                    ]
+                    if not SLIM_MODE
+                    else []
+                ),
+                "async_task_queue": (
+                    "Long-running operations use task queue pattern" if not SLIM_MODE else "Limited in SLIM_MODE"
+                ),
                 "structured_output": "All tools have validated structured responses",
-                "interactive_workflows": "Elicitation-enabled tools for guided user experiences" if not SLIM_MODE else "Disabled in SLIM_MODE",
+                "interactive_workflows": (
+                    "Elicitation-enabled tools for guided user experiences"
+                    if not SLIM_MODE
+                    else "Disabled in SLIM_MODE"
+                ),
                 "ping_support": "Standard MCP ping/pong protocol for health checking",
             },
             "compliance_verification": {
@@ -2192,16 +2241,36 @@ def _internal_get_mcp_compliance_status():
                         f"{'enabled' if header_validation_active else 'disabled (compatibility mode)'}"
                     ),
                     "JSON-RPC batching explicitly disabled in FastMCP configuration",
-                    "Application-level batching uses individual requests" if not SLIM_MODE else "Batch operations disabled in SLIM_MODE",
+                    (
+                        "Application-level batching uses individual requests"
+                        if not SLIM_MODE
+                        else "Batch operations disabled in SLIM_MODE"
+                    ),
                     "All operations maintain backward compatibility except JSON-RPC batching",
-                    "Performance optimized through parallel processing and task queuing" if not SLIM_MODE else "Simplified operations in SLIM_MODE",
+                    (
+                        "Performance optimized through parallel processing and task queuing"
+                        if not SLIM_MODE
+                        else "Simplified operations in SLIM_MODE"
+                    ),
                     f"Exempt paths: {EXEMPT_PATHS}",
                     "Structured tool output implemented for all tools (100% complete)",
                     "Type-safe responses with JSON Schema validation",
                     "Graceful fallback on validation failures",
-                    "Elicitation capability implemented per MCP 2025-06-18 specification" if not SLIM_MODE else "Elicitation disabled in SLIM_MODE",
-                    "Interactive workflow support with fallback mechanisms" if not SLIM_MODE else "Workflows disabled in SLIM_MODE",
-                    "Real MCP protocol integration for elicitation with fallback to mock" if not SLIM_MODE else "N/A in SLIM_MODE",
+                    (
+                        "Elicitation capability implemented per MCP 2025-06-18 specification"
+                        if not SLIM_MODE
+                        else "Elicitation disabled in SLIM_MODE"
+                    ),
+                    (
+                        "Interactive workflow support with fallback mechanisms"
+                        if not SLIM_MODE
+                        else "Workflows disabled in SLIM_MODE"
+                    ),
+                    (
+                        "Real MCP protocol integration for elicitation with fallback to mock"
+                        if not SLIM_MODE
+                        else "N/A in SLIM_MODE"
+                    ),
                     "MCP ping/pong protocol implemented for server health checking",
                     f"SLIM_MODE: {'ENABLED - Reduced tool exposure (~15 tools)' if SLIM_MODE else 'DISABLED - Full feature set (53+ tools)'}",
                 ],
@@ -2507,7 +2576,9 @@ if not SLIM_MODE:
 
                         # Check MCP-specific fields
                         if "mcp_server_info" not in response_data:
-                            endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP server info"
+                            endpoint_result["warnings"] = (
+                                endpoint_result.get("warnings", "") + " Missing MCP server info"
+                            )
 
                     elif endpoint_name == "jwks" and response.status_code == 200:
                         if "keys" not in response_data:
