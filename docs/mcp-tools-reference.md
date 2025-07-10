@@ -2,6 +2,86 @@
 
 This document provides a complete reference for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance** **MCP Tools**, including all 48 tools and their usage with Claude Desktop.
 
+## 🏃 SLIM_MODE: Performance Optimization
+
+**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **53+ to ~15 essential tools**, significantly improving LLM response times and reducing token usage.
+
+### **Enabling SLIM_MODE**
+```bash
+# Docker
+docker run -e SLIM_MODE=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+
+# Environment Variable
+export SLIM_MODE=true
+
+# Claude Desktop Configuration
+"env": {
+  "SLIM_MODE": "true",
+  "SCHEMA_REGISTRY_URL": "http://localhost:8081"
+}
+```
+
+### **Benefits of SLIM_MODE**
+- 🚀 **Faster LLM Response**: ~70% reduction in tool processing overhead
+- 💰 **Lower Token Usage**: Fewer tools to parse means reduced costs
+- 🎯 **Focused Functionality**: Essential read-only operations for production
+- 🔍 **Better Tool Discovery**: LLMs can more easily find the right tool
+
+### **Tools Available in SLIM_MODE** (~15 tools)
+✅ **Core Connectivity**
+- `ping` - Server health check
+
+✅ **Registry Management** (Read-only)
+- `list_registries` - List all configured registries
+- `get_registry_info` - Get detailed registry information
+- `test_registry_connection` - Test specific registry connection
+- `test_all_registries` - Test all registry connections
+- `get_default_registry` - Get current default registry
+- `set_default_registry` - Set default registry
+
+✅ **Schema Operations**
+- `get_schema` - Retrieve schema versions
+- `get_schema_versions` - List all versions of a schema
+- `list_subjects` - List all subjects
+- `list_contexts` - List all contexts
+- `register_schema` - Register new schemas
+- `check_compatibility` - Check schema compatibility
+
+✅ **Configuration Reading**
+- `get_global_config` - Get global configuration
+- `get_mode` - Get operational mode
+- `get_subject_config` - Get subject configuration  
+- `get_subject_mode` - Get subject mode
+
+✅ **Context Management**
+- `create_context` - Create new contexts
+
+✅ **Statistics** (Lightweight)
+- `count_contexts` - Count contexts
+- `count_schemas` - Count schemas
+- `count_schema_versions` - Count schema versions
+
+### **Tools EXCLUDED in SLIM_MODE** (~38 tools)
+❌ **Heavy Operations**
+- All migration tools (`migrate_schema`, `migrate_context`, etc.)
+- All batch operations (`clear_context_batch`, etc.)
+- All export/import tools
+- All interactive/elicitation tools (`*_interactive` variants)
+- Delete operations (`delete_subject`, `delete_context`)
+- Configuration updates (`update_*` tools)
+- Task management tools
+- Comparison tools
+- Heavy statistics with async operations
+
+### **When to Use SLIM_MODE**
+- ✅ Production environments with read-heavy workloads
+- ✅ When experiencing slow LLM responses
+- ✅ Cost-sensitive deployments
+- ✅ Simple schema viewing and compatibility checking
+- ❌ Not suitable for: migrations, bulk operations, or administrative tasks
+
+---
+
 ## 🔍 Registry Metadata Integration
 
 **All test and statistics methods now automatically include comprehensive Schema Registry metadata** using the `/v1/metadata/*` endpoints. This provides enhanced traceability and debugging capabilities without requiring separate calls.
@@ -13,11 +93,11 @@ This document provides a complete reference for the Kafka Schema Registry MCP Se
 - **Schema Registry Cluster ID**: Registry cluster identifier
 
 **Enhanced Methods:**
-- `get_registry_info` - **Primary method for complete registry information with metadata**
-- `test_registry_connection` - Connection testing with metadata
-- `test_all_registries` - Multi-registry testing with metadata
-- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context
-- `get_registry_statistics` - Comprehensive stats with metadata
+- `get_registry_info` - **Primary method for complete registry information with metadata** *(Available in SLIM_MODE)*
+- `test_registry_connection` - Connection testing with metadata *(Available in SLIM_MODE)*
+- `test_all_registries` - Multi-registry testing with metadata *(Available in SLIM_MODE)*
+- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context *(Available in SLIM_MODE)*
+- `get_registry_statistics` - Comprehensive stats with metadata *(NOT in SLIM_MODE - heavy operation)*
 
 ## 🤖 MCP Integration Overview
 
@@ -26,30 +106,31 @@ The Kafka Schema Registry MCP Server provides **48 comprehensive MCP tools** tha
 ### **Key Features:**
 - ✅ **Natural Language Interface**: Interact using plain English commands
 - ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **48 MCP Tools**: Complete schema operations without API knowledge
+- ✅ **48 MCP Tools**: Complete schema operations without API knowledge (or ~15 in SLIM_MODE)
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
 - ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
+- ✅ **SLIM_MODE**: Reduce tools to ~15 for better LLM performance
 
 ### **Tool Categories:**
-- **Schema Management** (4 tools): register, retrieve, versions, compatibility
-- **Context Management** (3 tools): list, create, delete contexts
-- **Subject Management** (2 tools): list, delete subjects
-- **Configuration Management** (5 tools): global and subject-specific settings
-- **Mode Management** (5 tools): operational mode control
-- **Export Tools** (4 tools): comprehensive schema export capabilities
-- **Multi-Registry Tools** (8 tools): cross-registry operations
-- **Batch Cleanup Tools** (2 tools): efficient context cleanup
-- **Migration Tools** (5 tools): schema and context migration
-- **Task Management Tools** (10 tools): progress tracking and monitoring
+- **Schema Management** (4 tools): register, retrieve, versions, compatibility - *3 available in SLIM_MODE*
+- **Context Management** (3 tools): list, create, delete contexts - *2 available in SLIM_MODE*
+- **Subject Management** (2 tools): list, delete subjects - *1 available in SLIM_MODE*
+- **Configuration Management** (5 tools): global and subject-specific settings - *2 read-only in SLIM_MODE*
+- **Mode Management** (5 tools): operational mode control - *2 read-only in SLIM_MODE*
+- **Export Tools** (4 tools): comprehensive schema export capabilities - *NOT in SLIM_MODE*
+- **Multi-Registry Tools** (8 tools): cross-registry operations - *6 available in SLIM_MODE*
+- **Batch Cleanup Tools** (2 tools): efficient context cleanup - *NOT in SLIM_MODE*
+- **Migration Tools** (5 tools): schema and context migration - *NOT in SLIM_MODE*
+- **Task Management Tools** (10 tools): progress tracking and monitoring - *NOT in SLIM_MODE*
 
 ---
 
 ## 🔧 Schema Management Tools
 
-### 1. register_schema
+### 1. register_schema ✅ *(Available in SLIM_MODE)*
 
 Register a new schema version under a specified subject.
 
@@ -84,7 +165,7 @@ Claude: I'll create a comprehensive order schema for production.
 
 ---
 
-### 2. get_schema
+### 2. get_schema ✅ *(Available in SLIM_MODE)*
 
 Retrieve a specific version of a schema.
 
@@ -121,7 +202,7 @@ Claude: I'll get version 2 of the order schema for comparison.
 
 ---
 
-### 3. get_schema_versions
+### 3. get_schema_versions ✅ *(Available in SLIM_MODE)*
 
 Get all versions of a schema subject.
 
@@ -157,7 +238,7 @@ Claude: I'll get the version history for payment schemas in production.
 
 ---
 
-### 4. check_compatibility
+### 4. check_compatibility ✅ *(Available in SLIM_MODE)*
 
 Check if a schema is compatible with existing versions.
 
@@ -198,7 +279,7 @@ Claude: I'll check that type change for compatibility.
 
 ## 🗂️ Context Management Tools
 
-### 5. list_contexts
+### 5. list_contexts ✅ *(Available in SLIM_MODE)*
 
 List all available schema contexts.
 
@@ -222,7 +303,7 @@ Claude: I'll show you all available schema contexts.
 
 ---
 
-### 6. create_context
+### 6. create_context ✅ *(Available in SLIM_MODE)*
 
 Create a new schema context.
 
@@ -258,7 +339,7 @@ Claude: I'll create isolated contexts for each of your clients.
 
 ---
 
-### 7. delete_context
+### 7. delete_context ❌ *(NOT in SLIM_MODE)*
 
 Delete a schema context.
 
@@ -266,6 +347,8 @@ Delete a schema context.
 
 **Parameters:**
 - `context` (string): Context name to delete
+
+**Note**: This tool is excluded from SLIM_MODE as it's a destructive operation. Use full mode for context deletion.
 
 **Claude Desktop Usage:**
 ```
@@ -283,7 +366,7 @@ Claude: I'll clean up the feature context for you.
 
 ## 📄 Subject Management Tools
 
-### 8. list_subjects
+### 8. list_subjects ✅ *(Available in SLIM_MODE)*
 
 List all subjects, optionally filtered by context.
 
@@ -324,7 +407,7 @@ Claude: I'll list all schemas from every context.
 
 ---
 
-### 9. delete_subject
+### 9. delete_subject ❌ *(NOT in SLIM_MODE)*
 
 Delete a subject and all its versions.
 
@@ -333,6 +416,8 @@ Delete a subject and all its versions.
 **Parameters:**
 - `subject` (string): Subject name to delete
 - `context` (string, optional): Schema context
+
+**Note**: This destructive operation is excluded from SLIM_MODE for safety.
 
 **Claude Desktop Usage:**
 ```
@@ -351,7 +436,7 @@ Claude: I'll delete the test user schema for you.
 
 ## ⚙️ Configuration Management Tools
 
-### 10. get_global_config
+### 10. get_global_config ✅ *(Available in SLIM_MODE)*
 
 Get global configuration settings.
 
@@ -375,7 +460,7 @@ Claude: I'll check the global compatibility settings.
 
 ---
 
-### 11. update_global_config
+### 11. update_global_config ❌ *(NOT in SLIM_MODE)*
 
 Update global configuration settings.
 
@@ -384,6 +469,8 @@ Update global configuration settings.
 **Parameters:**
 - `compatibility` (string): Compatibility level (BACKWARD, FORWARD, FULL, NONE)
 - `context` (string, optional): Schema context
+
+**Note**: Configuration updates are excluded from SLIM_MODE. Use full mode for configuration changes.
 
 **Claude Desktop Usage:**
 ```
@@ -400,7 +487,7 @@ Claude: I'll set production to the strictest compatibility mode.
 
 ---
 
-### 12. get_subject_config
+### 12. get_subject_config ✅ *(Available in SLIM_MODE)*
 
 Get configuration for a specific subject.
 
@@ -425,7 +512,7 @@ Claude: I'll check the payment-events compatibility configuration.
 
 ---
 
-### 13. update_subject_config
+### 13. update_subject_config ❌ *(NOT in SLIM_MODE)*
 
 Update configuration for a specific subject.
 
@@ -435,6 +522,8 @@ Update configuration for a specific subject.
 - `subject` (string): The subject name
 - `compatibility` (string): Compatibility level
 - `context` (string, optional): Schema context
+
+**Note**: Configuration updates are excluded from SLIM_MODE.
 
 **Claude Desktop Usage:**
 ```
@@ -453,7 +542,7 @@ Claude: I'll apply strict compatibility rules to payment schemas.
 
 ## 🎛️ Mode Management Tools
 
-### 14. get_mode
+### 14. get_mode ✅ *(Available in SLIM_MODE)*
 
 Get the current operational mode.
 
@@ -476,7 +565,7 @@ Claude: I'll check the current operational mode.
 
 ---
 
-### 15. update_mode
+### 15. update_mode ❌ *(NOT in SLIM_MODE)*
 
 Update the operational mode.
 
@@ -485,6 +574,8 @@ Update the operational mode.
 **Parameters:**
 - `mode` (string): Mode to set (READWRITE, READONLY, IMPORT)
 - `context` (string, optional): Schema context
+
+**Note**: Mode updates are excluded from SLIM_MODE.
 
 **Claude Desktop Usage:**
 ```
@@ -501,7 +592,7 @@ Claude: I'll switch the registry to read-only mode for maintenance.
 
 ---
 
-### 16. get_subject_mode
+### 16. get_subject_mode ✅ *(Available in SLIM_MODE)*
 
 Get the mode for a specific subject.
 
@@ -525,7 +616,7 @@ Claude: I'll check the operational mode for user-events.
 
 ---
 
-### 17. update_subject_mode
+### 17. update_subject_mode ❌ *(NOT in SLIM_MODE)*
 
 Update the mode for a specific subject.
 
@@ -535,6 +626,8 @@ Update the mode for a specific subject.
 - `subject` (string): The subject name
 - `mode` (string): Mode to set
 - `context` (string, optional): Schema context
+
+**Note**: Mode updates are excluded from SLIM_MODE.
 
 **Claude Desktop Usage:**
 ```
@@ -550,137 +643,47 @@ Claude: I'll set legacy-events to read-only mode.
 
 ---
 
-## 📤 Export Tools
+## 📤 Export Tools ❌ *(ALL NOT in SLIM_MODE)*
 
-### 18. export_schema
+The following export tools are excluded from SLIM_MODE to reduce complexity:
+
+### 18. export_schema ❌
 
 Export a single schema in specified format.
 
-**Purpose**: Generate documentation, backup specific schemas, create readable formats.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `version` (string, optional): Schema version (default: "latest")
-- `context` (string, optional): Schema context
-- `format` (string, optional): Export format ("json" or "avro_idl")
-
-**Claude Desktop Usage:**
-```
-Human: "Export the user-events schema as Avro IDL for our documentation"
-
-Claude: I'll export the user-events schema in human-readable Avro IDL format.
-
-[Uses export_schema MCP tool]
-📤 Exported user-events as Avro IDL:
-
-@namespace("com.company.events")
-/** User activity tracking schema */
-record UserEvent {
-  /** Unique user identifier */
-  string userId;
-  /** Type of activity performed */
-  string eventType;
-  /** Event timestamp in milliseconds */
-  long timestamp;
-  /** Optional event metadata */
-  map<string> metadata = {};
-}
-```
+**Note**: Export operations are excluded from SLIM_MODE as they can generate large responses.
 
 ---
 
-### 19. export_subject
+### 19. export_subject ❌
 
 Export all versions of a subject.
 
-**Purpose**: Complete subject backup, version history analysis, migration preparation.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `context` (string, optional): Schema context
-- `include_metadata` (boolean, optional): Include export metadata
-- `include_config` (boolean, optional): Include subject configuration
-- `include_versions` (string, optional): Which versions ("all" or "latest")
-
-**Claude Desktop Usage:**
-```
-Human: "Export the complete history of the order-events schema including all metadata"
-
-Claude: I'll export all versions and metadata for order-events.
-
-[Uses export_subject MCP tool]
-📦 Exported order-events subject:
-   Versions: 5 versions (v1 through v5)
-   Metadata: Registration dates, compatibility levels, evolution notes
-   Configuration: FULL compatibility override
-   Size: Complete evolution history from 2024-01-15 to present
-```
+**Note**: Export operations are excluded from SLIM_MODE.
 
 ---
 
-### 20. export_context
+### 20. export_context ❌
 
 Export all subjects within a context.
 
-**Purpose**: Environment backup, context migration, compliance reporting.
-
-**Parameters:**
-- `context` (string): The context name
-- `include_metadata` (boolean, optional): Include export metadata
-- `include_config` (boolean, optional): Include configuration data
-- `include_versions` (string, optional): Which versions to include
-
-**Claude Desktop Usage:**
-```
-Human: "Export the entire production context for our quarterly backup"
-
-Claude: I'll create a comprehensive backup of the production context.
-
-[Uses export_context MCP tool]
-📦 Exported production context:
-   Subjects: 15 schemas exported
-   Versions: All historical versions included
-   Configuration: Global and subject-specific settings
-   Metadata: Complete audit trail and timestamps
-   Ready for: Backup storage and compliance reporting
-```
+**Note**: Export operations are excluded from SLIM_MODE.
 
 ---
 
-### 21. export_global
+### 21. export_global ❌
 
 Export all contexts and schemas from the registry.
 
-**Purpose**: Complete registry backup, disaster recovery, migration to new registry.
-
-**Parameters:**
-- `include_metadata` (boolean, optional): Include export metadata
-- `include_config` (boolean, optional): Include configuration data
-- `include_versions` (string, optional): Which versions to include
-
-**Claude Desktop Usage:**
-```
-Human: "Create a complete backup of our entire schema registry"
-
-Claude: I'll create a comprehensive backup of the entire registry.
-
-[Uses export_global MCP tool]
-📦 Global registry export:
-   Contexts: 6 contexts exported
-   Subjects: 47 total schemas
-   Versions: 156 schema versions
-   Configuration: All compatibility and mode settings
-   Size: Complete registry state for disaster recovery
-   Format: Structured JSON with organized metadata
-```
+**Note**: Export operations are excluded from SLIM_MODE. These are considered heavy operations that can generate large responses. Use full mode for export functionality.
 
 ---
 
 ## 📊 MCP Resources
 
-In addition to tools, the MCP server provides **7 resources** for real-time information:
+In addition to tools, the MCP server provides **7 resources** for real-time information. All resources remain available in SLIM_MODE:
 
-## 📊 Global Resources
+## 📊 Global Resources ✅ *(All Available in SLIM_MODE)*
 
 ### registry://status
 Get current Schema Registry connection status and health information.
@@ -694,7 +697,7 @@ Get information about the current registry mode and how it was detected.
 ### registry://names
 Get a list of all configured schema registry names with status information.
 
-## 🎯 Registry-Specific Resources
+## 🎯 Registry-Specific Resources ✅ *(All Available in SLIM_MODE)*
 
 ### registry://status/{name}
 Get the connection status and health information for a specific registry.
@@ -705,7 +708,7 @@ Get detailed configuration and metadata information for a specific registry.
 ### registry://mode/{name}
 Get mode and operational configuration information for a specific registry.
 
-## 📋 Schema Resources
+## 📋 Schema Resources ✅ *(All Available in SLIM_MODE)*
 
 ### schema://{name}/{context}/{subject_name}
 Get schema content for a specific subject in a specific context and registry.
@@ -902,11 +905,23 @@ Would you like me to show you the current schemas instead?
 - 📤 **Backup Capability**: All export operations remain available
 - 🔍 **Compatibility Testing**: Can still validate schema changes without applying them
 
+### **Combining VIEWONLY and SLIM_MODE**
+```bash
+# Maximum safety and performance for production
+export VIEWONLY=true
+export SLIM_MODE=true
+```
+
+This combination provides:
+- 🛡️ **No Modifications**: VIEWONLY blocks all writes
+- 🚀 **Fast Performance**: SLIM_MODE reduces tool overhead
+- 🎯 **Production Ready**: Ideal for read-only production access
+
 ---
 
 ## 🌐 Multi-Registry Management Tools
 
-### 22. list_registries
+### 22. list_registries ✅ *(Available in SLIM_MODE)*
 
 List all configured Schema Registry instances.
 
@@ -931,7 +946,7 @@ Claude: I'll list all configured registries with their status.
 
 ---
 
-### 23. get_registry_info
+### 23. get_registry_info ✅ *(Available in SLIM_MODE)*
 
 **Scope Required:** `read`
 
@@ -974,7 +989,7 @@ Get detailed information about a specific registry including connection status, 
 
 ---
 
-### 24. test_registry_connection
+### 24. test_registry_connection ✅ *(Available in SLIM_MODE)*
 
 **Scope Required:** `read`
 
@@ -1011,7 +1026,7 @@ Test connection to a specific registry and return comprehensive information incl
 
 ---
 
-### 25. test_all_registries
+### 25. test_all_registries ✅ *(Available in SLIM_MODE)*
 
 **Scope Required:** `read`
 
@@ -1048,560 +1063,112 @@ None
 
 ---
 
-## 🚀 Migration Tools
+### 26. set_default_registry ✅ *(Available in SLIM_MODE)*
 
-### 28. migrate_schema
+Set the default registry for operations.
+
+**Purpose**: Change the active registry for subsequent operations.
+
+**Parameters:**
+- `registry_name` (string): Registry name to set as default
+
+---
+
+### 27. get_default_registry ✅ *(Available in SLIM_MODE)*
+
+Get the current default registry.
+
+**Purpose**: Check which registry is currently active.
+
+**Parameters:** None
+
+---
+
+## 🚀 Migration Tools ❌ *(ALL NOT in SLIM_MODE)*
+
+All migration tools are excluded from SLIM_MODE as they are heavy, long-running operations:
+
+### 28. migrate_schema ❌
 
 Migrate a schema from one registry to another. Returns task ID for async operation.
 
 **Purpose**: Schema promotion, environment synchronization, registry migration.
 
-**Parameters:**
-- `subject` (string): Schema subject name
-- `source_registry` (string): Source registry name
-- `target_registry` (string): Target registry name
-- `source_context` (string, optional): Source context
-- `target_context` (string, optional): Target context
-- `migrate_all_versions` (boolean, optional): Migrate all versions or just latest
-- `dry_run` (boolean, optional): Preview without executing
-
-**Claude Desktop Usage:**
-```
-Human: "Migrate the user-events schema from staging to production"
-
-Claude: I'll migrate the user-events schema to production.
-
-[Uses migrate_schema MCP tool]
-🔄 Schema migration started:
-   Task ID: mig-789-user-events
-   Schema: user-events
-   From: staging → production
-   Versions: Latest only
-   Status: Running (25% complete)
-   
-Migration in progress. Use get_migration_progress('mig-789-user-events') to track.
-```
+**Note**: Migration operations require full mode. These are complex, potentially long-running operations that benefit from full task management support.
 
 ---
 
-### 29. migrate_context
+### 29. migrate_context ❌
 
 Generate ready-to-run Docker commands for migrating an entire context using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool.
 
 **Purpose**: Generate Docker commands for bulk schema migration, environment promotion, disaster recovery.
 
-**Note**: This tool generates a single Docker command with all necessary environment variables pre-configured. This provides a streamlined workflow for context migration using the specialized external tool.
-
-**Parameters:**
-- `context` (string): Context name to migrate
-- `source_registry` (string): Source registry name
-- `target_registry` (string): Target registry name
-- `target_context` (string, optional): Target context name
-- `dry_run` (boolean, optional): Generate command for preview mode (default: true)
-- `preserve_ids` (boolean, optional): Preserve schema IDs (default: true)
-- `migrate_all_versions` (boolean, optional): Migrate all versions (default: true)
-
-**Returns**: Docker command with:
-- Complete docker run command with all environment variables
-- Automatic registry credential mapping
-- Context configuration
-- Instructions for execution
-- Environment variables list for reference
-
-**Claude Desktop Usage:**
-```
-Human: "Promote all schemas from the staging 'v2-features' context to production"
-
-Claude: I'll generate the Docker migration command for the v2-features context.
-
-[Uses migrate_context MCP tool]
-🚀 Ready to migrate v2-features context to production:
-
-Copy and run this command:
-docker run --platform linux/amd64 --network host -it --rm \
-  -e SOURCE_SCHEMA_REGISTRY_URL=http://staging-registry:8081 \
-  -e DEST_SCHEMA_REGISTRY_URL=http://prod-registry:8082 \
-  -e SOURCE_USERNAME=staging_user \
-  -e SOURCE_PASSWORD=staging_pass \
-  -e DEST_USERNAME=prod_user \
-  -e DEST_PASSWORD=prod_pass \
-  -e ENABLE_MIGRATION=true \
-  -e DRY_RUN=true \
-  -e PRESERVE_IDS=true \
-  -e SOURCE_CONTEXT=v2-features \
-  -e DEST_CONTEXT=production \
-  -e DEST_IMPORT_MODE=true \
-  aywengo/kafka-schema-reg-migrator:latest
-
-Change DRY_RUN=false when ready for actual migration.
-
-⚠️ This is a DRY RUN - no actual changes will be made
-⚠️ Ensure Docker is installed and running
-⚠️ Review documentation for advanced options
-```
-
-**Command Features:**
-- **Single Command**: No file creation or setup required
-- **Automatic Mapping**: Registry credentials and contexts pre-configured
-- **Platform Handling**: Includes --platform for ARM64 compatibility
-- **Network Access**: Uses --network host for localhost registry access
-- **Safety**: Defaults to dry run mode for testing
+**Note**: Migration operations require full mode.
 
 ---
 
-### 30. list_migrations
+### 30. list_migrations ❌
 
 Show migration history.
 
 **Purpose**: Track migration operations, audit changes, view history.
 
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "Show me recent schema migrations"
-
-Claude: I'll display the migration history.
-
-[Uses list_migrations MCP tool]
-📋 Recent migrations:
-   1. mig-101-v2-features: staging→production (completed, 12 schemas)
-   2. mig-789-user-events: staging→production (completed, 1 schema)
-   3. mig-456-customer: dev→staging (failed, connection error)
-   4. mig-234-orders: staging→production (completed, 3 schemas)
-   
-   Total: 4 migrations (3 successful, 1 failed)
-```
+**Note**: Migration operations require full mode.
 
 ---
 
-### 31. get_migration_status
+### 31. get_migration_status ❌
 
 Check migration progress.
 
 **Purpose**: Monitor ongoing migrations, get detailed status, troubleshoot issues.
 
-**Parameters:**
-- `migration_id` (string): Migration task ID
-
-**Claude Desktop Usage:**
-```
-Human: "Check the status of migration mig-101-v2-features"
-
-Claude: I'll check the status of that migration.
-
-[Uses get_migration_status MCP tool]
-📊 Migration Status: mig-101-v2-features
-   Status: Completed ✅
-   Duration: 2m 35s
-   Schemas migrated: 12/12
-   Versions migrated: 47 total
-   Source: staging/v2-features
-   Target: production/v2-features
-   Completed at: 2024-05-31 14:35:20
-```
+**Note**: Migration operations require full mode.
 
 ---
 
-## 🧹 Batch Cleanup Tools
+## 🧹 Batch Cleanup Tools ❌ *(ALL NOT in SLIM_MODE)*
 
-### 32. clear_context_batch
+Batch operations are excluded from SLIM_MODE:
+
+### 32. clear_context_batch ❌
 
 Efficiently remove all subjects from a context. Returns task ID for async operation.
 
 **Purpose**: Clean up test environments, remove feature branches, reset contexts.
 
-**Parameters:**
-- `context` (string): Context name to clear
-- `delete_context_after` (boolean, optional): Delete context after clearing
-- `dry_run` (boolean, optional): Preview without executing (default: True)
-- `registry` (string, optional): Registry name
-
-**Claude Desktop Usage:**
-```
-Human: "Clean up the old feature-user-prefs context that we're done with"
-
-Claude: I'll clean up that feature context for you.
-
-[Uses clear_context_batch MCP tool]
-🧹 Batch cleanup started:
-   Task ID: clean-222-feature-user-prefs
-   Context: feature-user-prefs
-   Found: 8 subjects to delete
-   Mode: Dry run (preview only)
-   
-   Subjects to delete:
-   • user-preferences-v1
-   • user-settings-events
-   • preference-changes
-   ... and 5 more
-   
-To execute: Run again with dry_run=false
-```
+**Note**: These destructive batch operations require full mode for safety and proper task tracking.
 
 ---
 
-### 33. clear_multiple_contexts_batch
+### 33. clear_multiple_contexts_batch ❌
 
 Clean multiple contexts in batch mode. Returns task ID for async operation.
 
 **Purpose**: Bulk environment cleanup, multi-context reset, test cleanup.
 
-**Parameters:**
-- `contexts` (list): List of context names to clear
-- `delete_contexts_after` (boolean, optional): Delete contexts after clearing
-- `dry_run` (boolean, optional): Preview without executing (default: True)
-- `registry` (string, optional): Registry name
-
-**Claude Desktop Usage:**
-```
-Human: "Clean up all our old feature branch contexts: feature-v1, feature-v2, feature-old"
-
-Claude: I'll clean up those feature contexts in batch.
-
-[Uses clear_multiple_contexts_batch MCP tool]
-🧹 Batch cleanup started:
-   Task ID: clean-333-multi
-   Contexts: 3 contexts targeted
-   Total subjects: 24 schemas found
-   Mode: Batch parallel deletion
-   Status: Running (33% complete)
-   
-Progress:
-   ✅ feature-v1: Cleared (7 subjects)
-   🔄 feature-v2: In progress (5/9 subjects)
-   ⏳ feature-old: Pending
-```
+**Note**: These destructive batch operations require full mode for safety and proper task tracking.
 
 ---
 
-## 📊 Task Management & Progress Tracking Tools
-
-### 34. get_task_progress
-
-Get detailed progress for any async task.
-
-**Purpose**: Monitor long-running operations, track completion, get results.
-
-**Parameters:**
-- `task_id` (string): Task ID to check
-
-**Claude Desktop Usage:**
-```
-Human: "How's task mig-101-v2-features doing?"
-
-Claude: I'll check the progress of that task.
-
-[Uses get_task_progress MCP tool]
-📊 Task Progress: mig-101-v2-features
-   Type: Context Migration
-   Status: Running
-   Progress: 67% complete
-   Current: Migrating schema 8/12 (order-events)
-   Duration: 1m 45s elapsed
-   Estimate: ~45s remaining
-   
-   Details: Successfully migrated 7 schemas, currently processing order-events v3
-```
-
----
-
-### 35. get_migration_progress
-
-Get migration-specific progress details.
-
-**Purpose**: Detailed migration monitoring, schema-by-schema progress.
-
-**Parameters:**
-- `task_id` (string): Migration task ID
-
-**Claude Desktop Usage:**
-```
-Human: "Show detailed progress for the ongoing migration"
-
-Claude: I'll get detailed migration progress.
-
-[Uses get_migration_progress MCP tool]
-📊 Migration Progress: mig-789-orders
-   Overall: 75% complete
-   
-   Completed:
-   ✅ order-created (v1-5)
-   ✅ order-updated (v1-3)
-   ✅ order-shipped (v1-2)
-   
-   In Progress:
-   🔄 order-completed (migrating v4/7)
-   
-   Pending:
-   ⏳ order-cancelled
-   ⏳ order-refunded
-```
-
----
-
-### 36. get_cleanup_progress
-
-Get cleanup operation progress details.
-
-**Purpose**: Monitor batch deletions, track cleanup operations.
-
-**Parameters:**
-- `task_id` (string): Cleanup task ID
-
-**Claude Desktop Usage:**
-```
-Human: "Check how the context cleanup is going"
-
-Claude: I'll check the cleanup operation progress.
-
-[Uses get_cleanup_progress MCP tool]
-📊 Cleanup Progress: clean-333-multi
-   Overall: 83% complete
-   
-   Contexts cleared: 2/3
-   Subjects deleted: 20/24
-   Current: Deleting subjects from feature-old
-   Rate: 12 subjects/second
-   
-   No errors encountered
-```
-
----
-
-### 37. get_comparison_progress
-
-Get comparison operation progress details.
-
-**Purpose**: Monitor registry comparisons, track analysis progress.
-
-**Parameters:**
-- `task_id` (string): Comparison task ID
-
-**Claude Desktop Usage:**
-```
-Human: "How's the registry comparison going?"
-
-Claude: I'll check the comparison progress.
-
-[Uses get_comparison_progress MCP tool]
-📊 Comparison Progress: comp-456-customer
-   Overall: 100% complete ✅
-   
-   Analysis complete:
-   • Schemas analyzed: 45
-   • Contexts compared: 3
-   • Configurations checked: 12
-   
-   Differences found: 7
-   Report ready for review
-```
-
----
-
-### 38. list_all_active_tasks
-
-View all running or pending tasks.
-
-**Purpose**: Dashboard view, system monitoring, workload management.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "What operations are currently running?"
-
-Claude: I'll show you all active tasks.
-
-[Uses list_all_active_tasks MCP tool]
-📋 Active Tasks:
-   1. mig-101: Migration (67% - migrating v2-features)
-   2. clean-222: Cleanup (45% - deleting old schemas)
-   3. comp-789: Comparison (15% - analyzing production)
-   
-   Queue: 2 pending tasks
-   Workers: 3/5 busy
-   System load: Moderate
-```
-
----
-
-### 39. list_migration_tasks
-
-List all migration-specific tasks.
-
-**Purpose**: Track migrations, view migration queue.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "Show me all migration tasks"
-
-Claude: I'll list all migration tasks.
-
-[Uses list_migration_tasks MCP tool]
-📋 Migration Tasks:
-   Active:
-   • mig-101: staging→prod (67% complete)
-   
-   Completed today:
-   • mig-099: dev→staging (completed 2h ago)
-   • mig-098: hotfix→prod (completed 4h ago)
-   
-   Failed:
-   • mig-097: Connection timeout (6h ago)
-```
-
----
-
-### 40. list_cleanup_tasks
-
-List all cleanup-specific tasks.
-
-**Purpose**: Track cleanup operations, monitor deletions.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "What cleanup operations are running?"
-
-Claude: I'll show cleanup task status.
-
-[Uses list_cleanup_tasks MCP tool]
-📋 Cleanup Tasks:
-   Active:
-   • clean-333: Multi-context cleanup (83% complete)
-   
-   Scheduled:
-   • clean-334: Nightly test cleanup (starts in 2h)
-   
-   Completed:
-   • clean-332: Feature branch cleanup (1h ago, 45 schemas removed)
-```
-
----
-
-### 41. list_comparison_tasks
-
-List all comparison tasks.
-
-**Purpose**: Track analysis operations, view comparison history.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "Show comparison task history"
-
-Claude: I'll display comparison tasks.
-
-[Uses list_comparison_tasks MCP tool]
-📋 Comparison Tasks:
-   Completed:
-   • comp-456: staging vs prod (7 differences found)
-   • comp-455: dev vs staging (23 differences)
-   
-   Running:
-   • comp-457: prod backup verification (22% complete)
-```
-
----
-
-### 42. cancel_task
-
-Cancel a running task.
-
-**Purpose**: Stop long-running operations, abort failed tasks.
-
-**Parameters:**
-- `task_id` (string): Task ID to cancel
-
-**Claude Desktop Usage:**
-```
-Human: "Cancel the migration task mig-101, we need to fix something first"
-
-Claude: I'll cancel that migration task.
-
-[Uses cancel_task MCP tool]
-🛑 Task cancelled: mig-101
-   Type: Context migration
-   Progress when cancelled: 67%
-   Rollback: No changes committed yet
-   Status: Safely cancelled
-```
-
----
-
-### 43. get_operation_info_tool
-
-Get information about operation patterns and expected durations.
-
-**Purpose**: Understand operation complexity, plan maintenance windows.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "How long do different operations typically take?"
-
-Claude: I'll show you typical operation durations.
-
-[Uses get_operation_info_tool MCP tool]
-📊 Operation Patterns:
-   
-   Quick Operations (<5 seconds):
-   • Single schema operations
-   • Configuration changes
-   • Compatibility checks
-   
-   Medium Operations (5-30 seconds):
-   • Small context migrations (<10 schemas)
-   • Registry comparisons
-   
-   Long Operations (>30 seconds):
-   • Large context migrations
-   • Multi-context cleanup
-   • Full registry analysis
-   
-   Recommendation: Use async tasks for medium/long operations
-```
-
----
-
-### 44. watch_task_progress
-
-Get real-time progress updates for a task (guidance tool).
-
-**Purpose**: Continuous monitoring guidance, progress tracking patterns.
-
-**Parameters:**
-- `task_id` (string): Task ID to watch
-
-**Claude Desktop Usage:**
-```
-Human: "How do I monitor the migration progress in real-time?"
-
-Claude: I'll show you how to watch task progress.
-
-[Uses watch_task_progress MCP tool]
-📺 Watching task: mig-101
-
-To monitor progress in real-time:
-1. Poll get_task_progress('mig-101') every 2-5 seconds
-2. Check 'progress_percent' for completion
-3. Read 'progress_description' for current operation
-4. Watch for status changes: pending→running→completed
-
-Example monitoring pattern:
-```python
-while task['status'] == 'running':
-    progress = get_task_progress('mig-101')
-    print(f"{progress['progress_percent']}% - {progress['progress_description']}")
-    time.sleep(3)
-```
-```
+## 📊 Task Management & Progress Tracking Tools ❌ *(ALL NOT in SLIM_MODE)*
+
+All task management tools are excluded from SLIM_MODE as they're primarily used with heavy operations:
+
+### 34. get_task_progress ❌
+### 35. get_migration_progress ❌
+### 36. get_cleanup_progress ❌
+### 37. get_comparison_progress ❌
+### 38. list_all_active_tasks ❌
+### 39. list_migration_tasks ❌
+### 40. list_cleanup_tasks ❌
+### 41. list_comparison_tasks ❌
+### 42. cancel_task ❌
+### 43. get_operation_info_tool ❌
+### 44. watch_task_progress ❌
+
+**Note**: Task management is not needed in SLIM_MODE since all included operations are synchronous and lightweight.
 
 ---
 
@@ -1609,7 +1176,7 @@ while task['status'] == 'running':
 
 The following tools provide comprehensive statistics and counting capabilities for Schema Registry instances.
 
-### Count Contexts
+### Count Contexts ✅ *(Available in SLIM_MODE)*
 ```python
 @mcp.tool()
 def count_contexts(registry: Optional[str] = None) -> Dict[str, Any]:
@@ -1638,7 +1205,7 @@ result = count_contexts(registry="production")
 print(f"Found {result['total_contexts']} contexts in production")
 ```
 
-### Count Schemas
+### Count Schemas ✅ *(Available in SLIM_MODE)*
 ```python
 @mcp.tool()
 def count_schemas(
@@ -1676,7 +1243,7 @@ result = count_schemas(context="staging", registry="development")
 print(f"Found {result['total_schemas']} schemas in staging context of development registry")
 ```
 
-### Count Schema Versions
+### Count Schema Versions ✅ *(Available in SLIM_MODE)*
 ```python
 @mcp.tool()
 def count_schema_versions(
@@ -1721,7 +1288,7 @@ result = count_schema_versions(
 print(f"Found {result['total_versions']} versions in staging context of development registry")
 ```
 
-### Get Registry Statistics
+### Get Registry Statistics ❌ *(NOT in SLIM_MODE)*
 ```python
 @mcp.tool()
 def get_registry_statistics(
@@ -1745,6 +1312,8 @@ def get_registry_statistics(
         - timestamp: Current timestamp
     """
 ```
+
+**Note**: This heavy statistics operation with potential async processing is excluded from SLIM_MODE. Use the individual counting tools instead.
 
 Example usage:
 ```python
@@ -1782,7 +1351,7 @@ Common error scenarios:
 - Authentication failures
 
 ### Best Practices
-1. Use `get_registry_statistics` for comprehensive overview
+1. Use `get_registry_statistics` for comprehensive overview (when not in SLIM_MODE)
 2. Use specific counting tools for targeted information
 3. Include context names for precise counting
 4. Handle potential errors in responses
@@ -1790,4 +1359,32 @@ Common error scenarios:
 
 ---
 
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional VIEWONLY mode for production safety. 
+## 💡 SLIM_MODE Usage Tips
+
+### **Effective SLIM_MODE Usage:**
+- ✅ **Read Operations**: Perfect for viewing schemas and checking compatibility
+- ✅ **Basic Registration**: Can still register new schemas when needed
+- ✅ **Multi-Registry**: Full support for multiple registry management
+- ✅ **Production Safety**: Combines well with VIEWONLY mode
+
+### **When to Switch to Full Mode:**
+- ❌ **Migrations**: Use full mode for schema/context migrations
+- ❌ **Bulk Operations**: Use full mode for batch cleanup
+- ❌ **Export/Import**: Use full mode for comprehensive exports
+- ❌ **Configuration Changes**: Use full mode to update settings
+
+### **Switching Modes:**
+```bash
+# Enable SLIM_MODE
+export SLIM_MODE=true
+
+# Disable SLIM_MODE (full mode)
+export SLIM_MODE=false
+
+# Check current mode
+echo $SLIM_MODE
+```
+
+---
+
+This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional VIEWONLY mode for production safety and SLIM_MODE for optimized performance.
