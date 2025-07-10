@@ -3,6 +3,39 @@ Smart Defaults Configuration
 
 This module provides configuration options for the Smart Defaults system,
 allowing users to customize behavior, thresholds, and privacy settings.
+
+Environment Variables:
+    Feature toggles:
+        SMART_DEFAULTS_ENABLED (true/false)
+        SMART_DEFAULTS_PATTERN_RECOGNITION (true/false)
+        SMART_DEFAULTS_LEARNING (true/false)
+        SMART_DEFAULTS_FIELD_SUGGESTIONS (true/false)
+
+    Learning settings:
+        SMART_DEFAULTS_STORAGE_PATH (path)
+        SMART_DEFAULTS_RETENTION_DAYS (integer)
+
+    Confidence thresholds:
+        SMART_DEFAULTS_MIN_CONFIDENCE (0.0-1.0)
+        SMART_DEFAULTS_AUTO_FILL_CONFIDENCE (0.0-1.0)
+        SMART_DEFAULTS_HIGH_CONFIDENCE_THRESHOLD (0.0-1.0)
+
+    Privacy settings:
+        SMART_DEFAULTS_ANONYMIZE (true/false)
+        SMART_DEFAULTS_EXCLUDED_FIELDS (comma-separated)
+        SMART_DEFAULTS_EXCLUDED_CONTEXTS (comma-separated)
+
+    UI settings:
+        SMART_DEFAULTS_SHOW_CONFIDENCE (true/false)
+        SMART_DEFAULTS_SHOW_REASONING (true/false)
+
+    Performance settings:
+        SMART_DEFAULTS_ENABLE_CACHING (true/false)
+        SMART_DEFAULTS_CACHE_SIZE (integer)
+
+    Advanced settings:
+        SMART_DEFAULTS_MULTI_STEP_LEARNING (true/false)
+        SMART_DEFAULTS_CROSS_CONTEXT_LEARNING (true/false)
 """
 
 import json
@@ -20,7 +53,7 @@ class SmartDefaultsConfig:
     """Configuration for Smart Defaults system"""
 
     # Feature toggles
-    enabled: bool = True
+    enabled: bool = False
     enable_pattern_recognition: bool = True
     enable_learning: bool = True
     enable_field_suggestions: bool = True
@@ -85,9 +118,16 @@ class SmartDefaultsConfig:
         if os.getenv("SMART_DEFAULTS_LEARNING") is not None:
             config.enable_learning = os.getenv("SMART_DEFAULTS_LEARNING", "").lower() == "true"
 
+        if os.getenv("SMART_DEFAULTS_FIELD_SUGGESTIONS") is not None:
+            config.enable_field_suggestions = os.getenv("SMART_DEFAULTS_FIELD_SUGGESTIONS", "").lower() == "true"
+
         # Storage path
         if os.getenv("SMART_DEFAULTS_STORAGE_PATH"):
             config.learning_storage_path = Path(os.getenv("SMART_DEFAULTS_STORAGE_PATH"))
+
+        # Learning settings
+        if os.getenv("SMART_DEFAULTS_RETENTION_DAYS"):
+            config.learning_retention_days = int(os.getenv("SMART_DEFAULTS_RETENTION_DAYS"))
 
         # Confidence thresholds
         if os.getenv("SMART_DEFAULTS_MIN_CONFIDENCE"):
@@ -95,6 +135,9 @@ class SmartDefaultsConfig:
 
         if os.getenv("SMART_DEFAULTS_AUTO_FILL_CONFIDENCE"):
             config.min_confidence_for_auto_fill = float(os.getenv("SMART_DEFAULTS_AUTO_FILL_CONFIDENCE"))
+
+        if os.getenv("SMART_DEFAULTS_HIGH_CONFIDENCE_THRESHOLD"):
+            config.high_confidence_threshold = float(os.getenv("SMART_DEFAULTS_HIGH_CONFIDENCE_THRESHOLD"))
 
         # Privacy settings
         if os.getenv("SMART_DEFAULTS_ANONYMIZE") is not None:
@@ -109,6 +152,25 @@ class SmartDefaultsConfig:
         # UI settings
         if os.getenv("SMART_DEFAULTS_SHOW_CONFIDENCE") is not None:
             config.show_confidence_scores = os.getenv("SMART_DEFAULTS_SHOW_CONFIDENCE", "").lower() == "true"
+
+        if os.getenv("SMART_DEFAULTS_SHOW_REASONING") is not None:
+            config.show_reasoning = os.getenv("SMART_DEFAULTS_SHOW_REASONING", "").lower() == "true"
+
+        # Performance settings
+        if os.getenv("SMART_DEFAULTS_ENABLE_CACHING") is not None:
+            config.enable_caching = os.getenv("SMART_DEFAULTS_ENABLE_CACHING", "").lower() == "true"
+
+        if os.getenv("SMART_DEFAULTS_CACHE_SIZE"):
+            config.cache_size = int(os.getenv("SMART_DEFAULTS_CACHE_SIZE"))
+
+        # Advanced settings
+        if os.getenv("SMART_DEFAULTS_MULTI_STEP_LEARNING") is not None:
+            config.enable_multi_step_learning = os.getenv("SMART_DEFAULTS_MULTI_STEP_LEARNING", "").lower() == "true"
+
+        if os.getenv("SMART_DEFAULTS_CROSS_CONTEXT_LEARNING") is not None:
+            config.enable_cross_context_learning = (
+                os.getenv("SMART_DEFAULTS_CROSS_CONTEXT_LEARNING", "").lower() == "true"
+            )
 
         return config
 
