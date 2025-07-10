@@ -45,7 +45,7 @@ jobs:
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
-            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 48 tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration. Use SLIM_MODE=true to reduce tools from 53+ to ~15.
+            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 70+ tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration. Use SLIM_MODE=true to reduce tools from 70+ to ~20.
             org.opencontainers.image.vendor=aywengo
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
@@ -116,7 +116,7 @@ jobs:
           echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
           echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
           echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔧 **Tools**: 53+ tools (full feature set) - Use SLIM_MODE=true to reduce to ~15 tools" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 **Tools**: 70+ tools (full feature set) - Use SLIM_MODE=true to reduce to ~20 tools" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Generate table format scan for summary
@@ -143,7 +143,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "MCP Server for Kafka Schema Registry - 48 tools, OAuth, multi-registry, Kubernetes ready"
+          short-description: "MCP Server for Kafka Schema Registry - 70+ tools, OAuth, multi-registry, Kubernetes ready"
           readme-filepath: ./dockerhub-readme.md
           
       - name: Docker Hub description update status
