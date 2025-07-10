@@ -6,13 +6,18 @@ Tests pattern recognition, learning engine, and elicitation integration.
 
 import asyncio
 import json
+import os
 import shutil
+import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+
+# Add parent directory to path to import modules from project root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elicitation import ElicitationField, ElicitationRequest, ElicitationType
 from smart_defaults import (
