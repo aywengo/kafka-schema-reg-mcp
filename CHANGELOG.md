@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ideal for production read-only operations
   - maintaned full remote deployment support
   - SLIM_MODE is enabled by default in slim images
+- **🤖 Smart Defaults**: Complete MCP compliance for registry-specific resources
+  - smart defaults for schema field elicitation
+  - smart defaults for schema migration elicitation
+  - smart defaults for context metadata elicitation
+  - smart defaults for export preferences elicitation
+  - smart defaults for schema field elicitation
+  - smart defaults for schema migration elicitation
 
 
 ## [2.0.5] - 2025-07-09
