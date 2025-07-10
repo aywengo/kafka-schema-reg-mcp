@@ -9,7 +9,7 @@ This project uses the **modern FastMCP 2.8.0+ framework** for full **MCP 2025-06
 ### **Key MCP Features:**
 - ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with enhanced performance
 - ✅ **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
-- ✅ **48+ MCP Tools**: Complete schema operations via natural language with async task management
+- ✅ **70+ MCP Tools**: Complete schema operations via natural language with async task management
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.1 support for any provider
 - ✅ **Interactive Operations**: Smart migration with user preference elicitation (v2.0.2+)
 - ✅ **Advanced Security**: Credential protection and secure logging (v2.0.2+)
@@ -45,7 +45,7 @@ Comprehensive deployment instructions covering:
 - **Claude Desktop Configuration**: Best practices and troubleshooting
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
-Comprehensive reference for all 48+ MCP tools and 7 MCP resources:
+Comprehensive reference for all 70+ MCP tools and 7 MCP resources:
 - **Schema Management Tools** (4): register, retrieve, versions, compatibility
 - **Context Management Tools** (3): list, create, delete contexts
 - **Subject Management Tools** (2): list, delete subjects  

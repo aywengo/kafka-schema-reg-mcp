@@ -13,6 +13,10 @@
 # - Validates RFC 8414 compliance and automatic endpoint discovery
 # - Tests universal OAuth 2.1 compatibility with any compliant provider
 #
+# NEW: SLIM_MODE Integration Tests
+# - Tests SLIM_MODE functionality that reduces tools from 53+ to ~15
+# - Validates performance improvements and tool reduction
+#
 # Usage: ./run_all_tests.sh [options]
 # Options:
 #   --quick     Run only essential tests (faster execution)
@@ -173,6 +177,13 @@ check_prerequisites() {
         print_color $YELLOW "⚠️  MCP structured output test file not found in tests directory"
     fi
     
+    # Check SLIM_MODE test file
+    if [[ -f "$SCRIPT_DIR/test_slim_mode_integration.py" ]]; then
+        print_color $GREEN "✅ SLIM_MODE integration test file found"
+    else
+        print_color $YELLOW "⚠️  SLIM_MODE integration test file not found"
+    fi
+    
     print_color $GREEN "✅ All prerequisites satisfied"
 }
 
@@ -262,6 +273,7 @@ run_tests() {
             "multi_registry_core"
             "mcp_container_tests"
             "mcp_compliance_tests"
+            "slim_mode_tests"
         )
     else
         test_categories=(
@@ -270,6 +282,7 @@ run_tests() {
             "multi_registry_tests"
             "mcp_container_tests"
             "mcp_compliance_tests"
+            "slim_mode_tests"
             "advanced_features"
         )
     fi
@@ -313,6 +326,9 @@ run_test_category() {
             ;;
         "mcp_compliance_tests")
             run_mcp_compliance_tests
+            ;;
+        "slim_mode_tests")
+            run_slim_mode_tests
             ;;
         "advanced_features")
             run_advanced_feature_tests
@@ -424,6 +440,17 @@ run_mcp_compliance_tests() {
         "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
         "test_mcp_ping.py:MCP ping/pong protocol support and server health checking"
         "test_registry_specific_resources.py:Registry-specific resources (registry://status/{name}, registry://info/{name}, registry://mode/{name}, registry://names, schema://{name}/{context}/{subject}, schema://{name}/{subject})"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
+# Run SLIM_MODE tests (NEW CATEGORY)
+run_slim_mode_tests() {
+    print_color $CYAN "🏃 SLIM_MODE Integration Tests"
+    
+    local tests=(
+        "test_slim_mode_integration.py:SLIM_MODE functionality - tool reduction from 53+ to ~15 for improved LLM performance"
     )
     
     run_test_list "${tests[@]}"
@@ -573,11 +600,13 @@ $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Essential Integration Tests  
 - Multi-Registry Core Tests
 - MCP Container Integration Tests
-- MCP 2025-06-18 Compliance Tests ⭐" || echo "- Basic Unified Server Tests (imports, connectivity)
+- MCP 2025-06-18 Compliance Tests ⭐
+- SLIM_MODE Integration Tests 🏃" || echo "- Basic Unified Server Tests (imports, connectivity)
 - Integration Tests (schema operations, viewonly mode)
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
 - MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐
+- SLIM_MODE Integration Tests (tool reduction for LLM performance) 🏃
 - Advanced Feature Tests (comparison, migration, workflows, resource linking)")
 
 Log Files:
@@ -595,6 +624,9 @@ fi)
 
 ⭐ NEW: MCP 2025-06-18 Compliance Tests validate header validation middleware,
    exempt path functionality, and protocol version compliance.
+
+🏃 NEW: SLIM_MODE Integration Tests validate tool reduction from 53+ to ~15 for
+   improved LLM performance and reduced token usage.
 
 🔗 Resource Linking Tests: URI navigation and link generation for enhanced MCP client experience.
 
@@ -688,4 +720,4 @@ main() {
 }
 
 # Execute main function with all arguments
-main "$@" 
+main "$@"

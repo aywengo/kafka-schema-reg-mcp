@@ -24,6 +24,23 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:latest
 ```
 
+### SLIM_MODE for Better Performance
+To reduce LLM overhead, run with SLIM_MODE enabled:
+```bash
+# Run with ~15 essential tools instead of 53+
+docker run -i --rm --network host \
+  -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  -e SLIM_MODE=true \
+  aywengo/kafka-schema-reg-mcp:stable
+```
+
+> **💡 SLIM_MODE Benefits:**
+> - Reduces tool count from 53+ to ~15 essential tools
+> - Significantly faster LLM response times
+> - Lower token usage and reduced costs
+> - Ideal for production read-only operations
+> - Simply set SLIM_MODE=true environment variable
+
 ### Single Registry Mode
 ```bash
 docker run -i --rm --network host \
