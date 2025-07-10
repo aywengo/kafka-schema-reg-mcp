@@ -17,6 +17,11 @@
 # - Tests SLIM_MODE functionality that reduces tools from 53+ to ~15
 # - Validates performance improvements and tool reduction
 #
+# NEW in v2.1.0: Smart Defaults Tests
+# - Tests pattern recognition and learning engine
+# - Validates elicitation integration with smart suggestions
+# - Tests configuration and privacy controls
+#
 # Usage: ./run_all_tests.sh [options]
 # Options:
 #   --quick     Run only essential tests (faster execution)
@@ -183,6 +188,13 @@ check_prerequisites() {
     else
         print_color $YELLOW "⚠️  SLIM_MODE integration test file not found"
     fi
+
+    # Check smart defaults test files
+    if [[ -f "$SCRIPT_DIR/test_smart_defaults.py" ]]; then
+        print_color $GREEN "✅ Smart defaults test file found"
+    else
+        print_color $YELLOW "⚠️  Smart defaults test file not found"
+    fi
     
     print_color $GREEN "✅ All prerequisites satisfied"
 }
@@ -274,6 +286,7 @@ run_tests() {
             "mcp_container_tests"
             "mcp_compliance_tests"
             "slim_mode_tests"
+            "smart_defaults_tests"
         )
     else
         test_categories=(
@@ -284,6 +297,7 @@ run_tests() {
             "mcp_compliance_tests"
             "slim_mode_tests"
             "advanced_features"
+            "smart_defaults_tests"
         )
     fi
     
@@ -335,6 +349,9 @@ run_test_category() {
             ;;
         "mcp_container_tests")
             run_mcp_container_tests
+            ;;
+        "smart_defaults_tests")
+            run_smart_defaults_tests
             ;;
         *)
             print_color $YELLOW "⚠️  Unknown test category: $category"
@@ -480,6 +497,17 @@ run_mcp_container_tests() {
     run_test_list "${tests[@]}"
 }
 
+# Run smart defaults tests
+run_smart_defaults_tests() {
+    print_color $CYAN "🧠 Smart Defaults Tests"
+    
+    local tests=(
+        "test_smart_defaults.py:Smart defaults pattern recognition and learning engine"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
 # Run advanced feature tests (comparison, migration, complex workflows)
 run_advanced_feature_tests() {
     print_color $CYAN "🚀 Advanced Feature Tests (Comparison & Migration)"
@@ -606,8 +634,8 @@ $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
 - MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐
-- SLIM_MODE Integration Tests (tool reduction for LLM performance) 🏃
-- Advanced Feature Tests (comparison, migration, workflows, resource linking)")
+- Advanced Feature Tests (comparison, migration, workflows, resource linking)
+- Smart Defaults Tests (pattern recognition, learning engine) 🧠")
 
 Log Files:
 - Unified Log: $UNIFIED_LOG
@@ -632,6 +660,9 @@ fi)
 
 🚀 OAuth 2.1 Generic Discovery: Tests now validate universal OAuth 2.1 compatibility
    instead of provider-specific configurations (75% configuration reduction).
+
+🧠 Smart Defaults Tests: Pattern recognition and learning engine for intelligent
+   form pre-population based on user behavior and organizational conventions.
 
 📁 Test Organization: All MCP compliance tests are now properly organized in the tests directory
    for better maintainability and CI/CD integration.
