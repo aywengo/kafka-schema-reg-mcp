@@ -5,6 +5,32 @@ entries:
       category: Infrastructure
       licenses: MIT
     apiVersion: v2
+    appVersion: 2.0.6
+    created: "2025-07-11T06:47:57.24512393Z"
+    description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
+    digest: 472c2cc2b832c6e0ea17f66d38d2d215f5dc0d3488b388ae115a456e4a06a52f
+    home: https://github.com/aywengo/kafka-schema-reg-mcp
+    icon: https://kafka.apache.org/images/apache-kafka.png
+    keywords:
+    - kafka
+    - schema-registry
+    - mcp
+    - claude
+    - oauth2
+    maintainers:
+    - email: your-email@example.com
+      name: aywengo
+    name: kafka-schema-registry-mcp
+    sources:
+    - https://github.com/aywengo/kafka-schema-reg-mcp
+    type: application
+    urls:
+    - kafka-schema-registry-mcp-2.0.6.tgz
+    version: 2.0.6
+  - annotations:
+      category: Infrastructure
+      licenses: MIT
+    apiVersion: v2
     appVersion: 2.0.5
     created: "2025-07-08T21:44:27.788661768Z"
     description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
@@ -188,9 +214,9 @@ entries:
       licenses: MIT
     apiVersion: v2
     appVersion: 2.0.0-rc5
-    created: "2025-06-19T15:20:55.896664524Z"
+    created: "2025-06-19T15:32:52.365243566Z"
     description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
-    digest: 8c6e8325c1caeef80efea8be6590a408f342f1cb136d9023ab25994da5da5d94
+    digest: a6cc57c353b633b36efff2e7981235efceeb481e8668c48bb7237aa64f70d17f
     home: https://github.com/aywengo/kafka-schema-reg-mcp
     icon: https://kafka.apache.org/images/apache-kafka.png
     keywords:
@@ -214,9 +240,9 @@ entries:
       licenses: MIT
     apiVersion: v2
     appVersion: 2.0.0-rc5
-    created: "2025-06-19T15:32:52.365243566Z"
+    created: "2025-06-19T15:20:55.896664524Z"
     description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
-    digest: a6cc57c353b633b36efff2e7981235efceeb481e8668c48bb7237aa64f70d17f
+    digest: 8c6e8325c1caeef80efea8be6590a408f342f1cb136d9023ab25994da5da5d94
     home: https://github.com/aywengo/kafka-schema-reg-mcp
     icon: https://kafka.apache.org/images/apache-kafka.png
     keywords:
@@ -313,4 +339,4 @@ entries:
     urls:
     - kafka-schema-registry-mcp-2.0.0-rc2.tgz
     version: 2.0.0-rc2
-generated: "2025-07-08T21:44:27.788717493Z"
+generated: "2025-07-11T06:47:57.245245226Z"
