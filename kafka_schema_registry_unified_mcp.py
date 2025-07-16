@@ -1358,61 +1358,50 @@ if not SLIM_MODE:
     try:
         # Create wizard instance (using None for batch_operations for now)
         bulk_wizard = BulkOperationsWizard(
-            registry_manager,
-            elicitation_manager,
-            task_manager,
-            None  # batch_operations placeholder
+            registry_manager, elicitation_manager, task_manager, None  # batch_operations placeholder
         )
-        
+
         # Register bulk operations tools
         bulk_tools = create_bulk_operations_tools(bulk_wizard)
-        
+
         # Add tools to MCP server
         @mcp.tool()
         @require_scopes("admin")
-        async def bulk_operations_wizard(
-            operation_type: Optional[str] = None,
-            dry_run: bool = True
-        ):
+        async def bulk_operations_wizard(operation_type: Optional[str] = None, dry_run: bool = True):
             """
             Start the interactive Bulk Operations Wizard for admin tasks.
-            
+
             Guides through safe execution of operations across multiple schemas.
             Supports schema updates, migrations, cleanup, and configuration changes.
             """
             from bulk_operations_wizard import BulkOperationType
-            
+
             op_type = None
             if operation_type:
                 op_type = BulkOperationType(operation_type)
-                
+
             return await bulk_wizard.start_wizard(op_type)
-        
+
         @mcp.tool()
         @require_scopes("admin")
         async def bulk_schema_update(
             pattern: Optional[str] = None,
             update_type: str = "compatibility",
             dry_run: bool = True,
-            batch_size: int = 10
+            batch_size: int = 10,
         ):
             """
             Update schemas in bulk with interactive guidance.
-            
+
             Supports compatibility settings, naming conventions, and metadata updates.
             Pattern matching supported (e.g., test-*, deprecated-*).
             """
             return await handle_bulk_operations_tool(
                 bulk_wizard,
                 "bulk_schema_update",
-                {
-                    "pattern": pattern,
-                    "update_type": update_type,
-                    "dry_run": dry_run,
-                    "batch_size": batch_size
-                }
+                {"pattern": pattern, "update_type": update_type, "dry_run": dry_run, "batch_size": batch_size},
             )
-        
+
         @mcp.tool()
         @require_scopes("admin")
         async def bulk_schema_cleanup(
@@ -1420,11 +1409,11 @@ if not SLIM_MODE:
             pattern: Optional[str] = None,
             keep_versions: int = 3,
             check_consumers: bool = True,
-            force: bool = False
+            force: bool = False,
         ):
             """
             Clean up schemas in bulk with safety checks.
-            
+
             Detects active consumers and provides options for handling them.
             Supports test schema cleanup, deprecated schema removal, and version purging.
             """
@@ -1436,10 +1425,10 @@ if not SLIM_MODE:
                     "pattern": pattern,
                     "keep_versions": keep_versions,
                     "check_consumers": check_consumers,
-                    "force": force
-                }
+                    "force": force,
+                },
             )
-        
+
         @mcp.tool()
         @require_scopes("admin")
         async def bulk_schema_migration(
@@ -1449,11 +1438,11 @@ if not SLIM_MODE:
             target_registry: Optional[str] = None,
             schema_pattern: Optional[str] = None,
             preserve_ids: bool = True,
-            dry_run: bool = True
+            dry_run: bool = True,
         ):
             """
             Migrate schemas between contexts or registries.
-            
+
             Supports pattern-based selection and maintains schema IDs.
             Includes preview and rollback capabilities.
             """
@@ -1467,10 +1456,10 @@ if not SLIM_MODE:
                     "target_registry": target_registry,
                     "schema_pattern": schema_pattern,
                     "preserve_ids": preserve_ids,
-                    "dry_run": dry_run
-                }
+                    "dry_run": dry_run,
+                },
             )
-        
+
         @mcp.tool()
         @require_scopes("admin")
         async def bulk_configuration_update(
@@ -1478,11 +1467,11 @@ if not SLIM_MODE:
             target_type: str = "schemas",
             pattern: Optional[str] = None,
             settings: Optional[dict] = None,
-            dry_run: bool = True
+            dry_run: bool = True,
         ):
             """
             Update configuration settings across multiple schemas or contexts.
-            
+
             Supports security policies, retention settings, and access controls.
             """
             return await handle_bulk_operations_tool(
@@ -1493,12 +1482,12 @@ if not SLIM_MODE:
                     "target_type": target_type,
                     "pattern": pattern,
                     "settings": settings,
-                    "dry_run": dry_run
-                }
+                    "dry_run": dry_run,
+                },
             )
-        
+
         logger.info("✅ Bulk Operations Wizard registered with MCP server")
-        
+
     except Exception as e:
         logger.error(f"❌ Error initializing Bulk Operations Wizard: {str(e)}")
         logger.info("📝 Bulk Operations Wizard not available")

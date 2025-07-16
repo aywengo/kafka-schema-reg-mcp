@@ -15,8 +15,8 @@ from enum import Enum
 from datetime import datetime
 
 from elicitation import ElicitationManager, ElicitationRequest
-from schema_registry_common import RegistryClient
 from task_management import AsyncTaskManager
+
 # from batch_operations import BatchOperations  # Not needed for now
 
 logger = logging.getLogger(__name__)
