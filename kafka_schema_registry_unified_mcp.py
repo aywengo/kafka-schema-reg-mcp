@@ -60,11 +60,12 @@ import os
 import urllib.error
 import urllib.request
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any, Dict, Optional, Union
 
 # Third-party imports
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from fastmcp.server.context import Context
 
 # Local imports
 from batch_operations import (
@@ -114,7 +115,6 @@ from interactive_tools import create_context_interactive as create_context_inter
 from interactive_tools import export_global_interactive as export_global_interactive_impl
 from interactive_tools import migrate_context_interactive as migrate_context_interactive_impl
 from interactive_tools import register_schema_interactive as register_schema_interactive_impl
-from mcp_prompts import PROMPT_REGISTRY
 from migration_tools import (
     get_migration_status_tool,
     list_migrations_tool,
@@ -267,8 +267,8 @@ try:
             return session.post(url, **kwargs)
         return original_post(url, **kwargs)
 
-    requests.get = patched_get
-    requests.post = patched_post
+    requests.get = patched_get  # type: ignore
+    requests.post = patched_post  # type: ignore
 
 except ImportError:
     pass  # requests not available
@@ -385,7 +385,7 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
 
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
-mcp = FastMCP(**mcp_config)
+mcp: FastMCP = FastMCP(**mcp_config)
 
 # Add MCP-Protocol-Version validation middleware (with error handling)
 MIDDLEWARE_ENABLED = False
@@ -500,7 +500,7 @@ class SecureHeaderDict(dict):
 
 if REGISTRY_MODE == "single":
     logger.info("📡 Initializing Single Registry Manager")
-    registry_manager = LegacyRegistryManager("")
+    registry_manager: Union[LegacyRegistryManager, MultiRegistryManager] = LegacyRegistryManager("")
 
     # Legacy compatibility globals
     SCHEMA_REGISTRY_URL = SINGLE_REGISTRY_URL
@@ -527,8 +527,8 @@ else:
     SCHEMA_REGISTRY_PASSWORD = ""
     VIEWONLY = False
     auth = None
-    headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-    standard_headers = {"Content-Type": "application/json"}
+    headers = SecureHeaderDict("application/vnd.schemaregistry.v1+json")
+    standard_headers = SecureHeaderDict("application/json")
 
 # Initialize elicitation MCP integration (only if not in SLIM_MODE)
 if not SLIM_MODE:
@@ -560,10 +560,10 @@ if not SLIM_MODE:
     except Exception as e:
         logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
         logger.info("📝 Multi-step workflows not available")
-        multi_step_manager: Any = None
+        multi_step_manager = None
 else:
     logger.info("🚀 SLIM_MODE enabled - Elicitation and workflow features disabled")
-    multi_step_manager: Any = None
+    multi_step_manager = None
 
 # ===== MCP PROTOCOL SUPPORT =====
 
@@ -604,14 +604,14 @@ def list_registries():
 
 @mcp.tool()
 @require_scopes("read")
-def get_registry_info(registry_name: str = None):
+def get_registry_info(registry_name: Optional[str] = None):
     """Get detailed information about a specific registry."""
     return get_registry_info_tool(registry_manager, REGISTRY_MODE, registry_name)
 
 
 @mcp.tool()
 @require_scopes("read")
-def test_registry_connection(registry_name: str = None):
+def test_registry_connection(registry_name: Optional[str] = None):
     """Test connection to a specific registry and return comprehensive information including metadata."""
     return test_registry_connection_tool(registry_manager, REGISTRY_MODE, registry_name)
 
@@ -652,7 +652,9 @@ if not SLIM_MODE:
         source_registry: str,
         target_registry: str,
         source_context: str,
-        target_context: str = None,
+        target_context: Optional[str] = None,
+        *,
+        context: Context,
     ):
         """Compare contexts across two registries."""
         return await compare_contexts_across_registries_tool(
@@ -662,11 +664,12 @@ if not SLIM_MODE:
             registry_manager,
             REGISTRY_MODE,
             target_context,
+            context,
         )
 
     @mcp.tool()
     @require_scopes("read")
-    async def find_missing_schemas(source_registry: str, target_registry: str, context: str = None):
+    async def find_missing_schemas(source_registry: str, target_registry: str, context: Optional[str] = None):
         """Find schemas that exist in source registry but not in target registry."""
         return await find_missing_schemas_tool(
             source_registry, target_registry, registry_manager, REGISTRY_MODE, context
@@ -683,8 +686,8 @@ def register_schema(
     subject: str,
     schema_definition: dict,
     schema_type: str = "AVRO",
-    context: str = None,
-    registry: str = None,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
 ):
     """Register a new schema version."""
     return register_schema_tool(
@@ -710,8 +713,8 @@ if not SLIM_MODE:
         subject: str,
         schema_definition: Optional[dict] = None,
         schema_type: str = "AVRO",
-        context: str = None,
-        registry: str = None,
+        context: Optional[str] = None,
+        registry: Optional[str] = None,
     ):
         """
         Interactive schema registration with elicitation for missing field definitions.
@@ -736,7 +739,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def get_schema(subject: str, version: str = "latest", context: str = None, registry: str = None):
+def get_schema(subject: str, version: str = "latest", context: Optional[str] = None, registry: Optional[str] = None):
     """Get a specific version of a schema."""
     return get_schema_tool(
         subject,
@@ -753,7 +756,7 @@ def get_schema(subject: str, version: str = "latest", context: str = None, regis
 
 @mcp.tool()
 @require_scopes("read")
-def get_schema_versions(subject: str, context: str = None, registry: str = None):
+def get_schema_versions(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Get all versions of a schema for a subject."""
     return get_schema_versions_tool(
         subject,
@@ -769,7 +772,7 @@ def get_schema_versions(subject: str, context: str = None, registry: str = None)
 
 @mcp.tool()
 @require_scopes("read")
-def list_subjects(context: str = None, registry: str = None):
+def list_subjects(context: Optional[str] = None, registry: Optional[str] = None):
     """List all subjects, optionally filtered by context."""
     return list_subjects_tool(
         registry_manager,
@@ -788,8 +791,8 @@ def check_compatibility(
     subject: str,
     schema_definition: dict,
     schema_type: str = "AVRO",
-    context: str = None,
-    registry: str = None,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
 ):
     """Check if a schema is compatible with the latest version."""
     return check_compatibility_tool(
@@ -815,8 +818,8 @@ if not SLIM_MODE:
         subject: str,
         schema_definition: dict,
         schema_type: str = "AVRO",
-        context: str = None,
-        registry: str = None,
+        context: Optional[str] = None,
+        registry: Optional[str] = None,
     ):
         """
         Interactive compatibility checking with elicitation for resolution options.
@@ -844,7 +847,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def get_global_config(context: str = None, registry: str = None):
+def get_global_config(context: Optional[str] = None, registry: Optional[str] = None):
     """Get global configuration settings."""
     return get_global_config_tool(
         registry_manager,
@@ -862,7 +865,7 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("write")
-    def update_global_config(compatibility: str, context: str = None, registry: str = None):
+    def update_global_config(compatibility: str, context: Optional[str] = None, registry: Optional[str] = None):
         """Update global configuration settings."""
         return update_global_config_tool(
             compatibility,
@@ -878,7 +881,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def get_subject_config(subject: str, context: str = None, registry: str = None):
+def get_subject_config(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Get configuration settings for a specific subject."""
     return get_subject_config_tool(
         subject,
@@ -897,7 +900,9 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("write")
-    def update_subject_config(subject: str, compatibility: str, context: str = None, registry: str = None):
+    def update_subject_config(
+        subject: str, compatibility: str, context: Optional[str] = None, registry: Optional[str] = None
+    ):
         """Update configuration settings for a specific subject."""
         return update_subject_config_tool(
             subject,
@@ -917,7 +922,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def get_mode(context: str = None, registry: str = None):
+def get_mode(context: Optional[str] = None, registry: Optional[str] = None):
     """Get the current mode of the Schema Registry."""
     return get_mode_tool(
         registry_manager,
@@ -935,7 +940,7 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("write")
-    def update_mode(mode: str, context: str = None, registry: str = None):
+    def update_mode(mode: str, context: Optional[str] = None, registry: Optional[str] = None):
         """Update the mode of the Schema Registry."""
         return update_mode_tool(
             mode,
@@ -951,7 +956,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def get_subject_mode(subject: str, context: str = None, registry: str = None):
+def get_subject_mode(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Get the mode for a specific subject."""
     return get_subject_mode_tool(
         subject,
@@ -970,7 +975,7 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("write")
-    def update_subject_mode(subject: str, mode: str, context: str = None, registry: str = None):
+    def update_subject_mode(subject: str, mode: str, context: Optional[str] = None, registry: Optional[str] = None):
         """Update the mode for a specific subject."""
         return update_subject_mode_tool(
             subject,
@@ -990,7 +995,7 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def list_contexts(registry: str = None):
+def list_contexts(registry: Optional[str] = None):
     """List all available schema contexts."""
     return list_contexts_tool(registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL)
 
@@ -998,7 +1003,7 @@ def list_contexts(registry: str = None):
 # Create context is kept even in SLIM_MODE for essential operations
 @mcp.tool()
 @require_scopes("write")
-def create_context(context: str, registry: str = None):
+def create_context(context: str, registry: Optional[str] = None):
     """Create a new schema context."""
     return create_context_tool(
         context,
@@ -1018,7 +1023,7 @@ if not SLIM_MODE:
     @require_scopes("write")
     async def create_context_interactive(
         context: str,
-        registry: str = None,
+        registry: Optional[str] = None,
         description: Optional[str] = None,
         owner: Optional[str] = None,
         environment: Optional[str] = None,
@@ -1051,7 +1056,7 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("admin")
-    def delete_context(context: str, registry: str = None):
+    def delete_context(context: str, registry: Optional[str] = None):
         """Delete a schema context."""
         return delete_context_tool(
             context,
@@ -1065,7 +1070,9 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("admin")
-    async def delete_subject(subject: str, context: str = None, registry: str = None, permanent: bool = False):
+    async def delete_subject(
+        subject: str, context: Optional[str] = None, registry: Optional[str] = None, permanent: bool = False
+    ):
         """Delete a subject and all its versions.
 
         Args:
@@ -1096,9 +1103,9 @@ if not SLIM_MODE:
     def export_schema(
         subject: str,
         version: str = "latest",
-        context: str = None,
+        context: Optional[str] = None,
         format: str = "json",
-        registry: str = None,
+        registry: Optional[str] = None,
     ):
         """Export a single schema in the specified format."""
         return export_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, format, registry)
@@ -1107,11 +1114,11 @@ if not SLIM_MODE:
     @require_scopes("read")
     def export_subject(
         subject: str,
-        context: str = None,
+        context: Optional[str] = None,
         include_metadata: bool = True,
         include_config: bool = True,
         include_versions: str = "all",
-        registry: str = None,
+        registry: Optional[str] = None,
     ):
         """Export all versions of a subject."""
         return export_subject_tool(
@@ -1129,7 +1136,7 @@ if not SLIM_MODE:
     @require_scopes("read")
     def export_context(
         context: str,
-        registry: str = None,
+        registry: Optional[str] = None,
         include_metadata: bool = True,
         include_config: bool = True,
         include_versions: str = "all",
@@ -1148,7 +1155,7 @@ if not SLIM_MODE:
     @mcp.tool()
     @require_scopes("read")
     def export_global(
-        registry: str = None,
+        registry: Optional[str] = None,
         include_metadata: bool = True,
         include_config: bool = True,
         include_versions: str = "all",
@@ -1166,10 +1173,10 @@ if not SLIM_MODE:
     @mcp.tool()
     @require_scopes("read")
     async def export_global_interactive(
-        registry: str = None,
-        include_metadata: bool = None,
-        include_config: bool = None,
-        include_versions: str = None,
+        registry: Optional[str] = None,
+        include_metadata: Optional[bool] = None,
+        include_config: Optional[bool] = None,
+        include_versions: Optional[str] = None,
         format: Optional[str] = None,
         compression: Optional[str] = None,
     ):
@@ -1241,14 +1248,14 @@ if not SLIM_MODE:
     async def migrate_context(
         source_registry: str,
         target_registry: str,
-        context: str = None,
-        target_context: str = None,
+        context: Optional[str] = None,
+        target_context: Optional[str] = None,
         preserve_ids: bool = True,
         dry_run: bool = True,
         migrate_all_versions: bool = True,
     ):
         """Guide for migrating an entire context using Docker-based tools."""
-        return await migrate_context_tool(
+        return migrate_context_tool(
             source_registry,
             target_registry,
             registry_manager,
@@ -1265,8 +1272,8 @@ if not SLIM_MODE:
     async def migrate_context_interactive(
         source_registry: str,
         target_registry: str,
-        context: str = None,
-        target_context: str = None,
+        context: Optional[str] = None,
+        target_context: Optional[str] = None,
         preserve_ids: Optional[bool] = None,
         dry_run: Optional[bool] = None,
         migrate_all_versions: Optional[bool] = None,
@@ -1299,7 +1306,7 @@ if not SLIM_MODE:
     @require_scopes("admin")
     def clear_context_batch(
         context: str,
-        registry: str = None,
+        registry: Optional[str] = None,
         delete_context_after: bool = True,
         dry_run: bool = True,
     ):
@@ -1320,7 +1327,7 @@ if not SLIM_MODE:
     @require_scopes("admin")
     def clear_multiple_contexts_batch(
         contexts: list,
-        registry: str = None,
+        registry: Optional[str] = None,
         delete_contexts_after: bool = True,
         dry_run: bool = True,
     ):
@@ -1345,14 +1352,14 @@ if not SLIM_MODE:
 
 @mcp.tool()
 @require_scopes("read")
-def count_contexts(registry: str = None):
+def count_contexts(registry: Optional[str] = None):
     """Count the number of contexts in a registry."""
     return count_contexts_tool(registry_manager, REGISTRY_MODE, registry)
 
 
 @mcp.tool()
 @require_scopes("read")
-def count_schemas(context: str = None, registry: str = None):
+def count_schemas(context: Optional[str] = None, registry: Optional[str] = None):
     """Count the number of schemas in a context or registry."""
     # Use task queue version for better performance when counting across multiple contexts
     if not SLIM_MODE and context is None:
@@ -1365,7 +1372,7 @@ def count_schemas(context: str = None, registry: str = None):
 
 @mcp.tool()
 @require_scopes("read")
-def count_schema_versions(subject: str, context: str = None, registry: str = None):
+def count_schema_versions(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Count the number of versions for a specific schema."""
     return count_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry)
 
@@ -1375,7 +1382,7 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("read")
-    def get_registry_statistics(registry: str = None, include_context_details: bool = True):
+    def get_registry_statistics(registry: Optional[str] = None, include_context_details: bool = True):
         """Get comprehensive statistics about a registry."""
         # Always use task queue version for better performance due to complexity
         return get_registry_statistics_task_queue_tool(
@@ -2409,7 +2416,7 @@ def get_default_registry():
 
 
 @structured_output("check_viewonly_mode", fallback_on_error=True)
-def check_viewonly_mode_tool(registry: str = None):
+def check_viewonly_mode_tool(registry: Optional[str] = None):
     """Check if a registry is in viewonly mode with structured output validation."""
     try:
         result = _check_viewonly_mode(registry_manager, registry)
@@ -2450,7 +2457,7 @@ def check_viewonly_mode_tool(registry: str = None):
 
 @mcp.tool()
 @require_scopes("read")
-def check_viewonly_mode(registry: str = None):
+def check_viewonly_mode(registry: Optional[str] = None):
     """Check if a registry is in viewonly mode."""
     return check_viewonly_mode_tool(registry)
 
@@ -2509,7 +2516,7 @@ if not SLIM_MODE:
 
         import requests
 
-        results = {
+        results: Dict[str, Any] = {
             "test_time": datetime.utcnow().isoformat(),
             "server_url": server_url,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
@@ -2562,7 +2569,11 @@ if not SLIM_MODE:
 
                         # Check MCP-specific extensions
                         if "mcp_endpoints" not in response_data:
-                            endpoint_result["warnings"] = endpoint_result.get("warnings", "") + " Missing MCP endpoints"
+                            warnings = endpoint_result.get("warnings", "")
+                            if isinstance(warnings, str):
+                                endpoint_result["warnings"] = warnings + " Missing MCP endpoints"
+                            else:
+                                endpoint_result["warnings"] = "Missing MCP endpoints"
 
                     elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
                         required_fields = [
@@ -2576,9 +2587,11 @@ if not SLIM_MODE:
 
                         # Check MCP-specific fields
                         if "mcp_server_info" not in response_data:
-                            endpoint_result["warnings"] = (
-                                endpoint_result.get("warnings", "") + " Missing MCP server info"
-                            )
+                            warnings = endpoint_result.get("warnings", "")
+                            if isinstance(warnings, str):
+                                endpoint_result["warnings"] = warnings + " Missing MCP server info"
+                            else:
+                                endpoint_result["warnings"] = "Missing MCP server info"
 
                     elif endpoint_name == "jwks" and response.status_code == 200:
                         if "keys" not in response_data:

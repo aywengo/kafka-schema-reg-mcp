@@ -5,6 +5,12 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2025-07-16
+
+### Added
+- **🔄 Enhanced Task Management**: Complete MCP compliance for registry-specific resources
+  - Enhanced task management with progress reporting and logging
+  
 ## [2.0.6] - 2025-07-11
 
 ### Added

@@ -10,13 +10,16 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
     structured_output,
 )
+
+if TYPE_CHECKING:
+    from fastmcp.server.context import Context
 
 
 @structured_output("compare_registries", fallback_on_error=True)
@@ -66,7 +69,7 @@ async def compare_registries_tool(
                 registry_mode=registry_mode,
             )
 
-        comparison = {
+        comparison: Dict[str, Any] = {
             "source_registry": source_registry,
             "target_registry": target_registry,
             "timestamp": datetime.now().isoformat(),
@@ -183,6 +186,7 @@ async def compare_contexts_across_registries_tool(
     registry_manager,
     registry_mode: str,
     target_context: Optional[str] = None,
+    context: Optional["Context"] = None,
 ) -> Dict[str, Any]:
     """
     Compare contexts across two registries.
@@ -193,6 +197,7 @@ async def compare_contexts_across_registries_tool(
         target_registry: Target registry name
         source_context: Source context name
         target_context: Target context name (defaults to source_context)
+        context: MCP Context for progress reporting
 
     Returns:
         Context comparison results with structured validation and resource links
@@ -206,6 +211,13 @@ async def compare_contexts_across_registries_tool(
         )
 
     try:
+        # Initial setup (0-10%)
+        if context:
+            await context.info(
+                f"Starting context comparison: {source_registry}/{source_context} vs {target_registry}/{target_context or source_context}"
+            )
+            await context.report_progress(0.0, 100.0, "Initializing context comparison")
+
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
@@ -226,11 +238,34 @@ async def compare_contexts_across_registries_tool(
         if target_context is None:
             target_context = source_context
 
-        # Get subjects in each context
+        if context:
+            await context.report_progress(10.0, 100.0, "Registry clients initialized")
+
+        # Get subjects from source context (10-30%)
+        if context:
+            await context.info(f"Fetching subjects from source context: {source_registry}/{source_context}")
+            await context.report_progress(15.0, 100.0, f"Fetching subjects from {source_registry}/{source_context}")
+
         source_subjects = set(source_client.get_subjects(source_context) or [])
+
+        if context:
+            await context.report_progress(25.0, 100.0, f"Found {len(source_subjects)} subjects in source context")
+
+        # Get subjects from target context (30-50%)
+        if context:
+            await context.info(f"Fetching subjects from target context: {target_registry}/{target_context}")
+            await context.report_progress(35.0, 100.0, f"Fetching subjects from {target_registry}/{target_context}")
+
         target_subjects = set(target_client.get_subjects(target_context) or [])
 
-        comparison = {
+        if context:
+            await context.report_progress(45.0, 100.0, f"Found {len(target_subjects)} subjects in target context")
+
+        # Build comparison structure (50-60%)
+        if context:
+            await context.report_progress(50.0, 100.0, "Building comparison structure")
+
+        comparison: Dict[str, Any] = {
             "source": {
                 "registry": source_registry,
                 "context": source_context,
@@ -253,29 +288,52 @@ async def compare_contexts_across_registries_tool(
             "mcp_protocol_version": "2025-06-18",
         }
 
-        # Compare schemas for common subjects
-        schema_differences = []
-        for subject in source_subjects & target_subjects:
-            source_versions = source_client.get_schema_versions(subject, source_context) or []
-            target_versions = target_client.get_schema_versions(subject, target_context) or []
+        if context:
+            await context.report_progress(60.0, 100.0, "Analyzing subject differences")
 
-            if source_versions != target_versions:
-                schema_differences.append(
-                    {
-                        "subject": subject,
-                        "source_versions": source_versions,
-                        "target_versions": target_versions,
-                        "source_version_count": (len(source_versions) if isinstance(source_versions, list) else 0),
-                        "target_version_count": (len(target_versions) if isinstance(target_versions, list) else 0),
-                    }
-                )
+        # Compare schemas for common subjects (60-90%)
+        common_subjects = source_subjects & target_subjects
+        schema_differences = []
+
+        if context:
+            await context.info(f"Comparing schemas for {len(common_subjects)} common subjects")
+            await context.report_progress(65.0, 100.0, f"Comparing schemas for {len(common_subjects)} common subjects")
+
+        if common_subjects:
+            for i, subject in enumerate(common_subjects):
+                # Report progress for schema comparison
+                if context and len(common_subjects) > 0:
+                    progress = 65.0 + (i / len(common_subjects)) * 20.0  # 65% to 85%
+                    await context.report_progress(progress, 100.0, f"Comparing schema versions for {subject}")
+
+                source_versions = source_client.get_schema_versions(subject, source_context) or []
+                target_versions = target_client.get_schema_versions(subject, target_context) or []
+
+                if source_versions != target_versions:
+                    schema_differences.append(
+                        {
+                            "subject": subject,
+                            "source_versions": source_versions,
+                            "target_versions": target_versions,
+                            "source_version_count": (len(source_versions) if isinstance(source_versions, list) else 0),
+                            "target_version_count": (len(target_versions) if isinstance(target_versions, list) else 0),
+                        }
+                    )
+
+        if context:
+            await context.report_progress(
+                85.0, 100.0, f"Found {len(schema_differences)} subjects with version differences"
+            )
 
         comparison["schema_differences"] = {
             "subjects_with_differences": schema_differences,
             "count": len(schema_differences),
         }
 
-        # Add summary
+        # Add summary (90-95%)
+        if context:
+            await context.report_progress(90.0, 100.0, "Building comparison summary")
+
         comparison["summary"] = {
             "contexts_match": (
                 len(comparison["differences"]["only_in_source"]) == 0
@@ -288,7 +346,10 @@ async def compare_contexts_across_registries_tool(
             "schemas_with_version_differences": len(schema_differences),
         }
 
-        # Add resource links
+        # Add resource links (95-100%)
+        if context:
+            await context.report_progress(95.0, 100.0, "Adding resource links")
+
         comparison = add_links_to_response(
             comparison,
             "comparison",
@@ -297,9 +358,15 @@ async def compare_contexts_across_registries_tool(
             target_registry=target_registry,
         )
 
+        if context:
+            await context.info("Context comparison completed successfully")
+            await context.report_progress(100.0, 100.0, "Context comparison completed")
+
         return comparison
 
     except Exception as e:
+        if context:
+            await context.error(f"Context comparison failed: {str(e)}")
         return create_error_response(str(e), error_code="CONTEXT_COMPARISON_FAILED", registry_mode=registry_mode)
 
 
@@ -359,7 +426,7 @@ async def find_missing_schemas_tool(
         # Find missing subjects
         missing_subjects = source_subjects - target_subjects
 
-        result = {
+        result: Dict[str, Any] = {
             "source_registry": source_registry,
             "target_registry": target_registry,
             "context": context,
@@ -373,6 +440,9 @@ async def find_missing_schemas_tool(
             "mcp_protocol_version": "2025-06-18",
         }
 
+        # Ensure details is treated as a list
+        details_list: List[Dict[str, Any]] = result["details"]
+
         # Get details for each missing subject
         for subject in missing_subjects:
             try:
@@ -383,7 +453,7 @@ async def find_missing_schemas_tool(
                     latest_version = max(versions) if isinstance(versions, list) else "latest"
                     latest_schema = source_client.get_schema(subject, str(latest_version), context)
 
-                result["details"].append(
+                details_list.append(
                     {
                         "subject": subject,
                         "versions": versions,
@@ -401,7 +471,7 @@ async def find_missing_schemas_tool(
                 )
             except Exception as e:
                 # If we can't get details for a subject, still include it in the list
-                result["details"].append(
+                details_list.append(
                     {
                         "subject": subject,
                         "versions": [],
@@ -410,12 +480,15 @@ async def find_missing_schemas_tool(
                     }
                 )
 
+        # Update result with processed details
+        result["details"] = details_list
+
         # Add summary information
         result["summary"] = {
             "migration_needed": len(missing_subjects) > 0,
-            "total_versions_to_migrate": sum(detail.get("version_count", 0) for detail in result["details"]),
+            "total_versions_to_migrate": sum(detail.get("version_count", 0) for detail in details_list),
             "subjects_with_multiple_versions": len(
-                [detail for detail in result["details"] if detail.get("version_count", 0) > 1]
+                [detail for detail in details_list if detail.get("version_count", 0) > 1]
             ),
         }
 
