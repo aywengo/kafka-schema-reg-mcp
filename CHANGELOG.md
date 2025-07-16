@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **🔄 Enhanced Task Management**: Complete MCP compliance for registry-specific resources
   - Enhanced task management with progress reporting and logging
-  
+- **🤖 Batch Operations Wizard**: Complete MCP compliance for registry-specific resources
+  - Interactive guided workflows for batch operations
+
 ## [2.0.6] - 2025-07-11
 
 ### Added
