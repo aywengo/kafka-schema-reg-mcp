@@ -247,7 +247,8 @@ class EnhancedAsyncTaskManager:
                     logger.warning(f"Failed to report progress through MCP: {e}")
 
         # Log significant progress milestones
-        if task._context and task.progress in [25.0, 50.0, 75.0]:
+        EPSILON = 0.1  # Threshold for floating-point comparison
+        if task._context and any(abs(task.progress - milestone) < EPSILON for milestone in [25.0, 50.0, 75.0]):
             await self._log_task_event(
                 task._context,
                 f"Progress: {int(task.progress)}%" + (f" - {message}" if message else ""),
