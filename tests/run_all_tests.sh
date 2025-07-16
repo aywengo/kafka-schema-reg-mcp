@@ -523,6 +523,7 @@ run_advanced_feature_tests() {
         "test_sparse_version_migration.py:Sparse version migration"
         "test_id_preservation_migration.py:ID preservation migration"
         "test_bulk_migration.py:Bulk migration operations"
+        "test_bulk_operations_wizard.py:Bulk Operations Wizard with elicitation-based workflows"
         "test_compatibility_migration.py:Compatibility migration testing"
         "test_batch_cleanup_integration.py:Advanced batch cleanup"
         "test_registry_comparison.py:Registry comparison functionality"

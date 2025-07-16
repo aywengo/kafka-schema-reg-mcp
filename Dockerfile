@@ -124,6 +124,10 @@ COPY --chown=mcp:mcp smart_defaults_init.py .
 # Copy schema evolution helpers
 COPY --chown=mcp:mcp schema_evolution_helpers.py .
 
+# Copy bulk operations wizard (Issue #74 - admin task automation)
+COPY --chown=mcp:mcp bulk_operations_wizard.py .
+COPY --chown=mcp:mcp bulk_operations_mcp_integration.py .
+
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .
