@@ -308,7 +308,7 @@ async def migrate_context_interactive(
                 )
 
         # Now proceed with the actual context migration
-        result = await migrate_context_tool(
+        result = migrate_context_tool(
             source_registry=source_registry,
             target_registry=target_registry,
             registry_manager=registry_manager,

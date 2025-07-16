@@ -1248,7 +1248,7 @@ if not SLIM_MODE:
         migrate_all_versions: bool = True,
     ):
         """Guide for migrating an entire context using Docker-based tools."""
-        return await migrate_context_tool(
+        return migrate_context_tool(
             source_registry,
             target_registry,
             registry_manager,
