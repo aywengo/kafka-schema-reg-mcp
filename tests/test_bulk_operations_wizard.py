@@ -2,11 +2,12 @@
 Tests for Bulk Operations Wizard
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
-from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType, BulkOperationPreview
+import pytest
+
+from bulk_operations_wizard import BulkOperationPreview, BulkOperationsWizard, BulkOperationType
 
 
 class TestBulkOperationsWizard:

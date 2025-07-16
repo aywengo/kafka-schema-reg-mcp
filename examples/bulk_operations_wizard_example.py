@@ -9,13 +9,13 @@ for various administrative tasks on Schema Registry.
 import asyncio
 import logging
 
-# Import the wizard and related components
-from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType
-from schema_registry_common import SchemaRegistryClient
-from elicitation import ElicitationManager
-from task_management import TaskManager
 from batch_operations import BatchOperations
 
+# Import the wizard and related components
+from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType
+from elicitation import ElicitationManager
+from schema_registry_common import SchemaRegistryClient
+from task_management import TaskManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

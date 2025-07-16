@@ -5,8 +5,10 @@ This module provides MCP tools for the Bulk Operations Wizard,
 allowing it to be used through the Message Control Protocol.
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from mcp.types import Tool
+
 from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType
 
 
