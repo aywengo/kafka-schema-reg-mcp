@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - method `update_global_config` was not returning the correct response
+- method `export_context` was not returning the correct response
 
 ## [2.0.6] - 2025-07-11
 

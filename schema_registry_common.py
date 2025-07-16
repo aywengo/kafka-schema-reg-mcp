@@ -1168,6 +1168,14 @@ def get_schema_with_metadata(
         if "error" in schema_data:
             return schema_data
 
+        # Ensure schema is parsed as JSON object if it's a string
+        if isinstance(schema_data.get("schema"), str):
+            try:
+                schema_data["schema"] = json.loads(schema_data["schema"])
+            except (json.JSONDecodeError, TypeError):
+                # Keep as string if not valid JSON
+                pass
+
         # Add export metadata
         schema_data["metadata"] = {
             "exported_at": datetime.now().isoformat(),
