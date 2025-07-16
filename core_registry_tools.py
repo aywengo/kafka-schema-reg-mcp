@@ -678,6 +678,10 @@ def update_global_config_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Ensure the compatibility field is present in the response (required by schema validation)
+            if "compatibility" not in result:
+                result["compatibility"] = compatibility
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -702,6 +706,10 @@ def update_global_config_tool(
             response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Ensure the compatibility field is present in the response (required by schema validation)
+            if "compatibility" not in result:
+                result["compatibility"] = compatibility
 
             # Add structured output metadata
             result["registry"] = client.config.name
@@ -844,6 +852,10 @@ def update_subject_config_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Ensure the compatibility field is present in the response (required by schema validation)
+            if "compatibility" not in result:
+                result["compatibility"] = compatibility
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -866,6 +878,10 @@ def update_subject_config_tool(
             response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Ensure the compatibility field is present in the response (required by schema validation)
+            if "compatibility" not in result:
+                result["compatibility"] = compatibility
 
             # Add structured output metadata
             result["registry"] = client.config.name
@@ -1008,6 +1024,10 @@ def update_mode_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Ensure the mode field is present in the response (required by schema validation)
+            if "mode" not in result:
+                result["mode"] = mode
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -1032,6 +1052,10 @@ def update_mode_tool(
             response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Ensure the mode field is present in the response (required by schema validation)
+            if "mode" not in result:
+                result["mode"] = mode
 
             # Add structured output metadata
             result["registry"] = client.config.name
@@ -1175,6 +1199,10 @@ def update_subject_mode_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Ensure the mode field is present in the response (required by schema validation)
+            if "mode" not in result:
+                result["mode"] = mode
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -1199,6 +1227,10 @@ def update_subject_mode_tool(
             response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Ensure the mode field is present in the response (required by schema validation)
+            if "mode" not in result:
+                result["mode"] = mode
 
             # Add structured output metadata
             result["registry"] = client.config.name
