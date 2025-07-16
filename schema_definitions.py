@@ -265,9 +265,38 @@ REGISTRY_INFO_SCHEMA = {
 
 # List registries response
 LIST_REGISTRIES_SCHEMA = {
-    "type": "array",
-    "items": REGISTRY_INFO_SCHEMA,
-    "description": "List of registry configurations",
+    "type": "object",
+    "properties": {
+        "registries": {
+            "type": "array",
+            "items": REGISTRY_INFO_SCHEMA,
+            "description": "List of registry configurations",
+        },
+        "total_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of registries",
+        },
+        "default_registry": {
+            "type": "string",
+            "description": "Name of the default registry",
+        },
+        "message": {
+            "type": "string",
+            "description": "Helpful message when no registries are configured",
+        },
+        "help": {
+            "type": "object",
+            "properties": {
+                "single_mode": {"type": "string"},
+                "multi_mode": {"type": "string"},
+            },
+            "description": "Help information for configuring registries",
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["registries", "total_count"],
+    "additionalProperties": True,
 }
 
 # Test connection response
@@ -847,7 +876,8 @@ def get_tool_schema(tool_name: str) -> Dict[str, Any]:
     Returns:
         JSON Schema definition for the tool's output
     """
-    return TOOL_OUTPUT_SCHEMAS.get(tool_name, {"type": "object", "additionalProperties": True})
+    schema = TOOL_OUTPUT_SCHEMAS.get(tool_name, {"type": "object", "additionalProperties": True})
+    return schema if isinstance(schema, dict) else {"type": "object", "additionalProperties": True}
 
 
 def get_all_schemas() -> Dict[str, Any]:

@@ -38,25 +38,7 @@ class WorkflowMCPTools:
     def _register_tools(self):
         """Register MCP tools for workflow management."""
 
-        @self.mcp.tool(
-            description="Start a multi-step workflow for complex Schema Registry operations",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "workflow_id": {
-                        "type": "string",
-                        "description": "ID of the workflow to start",
-                        "enum": [workflow.id for workflow in get_all_workflows()],
-                    },
-                    "initial_context": {
-                        "type": "object",
-                        "description": "Optional initial context for the workflow",
-                        "additionalProperties": True,
-                    },
-                },
-                "required": ["workflow_id"],
-            },
-        )
+        @self.mcp.tool(description="Start a multi-step workflow for complex Schema Registry operations")
         async def start_workflow(workflow_id: str, initial_context: Optional[Dict[str, Any]] = None) -> str:
             """Start a multi-step workflow."""
             try:
@@ -89,10 +71,7 @@ class WorkflowMCPTools:
                 logger.error(f"Error starting workflow: {str(e)}")
                 return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
 
-        @self.mcp.tool(
-            description="List available multi-step workflows",
-            parameters={"type": "object", "properties": {}, "required": []},
-        )
+        @self.mcp.tool(description="List available multi-step workflows")
         async def list_workflows() -> str:
             """List all available workflows."""
             workflows = get_all_workflows()
@@ -111,19 +90,7 @@ class WorkflowMCPTools:
 
             return json.dumps({"workflows": workflow_list, "total": len(workflow_list)})
 
-        @self.mcp.tool(
-            description="Get the status of active workflows",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "instance_id": {
-                        "type": "string",
-                        "description": "Optional workflow instance ID to get specific status",
-                    }
-                },
-                "required": [],
-            },
-        )
+        @self.mcp.tool(description="Get the status of active workflows")
         async def workflow_status(instance_id: Optional[str] = None) -> str:
             """Get workflow status."""
             if instance_id:
@@ -165,14 +132,7 @@ class WorkflowMCPTools:
                 active = self.multi_step_manager.get_active_workflows()
                 return json.dumps({"active_workflows": active, "total_active": len(active)})
 
-        @self.mcp.tool(
-            description="Abort an active workflow",
-            parameters={
-                "type": "object",
-                "properties": {"instance_id": {"type": "string", "description": "Workflow instance ID to abort"}},
-                "required": ["instance_id"],
-            },
-        )
+        @self.mcp.tool(description="Abort an active workflow")
         async def abort_workflow(instance_id: str) -> str:
             """Abort an active workflow."""
             success = await self.multi_step_manager.abort_workflow(instance_id)
@@ -186,20 +146,7 @@ class WorkflowMCPTools:
                     {"error": f"Failed to abort workflow '{instance_id}'. It may not exist or already be completed."}
                 )
 
-        @self.mcp.tool(
-            description="Get detailed information about a workflow definition",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "workflow_id": {
-                        "type": "string",
-                        "description": "Workflow definition ID",
-                        "enum": [workflow.id for workflow in get_all_workflows()],
-                    }
-                },
-                "required": ["workflow_id"],
-            },
-        )
+        @self.mcp.tool(description="Get detailed information about a workflow definition")
         async def describe_workflow(workflow_id: str) -> str:
             """Get detailed workflow information."""
             workflow = get_workflow_by_id(workflow_id)
@@ -247,20 +194,6 @@ class WorkflowMCPTools:
                 "This guided workflow helps you safely evolve schemas by analyzing changes, "
                 "suggesting strategies, and coordinating consumer updates."
             ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "subject": {
-                        "type": "string",
-                        "description": "Optional schema subject to pre-populate",
-                    },
-                    "current_schema": {
-                        "type": "string",
-                        "description": "Optional current schema definition (JSON string)",
-                    },
-                },
-                "required": [],
-            },
         )
         async def guided_schema_evolution(
             subject: Optional[str] = None,
@@ -308,41 +241,23 @@ class WorkflowMCPTools:
                 logger.error(f"Error starting Schema Evolution workflow: {str(e)}")
                 return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
 
-        @self.mcp.tool(
-            description="Start the Schema Migration Wizard workflow for guided schema migration",
-            parameters={
-                "type": "object",
-                "properties": {},
-                "required": [],
-            },
-        )
+        @self.mcp.tool(description="Start the Schema Migration Wizard workflow for guided schema migration")
         async def guided_schema_migration() -> str:
             """Convenience method to start Schema Migration workflow."""
-            return await start_workflow("schema_migration_wizard")
+            result = await start_workflow("schema_migration_wizard")
+            return str(result)
 
-        @self.mcp.tool(
-            description="Start the Context Reorganization workflow for reorganizing schemas across contexts",
-            parameters={
-                "type": "object",
-                "properties": {},
-                "required": [],
-            },
-        )
+        @self.mcp.tool(description="Start the Context Reorganization workflow for reorganizing schemas across contexts")
         async def guided_context_reorganization() -> str:
             """Convenience method to start Context Reorganization workflow."""
-            return await start_workflow("context_reorganization")
+            result = await start_workflow("context_reorganization")
+            return str(result)
 
-        @self.mcp.tool(
-            description="Start the Disaster Recovery Setup workflow for configuring DR strategies",
-            parameters={
-                "type": "object",
-                "properties": {},
-                "required": [],
-            },
-        )
+        @self.mcp.tool(description="Start the Disaster Recovery Setup workflow for configuring DR strategies")
         async def guided_disaster_recovery() -> str:
             """Convenience method to start Disaster Recovery workflow."""
-            return await start_workflow("disaster_recovery_setup")
+            result = await start_workflow("disaster_recovery_setup")
+            return str(result)
 
 
 def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -354,6 +269,8 @@ def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
     """
     workflow_name = workflow_result.get("metadata", {}).get("workflow_name")
     responses = workflow_result.get("responses", {})
+    if not isinstance(responses, dict):
+        responses = {}
 
     if workflow_name == "Schema Migration Wizard":
         return execute_schema_migration(responses)
@@ -538,7 +455,8 @@ def execute_schema_evolution(responses: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     # Compatibility resolution (if breaking changes)
-    if result["change_info"]["has_breaking_changes"]:
+    change_info = result.get("change_info", {})
+    if isinstance(change_info, dict) and change_info.get("has_breaking_changes"):
         result["compatibility_resolution"] = {
             "approach": responses.get("resolution_approach"),
             "override_compatibility": responses.get("compatibility_override") == "true",
@@ -921,13 +839,13 @@ def _analyze_schema_level_changes(
 def _is_nullable_type(field_type: Any) -> bool:
     """Check if a type is nullable (includes null in union)."""
     if _is_union_type(field_type):
-        return "null" in field_type
-    return field_type == "null"
+        return bool("null" in field_type)
+    return bool(field_type == "null")
 
 
 def _is_union_type(field_type: Any) -> bool:
     """Check if a type is a union type."""
-    return isinstance(field_type, list)
+    return bool(isinstance(field_type, list))
 
 
 def _get_union_types(field_type: Any) -> set:
@@ -942,7 +860,7 @@ def _normalize_type(field_type: Any) -> str:
     if isinstance(field_type, str):
         return field_type
     elif isinstance(field_type, dict):
-        return field_type.get("type", "complex")
+        return str(field_type.get("type", "complex"))
     elif isinstance(field_type, list):
         # For unions, return a normalized representation
         return "union"
