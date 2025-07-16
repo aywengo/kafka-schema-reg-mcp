@@ -12,9 +12,9 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from elicitation import ElicitationManager, ElicitationRequest
+from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
 from task_management import AsyncTaskManager
 
 # from batch_operations import BatchOperations  # Not needed for now
@@ -41,7 +41,7 @@ class BulkOperationConfig:
     delay_between_batches: float = 1.0
     create_backup: bool = True
     rollback_on_error: bool = True
-    progress_callback: Optional[callable] = None
+    progress_callback: Optional[Callable] = None
 
 
 @dataclass
@@ -74,7 +74,7 @@ class BulkOperationsWizard:
         self.batch_ops = batch_operations
         self._operation_handlers = self._register_handlers()
 
-    def _register_handlers(self) -> Dict[BulkOperationType, callable]:
+    def _register_handlers(self) -> Dict[BulkOperationType, Callable]:
         """Register operation handlers"""
         return {
             BulkOperationType.SCHEMA_UPDATE: self._handle_bulk_schema_update,
@@ -103,26 +103,27 @@ class BulkOperationsWizard:
             raise ValueError(f"Unknown operation type: {operation_type}")
 
         # Execute the operation workflow
-        return await handler()
+        return await handler()  # type: ignore
 
     async def _elicit_operation_type(self) -> BulkOperationType:
         """Elicit operation type from user"""
         request = ElicitationRequest(
-            request_id=f"bulk_op_type_{datetime.now().timestamp()}",
-            elicitation_type="select",
-            prompt="What type of bulk operation would you like to perform?",
-            options=[
-                {
-                    "value": op.value,
-                    "label": op.value.replace("_", " ").title(),
-                    "description": self._get_operation_description(op),
-                }
-                for op in BulkOperationType
+            id=f"bulk_op_type_{datetime.now().timestamp()}",
+            type=ElicitationType.CHOICE,
+            title="What type of bulk operation would you like to perform?",
+            fields=[
+                ElicitationField(
+                    name="operation_type",
+                    type="choice",
+                    description="Select the type of bulk operation",
+                    options=[op.value for op in BulkOperationType],
+                    required=True,
+                )
             ],
         )
 
-        response = await self.elicitation.elicit(request)
-        return BulkOperationType(response["value"])
+        response = await self.elicitation.elicit(request)  # type: ignore
+        return BulkOperationType(response["operation_type"])
 
     def _get_operation_description(self, op_type: BulkOperationType) -> str:
         """Get description for operation type"""
@@ -158,7 +159,7 @@ class BulkOperationsWizard:
     async def _handle_bulk_migration(self) -> Dict[str, Any]:
         """Handle bulk migration operations"""
         # Step 1: Select source and target
-        source_target = await self._elicit_migration_source_target()
+        source_target = await self._elicit_migration_source_target()  # type: ignore
 
         # Step 2: Select schemas to migrate
         schemas = await self._elicit_schema_selection(
@@ -166,7 +167,7 @@ class BulkOperationsWizard:
         )
 
         # Step 3: Migration options
-        migration_options = await self._elicit_migration_options()
+        migration_options = await self._elicit_migration_options()  # type: ignore
 
         # Step 4: Preview migration
         preview = await self._generate_preview(
@@ -217,13 +218,13 @@ class BulkOperationsWizard:
     async def _handle_bulk_configuration(self) -> Dict[str, Any]:
         """Handle bulk configuration operations"""
         # Step 1: Select configuration type
-        config_type = await self._elicit_configuration_type()
+        config_type = await self._elicit_configuration_type()  # type: ignore
 
         # Step 2: Select target schemas/contexts
-        targets = await self._elicit_configuration_targets(config_type)
+        targets = await self._elicit_configuration_targets(config_type)  # type: ignore
 
         # Step 3: Configuration parameters
-        config_params = await self._elicit_configuration_parameters(config_type)
+        config_params = await self._elicit_configuration_parameters(config_type)  # type: ignore
 
         # Step 4: Preview configuration changes
         preview = await self._generate_preview(
@@ -259,15 +260,27 @@ class BulkOperationsWizard:
             )
 
         request = ElicitationRequest(
-            request_id=f"schema_selection_{datetime.now().timestamp()}",
-            elicitation_type="multi_select",
-            prompt=prompt,
-            options=options,
-            metadata={"max_selections": len(options)},
+            id=f"schema_selection_{datetime.now().timestamp()}",
+            type=ElicitationType.FORM,
+            title=prompt,
+            fields=[
+                ElicitationField(
+                    name="selected_schemas",
+                    type="choice",
+                    description="Select schemas (multiple selections allowed)",
+                    options=[opt["value"] for opt in options],
+                    required=True,
+                )
+            ],
+            allow_multiple=True,
         )
 
-        response = await self.elicitation.elicit(request)
-        selected = response["values"]
+        response = await self.elicitation.elicit(request)  # type: ignore
+        selected = (
+            response["selected_schemas"]
+            if isinstance(response["selected_schemas"], list)
+            else [response["selected_schemas"]]
+        )
 
         # Expand patterns if needed
         if allow_patterns:
@@ -341,28 +354,44 @@ class BulkOperationsWizard:
 
         # Show preview details
         preview_request = ElicitationRequest(
-            request_id=f"preview_{datetime.now().timestamp()}",
-            elicitation_type="confirm",
-            prompt=message + "\n\nWould you like to see a detailed preview?",
-            metadata={"default": True},
+            id=f"preview_{datetime.now().timestamp()}",
+            type=ElicitationType.CONFIRMATION,
+            title=message + "\n\nWould you like to see a detailed preview?",
+            fields=[
+                ElicitationField(
+                    name="show_preview",
+                    type="confirmation",
+                    description="Show detailed preview",
+                    default=True,
+                    required=True,
+                )
+            ],
         )
 
-        show_preview = await self.elicitation.elicit(preview_request)
+        show_preview = await self.elicitation.elicit(preview_request)  # type: ignore
 
-        if show_preview["confirmed"]:
+        if show_preview["show_preview"]:
             # Show detailed preview
             await self._show_detailed_preview(preview)
 
         # Final confirmation
         confirm_request = ElicitationRequest(
-            request_id=f"confirm_operation_{datetime.now().timestamp()}",
-            elicitation_type="confirm",
-            prompt="Do you want to proceed with this operation?",
-            metadata={"default": False, "require_explicit": extra_warnings},
+            id=f"confirm_operation_{datetime.now().timestamp()}",
+            type=ElicitationType.CONFIRMATION,
+            title="Do you want to proceed with this operation?",
+            fields=[
+                ElicitationField(
+                    name="proceed",
+                    type="confirmation",
+                    description="Proceed with the operation",
+                    default=False,
+                    required=True,
+                )
+            ],
         )
 
-        response = await self.elicitation.elicit(confirm_request)
-        return response["confirmed"]
+        response = await self.elicitation.elicit(confirm_request)  # type: ignore
+        return bool(response["proceed"])
 
     async def _show_detailed_preview(self, preview: BulkOperationPreview) -> None:
         """Show detailed preview to user"""
@@ -375,14 +404,14 @@ class BulkOperationsWizard:
             "changes": preview.changes_summary,
         }
 
-        await self.elicitation.show_info("Detailed Preview", json.dumps(details, indent=2))
+        await self.elicitation.show_info("Detailed Preview", json.dumps(details, indent=2))  # type: ignore
 
     async def _execute_bulk_operation(
         self, operation_type: BulkOperationType, items: List[Any], params: Dict[str, Any], preview: BulkOperationPreview
     ) -> Dict[str, Any]:
         """Execute the bulk operation"""
         # Create task for tracking
-        task_id = await self.task_manager.create_task(
+        task_id = await self.task_manager.create_task(  # type: ignore
             name=f"Bulk {operation_type.value}",
             total_items=len(items),
             metadata={"operation_type": operation_type.value, "parameters": params, "preview": preview.__dict__},
@@ -401,7 +430,7 @@ class BulkOperationsWizard:
                 batch = items[i : i + batch_size]
 
                 # Update progress
-                await self.task_manager.update_progress(
+                await self.task_manager.update_progress(  # type: ignore
                     task_id, processed=i, message=f"Processing batch {i//batch_size + 1}"
                 )
 
@@ -414,7 +443,7 @@ class BulkOperationsWizard:
                     await asyncio.sleep(params.get("delay_between_batches", 1.0))
 
             # Complete task
-            await self.task_manager.complete_task(
+            await self.task_manager.complete_task(  # type: ignore
                 task_id, result={"status": "success", "total_processed": len(items), "batch_results": results}
             )
 
@@ -427,7 +456,7 @@ class BulkOperationsWizard:
             if params.get("rollback_on_error", True):
                 await self._rollback_operation(operation_type, items, params)
 
-            await self.task_manager.fail_task(task_id, error=str(e))
+            await self.task_manager.fail_task(task_id, error=str(e))  # type: ignore
 
             return {"status": "failed", "task_id": task_id, "error": str(e)}
 
@@ -457,17 +486,21 @@ class BulkOperationsWizard:
     async def _elicit_update_type(self) -> str:
         """Elicit the type of update to perform"""
         request = ElicitationRequest(
-            request_id=f"update_type_{datetime.now().timestamp()}",
-            elicitation_type="select",
-            prompt="What would you like to update?",
-            options=[
-                {"value": "compatibility", "label": "Compatibility Settings"},
-                {"value": "naming", "label": "Naming Conventions"},
-                {"value": "metadata", "label": "Schema Metadata"},
+            id=f"update_type_{datetime.now().timestamp()}",
+            type=ElicitationType.CHOICE,
+            title="What would you like to update?",
+            fields=[
+                ElicitationField(
+                    name="update_type",
+                    type="choice",
+                    description="Select the type of update",
+                    options=["compatibility", "naming", "metadata"],
+                    required=True,
+                )
             ],
         )
-        response = await self.elicitation.elicit(request)
-        return response["value"]
+        response = await self.elicitation.elicit(request)  # type: ignore
+        return str(response["update_type"])
 
     async def _elicit_update_parameters(self, update_type: str) -> Dict[str, Any]:
         """Elicit parameters for the update"""
@@ -477,18 +510,165 @@ class BulkOperationsWizard:
     async def _elicit_consumer_impact_action(self, impact: Dict[str, Any]) -> str:
         """Elicit action for consumer impact"""
         request = ElicitationRequest(
-            request_id=f"consumer_action_{datetime.now().timestamp()}",
-            elicitation_type="select",
-            prompt=f"Active consumers detected ({impact['active_consumers']} consumers). How should we proceed?",
-            options=[
-                {"value": "wait", "label": "Wait for consumers to catch up"},
-                {"value": "force", "label": "Force operation (may disrupt consumers)"},
-                {"value": "skip", "label": "Skip schemas with active consumers"},
-                {"value": "cancel", "label": "Cancel operation"},
+            id=f"consumer_action_{datetime.now().timestamp()}",
+            type=ElicitationType.CHOICE,
+            title=f"Active consumers detected ({impact['active_consumers']} consumers). How should we proceed?",
+            fields=[
+                ElicitationField(
+                    name="consumer_action",
+                    type="choice",
+                    description="Select action for active consumers",
+                    options=["wait", "force", "skip", "cancel"],
+                    required=True,
+                )
             ],
         )
-        response = await self.elicitation.elicit(request)
-        return response["value"]
+        response = await self.elicitation.elicit(request)  # type: ignore
+        return str(response["consumer_action"])
+
+    async def _elicit_cleanup_type(self) -> str:
+        """Elicit cleanup type from user"""
+        request = ElicitationRequest(
+            id=f"cleanup_type_{datetime.now().timestamp()}",
+            type=ElicitationType.CHOICE,
+            title="What type of cleanup would you like to perform?",
+            fields=[
+                ElicitationField(
+                    name="cleanup_type",
+                    type="choice",
+                    description="Select the type of cleanup operation",
+                    options=["test", "deprecated", "old_versions", "pattern"],
+                    required=True,
+                )
+            ],
+        )
+
+        response = await self.elicitation.elicit(request)  # type: ignore
+        return str(response["cleanup_type"])
+
+    async def _elicit_cleanup_items(self, cleanup_type: str) -> List[str]:
+        """Elicit items to clean up based on cleanup type"""
+        if cleanup_type == "pattern":
+            # For pattern cleanup, elicit the pattern first
+            pattern_request = ElicitationRequest(
+                id=f"cleanup_pattern_{datetime.now().timestamp()}",
+                type=ElicitationType.TEXT,
+                title="Enter the pattern to match schemas for cleanup (e.g., 'test-*', 'deprecated-*'):",
+                fields=[
+                    ElicitationField(
+                        name="pattern",
+                        type="text",
+                        description="Pattern to match schemas for cleanup",
+                        placeholder="test-*",
+                        required=True,
+                    )
+                ],
+            )
+            pattern_response = await self.elicitation.elicit(pattern_request)  # type: ignore
+            pattern = pattern_response["pattern"]
+
+            # Get schemas matching the pattern
+            all_schemas = await self.registry.list_subjects()
+            pattern_without_asterisk = pattern.replace("*", "")
+            matching_schemas = [s for s in all_schemas if pattern_without_asterisk in s]
+
+            if not matching_schemas:
+                # If no matches, let user select manually
+                return await self._elicit_schema_selection(
+                    f"No schemas found matching pattern '{pattern}'. Please select schemas manually:",
+                    allow_patterns=True,
+                )
+
+            return matching_schemas
+
+        elif cleanup_type == "test":
+            # Get all test schemas
+            all_schemas = await self.registry.list_subjects()
+            test_schemas = [s for s in all_schemas if "test" in s.lower()]
+
+            if not test_schemas:
+                return []
+
+            # Let user confirm which test schemas to clean up
+            return await self._elicit_schema_selection("Select test schemas to clean up:", allow_patterns=True)
+
+        elif cleanup_type == "deprecated":
+            # Get all schemas and let user select deprecated ones
+            return await self._elicit_schema_selection("Select deprecated schemas to clean up:", allow_patterns=True)
+
+        elif cleanup_type == "old_versions":
+            # For old versions, we need to select schemas first
+            return await self._elicit_schema_selection(
+                "Select schemas to clean up old versions from:", allow_patterns=True
+            )
+
+        else:
+            # Fallback to manual selection
+            return await self._elicit_schema_selection("Select schemas to clean up:", allow_patterns=True)
+
+    async def _elicit_cleanup_options(self, cleanup_type: str) -> Dict[str, Any]:
+        """Elicit cleanup options based on cleanup type"""
+        options = {}
+
+        if cleanup_type == "old_versions":
+            # For old versions cleanup, ask how many versions to keep
+            keep_versions_request = ElicitationRequest(
+                id=f"keep_versions_{datetime.now().timestamp()}",
+                type=ElicitationType.TEXT,
+                title="How many recent versions should be kept for each schema?",
+                fields=[
+                    ElicitationField(
+                        name="keep_versions",
+                        type="text",
+                        description="Number of recent versions to keep",
+                        placeholder="3",
+                        required=True,
+                    )
+                ],
+            )
+            keep_response = await self.elicitation.elicit(keep_versions_request)  # type: ignore
+            options["keep_versions"] = int(keep_response["keep_versions"])
+
+        # Ask about consumer checking
+        consumer_check_request = ElicitationRequest(
+            id=f"check_consumers_{datetime.now().timestamp()}",
+            type=ElicitationType.CONFIRMATION,
+            title="Should we check for active consumers before cleanup? (Recommended for safety)",
+            fields=[
+                ElicitationField(
+                    name="check_consumers",
+                    type="confirmation",
+                    description="Check for active consumers before cleanup",
+                    default=True,
+                    required=True,
+                )
+            ],
+        )
+        consumer_response = await self.elicitation.elicit(consumer_check_request)  # type: ignore
+        options["check_consumers"] = consumer_response["check_consumers"]
+
+        # Ask about force option (only if consumer checking is enabled)
+        if options["check_consumers"]:
+            force_request = ElicitationRequest(
+                id=f"force_cleanup_{datetime.now().timestamp()}",
+                type=ElicitationType.CONFIRMATION,
+                title="Force cleanup even if active consumers are found? (Dangerous - may break applications)",
+                fields=[
+                    ElicitationField(
+                        name="force",
+                        type="confirmation",
+                        description="Force cleanup even with active consumers",
+                        default=False,
+                        required=True,
+                    )
+                ],
+            )
+            force_response = await self.elicitation.elicit(force_request)  # type: ignore
+            options["force"] = force_response["force"]
+        else:
+            options["force"] = False
+
+        return options
 
 
 # Export the wizard class

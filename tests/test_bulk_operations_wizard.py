@@ -76,7 +76,7 @@ class TestBulkOperationsWizard:
     async def test_start_wizard_without_operation_type(self, wizard):
         """Test starting wizard without operation type (elicits from user)"""
         # Mock elicitation response
-        wizard.elicitation.elicit.return_value = {"value": "cleanup"}
+        wizard.elicitation.elicit.return_value = {"operation_type": "cleanup"}
 
         # Mock the handler
         mock_handler = AsyncMock(return_value={"status": "success"})
@@ -91,7 +91,7 @@ class TestBulkOperationsWizard:
     async def test_schema_selection_simple(self, wizard):
         """Test simple schema selection"""
         # Mock elicitation response
-        wizard.elicitation.elicit.return_value = {"values": ["test-schema-1", "test-schema-2"]}
+        wizard.elicitation.elicit.return_value = {"selected_schemas": ["test-schema-1", "test-schema-2"]}
 
         result = await wizard._elicit_schema_selection("Select schemas")
 
@@ -103,7 +103,7 @@ class TestBulkOperationsWizard:
     async def test_schema_selection_with_patterns(self, wizard):
         """Test schema selection with pattern matching"""
         # Mock elicitation response with pattern
-        wizard.elicitation.elicit.return_value = {"values": ["test-*", "prod-schema-1"]}
+        wizard.elicitation.elicit.return_value = {"selected_schemas": ["test-*", "prod-schema-1"]}
 
         result = await wizard._elicit_schema_selection("Select schemas", allow_patterns=True)
 
@@ -148,8 +148,8 @@ class TestBulkOperationsWizard:
 
         # Mock elicitation responses
         wizard.elicitation.elicit.side_effect = [
-            {"confirmed": False},  # Don't show preview
-            {"confirmed": True},  # Confirm operation
+            {"show_preview": False},  # Don't show preview
+            {"proceed": True},  # Confirm operation
         ]
 
         result = await wizard._confirm_operation(preview)
@@ -227,12 +227,13 @@ class TestBulkOperationsWizard:
         """Test complete bulk cleanup workflow"""
         # Mock all elicitation responses
         wizard.elicitation.elicit.side_effect = [
-            {"value": "deprecated"},  # Cleanup type
-            {"values": ["deprecated-schema-1"]},  # Schema selection
-            {"create_backup": True, "permanent": False},  # Options
-            {"value": "skip"},  # Consumer impact action
-            {"confirmed": False},  # Don't show preview
-            {"confirmed": True},  # Confirm operation
+            {"cleanup_type": "deprecated"},  # Cleanup type
+            {"selected_schemas": ["deprecated-schema-1"]},  # Schema selection
+            {"check_consumers": True},  # Consumer check option
+            {"force": False},  # Force option
+            {"consumer_action": "skip"},  # Consumer impact action
+            {"show_preview": False},  # Don't show preview
+            {"proceed": True},  # Confirm operation
         ]
 
         # Mock other methods
@@ -251,18 +252,25 @@ class TestBulkOperationsWizard:
         result = await wizard._handle_bulk_cleanup()
 
         assert result["status"] == "success"
-        assert wizard.elicitation.elicit.call_count == 6
+        assert wizard.elicitation.elicit.call_count == 7
 
     @pytest.mark.asyncio
     async def test_operation_cancellation(self, wizard):
         """Test operation cancellation"""
         # Mock confirmation to return False
-        wizard.elicitation.elicit.return_value = {"confirmed": False}
+        wizard.elicitation.elicit.side_effect = [
+            {"show_preview": False},  # Don't show preview
+            {"proceed": False},  # Don't proceed
+        ]
 
         wizard._elicit_schema_selection = AsyncMock(return_value=["test"])
         wizard._elicit_update_type = AsyncMock(return_value="compatibility")
         wizard._elicit_update_parameters = AsyncMock(return_value={})
-        wizard._generate_preview = AsyncMock(return_value=Mock())
+        wizard._generate_preview = AsyncMock(
+            return_value=BulkOperationPreview(
+                affected_items=[{"name": "test"}], total_count=1, changes_summary={}, estimated_duration=0.5
+            )
+        )
 
         result = await wizard._handle_bulk_schema_update()
 
