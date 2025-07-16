@@ -23,7 +23,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 
 > **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over stdio.
 
-**Latest Version:** [v2.0.5](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.0.7](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -49,11 +49,11 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Run with full feature set (53+ tools)
-docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
-
-# OR run with SLIM_MODE for better performance (~15 tools)
+# Recommended: Run with SLIM_MODE for optimal performance (~15 tools)
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
+
+# OR run with full feature set (53+ tools) for administrators/SRE
+docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 ```
 
 ### 2. Configure Claude Desktop
@@ -100,7 +100,7 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
 # Specific version
-docker pull aywengo/kafka-schema-reg-mcp:2.0.5
+docker pull aywengo/kafka-schema-reg-mcp:2.0.7
 ```
 
 #### Running with SLIM_MODE
@@ -172,11 +172,23 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 **SLIM_MODE** reduces the number of exposed MCP tools from 70+ to ~20 essential tools, significantly reducing LLM overhead and improving response times.
 
-#### When to Use SLIM_MODE
+> **💡 Recommendation:** SLIM_MODE is **recommended for most use cases** as it provides all essential schema management capabilities with optimal performance.
+
+#### When to Use SLIM_MODE (Recommended)
+- **Default choice** for most users and day-to-day operations
 - When experiencing slow LLM responses due to too many tools
 - For production environments focused on read-only operations
 - When you only need basic schema management capabilities
 - To reduce token usage and improve performance
+
+#### When to Use Non-SLIM Mode
+- **For administrators or SRE teams** performing long-running operations
+- When you need advanced operations like:
+  - Schema migrations across registries
+  - Bulk schema removals and cleanup operations
+  - Complex batch operations and workflows
+  - Interactive guided wizards for complex tasks
+  - Comprehensive export/import operations
 
 #### Enable SLIM_MODE
 ```bash
