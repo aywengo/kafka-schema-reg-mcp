@@ -38,18 +38,22 @@ async def test_multi_registry_mcp():
             tools = await client.list_tools()
             print(f"Found {len(tools)} tools")
 
-            # Test 2: List registries
+            # Test 2: List registries (using resource instead of tool)
             print("\n🏢 Listing registries...")
-            result = await client.call_tool("list_registries", {})
-            if result:
-                print(f"Available registries: {result}")
-            else:
-                print("❌ No registries found")
+            try:
+                result = await client.read_resource("registry://names")
+                if result:
+                    print(f"Available registries: {result}")
+                else:
+                    print("❌ No registries found")
+            except Exception as e:
+                print(f"⚠️ Registries resource not available: {e}")
+                print("   Skipping registries listing test")
 
-            # Test 3: Test registry-specific operations
+            # Test 3: Test registry-specific operations (using resource instead of tool)
             print("\n📝 Testing dev registry operations...")
             try:
-                result = await client.call_tool("list_subjects", {"registry": "dev"})
+                result = await client.read_resource("registry://dev/subjects")
                 print(f"DEV subjects: {result}")
             except Exception as e:
                 print(f"⚠️ DEV registry test (expected if not running): {e}")

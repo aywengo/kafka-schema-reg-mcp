@@ -4,7 +4,7 @@ This document provides a complete reference for the Kafka Schema Registry MCP Se
 
 ## 🏃 SLIM_MODE: Performance Optimization
 
-**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **70+ to ~20 essential tools**, significantly improving LLM response times and reducing token usage.
+**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **70+ to ~11 essential tools**, significantly improving LLM response times and reducing token usage.
 
 ### **Enabling SLIM_MODE**
 ```bash
@@ -22,36 +22,38 @@ export SLIM_MODE=true
 ```
 
 ### **Benefits of SLIM_MODE**
-- 🚀 **Faster LLM Response**: ~70% reduction in tool processing overhead
+- 🚀 **Faster LLM Response**: ~85% reduction in tool processing overhead
 - 💰 **Lower Token Usage**: Fewer tools to parse means reduced costs
 - 🎯 **Focused Functionality**: Essential read-only operations for production
 - 🔍 **Better Tool Discovery**: LLMs can more easily find the right tool
+- 📊 **Resource-First Approach**: Uses MCP resources instead of tools for read-only operations
 
-### **Tools Available in SLIM_MODE** (~20 tools)
+### **Tools Available in SLIM_MODE** (~11 tools)
 ✅ **Core Connectivity**
 - `ping` - Server health check
 
 ✅ **Registry Management** (Read-only)
-- `list_registries` - List all configured registries
-- `get_registry_info` - Get detailed registry information
-- `test_registry_connection` - Test specific registry connection
-- `test_all_registries` - Test all registry connections
 - `get_default_registry` - Get current default registry
 - `set_default_registry` - Set default registry (single-registry mode only)
+- **REMOVED**: `list_registries`, `get_registry_info`, `test_registry_connection`, `test_all_registries` - Use resources instead:
+  - `registry://names` - List all configured registries
+  - `registry://info/{name}` - Get detailed registry information
+  - `registry://status/{name}` - Test specific registry connection
+  - `registry://status` - Test all registry connections
 
 ✅ **Schema Operations**
 - `get_schema` - Retrieve schema versions
 - `get_schema_versions` - List all versions of a schema
-- `list_subjects` - List all subjects
-- `list_contexts` - List all contexts
 - `register_schema` - Register new schemas
 - `check_compatibility` - Check schema compatibility
+- **REMOVED**: `list_subjects` - Use `registry://{name}/subjects` resource instead
+- **REMOVED**: `list_contexts` - Use `registry://{name}/contexts` resource instead
 
 ✅ **Configuration Reading**
-- `get_global_config` - Get global configuration
-- `get_mode` - Get operational mode
 - `get_subject_config` - Get subject configuration  
 - `get_subject_mode` - Get subject mode
+- **REMOVED**: `get_mode` - Use `registry://mode` resource instead
+- **REMOVED**: `get_global_config` - Use `registry://{name}/config` resource instead
 
 ✅ **Context Management**
 - `create_context` - Create new contexts
@@ -60,6 +62,7 @@ export SLIM_MODE=true
 - `count_contexts` - Count contexts
 - `count_schemas` - Count schemas
 - `count_schema_versions` - Count schema versions
+- **REMOVED**: `check_viewonly_mode` - Use `registry://mode/{name}` resource instead
 
 ### **Tools EXCLUDED in SLIM_MODE** (~50 tools)
 ❌ **Heavy Operations**
@@ -545,14 +548,13 @@ Claude: I'll apply strict compatibility rules to payment schemas.
 
 ## 🎛️ Mode Management Tools
 
-### 14. get_mode ✅ *(Available in SLIM_MODE)*
+### 14. ~~get_mode~~ ❌ *(REMOVED - Use registry://mode resource)*
+
+**Replaced by:** `registry://mode` resource
 
 Get the current operational mode.
 
-**Purpose**: Check if schema registration is enabled, understand operational state.
-
-**Parameters:**
-- `context` (string, optional): Schema context
+**Migration:** Use the `registry://mode` resource instead of this tool for better performance.
 
 **Claude Desktop Usage:**
 ```
@@ -560,7 +562,7 @@ Human: "What's the current operational mode of the schema registry?"
 
 Claude: I'll check the current operational mode.
 
-[Uses get_mode MCP tool]
+[Uses registry://mode resource]
 🎛️ Current mode: READWRITE
    Status: Normal operations - registration and reads enabled
    Context: Global setting
@@ -710,6 +712,15 @@ Get detailed configuration and metadata information for a specific registry.
 
 ### registry://mode/{name}
 Get mode and operational configuration information for a specific registry.
+
+### registry://{name}/subjects ✅
+Get all subjects for a specific registry, optionally filtered by context.
+
+### registry://{name}/contexts ✅
+Get all contexts for a specific registry.
+
+### registry://{name}/config ✅
+Get global configuration for a specific registry, optionally filtered by context.
 
 ## 📋 Schema Resources ✅ *(All Available in SLIM_MODE)*
 
@@ -924,13 +935,13 @@ This combination provides:
 
 ## 🌐 Multi-Registry Management Tools
 
-### 22. list_registries ✅ *(Available in SLIM_MODE)*
+### 22. ~~list_registries~~ ❌ *(REMOVED - Use registry://names resource)*
+
+**Replaced by:** `registry://names` resource
 
 List all configured Schema Registry instances.
 
-**Purpose**: View available registries, check connection status, manage multiple environments.
-
-**Parameters:** None
+**Migration:** Use the `registry://names` resource instead of this tool for better performance.
 
 **Claude Desktop Usage:**
 ```
@@ -938,71 +949,64 @@ Human: "Show me all configured schema registries"
 
 Claude: I'll list all configured registries with their status.
 
-[Uses list_registries MCP tool]
-📋 Configured registries:
-   • default: http://localhost:8081 ✅ Connected (45ms)
-   • production: https://prod.schema-registry.com ✅ Connected (120ms)  
-   • staging: https://staging.schema-registry.com ✅ Connected (85ms)
-   • development: http://dev-registry:8081 ⚠️ Connection failed
+[Uses registry://names resource]
+📋 Available Registries:
+   • production (default) ✅ Connected
+   • staging ✅ Connected  
+   • development ⚠️ Connection failed
+   • testing ✅ Connected
    Total: 4 registries (3 connected, 1 failed)
 ```
 
 ---
 
-### 23. get_registry_info ✅ *(Available in SLIM_MODE)*
+### 23. ~~get_registry_info~~ ❌ *(REMOVED - Use registry://info/{name} resource)*
 
-**Scope Required:** `read`
+**Replaced by:** `registry://info/{name}` resource
 
 Get detailed information about a specific registry including connection status, configuration, and server metadata.
 
-**Parameters:**
-- `registry_name` (optional): Registry name (uses default if not specified in single-registry mode)
+**Migration:** Use the `registry://info/{name}` resource instead of this tool for better performance.
 
-**Response:**
-```json
-{
-    "name": "default",
-    "url": "http://localhost:8081",
-    "user": "",
-    "password": "",
-    "description": "Default Schema Registry",
-    "viewonly": false,
-    "is_default": true,
-    "connection_status": "connected",
-    "response_time_ms": 45.2,
-    "version": "7.6.0",
-    "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
-    "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
-    "schema_registry_cluster_id": "schema-registry",
-    "scope": {
-        "path": [],
-        "clusters": {
-            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
-            "schema-registry-cluster": "schema-registry"
-        }
-    },
-    "registry_mode": "single"
-}
+**Claude Desktop Usage:**
 ```
+Human: "Show me details about the production registry"
 
-**Example Usage:**
-```bash
-[Uses get_registry_info MCP tool]
+Claude: I'll get detailed information about the production registry.
+
+[Uses registry://info/production resource]
+📋 Production Registry Details:
+   URL: https://prod.schema-registry.com
+   Status: Connected (120ms)
+   Version: 7.6.0
+   Mode: READWRITE
+   Viewonly: false
+   Cluster ID: prod-cluster-001
 ```
 
 ---
 
-### 24. test_registry_connection ✅ *(Available in SLIM_MODE)*
+### 24. ~~test_registry_connection~~ ❌ *(REMOVED - Use registry://status/{name} resource)*
 
-**Scope Required:** `read`
+**Replaced by:** `registry://status/{name}` resource
 
 Test connection to a specific registry and return comprehensive information including metadata.
 
-**Parameters:**
-- `registry_name` (optional): Registry name (uses default if not specified in single-registry mode)
+**Migration:** Use the `registry://status/{name}` resource instead of this tool for better performance.
 
-**Response:**
-```json
+**Claude Desktop Usage:**
+```
+Human: "Test the connection to the staging registry"
+
+Claude: I'll test the connection to the staging registry.
+
+[Uses registry://status/staging resource]
+✅ Staging Registry Status:
+   URL: https://staging.schema-registry.com
+   Status: Connected (85ms)
+   Health: All systems operational
+   Last Check: 2024-01-15T10:30:00Z
+```
 {
     "status": "connected",
     "url": "http://localhost:8081",
@@ -1029,39 +1033,27 @@ Test connection to a specific registry and return comprehensive information incl
 
 ---
 
-### 25. test_all_registries ✅ *(Available in SLIM_MODE)*
+### 25. ~~test_all_registries~~ ❌ *(REMOVED - Use registry://status resource)*
 
-**Scope Required:** `read`
+**Replaced by:** `registry://status` resource
 
 Test connections to all configured registries with comprehensive metadata.
 
-**Parameters:**
-None
+**Migration:** Use the `registry://status` resource instead of this tool for better performance.
 
-**Response:**
-```json
-{
-    "registry_tests": {
-        "default": {
-            "status": "connected",
-            "url": "http://localhost:8081",
-            "response_time_ms": 45.2,
-            "version": "7.6.0",
-            "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
-            "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
-            "schema_registry_cluster_id": "schema-registry"
-        }
-    },
-    "total_registries": 1,
-    "connected": 1,
-    "failed": 0,
-    "registry_mode": "single"
-}
+**Claude Desktop Usage:**
 ```
+Human: "Test connections to all registries"
 
-**Example Usage:**
-```bash
-[Uses test_all_registries MCP tool]
+Claude: I'll test connections to all configured registries.
+
+[Uses registry://status resource]
+✅ Registry Connection Status:
+   • production: Connected (120ms)
+   • staging: Connected (85ms)  
+   • development: Connection failed
+   • testing: Connected (95ms)
+   Summary: 3/4 registries connected
 ```
 
 ---

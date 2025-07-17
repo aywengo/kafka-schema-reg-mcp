@@ -631,10 +631,8 @@ async def test_configuration_management_workflow():
 
                 # Step 4: Test subject-level configuration
                 print("\nStep 4: Test subject-level configuration")
-                result = await session.call_tool(
-                    "get_subject_config",
-                    {"subject": "config-test-subject", "registry": "config_test"},
-                )
+                # Use resource instead of removed get_subject_config tool
+                result = await session.read_resource("subject://config_test/config-test-subject/config")
                 print(f"  ✅ Got subject config: {result.content[0].text if result.content else 'Success'}")
 
                 result = await session.call_tool(
@@ -661,10 +659,8 @@ async def test_configuration_management_workflow():
 
                 # Step 6: Test subject-level mode
                 print("\nStep 6: Test subject-level mode")
-                result = await session.call_tool(
-                    "get_subject_mode",
-                    {"subject": "config-test-subject", "registry": "config_test"},
-                )
+                # Use resource instead of removed get_subject_mode tool
+                result = await session.read_resource("subject://config_test/config-test-subject/mode")
                 print(f"  ✅ Got subject mode: {result.content[0].text if result.content else 'Success'}")
 
                 result = await session.call_tool(
@@ -712,8 +708,8 @@ async def test_complete_schema_lifecycle():
             tool_names = [tool.name for tool in tools]
             print(f"📋 Available tools: {len(tool_names)}")
 
-            # Phase 1: Registration
-            print(f"\n📝 Phase 1: Schema Registration (prefix: {test_prefix})")
+            # Step 1: Registration
+            print(f"\n📝 Step 1: Schema Registration (prefix: {test_prefix})")
             if "register_schema" in tool_names:
                 test_schema = {
                     "type": "record",
@@ -737,8 +733,8 @@ async def test_complete_schema_lifecycle():
                 except Exception as e:
                     print(f"⚠️  Schema registration: {e}")
 
-            # Phase 2: Verification
-            print("\n🔍 Phase 2: Schema Verification")
+            # Step 2: Verification
+            print("\n🔍 Step 2: Schema Verification")
             if "list_subjects" in tool_names:
                 try:
                     result = await client.call_tool("list_subjects", {})
@@ -746,8 +742,8 @@ async def test_complete_schema_lifecycle():
                 except Exception as e:
                     print(f"⚠️  List subjects: {e}")
 
-            # Phase 3: Evolution
-            print("\n🔄 Phase 3: Schema Evolution")
+            # Step 3: Evolution
+            print("\n🔄 Step 3: Schema Evolution")
             if "register_schema" in tool_names:
                 evolved_schema = {
                     "type": "record",
@@ -776,8 +772,8 @@ async def test_complete_schema_lifecycle():
                 except Exception as e:
                     print(f"⚠️  Schema evolution: {e}")
 
-            # Phase 4: Export
-            print("\n📤 Phase 4: Schema Export")
+            # Step 4: Export
+            print("\n📤 Step 4: Schema Export")
             if "export_subject" in tool_names:
                 try:
                     result = await client.call_tool("export_subject", {"subject": f"{test_prefix}-subject"})
@@ -785,8 +781,8 @@ async def test_complete_schema_lifecycle():
                 except Exception as e:
                     print(f"⚠️  Schema export: {e}")
 
-            # Phase 5: Cleanup
-            print("\n🧹 Phase 5: Cleanup")
+            # Step 5: Cleanup
+            print("\n🧹 Step 5: Cleanup")
             cleanup_tools = ["delete_subject", "cleanup_schemas"]
             available_cleanup = [tool for tool in cleanup_tools if tool in tool_names]
 

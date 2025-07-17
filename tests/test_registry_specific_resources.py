@@ -293,11 +293,11 @@ def get_registry_mode_by_name(name: str):
             "supported_operations_for_registry": [
                 "get_mode",
                 "update_mode",
-                "get_subject_mode",
+                # REMOVED: get_subject_mode - now available as resource
                 "update_subject_mode",
                 "get_global_config",
                 "update_global_config",
-                "get_subject_config",
+                # REMOVED: get_subject_config - now available as resource
                 "update_subject_config",
                 "register_schema",
                 "get_schema",

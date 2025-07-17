@@ -601,33 +601,20 @@ def ping():
 # ===== UNIFIED REGISTRY MANAGEMENT TOOLS =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def list_registries():
-    """List all configured Schema Registry instances."""
-    return list_registries_tool(registry_manager, REGISTRY_MODE)
+# REMOVED: list_registries tool - replaced by registry://names resource
+# Use registry://names resource instead for listing configured registries
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_registry_info(registry_name: Optional[str] = None):
-    """Get detailed information about a specific registry."""
-    return get_registry_info_tool(registry_manager, REGISTRY_MODE, registry_name)
+# REMOVED: get_registry_info tool - replaced by registry://info/{name} resource
+# Use registry://info/{name} resource instead for detailed registry information
 
 
-@mcp.tool()
-@require_scopes("read")
-def test_registry_connection(registry_name: Optional[str] = None):
-    """Test connection to a specific registry and return comprehensive information including metadata."""
-    return test_registry_connection_tool(registry_manager, REGISTRY_MODE, registry_name)
+# REMOVED: test_registry_connection tool - replaced by registry://status/{name} resource
+# Use registry://status/{name} resource instead for testing specific registry connections
 
 
-# Test all registries is useful even in slim mode
-@mcp.tool()
-@require_scopes("read")
-async def test_all_registries():
-    """Test connections to all configured registries with comprehensive metadata."""
-    return await test_all_registries_tool(registry_manager, REGISTRY_MODE)
+# REMOVED: test_all_registries tool - replaced by registry://status resource
+# Use registry://status resource instead for testing all registry connections
 
 
 # ===== COMPARISON TOOLS (Hidden in SLIM_MODE) =====
@@ -743,52 +730,16 @@ if not SLIM_MODE:
         )
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_schema(subject: str, version: str = "latest", context: Optional[str] = None, registry: Optional[str] = None):
-    """Get a specific version of a schema."""
-    return get_schema_tool(
-        subject,
-        registry_manager,
-        REGISTRY_MODE,
-        version,
-        context,
-        registry,
-        auth,
-        headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_schema tool - replaced by schema://{name}/{context}/{subject} resource
+# Use schema://{name}/{context}/{subject} or schema://{name}/{subject} resource instead
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_schema_versions(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
-    """Get all versions of a schema for a subject."""
-    return get_schema_versions_tool(
-        subject,
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_schema_versions tool - replaced by schema://{name}/{context}/{subject}/versions resource
+# Use schema://{name}/{context}/{subject}/versions or schema://{name}/{subject}/versions resource instead
 
 
-@mcp.tool()
-@require_scopes("read")
-def list_subjects(context: Optional[str] = None, registry: Optional[str] = None):
-    """List all subjects, optionally filtered by context."""
-    return list_subjects_tool(
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: list_subjects tool - replaced by registry://{name}/subjects resource
+# Use registry://{name}/subjects resource instead for listing subjects in a specific registry
 
 
 @mcp.tool()
@@ -851,19 +802,8 @@ if not SLIM_MODE:
 # ===== CONFIGURATION TOOLS =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_global_config(context: Optional[str] = None, registry: Optional[str] = None):
-    """Get global configuration settings."""
-    return get_global_config_tool(
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        standard_headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_global_config tool - replaced by registry://{name}/config resource
+# Use registry://{name}/config resource instead for getting global configuration of a specific registry
 
 
 # Update configuration tools (Hidden in SLIM_MODE)
@@ -885,20 +825,8 @@ if not SLIM_MODE:
         )
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_subject_config(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
-    """Get configuration settings for a specific subject."""
-    return get_subject_config_tool(
-        subject,
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        standard_headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_subject_config tool
+# Use subject://{name}/{context}/{subject}/config or subject://{name}/{subject}/config resources instead
 
 
 # Update subject config (Hidden in SLIM_MODE)
@@ -926,19 +854,8 @@ if not SLIM_MODE:
 # ===== MODE TOOLS =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_mode(context: Optional[str] = None, registry: Optional[str] = None):
-    """Get the current mode of the Schema Registry."""
-    return get_mode_tool(
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        standard_headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_mode tool - replaced by registry://mode resource
+# Use registry://mode resource instead for getting registry mode
 
 
 # Update mode tools (Hidden in SLIM_MODE)
@@ -960,20 +877,8 @@ if not SLIM_MODE:
         )
 
 
-@mcp.tool()
-@require_scopes("read")
-def get_subject_mode(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
-    """Get the mode for a specific subject."""
-    return get_subject_mode_tool(
-        subject,
-        registry_manager,
-        REGISTRY_MODE,
-        context,
-        registry,
-        auth,
-        standard_headers,
-        SCHEMA_REGISTRY_URL,
-    )
+# REMOVED: get_subject_mode tool
+# Use subject://{name}/{context}/{subject}/mode or subject://{name}/{subject}/mode resources instead
 
 
 # Update subject mode (Hidden in SLIM_MODE)
@@ -999,11 +904,8 @@ if not SLIM_MODE:
 # ===== CONTEXT TOOLS =====
 
 
-@mcp.tool()
-@require_scopes("read")
-def list_contexts(registry: Optional[str] = None):
-    """List all available schema contexts."""
-    return list_contexts_tool(registry_manager, REGISTRY_MODE, registry, auth, headers, SCHEMA_REGISTRY_URL)
+# REMOVED: list_contexts tool - replaced by registry://{name}/contexts resource
+# Use registry://{name}/contexts resource instead for listing contexts in a specific registry
 
 
 # Create context is kept even in SLIM_MODE for essential operations
@@ -1100,43 +1002,48 @@ if not SLIM_MODE:
         )
 
 
-# ===== EXPORT TOOLS (Hidden in SLIM_MODE) =====
+# ===== EXPORT TOOLS =====
 
+
+# Essential export tools (Available in SLIM_MODE)
+@mcp.tool()
+@require_scopes("read")
+def export_schema(
+    subject: str,
+    version: str = "latest",
+    context: Optional[str] = None,
+    format: str = "json",
+    registry: Optional[str] = None,
+):
+    """Export a single schema in the specified format."""
+    return export_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, format, registry)
+
+
+@mcp.tool()
+@require_scopes("read")
+def export_subject(
+    subject: str,
+    context: Optional[str] = None,
+    include_metadata: bool = True,
+    include_config: bool = True,
+    include_versions: str = "all",
+    registry: Optional[str] = None,
+):
+    """Export all versions of a subject."""
+    return export_subject_tool(
+        subject,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        include_metadata,
+        include_config,
+        include_versions,
+        registry,
+    )
+
+
+# Advanced export tools (Hidden in SLIM_MODE)
 if not SLIM_MODE:
-
-    @mcp.tool()
-    @require_scopes("read")
-    def export_schema(
-        subject: str,
-        version: str = "latest",
-        context: Optional[str] = None,
-        format: str = "json",
-        registry: Optional[str] = None,
-    ):
-        """Export a single schema in the specified format."""
-        return export_schema_tool(subject, registry_manager, REGISTRY_MODE, version, context, format, registry)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def export_subject(
-        subject: str,
-        context: Optional[str] = None,
-        include_metadata: bool = True,
-        include_config: bool = True,
-        include_versions: str = "all",
-        registry: Optional[str] = None,
-    ):
-        """Export all versions of a subject."""
-        return export_subject_tool(
-            subject,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            include_metadata,
-            include_config,
-            include_versions,
-            registry,
-        )
 
     @mcp.tool()
     @require_scopes("read")
@@ -2296,7 +2203,7 @@ def _internal_get_mcp_compliance_status():
                         else "N/A in SLIM_MODE"
                     ),
                     "MCP ping/pong protocol implemented for server health checking",
-                    f"SLIM_MODE: {'ENABLED - Reduced tool exposure (~20 tools)' if SLIM_MODE else 'DISABLED - Full feature set (70+ tools)'}",
+                    f"SLIM_MODE: {'ENABLED - Reduced tool exposure (~9 tools)' if SLIM_MODE else 'DISABLED - Full feature set (70+ tools)'}",
                 ],
             },
             "registry_mode": REGISTRY_MODE,
@@ -2472,11 +2379,8 @@ def check_viewonly_mode_tool(registry: Optional[str] = None):
         return create_error_response(str(e), error_code="VIEWONLY_MODE_CHECK_FAILED", registry_mode=REGISTRY_MODE)
 
 
-@mcp.tool()
-@require_scopes("read")
-def check_viewonly_mode(registry: Optional[str] = None):
-    """Check if a registry is in viewonly mode."""
-    return check_viewonly_mode_tool(registry)
+# REMOVED: check_viewonly_mode tool - replaced by registry://mode/{name} resource
+# Use registry://mode/{name} resource instead for checking viewonly mode
 
 
 # OAuth info tools (Hidden in SLIM_MODE)
@@ -2723,10 +2627,521 @@ if not SLIM_MODE:
 
 # ===== RESOURCES =====
 
-# Continue with resources section...
-# (Resources remain the same as they are not tools)
 
-# ... (rest of the file remains the same)
+# Registry-specific resources for read-only operations
+@mcp.resource("registry://{name}/subjects")
+@require_scopes("read")
+def registry_subjects_resource(name: str, context: Optional[str] = None):
+    """Get all subjects for a specific registry, optionally filtered by context."""
+    import json
+
+    from core_registry_tools import list_subjects_tool
+
+    try:
+        # Use the existing list_subjects_tool implementation
+        result = list_subjects_tool(
+            registry_manager,
+            REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"registry://{name}/subjects",
+            "registry_name": name,
+            "context": context,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get subjects for registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"registry://{name}/subjects",
+                "registry_name": name,
+                "context": context,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("registry://{name}/contexts")
+@require_scopes("read")
+def registry_contexts_resource(name: str):
+    """Get all contexts for a specific registry."""
+    import json
+
+    from core_registry_tools import list_contexts_tool
+
+    try:
+        # Use the existing list_contexts_tool implementation
+        result = list_contexts_tool(
+            registry_manager,
+            REGISTRY_MODE,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"registry://{name}/contexts",
+            "registry_name": name,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get contexts for registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"registry://{name}/contexts",
+                "registry_name": name,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("registry://{name}/config")
+@require_scopes("read")
+def registry_config_resource(name: str, context: Optional[str] = None):
+    """Get global configuration for a specific registry, optionally filtered by context."""
+    import json
+
+    from core_registry_tools import get_global_config_tool
+
+    try:
+        # Use the existing get_global_config_tool implementation
+        result = get_global_config_tool(
+            registry_manager,
+            REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            standard_headers=standard_headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"registry://{name}/config",
+            "registry_name": name,
+            "context": context,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get config for registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"registry://{name}/config",
+                "registry_name": name,
+                "context": context,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+# Schema-specific resources for direct schema content access
+@mcp.resource("schema://{name}/{context}/{subject}")
+@require_scopes("read")
+def schema_content_resource(name: str, context: str, subject: str, version: str = "latest"):
+    """Get schema content for a specific subject in a specific context and registry."""
+    import json
+
+    from core_registry_tools import get_schema_tool
+
+    try:
+        # Use the existing get_schema_tool implementation
+        result = get_schema_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            version=version,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"schema://{name}/{context}/{subject}",
+            "registry_name": name,
+            "context": context,
+            "subject": subject,
+            "version": version,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema '{subject}' from registry '{name}' context '{context}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"schema://{name}/{context}/{subject}",
+                "registry_name": name,
+                "context": context,
+                "subject": subject,
+                "version": version,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("schema://{name}/{subject}")
+@require_scopes("read")
+def schema_content_default_context_resource(name: str, subject: str, version: str = "latest"):
+    """Get schema content for a specific subject in the default context of a registry."""
+    import json
+
+    from core_registry_tools import get_schema_tool
+
+    try:
+        # Use the existing get_schema_tool implementation with default context
+        result = get_schema_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            version=version,
+            context=None,  # Use default context
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"schema://{name}/{subject}",
+            "registry_name": name,
+            "context": "default",
+            "subject": subject,
+            "version": version,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema '{subject}' from registry '{name}' (default context): {str(e)}",
+            "resource_info": {
+                "resource_uri": f"schema://{name}/{subject}",
+                "registry_name": name,
+                "context": "default",
+                "subject": subject,
+                "version": version,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("schema://{name}/{context}/{subject}/versions")
+@require_scopes("read")
+def schema_versions_resource(name: str, context: str, subject: str):
+    """Get all versions of a schema for a specific subject in a specific context and registry."""
+    import json
+
+    from core_registry_tools import get_schema_versions_tool
+
+    try:
+        # Use the existing get_schema_versions_tool implementation
+        result = get_schema_versions_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"schema://{name}/{context}/{subject}/versions",
+            "registry_name": name,
+            "context": context,
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema versions for '{subject}' from registry '{name}' context '{context}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"schema://{name}/{context}/{subject}/versions",
+                "registry_name": name,
+                "context": context,
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("schema://{name}/{subject}/versions")
+@require_scopes("read")
+def schema_versions_default_context_resource(name: str, subject: str):
+    """Get all versions of a schema for a specific subject in the default context of a registry."""
+    import json
+
+    from core_registry_tools import get_schema_versions_tool
+
+    try:
+        # Use the existing get_schema_versions_tool implementation with default context
+        result = get_schema_versions_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=None,  # Use default context
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"schema://{name}/{subject}/versions",
+            "registry_name": name,
+            "context": "default",
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema versions for '{subject}' from registry '{name}' (default context): {str(e)}",
+            "resource_info": {
+                "resource_uri": f"schema://{name}/{subject}/versions",
+                "registry_name": name,
+                "context": "default",
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+# ===== SUBJECT RESOURCES =====
+
+
+@mcp.resource("subject://{name}/{context}/{subject}/config")
+@require_scopes("read")
+def subject_config_resource(name: str, context: str, subject: str):
+    """Get configuration settings for a specific subject with explicit context."""
+    import json
+
+    from core_registry_tools import get_subject_config_tool
+
+    try:
+        # Use the existing get_subject_config_tool implementation
+        result = get_subject_config_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            standard_headers=standard_headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"subject://{name}/{context}/{subject}/config",
+            "registry_name": name,
+            "context": context,
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get config for subject '{subject}' in context '{context}' from registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"subject://{name}/{context}/{subject}/config",
+                "registry_name": name,
+                "context": context,
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("subject://{name}/{subject}/config")
+@require_scopes("read")
+def subject_config_default_context_resource(name: str, subject: str):
+    """Get configuration settings for a specific subject in the default context."""
+    import json
+
+    from core_registry_tools import get_subject_config_tool
+
+    try:
+        # Use the existing get_subject_config_tool implementation with default context
+        result = get_subject_config_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=None,  # Use default context
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            standard_headers=standard_headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"subject://{name}/{subject}/config",
+            "registry_name": name,
+            "context": "default",
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get config for subject '{subject}' from registry '{name}' (default context): {str(e)}",
+            "resource_info": {
+                "resource_uri": f"subject://{name}/{subject}/config",
+                "registry_name": name,
+                "context": "default",
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("subject://{name}/{context}/{subject}/mode")
+@require_scopes("read")
+def subject_mode_resource(name: str, context: str, subject: str):
+    """Get the mode for a specific subject with explicit context."""
+    import json
+
+    from core_registry_tools import get_subject_mode_tool
+
+    try:
+        # Use the existing get_subject_mode_tool implementation
+        result = get_subject_mode_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            standard_headers=standard_headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"subject://{name}/{context}/{subject}/mode",
+            "registry_name": name,
+            "context": context,
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get mode for subject '{subject}' in context '{context}' from registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": f"subject://{name}/{context}/{subject}/mode",
+                "registry_name": name,
+                "context": context,
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("subject://{name}/{subject}/mode")
+@require_scopes("read")
+def subject_mode_default_context_resource(name: str, subject: str):
+    """Get the mode for a specific subject in the default context."""
+    import json
+
+    from core_registry_tools import get_subject_mode_tool
+
+    try:
+        # Use the existing get_subject_mode_tool implementation with default context
+        result = get_subject_mode_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=None,  # Use default context
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            standard_headers=standard_headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"subject://{name}/{subject}/mode",
+            "registry_name": name,
+            "context": "default",
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get mode for subject '{subject}' from registry '{name}' (default context): {str(e)}",
+            "resource_info": {
+                "resource_uri": f"subject://{name}/{subject}/mode",
+                "registry_name": name,
+                "context": "default",
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            },
+        }
+        return json.dumps(error_response, indent=2)
 
 
 # ===== SERVER ENTRY POINT =====
@@ -2747,7 +3162,7 @@ if __name__ == "__main__":
 
     # Calculate tool count based on SLIM_MODE
     if SLIM_MODE:
-        tool_count = "~20 (SLIM_MODE)"
+        tool_count = "~9 (SLIM_MODE)"
         features_status = "Essential tools only"
     else:
         tool_count = "75+"

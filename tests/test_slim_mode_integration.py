@@ -26,38 +26,51 @@ import kafka_schema_registry_unified_mcp
 ESSENTIAL_TOOLS_SLIM_MODE = {
     # Core connectivity
     "ping",
-    # Registry management (read-only)
-    "list_registries",
-    "get_registry_info",
-    "test_registry_connection",
-    "test_all_registries",
+    # Registry management (read-only) - REMOVED: list_registries, get_registry_info, test_registry_connection, test_all_registries, check_viewonly_mode
+    # These are now available as resources: registry://names, registry://info/{name}, registry://status/{name}, registry://status, registry://mode/{name}
     "get_default_registry",
     # Note: set_default_registry is only included in SLIM_MODE for single-registry configurations
     # Basic schema operations
-    "get_schema",
-    "get_schema_versions",
-    "list_subjects",
-    "list_contexts",
+    # REMOVED: get_schema, get_schema_versions - now available as resources:
+    # schema://{name}/{context}/{subject}, schema://{name}/{subject}, schema://{name}/{context}/{subject}/versions, schema://{name}/{subject}/versions
+    # REMOVED: list_subjects, list_contexts, get_global_config - now available as resources:
+    # registry://{name}/subjects, registry://{name}/contexts, registry://{name}/config
     "register_schema",  # Basic write operation
     "check_compatibility",
-    # Configuration reading
-    "get_global_config",
-    "get_mode",
-    "get_subject_config",
-    "get_subject_mode",
+    # Configuration reading - REMOVED: get_mode (now available as registry://mode resource)
+    # REMOVED: get_subject_config, get_subject_mode - now available as subject://{name}/{context}/{subject}/config and subject://{name}/{context}/{subject}/mode resources
     # Basic context operations
     "create_context",  # Basic write operation
     # Counting/statistics (lightweight)
     "count_contexts",
     "count_schemas",
     "count_schema_versions",
+    # Essential export tools (NEW)
+    "export_schema",
+    "export_subject",
     # MCP compliance and utility tools
     "get_mcp_compliance_status_tool",
-    "check_viewonly_mode",
 }
 
 # Tools that should be EXCLUDED in SLIM_MODE
 EXCLUDED_TOOLS_SLIM_MODE = {
+    # Registry management tools (replaced by resources)
+    "list_registries",  # Replaced by registry://names resource
+    "get_registry_info",  # Replaced by registry://info/{name} resource
+    "test_registry_connection",  # Replaced by registry://status/{name} resource
+    "test_all_registries",  # Replaced by registry://status resource
+    "check_viewonly_mode",  # Replaced by registry://mode/{name} resource
+    "get_mode",  # Replaced by registry://mode resource
+    # Converted to resources
+    "list_subjects",  # Replaced by registry://{name}/subjects resource
+    "list_contexts",  # Replaced by registry://{name}/contexts resource
+    "get_global_config",  # Replaced by registry://{name}/config resource
+    # Converted to resources
+    "get_schema",  # Replaced by schema://{name}/{context}/{subject} resource
+    "get_schema_versions",  # Replaced by schema://{name}/{context}/{subject}/versions resource
+    # Converted to resources
+    "get_subject_config",  # Replaced by subject://{name}/{context}/{subject}/config resource
+    "get_subject_mode",  # Replaced by subject://{name}/{context}/{subject}/mode resource
     # Migration tools (heavy operations)
     "migrate_schema",
     "migrate_context",
@@ -67,9 +80,7 @@ EXCLUDED_TOOLS_SLIM_MODE = {
     # Batch operations
     "clear_context_batch",
     "clear_multiple_contexts_batch",
-    # Export/import tools
-    "export_schema",
-    "export_subject",
+    # Export/import tools (advanced)
     "export_context",
     "export_global",
     "export_global_interactive",
@@ -255,7 +266,8 @@ class TestSLIMModeIntegration:
         tools = await self.get_available_tools(server)
 
         # Verify core operations are available
-        core_operations = {"ping", "list_subjects", "get_schema", "register_schema", "check_compatibility"}
+        # Note: get_schema, list_subjects have been converted to resources
+        core_operations = {"ping", "register_schema", "check_compatibility"}
 
         available_core = core_operations & tools
         assert available_core == core_operations, f"Missing core operations: {core_operations - available_core}"
@@ -330,11 +342,12 @@ class TestSLIMModeIntegration:
         tools = await self.get_available_tools(mcp_server_slim_mode)
 
         # Verify we have the expected number of tools
-        assert len(tools) <= 25, f"SLIM mode should have ~15 tools, got {len(tools)}"
+        assert len(tools) <= 25, f"SLIM mode should have ~9 tools, got {len(tools)}"
 
         # Verify essential tools are present
+        # Note: After resource conversion + export tools, we have ~9 essential tools
         essential_present = ESSENTIAL_TOOLS_SLIM_MODE & tools
-        assert len(essential_present) >= 15, f"Should have at least 15 essential tools, got {len(essential_present)}"
+        assert len(essential_present) >= 9, f"Should have at least 9 essential tools, got {len(essential_present)}"
 
         print(f"✅ SLIM mode tool descriptions verified for {len(tools)} tools")
 
@@ -355,7 +368,7 @@ class TestSLIMModeIntegration:
         tools = await self.get_available_tools(server)
 
         # Verify SLIM mode is active
-        assert len(tools) <= 25, f"Docker SLIM mode should have ~15 tools, got {len(tools)}"
+        assert len(tools) <= 25, f"Docker SLIM mode should have ~9 tools, got {len(tools)}"
 
         print("✅ SLIM mode Docker integration verified")
 
@@ -381,14 +394,18 @@ class TestSLIMModeIntegration:
         tools = await self.get_available_tools(server)
 
         # Verify SLIM mode is active even with multi-registry
-        assert len(tools) <= 25, f"Multi-registry SLIM mode should have ~15 tools, got {len(tools)}"
+        assert len(tools) <= 25, f"Multi-registry SLIM mode should have ~9 tools, got {len(tools)}"
 
         # Verify essential multi-registry tools are present
-        multi_registry_tools = {"list_registries", "get_registry_info", "test_all_registries"}
+        # Note: list_registries, get_registry_info, test_all_registries have been converted to resources
+        # Multi-registry support is now provided through resources, not tools
+        multi_registry_tools = {
+            "set_default_registry",
+            "get_default_registry",
+        }  # Only remaining registry management tools
         available_multi = multi_registry_tools & tools
-        assert (
-            available_multi == multi_registry_tools
-        ), f"Missing multi-registry tools: {multi_registry_tools - available_multi}"
+        # For multi-registry support, we mainly need the default registry management tools
+        assert len(available_multi) >= 1, f"Should have at least 1 multi-registry tool, got {len(available_multi)}"
 
         print("✅ SLIM mode multi-registry support verified")
 

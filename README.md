@@ -49,10 +49,10 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Recommended: Run with SLIM_MODE for optimal performance (~15 tools)
+# Recommended: Run with SLIM_MODE for optimal performance (~9 tools)
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
 
-# OR run with full feature set (53+ tools) for administrators/SRE
+# OR run with full feature set (57+ tools) for administrators/SRE
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 ```
 
@@ -84,8 +84,8 @@ Restart Claude Desktop and try these prompts:
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
-- **🧪 Full MCP Compliance** - 48+ tools following MCP 2025-06-18 specification
-- **🚀 SLIM_MODE** - Reduce tool overhead from 53+ to ~15 essential tools for better LLM performance
+- **🧪 Full MCP Compliance** - 57+ tools following MCP 2025-06-18 specification
+- **🚀 SLIM_MODE** - Reduce tool overhead from 57+ to ~9 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -106,7 +106,7 @@ docker pull aywengo/kafka-schema-reg-mcp:2.0.7
 #### Running with SLIM_MODE
 To reduce LLM overhead, run with SLIM_MODE enabled:
 ```bash
-# Run with ~15 essential tools instead of 53+
+# Run with ~9 essential tools instead of 57+
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
 ```
 
@@ -170,7 +170,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 ### SLIM_MODE Configuration (Performance Optimization)
 
-**SLIM_MODE** reduces the number of exposed MCP tools from 70+ to ~20 essential tools, significantly reducing LLM overhead and improving response times.
+**SLIM_MODE** reduces the number of exposed MCP tools from 57+ to ~9 essential tools, significantly reducing LLM overhead and improving response times.
 
 > **💡 Recommendation:** SLIM_MODE is **recommended for most use cases** as it provides all essential schema management capabilities with optimal performance.
 
@@ -192,33 +192,120 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 #### Enable SLIM_MODE
 ```bash
-export SLIM_MODE="true"  # Reduces tools from 70+ to ~20
+export SLIM_MODE="true"  # Reduces tools from 57+ to ~9
 ```
 
 #### Tools Available in SLIM_MODE
 **Essential Read-Only Tools:**
 - `ping` - Server health check
-- `list_registries`, `get_registry_info`, `test_registry_connection`
-- `get_schema`, `get_schema_versions`, `list_subjects`, `list_contexts`
-- `check_compatibility` - Schema compatibility checking
-- `count_contexts`, `count_schemas`, `count_schema_versions`
-- Configuration reading: `get_global_config`, `get_mode`, `get_subject_config`
+- `set_default_registry`, `get_default_registry` - Registry management
+- `count_contexts`, `count_schemas`, `count_schema_versions` - Statistics
 
 **Basic Write Operations:**
 - `register_schema` - Register new schemas
+- `check_compatibility` - Schema compatibility checking
 - `create_context` - Create new contexts
+
+**Essential Export Operations:**
+- `export_schema` - Export single schema
+- `export_subject` - Export all subject versions
+
+**Resources Available (All Modes):**
+- All 19 resources remain available in SLIM_MODE
+- `registry://`, `schema://`, `subject://` resource URIs
+- Full read access through resource-first approach
 
 **Tools Hidden in SLIM_MODE:**
 - All migration tools (`migrate_schema`, `migrate_context`)
 - All batch operations (`clear_context_batch`)
-- All export/import tools
+- Advanced export/import tools (`export_context`, `export_global`)
 - All interactive/elicitation tools (`*_interactive` variants)
 - Heavy statistics tools with async operations
 - Task management and workflow tools
 - Configuration update tools
 - Delete operations
 
-> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 70+ tools.
+> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 57+ tools.
+
+## 📊 MCP Tools and Resources
+
+This section provides a comprehensive analysis of all MCP tools and resources exposed by the Kafka Schema Registry MCP Server, including duplications and optimization opportunities.
+
+| **Category** | **Name** | **Type** | **SLIM_MODE** | **Scope** | **Description** |
+|--------------|----------|----------|---------------|-----------|-----------------|
+| **Core** | `ping` | Tool | ✅ | read | MCP ping/pong health check |
+| **Registry Management** | `set_default_registry` | Tool | ✅ | admin | Set default registry |
+| **Registry Management** | `get_default_registry` | Tool | ✅ | read | Get current default registry |
+| **Schema Operations** | `register_schema` | Tool | ✅ | write | Register new schema version |
+| **Schema Operations** | `check_compatibility` | Tool | ✅ | read | Check schema compatibility |
+| **Context Management** | `create_context` | Tool | ✅ | write | Create new context |
+| **Context Management** | `delete_context` | Tool | ❌ | admin | Delete context |
+| **Subject Management** | `delete_subject` | Tool | ❌ | admin | Delete subject and versions |
+| **Configuration** | `update_global_config` | Tool | ❌ | admin | Update global configuration |
+| **Configuration** | `update_subject_config` | Tool | ❌ | admin | Update subject configuration |
+| **Mode Management** | `update_mode` | Tool | ❌ | admin | Update registry mode |
+| **Mode Management** | `update_subject_mode` | Tool | ❌ | admin | Update subject mode |
+| **Statistics** | `count_contexts` | Tool | ✅ | read | Count contexts |
+| **Statistics** | `count_schemas` | Tool | ✅ | read | Count schemas |
+| **Statistics** | `count_schema_versions` | Tool | ✅ | read | Count schema versions |
+| **Statistics** | `get_registry_statistics` | Tool | ❌ | read | Get comprehensive registry stats |
+| **Export** | `export_schema` | Tool | ✅ | read | Export single schema |
+| **Export** | `export_subject` | Tool | ✅ | read | Export all subject versions |
+| **Export** | `export_context` | Tool | ❌ | read | Export all context subjects |
+| **Export** | `export_global` | Tool | ❌ | read | Export all contexts/schemas |
+| **Export** | `export_global_interactive` | Tool | ❌ | read | Interactive global export |
+| **Migration** | `migrate_schema` | Tool | ❌ | admin | Migrate schema between registries |
+| **Migration** | `migrate_context` | Tool | ❌ | admin | Migrate context between registries |
+| **Migration** | `migrate_context_interactive` | Tool | ❌ | admin | Interactive context migration |
+| **Migration** | `list_migrations` | Tool | ❌ | read | List migration tasks |
+| **Migration** | `get_migration_status` | Tool | ❌ | read | Get migration status |
+| **Comparison** | `compare_registries` | Tool | ❌ | read | Compare two registries |
+| **Comparison** | `compare_contexts_across_registries` | Tool | ❌ | read | Compare contexts across registries |
+| **Comparison** | `find_missing_schemas` | Tool | ❌ | read | Find missing schemas |
+| **Batch Operations** | `clear_context_batch` | Tool | ❌ | admin | Clear context with batch operations |
+| **Batch Operations** | `clear_multiple_contexts_batch` | Tool | ❌ | admin | Clear multiple contexts |
+| **Interactive** | `register_schema_interactive` | Tool | ❌ | write | Interactive schema registration |
+| **Interactive** | `check_compatibility_interactive` | Tool | ❌ | read | Interactive compatibility check |
+| **Interactive** | `create_context_interactive` | Tool | ❌ | write | Interactive context creation |
+| **Task Management** | `get_task_status` | Tool | ❌ | read | Get task status |
+| **Task Management** | `get_task_progress` | Tool | ❌ | read | Get task progress |
+| **Task Management** | `list_active_tasks` | Tool | ❌ | read | List active tasks |
+| **Task Management** | `cancel_task` | Tool | ❌ | admin | Cancel running task |
+| **Task Management** | `list_statistics_tasks` | Tool | ❌ | read | List statistics tasks |
+| **Task Management** | `get_statistics_task_progress` | Tool | ❌ | read | Get statistics task progress |
+| **Elicitation** | `submit_elicitation_response` | Tool | ❌ | write | Submit elicitation response |
+| **Elicitation** | `list_elicitation_requests` | Tool | ❌ | read | List elicitation requests |
+| **Elicitation** | `get_elicitation_request` | Tool | ❌ | read | Get elicitation request details |
+| **Elicitation** | `cancel_elicitation_request` | Tool | ❌ | admin | Cancel elicitation request |
+| **Elicitation** | `get_elicitation_status` | Tool | ❌ | read | Get elicitation system status |
+| **Workflows** | `list_available_workflows` | Tool | ❌ | read | List available workflows |
+| **Workflows** | `get_workflow_status` | Tool | ❌ | read | Get workflow status |
+| **Workflows** | `guided_schema_migration` | Tool | ❌ | admin | Start schema migration wizard |
+| **Workflows** | `guided_context_reorganization` | Tool | ❌ | admin | Start context reorganization wizard |
+| **Workflows** | `guided_disaster_recovery` | Tool | ❌ | admin | Start disaster recovery wizard |
+| **Utility** | `get_mcp_compliance_status_tool` | Tool | ❌ | read | Get MCP compliance status |
+| **Utility** | `get_oauth_scopes_info_tool` | Tool | ❌ | read | Get OAuth scopes information |
+| **Utility** | `test_oauth_discovery_endpoints` | Tool | ❌ | read | Test OAuth discovery endpoints |
+| **Utility** | `get_operation_info_tool` | Tool | ❌ | read | Get operation metadata |
+| **RESOURCES** | `registry://status` | Resource | ✅ | read | Overall registry connection status |
+| **RESOURCES** | `registry://info` | Resource | ✅ | read | Detailed server configuration |
+| **RESOURCES** | `registry://mode` | Resource | ✅ | read | Registry mode detection |
+| **RESOURCES** | `registry://names` | Resource | ✅ | read | List of configured registry names |
+| **RESOURCES** | `registry://status/{name}` | Resource | ✅ | read | Specific registry connection status |
+| **RESOURCES** | `registry://info/{name}` | Resource | ✅ | read | Specific registry configuration |
+| **RESOURCES** | `registry://mode/{name}` | Resource | ✅ | read | Specific registry mode |
+| **RESOURCES** | `registry://{name}/subjects` | Resource | ✅ | read | List subjects for registry |
+| **RESOURCES** | `registry://{name}/contexts` | Resource | ✅ | read | List contexts for registry |
+| **RESOURCES** | `registry://{name}/config` | Resource | ✅ | read | Global config for registry |
+| **RESOURCES** | `schema://{name}/{context}/{subject}` | Resource | ✅ | read | Schema content with context |
+| **RESOURCES** | `schema://{name}/{subject}` | Resource | ✅ | read | Schema content default context |
+| **RESOURCES** | `schema://{name}/{context}/{subject}/versions` | Resource | ✅ | read | Schema versions with context |
+| **RESOURCES** | `schema://{name}/{subject}/versions` | Resource | ✅ | read | Schema versions default context |
+| **RESOURCES** | `subject://{name}/{context}/{subject}/config` | Resource | ✅ | read | Subject config with context |
+| **RESOURCES** | `subject://{name}/{subject}/config` | Resource | ✅ | read | Subject config default context |
+| **RESOURCES** | `subject://{name}/{context}/{subject}/mode` | Resource | ✅ | read | Subject mode with context |
+| **RESOURCES** | `subject://{name}/{subject}/mode` | Resource | ✅ | read | Subject mode default context |
+| **RESOURCES** | `elicitation://response/{request_id}` | Resource | ❌ | write | Elicitation response handling |
 
 ## 💬 Usage Examples
 
@@ -368,6 +455,6 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 
-**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 48+ MCP Tools, 8 Registries, OAuth 2.1, Multi-platform
+**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 57+ MCP Tools, 19 Resources, 8 Registries, OAuth 2.1, Multi-platform
 
 **License:** MIT | **Maintainer:** [@aywengo](https://github.com/aywengo) | **Issues:** [GitHub Issues](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
