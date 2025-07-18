@@ -10,37 +10,44 @@ Test Strategy:
 1. Use contexts to simulate different "registries": development, staging, production
 2. Configure MCP server with numbered environment variables pointing to same registry but different contexts
 3. Test schema operations across different "registries"
-4. Test per-registry READONLY mode
+4. Test per-registry VIEWONLY mode
 5. Test cross-registry operations (comparison, migration)
 """
 
 import asyncio
 import json
 import os
-import subprocess
+import sys
 import time
 
 import requests
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from fastmcp import Client
+
+# Add parent directory to path
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
+
+import pytest
+from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 
 # Configuration for simulated registries using contexts
 SCHEMA_REGISTRY_BASE_URL = "http://localhost:38081"
 SIMULATED_REGISTRIES = {
     "development": {
         "context": "development",
-        "readonly": False,
+        "viewonly": False,
         "description": "Development environment",
     },
     "staging": {
         "context": "staging",
-        "readonly": False,
+        "viewonly": False,
         "description": "Staging environment",
     },
     "production": {
         "context": "production",
-        "readonly": True,
-        "description": "Production environment (readonly)",
+        "viewonly": True,
+        "description": "Production environment (viewonly)",
     },
 }
 
@@ -81,9 +88,7 @@ class IntegrationTestSetup:
                     print(f"⏳ Attempt {attempt + 1}/{max_attempts}: {e}")
                     time.sleep(2)
                 else:
-                    raise Exception(
-                        f"Schema Registry not ready after {max_attempts} attempts"
-                    )
+                    raise Exception(f"Schema Registry not ready after {max_attempts} attempts")
 
     async def _create_test_contexts(self):
         """Create contexts to simulate different registries."""
@@ -97,9 +102,7 @@ class IntegrationTestSetup:
                 if response.status_code in [200, 409]:  # 409 = already exists
                     print(f"✅ Context '{context}' ready for {registry_name}")
                 else:
-                    print(
-                        f"⚠️  Context creation response for {context}: {response.status_code}"
-                    )
+                    print(f"⚠️  Context creation response for {context}: {response.status_code}")
             except Exception as e:
                 print(f"⚠️  Error creating context {context}: {e}")
 
@@ -135,7 +138,7 @@ class IntegrationTestSetup:
         # Register some schemas in staging
         await self._register_schema("staging", "user-events", user_schema)
 
-        # Register schema in production (this will work since we register before setting readonly)
+        # Register schema in production (this will work since we register before setting viewonly)
         await self._register_schema("production", "user-events", user_schema)
 
         print("✅ Test schemas registered")
@@ -155,14 +158,13 @@ class IntegrationTestSetup:
             if response.status_code in [200, 409]:  # 409 = schema already exists
                 print(f"✅ Schema {subject} registered in {context}")
             else:
-                print(
-                    f"⚠️  Schema registration failed for {subject} in {context}: {response.status_code}"
-                )
+                print(f"⚠️  Schema registration failed for {subject} in {context}: {response.status_code}")
 
         except Exception as e:
             print(f"⚠️  Error registering schema {subject} in {context}: {e}")
 
 
+@pytest.mark.asyncio
 async def test_numbered_config_integration():
     """Main integration test for numbered environment variable configuration."""
 
@@ -182,13 +184,14 @@ async def test_numbered_config_integration():
     # Test 3: Cross-Registry Operations
     await test_cross_registry_operations()
 
-    # Test 4: Per-Registry READONLY Mode
-    await test_per_registry_readonly()
+    # Test 4: Per-Registry VIEWONLY Mode
+    await test_per_registry_viewonly()
 
     print("\n" + "=" * 70)
     print("🎉 Integration Test Complete!")
 
 
+@pytest.mark.asyncio
 async def test_single_registry_mode():
     """Test single registry mode with real operations."""
     print("\n🔧 Testing Single Registry Mode (Integration)")
@@ -199,7 +202,7 @@ async def test_single_registry_mode():
     env["SCHEMA_REGISTRY_URL"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER"] = ""
     env["SCHEMA_REGISTRY_PASSWORD"] = ""
-    env["READONLY"] = "false"
+    env["VIEWONLY"] = "false"
 
     # Clear numbered variables
     for i in range(1, 9):
@@ -207,22 +210,16 @@ async def test_single_registry_mode():
         env.pop(f"SCHEMA_REGISTRY_URL_{i}", None)
         env.pop(f"SCHEMA_REGISTRY_USER_{i}", None)
         env.pop(f"SCHEMA_REGISTRY_PASSWORD_{i}", None)
-        env.pop(f"READONLY_{i}", None)
+        env.pop(f"VIEWONLY_{i}", None)
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_single_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_single_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Single registry test timed out after 30 seconds")
     except Exception as e:
@@ -236,24 +233,25 @@ async def _test_single_registry_with_client(server_params):
             await session.initialize()
 
             # Test registry listing
-            result = await session.call_tool("list_registries", {})
-            if result.content and len(result.content) > 0:
-                registries = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://names")
+            if result.contents and len(result.contents) > 0:
+                registries = json.loads(result.contents[0].text)
                 print(f"✅ Single mode: Found {len(registries)} registry")
 
             # Test schema operations
-            result = await session.call_tool("list_subjects", {})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://default/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Found {len(subjects)} subjects in default registry")
 
             # Test contexts
-            result = await session.call_tool("list_contexts", {})
-            if result.content and len(result.content) > 0:
-                contexts = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://default/contexts")
+            if result.contents and len(result.contents) > 0:
+                contexts = json.loads(result.contents[0].text)
                 print(f"✅ Found {len(contexts)} contexts: {contexts}")
 
 
+@pytest.mark.asyncio
 async def test_multi_registry_mode():
     """Test multi-registry mode using contexts to simulate registries."""
     print("\n🔧 Testing Multi-Registry Mode (Integration)")
@@ -270,34 +268,28 @@ async def test_multi_registry_mode():
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_1"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_1"] = ""
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_2"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_2"] = ""
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = SCHEMA_REGISTRY_BASE_URL
     env["SCHEMA_REGISTRY_USER_3"] = ""
     env["SCHEMA_REGISTRY_PASSWORD_3"] = ""
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_multi_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_multi_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Multi-registry test timed out after 30 seconds")
     except Exception as e:
@@ -311,37 +303,36 @@ async def _test_multi_registry_with_client(server_params):
             await session.initialize()
 
             # Test registry listing
-            result = await session.call_tool("list_registries", {})
-            if result.content and len(result.content) > 0:
-                registries = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://names")
+            if result.contents and len(result.contents) > 0:
+                registries = json.loads(result.contents[0].text)
                 print(f"✅ Multi mode: Found {len(registries)} registries")
                 for registry in registries:
                     name = registry.get("name")
-                    readonly = registry.get("readonly", False)
-                    print(f"   • {name}: readonly={readonly}")
+                    viewonly = registry.get("viewonly", False)
+                    print(f"   • {name}: viewonly={viewonly}")
 
             # Test connection to all registries
-            result = await session.call_tool("test_all_registries", {})
-            if result.content and len(result.content) > 0:
-                test_results = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://status")
+            if result.contents and len(result.contents) > 0:
+                test_results = json.loads(result.contents[0].text)
                 connected = test_results.get("connected", 0)
                 total = test_results.get("total_registries", 0)
                 print(f"✅ Registry connections: {connected}/{total} successful")
 
             # Test schema operations with registry parameter
-            result = await session.call_tool(
-                "list_subjects", {"context": "development"}
-            )
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://development/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Development context: {len(subjects)} subjects")
 
-            result = await session.call_tool("list_subjects", {"context": "staging"})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://staging/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Staging context: {len(subjects)} subjects")
 
 
+@pytest.mark.asyncio
 async def test_cross_registry_operations():
     """Test cross-registry operations using contexts."""
     print("\n🔧 Testing Cross-Registry Operations (Integration)")
@@ -353,30 +344,24 @@ async def test_cross_registry_operations():
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "staging"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_2"] = "false"
+    env["VIEWONLY_2"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_3"] = "production"
     env["SCHEMA_REGISTRY_URL_3"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_3"] = "true"
+    env["VIEWONLY_3"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_cross_registry_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_cross_registry_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
         print("❌ Cross-registry test timed out after 30 seconds")
     except Exception as e:
@@ -399,7 +384,7 @@ async def _test_cross_registry_with_client(server_params):
                 if "error" in comparison:
                     print(f"⚠️  Registry comparison: {comparison['error']}")
                 else:
-                    print(f"✅ Registry comparison completed: dev vs staging")
+                    print("✅ Registry comparison completed: dev vs staging")
                     subjects = comparison.get("subjects", {})
                     print(f"   Common subjects: {len(subjects.get('common', []))}")
                     print(f"   Dev only: {len(subjects.get('source_only', []))}")
@@ -416,9 +401,7 @@ async def _test_cross_registry_with_client(server_params):
                     print(f"⚠️  Missing schemas check: {missing['error']}")
                 else:
                     missing_count = missing.get("missing_count", 0)
-                    print(
-                        f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod"
-                    )
+                    print(f"✅ Missing schemas check: {missing_count} schemas in dev but not in prod")
 
             # Test migration (dry run)
             result = await session.call_tool(
@@ -438,45 +421,40 @@ async def _test_cross_registry_with_client(server_params):
                     print(f"✅ Schema migration dry run: {migration.get('status')}")
 
 
-async def test_per_registry_readonly():
-    """Test per-registry READONLY mode protection."""
-    print("\n🔧 Testing Per-Registry READONLY Mode (Integration)")
+@pytest.mark.asyncio
+async def test_per_registry_viewonly():
+    """Test per-registry VIEWONLY mode protection."""
+    print("\n🔧 Testing Per-Registry VIEWONLY Mode (Integration)")
     print("-" * 50)
 
-    # Configure with production as readonly
+    # Configure with production as viewonly
     env = os.environ.copy()
     env.pop("SCHEMA_REGISTRY_URL", None)
 
     env["SCHEMA_REGISTRY_NAME_1"] = "development"
     env["SCHEMA_REGISTRY_URL_1"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_1"] = "false"
+    env["VIEWONLY_1"] = "false"
 
     env["SCHEMA_REGISTRY_NAME_2"] = "production"
     env["SCHEMA_REGISTRY_URL_2"] = SCHEMA_REGISTRY_BASE_URL
-    env["READONLY_2"] = "true"
+    env["VIEWONLY_2"] = "true"
 
     # Get the absolute path to the server script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(
-        os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py"
-    )
+    server_script = os.path.join(os.path.dirname(script_dir), "kafka_schema_registry_unified_mcp.py")
 
-    server_params = StdioServerParameters(
-        command="python", args=[server_script], env=env
-    )
+    server_params = StdioServerParameters(command="python", args=[server_script], env=env)
 
     try:
-        await asyncio.wait_for(
-            _test_per_registry_readonly_with_client(server_params), timeout=30.0
-        )
+        await asyncio.wait_for(_test_per_registry_viewonly_with_client(server_params), timeout=30.0)
     except asyncio.TimeoutError:
-        print("❌ Per-registry readonly test timed out after 30 seconds")
+        print("❌ Per-registry viewonly test timed out after 30 seconds")
     except Exception as e:
-        print(f"❌ Per-registry READONLY test failed: {e}")
+        print(f"❌ Per-registry VIEWONLY test failed: {e}")
 
 
-async def _test_per_registry_readonly_with_client(server_params):
-    """Helper function for per-registry readonly test with timeout protection."""
+async def _test_per_registry_viewonly_with_client(server_params):
+    """Helper function for per-registry viewonly test with timeout protection."""
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -500,13 +478,9 @@ async def _test_per_registry_readonly_with_client(server_params):
                 response = json.loads(result.content[0].text)
                 if "error" in response:
                     if "Connection refused" in response["error"]:
-                        print(
-                            "⚠️  Development schema registration skipped (connection issue)"
-                        )
+                        print("⚠️  Development schema registration skipped (connection issue)")
                     else:
-                        print(
-                            f"⚠️  Development schema registration: {response['error']}"
-                        )
+                        print(f"⚠️  Development schema registration: {response['error']}")
                 else:
                     print("✅ Development schema registration successful")
 
@@ -521,31 +495,110 @@ async def _test_per_registry_readonly_with_client(server_params):
             )
             if result.content and len(result.content) > 0:
                 response = json.loads(result.content[0].text)
-                if "readonly_mode" in response:
-                    print("✅ Production schema registration blocked by READONLY mode")
+                if "viewonly_mode" in response:
+                    print("✅ Production schema registration blocked by VIEWONLY mode")
                     print(f"   Message: {response.get('error', 'Blocked')}")
                 else:
-                    print("❌ Production READONLY mode not working correctly")
+                    print("❌ Production VIEWONLY mode not working correctly")
 
             # Test read operations in production (should work)
-            result = await session.call_tool("list_subjects", {"context": "production"})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://production/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 if isinstance(subjects, list):
-                    print(
-                        f"✅ Production read operations working: {len(subjects)} subjects"
-                    )
+                    print(f"✅ Production read operations working: {len(subjects)} subjects")
                 else:
                     print(f"⚠️  Production read operations: {subjects}")
+
+
+@pytest.mark.asyncio
+async def test_numbered_integration():
+    """Test numbered registry integration with MCP"""
+    print("🔢 Testing Numbered Environment Configuration Integration")
+    print("=" * 60)
+
+    # Test configuration
+    test_configs = [
+        {
+            "name": "Single Registry",
+            "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+                "VIEWONLY": "false",
+            },
+        },
+        {
+            "name": "Multi Registry with Numbers",
+            "env": {
+                "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
+                "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
+                "SCHEMA_REGISTRY_NAME_1": "dev",
+                "SCHEMA_REGISTRY_NAME_2": "prod",
+                "VIEWONLY": "false",
+            },
+        },
+    ]
+
+    server_script = os.path.join(parent_dir, "kafka_schema_registry_unified_mcp.py")
+
+    for config in test_configs:
+        print(f"\n🧪 Testing: {config['name']}")
+        print("-" * 40)
+
+        # Set environment variables
+        for key, value in config["env"].items():
+            os.environ[key] = value
+
+        # Create client
+        client = Client(server_script)
+
+        try:
+            async with client:
+                print("✅ MCP connection established")
+
+                # List available tools
+                tools = await client.list_tools()
+                tool_names = [tool.name for tool in tools]
+                print(f"📋 Available tools: {len(tool_names)}")
+
+                # Test basic operations using resources
+                try:
+                    result = await client.read_resource("registry://default/subjects")
+                    print("✅ subjects resource: Working")
+                except Exception as e:
+                    print(f"⚠️  subjects resource: {e}")
+
+                # Test registry-specific operations if multi-registry
+                if "SCHEMA_REGISTRY_URL_1" in config["env"]:
+                    registry_tools = [tool for tool in tool_names if "_1" in tool or "_2" in tool]
+                    print(f"🏢 Multi-registry tools found: {len(registry_tools)}")
+
+                    # Test a registry-specific resource if available
+                    try:
+                        result = await client.read_resource("registry://development/subjects")
+                        print(f"✅ development registry subjects: Working")
+                    except Exception as e:
+                        print(f"⚠️  development registry subjects: {e}")
+
+                print(f"✅ {config['name']}: Integration test completed")
+
+        except Exception as e:
+            print(f"❌ {config['name']}: Integration test failed - {e}")
+
+        finally:
+            # Clean up environment variables
+            for key in config["env"].keys():
+                if key in os.environ:
+                    del os.environ[key]
+
+    print("\n🎉 Numbered environment integration tests completed!")
+    return True
 
 
 async def main():
     """Run all integration tests."""
     print("🚀 Starting Kafka Schema Registry MCP Integration Tests")
     print("📋 Testing numbered environment variable configuration with real operations")
-    print(
-        "🐳 Using docker-compose Schema Registry with contexts to simulate multiple registries"
-    )
+    print("🐳 Using docker-compose Schema Registry with contexts to simulate multiple registries")
     print()
 
     try:

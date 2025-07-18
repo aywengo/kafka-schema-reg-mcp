@@ -10,7 +10,7 @@ A comprehensive **MCP (Model Context Protocol) server** that provides Claude Des
 - **⚡ Async Operations**: Non-blocking tasks with real-time progress tracking
 - **🔧 Context Management**: Logical grouping with separate "sub-registries"
 - **🚀 Simplified Migration**: Ready-to-run Docker commands for context migration
-- **🔒 Production Ready**: Per-registry READONLY mode, authentication support
+- **🔒 Production Ready**: Per-registry VIEWONLY mode, authentication support
 - **📦 Multi-Platform**: AMD64 and ARM64 architectures
 
 ## 🚀 Quick Start
@@ -23,6 +23,23 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 # Latest development
 docker pull aywengo/kafka-schema-reg-mcp:latest
 ```
+
+### SLIM_MODE for Better Performance
+To reduce LLM overhead, run with SLIM_MODE enabled:
+```bash
+# Run with ~15 essential tools instead of 53+
+docker run -i --rm --network host \
+  -e SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  -e SLIM_MODE=true \
+  aywengo/kafka-schema-reg-mcp:stable
+```
+
+> **💡 SLIM_MODE Benefits:**
+> - Reduces tool count from 53+ to ~15 essential tools
+> - Significantly faster LLM response times
+> - Lower token usage and reduced costs
+> - Ideal for production read-only operations
+> - Simply set SLIM_MODE=true environment variable
 
 ### Single Registry Mode
 ```bash
@@ -38,7 +55,7 @@ docker run -i --rm --network host \
   -e SCHEMA_REGISTRY_URL_1=http://dev-registry:8081 \
   -e SCHEMA_REGISTRY_NAME_2=production \
   -e SCHEMA_REGISTRY_URL_2=http://prod-registry:8081 \
-  -e READONLY_2=true \
+  -e VIEWONLY_2=true \
   aywengo/kafka-schema-reg-mcp:stable
 ```
 
@@ -74,7 +91,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
       "args": [
         "run", "--rm", "-i", "--network", "host",
         "-e", "SCHEMA_REGISTRY_NAME_1", "-e", "SCHEMA_REGISTRY_URL_1",
-        "-e", "SCHEMA_REGISTRY_NAME_2", "-e", "SCHEMA_REGISTRY_URL_2", "-e", "READONLY_2",
+        "-e", "SCHEMA_REGISTRY_NAME_2", "-e", "SCHEMA_REGISTRY_URL_2", "-e", "VIEWONLY_2",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
@@ -82,7 +99,7 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
         "SCHEMA_REGISTRY_URL_1": "http://localhost:8081",
         "SCHEMA_REGISTRY_NAME_2": "production", 
         "SCHEMA_REGISTRY_URL_2": "http://localhost:8082",
-        "READONLY_2": "true"
+        "VIEWONLY_2": "true"
       }
     }
   }
@@ -111,7 +128,7 @@ With Claude Desktop, use natural language commands:
 | `SCHEMA_REGISTRY_URL` | Single registry endpoint | `http://localhost:8081` |
 | `SCHEMA_REGISTRY_NAME_X` | Registry alias (X=1-8) | `production` |
 | `SCHEMA_REGISTRY_URL_X` | Registry endpoint (X=1-8) | `http://prod:8081` |
-| `READONLY_X` | Per-registry readonly (X=1-8) | `true` |
+| `VIEWONLY_X` | Per-registry viewonly (X=1-8) | `true` |
 | `SCHEMA_REGISTRY_USER_X` | Username (X=1-8) | `user` |
 | `SCHEMA_REGISTRY_PASSWORD_X` | Password (X=1-8) | `pass` |
 
@@ -124,9 +141,9 @@ With Claude Desktop, use natural language commands:
 - **Export**: `export_schema`, `export_context`, `export_global`
 - **Task Management**: `get_task_progress`, `list_all_active_tasks`
 
-## 🔒 READONLY Mode
+## 🔒 VIEWONLY Mode
 
-Set `READONLY=true` for production safety:
+Set `VIEWONLY=true` for production safety:
 - ✅ **Allowed**: Schema browsing, compatibility checking, exports
 - ❌ **Blocked**: Schema registration, deletion, configuration changes
 

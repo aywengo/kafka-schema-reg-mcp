@@ -10,17 +10,11 @@ Tests the new remote MCP server deployment capabilities including:
 - Environment variable handling
 """
 
-import asyncio
 import importlib.util
-import json
 import os
-import subprocess
 import sys
-import tempfile
-import time
 import unittest
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,15 +41,11 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
         )
 
         # Check file exists
-        self.assertTrue(
-            os.path.exists(remote_script_path), "remote-mcp-server.py should exist"
-        )
+        self.assertTrue(os.path.exists(remote_script_path), "remote-mcp-server.py should exist")
 
         try:
             # Import the module using importlib
-            spec = importlib.util.spec_from_file_location(
-                "remote_mcp_server", remote_script_path
-            )
+            spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
             remote_mcp_server = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(remote_mcp_server)
 
@@ -97,9 +87,7 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
 
                 # Test configuration values
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
-                path = os.getenv(
-                    "MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse"
-                )
+                path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
 
                 self.assertEqual(transport, case["expected_transport"])
                 self.assertEqual(path, case["expected_path"])
@@ -109,21 +97,22 @@ class TestRemoteMCPServerConfig(unittest.TestCase):
                     os.environ.pop(key, None)
 
     def test_oauth_configuration(self):
-        """Test OAuth configuration for remote deployment."""
+        """Test OAuth 2.1 generic configuration for remote deployment."""
         oauth_env = {
             "ENABLE_AUTH": "true",
-            "AUTH_PROVIDER": "azure",
-            "AZURE_TENANT_ID": "test-tenant-id",
+            "AUTH_ISSUER_URL": "https://login.microsoftonline.com/test-tenant-id/v2.0",
             "AUTH_AUDIENCE": "test-client-id",
         }
 
         for key, value in oauth_env.items():
             os.environ[key] = value
 
-        # Test that OAuth is properly configured
+        # Test that OAuth 2.1 is properly configured
         self.assertEqual(os.getenv("ENABLE_AUTH"), "true")
-        self.assertEqual(os.getenv("AUTH_PROVIDER"), "azure")
-        self.assertEqual(os.getenv("AZURE_TENANT_ID"), "test-tenant-id")
+        self.assertEqual(
+            os.getenv("AUTH_ISSUER_URL"),
+            "https://login.microsoftonline.com/test-tenant-id/v2.0",
+        )
         self.assertEqual(os.getenv("AUTH_AUDIENCE"), "test-client-id")
 
 
@@ -161,9 +150,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
 
             # Import and test
             try:
-                spec = importlib.util.spec_from_file_location(
-                    "remote_mcp_server", remote_script_path
-                )
+                spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
                 remote_mcp_server = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_mcp_server)
 
@@ -173,7 +160,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 # Verify mcp.run was called with correct transport
                 mock_mcp.run.assert_called_once_with(transport="streamable-http")
                 self.assertEqual(result, 0)
-            except Exception as e:
+            except Exception:
                 # If we can't test the startup, at least verify config is correct
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
                 self.assertEqual(transport, "streamable-http")
@@ -190,9 +177,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
 
         with patch("kafka_schema_registry_unified_mcp.mcp") as mock_mcp:
             try:
-                spec = importlib.util.spec_from_file_location(
-                    "remote_mcp_server", remote_script_path
-                )
+                spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
                 remote_mcp_server = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(remote_mcp_server)
 
@@ -201,7 +186,7 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 # Should return error code for invalid transport
                 self.assertEqual(result, 1)
                 mock_mcp.run.assert_not_called()
-            except Exception as e:
+            except Exception:
                 # If we can't test the startup, at least verify config is invalid
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")
                 self.assertEqual(transport, "invalid-transport")
@@ -212,9 +197,7 @@ class TestRemoteMCPDockerIntegration(unittest.TestCase):
 
     def test_dockerfile_includes_remote_script(self):
         """Test that Dockerfile includes remote-mcp-server.py."""
-        dockerfile_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Dockerfile"
-        )
+        dockerfile_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Dockerfile")
 
         self.assertTrue(os.path.exists(dockerfile_path), "Dockerfile should exist")
 
@@ -240,9 +223,7 @@ class TestRemoteMCPDocumentation(unittest.TestCase):
             "remote-mcp-deployment.md",
         )
 
-        self.assertTrue(
-            os.path.exists(docs_path), "Remote MCP deployment guide should exist"
-        )
+        self.assertTrue(os.path.exists(docs_path), "Remote MCP deployment guide should exist")
 
 
 def run_remote_mcp_tests():

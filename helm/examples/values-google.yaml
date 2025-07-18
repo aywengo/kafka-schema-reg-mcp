@@ -12,16 +12,17 @@ replicaCount: 2
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "1.8.0"
+  tag: "2.0.0"
 
-# 🟨 Google OAuth 2.0 Authentication Configuration
+# 🟨 Google OAuth 2.0 Authentication Configuration (OAuth 2.1 Generic)
 auth:
   enabled: true
   oauth2:
     issuerUrl: "https://accounts.google.com"
-    validScopes: "openid,email,profile"
-    defaultScopes: "openid,email,profile"
-    requiredScopes: "openid,email"
+    audience: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+    validScopes: "read,write,admin"
+    defaultScopes: "read"
+    requiredScopes: "read"
     clientRegistrationEnabled: true
     revocationEnabled: true
   createSecret:
@@ -36,13 +37,13 @@ schemaRegistry:
     registries:
       - name: "development"
         url: "http://schema-registry-dev.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "staging"
         url: "http://schema-registry-staging.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "production"
         url: "http://schema-registry-prod.kafka.svc.cluster.local:8081"
-        readonly: true
+        viewonly: true
 
 # Service configuration
 service:
@@ -89,7 +90,7 @@ autoscaling:
 
 # App configuration
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 

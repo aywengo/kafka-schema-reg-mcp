@@ -21,7 +21,7 @@ def test_test_schema_drift():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting schema drift detection test...")
+    print("🧪 Starting schema drift detection test...")
 
     try:
         # Check connectivity
@@ -48,7 +48,7 @@ def test_test_schema_drift():
             ],
         }
 
-        print(f"📝 Creating base schema in DEV...")
+        print("📝 Creating base schema in DEV...")
         base_payload = {"schema": json.dumps(base_schema)}
 
         dev_create = requests.post(
@@ -76,7 +76,7 @@ def test_test_schema_drift():
             ],
         }
 
-        print(f"📝 Creating evolved schema v2 in DEV...")
+        print("📝 Creating evolved schema v2 in DEV...")
         evolved_payload = {"schema": json.dumps(evolved_schema)}
 
         dev_evolve = requests.post(
@@ -95,9 +95,7 @@ def test_test_schema_drift():
         dev_subjects = set(dev_response.json())
         prod_subjects = set(prod_response.json())
 
-        print(
-            f"\n🔍 Analyzing schema drift across {len(dev_subjects | prod_subjects)} total subjects..."
-        )
+        print(f"\n🔍 Analyzing schema drift across {len(dev_subjects | prod_subjects)} total subjects...")
 
         drift_analysis = {
             "subjects_analyzed": 0,
@@ -113,7 +111,7 @@ def test_test_schema_drift():
         dev_only_subjects = dev_subjects - prod_subjects
         prod_only_subjects = prod_subjects - dev_subjects
 
-        print(f"📊 Subject distribution:")
+        print("📊 Subject distribution:")
         print(f"   Common subjects: {len(common_subjects)}")
         print(f"   DEV-only subjects: {len(dev_only_subjects)}")
         print(f"   PROD-only subjects: {len(prod_only_subjects)}")
@@ -129,17 +127,10 @@ def test_test_schema_drift():
 
             try:
                 # Get versions from both registries
-                dev_versions_resp = requests.get(
-                    f"{dev_url}/subjects/{subject}/versions", timeout=5
-                )
-                prod_versions_resp = requests.get(
-                    f"{prod_url}/subjects/{subject}/versions", timeout=5
-                )
+                dev_versions_resp = requests.get(f"{dev_url}/subjects/{subject}/versions", timeout=5)
+                prod_versions_resp = requests.get(f"{prod_url}/subjects/{subject}/versions", timeout=5)
 
-                if (
-                    dev_versions_resp.status_code == 200
-                    and prod_versions_resp.status_code == 200
-                ):
+                if dev_versions_resp.status_code == 200 and prod_versions_resp.status_code == 200:
                     dev_versions = dev_versions_resp.json()
                     prod_versions = prod_versions_resp.json()
 
@@ -150,27 +141,16 @@ def test_test_schema_drift():
                                 "subject": subject,
                                 "dev_versions": len(dev_versions),
                                 "prod_versions": len(prod_versions),
-                                "drift_magnitude": abs(
-                                    len(dev_versions) - len(prod_versions)
-                                ),
+                                "drift_magnitude": abs(len(dev_versions) - len(prod_versions)),
                             }
                         )
-                        print(
-                            f"   ⚠️  Version count drift: DEV={len(dev_versions)}, PROD={len(prod_versions)}"
-                        )
+                        print(f"   ⚠️  Version count drift: DEV={len(dev_versions)}, PROD={len(prod_versions)}")
 
                     # Compare latest schemas
-                    dev_latest_resp = requests.get(
-                        f"{dev_url}/subjects/{subject}/versions/latest", timeout=5
-                    )
-                    prod_latest_resp = requests.get(
-                        f"{prod_url}/subjects/{subject}/versions/latest", timeout=5
-                    )
+                    dev_latest_resp = requests.get(f"{dev_url}/subjects/{subject}/versions/latest", timeout=5)
+                    prod_latest_resp = requests.get(f"{prod_url}/subjects/{subject}/versions/latest", timeout=5)
 
-                    if (
-                        dev_latest_resp.status_code == 200
-                        and prod_latest_resp.status_code == 200
-                    ):
+                    if dev_latest_resp.status_code == 200 and prod_latest_resp.status_code == 200:
                         dev_latest = dev_latest_resp.json()
                         prod_latest = prod_latest_resp.json()
 
@@ -183,16 +163,9 @@ def test_test_schema_drift():
                             dev_fields = set()
                             prod_fields = set()
 
-                            if (
-                                dev_schema.get("type") == "record"
-                                and prod_schema.get("type") == "record"
-                            ):
-                                dev_fields = {
-                                    f["name"] for f in dev_schema.get("fields", [])
-                                }
-                                prod_fields = {
-                                    f["name"] for f in prod_schema.get("fields", [])
-                                }
+                            if dev_schema.get("type") == "record" and prod_schema.get("type") == "record":
+                                dev_fields = {f["name"] for f in dev_schema.get("fields", [])}
+                                prod_fields = {f["name"] for f in prod_schema.get("fields", [])}
 
                             new_fields = dev_fields - prod_fields
                             removed_fields = prod_fields - dev_fields
@@ -204,32 +177,29 @@ def test_test_schema_drift():
                                     "prod_version": prod_latest.get("version"),
                                     "new_fields": list(new_fields),
                                     "removed_fields": list(removed_fields),
-                                    "field_drift_count": len(new_fields)
-                                    + len(removed_fields),
+                                    "field_drift_count": len(new_fields) + len(removed_fields),
                                 }
                             )
 
-                            print(f"   ⚠️  Schema content drift detected")
+                            print("   ⚠️  Schema content drift detected")
                             if new_fields:
                                 print(f"      New fields in DEV: {list(new_fields)}")
                             if removed_fields:
-                                print(
-                                    f"      Removed fields from DEV: {list(removed_fields)}"
-                                )
+                                print(f"      Removed fields from DEV: {list(removed_fields)}")
                         else:
                             drift_analysis["identical_subjects"].append(subject)
-                            print(f"   ✅ Schemas identical")
+                            print("   ✅ Schemas identical")
 
             except Exception as e:
                 print(f"   ❌ Failed to analyze {subject}: {e}")
 
         # Generate drift report
-        print(f"\n📊 Schema Drift Analysis Report")
-        print(f"=" * 50)
+        print("\n📊 Schema Drift Analysis Report")
+        print("=" * 50)
         print(f"Analysis timestamp: {datetime.now().isoformat()}")
         print(f"Subjects analyzed: {drift_analysis['subjects_analyzed']}")
 
-        print(f"\n🔍 Drift Summary:")
+        print("\n🔍 Drift Summary:")
         print(f"   Version drifts: {len(drift_analysis['version_drifts'])}")
         print(f"   Schema content drifts: {len(drift_analysis['schema_drifts'])}")
         print(f"   Missing in PROD: {len(drift_analysis['missing_in_prod'])}")
@@ -263,42 +233,32 @@ def test_test_schema_drift():
 
         # Show detailed drift information
         if drift_analysis["schema_drifts"]:
-            print(f"\n📋 Schema Content Drifts (first 3):")
+            print("\n📋 Schema Content Drifts (first 3):")
             for drift in drift_analysis["schema_drifts"][:3]:
-                print(
-                    f"   • {drift['subject']}: {drift['field_drift_count']} field changes"
-                )
+                print(f"   • {drift['subject']}: {drift['field_drift_count']} field changes")
                 if drift["new_fields"]:
                     print(f"     + New: {drift['new_fields']}")
                 if drift["removed_fields"]:
                     print(f"     - Removed: {drift['removed_fields']}")
 
         if drift_analysis["version_drifts"]:
-            print(f"\n📋 Version Drifts (first 3):")
+            print("\n📋 Version Drifts (first 3):")
             for drift in drift_analysis["version_drifts"][:3]:
-                print(
-                    f"   • {drift['subject']}: DEV={drift['dev_versions']}, PROD={drift['prod_versions']}"
-                )
+                print(f"   • {drift['subject']}: DEV={drift['dev_versions']}, PROD={drift['prod_versions']}")
 
         # Test drift detection algorithms
-        print(f"\n🔍 Testing drift detection algorithms...")
+        print("\n🔍 Testing drift detection algorithms...")
 
         # Algorithm 1: Field count comparison
-        field_drift_subjects = [
-            d for d in drift_analysis["schema_drifts"] if d["field_drift_count"] > 0
-        ]
+        field_drift_subjects = [d for d in drift_analysis["schema_drifts"] if d["field_drift_count"] > 0]
         print(f"   Field-based drift detection: {len(field_drift_subjects)} subjects")
 
         # Algorithm 2: Version lag detection
-        version_lag_subjects = [
-            d for d in drift_analysis["version_drifts"] if d["drift_magnitude"] > 1
-        ]
+        version_lag_subjects = [d for d in drift_analysis["version_drifts"] if d["drift_magnitude"] > 1]
         print(f"   Version lag detection: {len(version_lag_subjects)} subjects")
 
         # Algorithm 3: Missing subject detection
-        missing_subjects = len(drift_analysis["missing_in_prod"]) + len(
-            drift_analysis["missing_in_dev"]
-        )
+        missing_subjects = len(drift_analysis["missing_in_prod"]) + len(drift_analysis["missing_in_dev"])
         print(f"   Missing subject detection: {missing_subjects} subjects")
 
         print("✅ Schema drift detection test completed successfully")

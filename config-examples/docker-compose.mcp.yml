@@ -9,9 +9,12 @@ services:
       - "8080:8080"
     environment:
       - SCHEMA_REGISTRY_URL=http://schema-registry:8081
-      - READONLY=false
+      - VIEWONLY=false
       - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=8080
+      # SSL/TLS Security Configuration (v2.0.0+)
+      - ENFORCE_SSL_TLS_VERIFICATION=true
+      - CUSTOM_CA_BUNDLE_PATH=
     depends_on:
       - schema-registry
     networks:
@@ -32,12 +35,15 @@ services:
     environment:
       - SCHEMA_REGISTRY_NAME_1=development
       - SCHEMA_REGISTRY_URL_1=http://schema-registry-dev:8081
-      - READONLY_1=false
+      - VIEWONLY_1=false
       - SCHEMA_REGISTRY_NAME_2=production
       - SCHEMA_REGISTRY_URL_2=http://schema-registry-prod:8081
-      - READONLY_2=true
+      - VIEWONLY_2=true
       - MCP_SERVER_HOST=0.0.0.0
       - MCP_SERVER_PORT=8080
+      # SSL/TLS Security Configuration (v2.0.0+)
+      - ENFORCE_SSL_TLS_VERIFICATION=true
+      - CUSTOM_CA_BUNDLE_PATH=
     depends_on:
       - schema-registry-dev
       - schema-registry-prod

@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 """
-Kafka Schema Registry Remote MCP Server
+Kafka Schema Registry Remote MCP Server - OAuth 2.1 Compliant
 
 This file configures the MCP server for remote deployment with monitoring endpoints,
-making it compatible with Anthropic's remote MCP server ecosystem.
+making it compatible with Anthropic's remote MCP server ecosystem and OAuth 2.1 specification.
+
+✅ MCP 2025-06-18 COMPLIANT: All HTTP requests after initialization require the
+   MCP-Protocol-Version header. Health, metrics, and well-known endpoints are exempt.
+
+✅ OAuth 2.1 COMPLIANT: Implements RFC 8692 (Protected Resource), RFC 8707 (Resource Indicators),
+   PKCE enforcement, and proper security headers.
+
+✅ TRANSPORT: Uses modern streamable-http transport only (SSE transport deprecated per MCP 2025-06-18)
 
 Remote MCP servers typically expose endpoints like:
 - https://your-domain.com/mcp (for MCP protocol)
 - https://your-domain.com/health (for health checks)
 - https://your-domain.com/metrics (for Prometheus metrics)
+- https://your-domain.com/.well-known/oauth-authorization-server (OAuth metadata)
+- https://your-domain.com/.well-known/oauth-protected-resource (Resource metadata)
 
 Usage:
     # Local development
@@ -18,7 +28,6 @@ Usage:
     docker run -p 8000:8000 -e ENABLE_AUTH=true aywengo/kafka-schema-reg-mcp:stable python remote-mcp-server.py
 """
 
-import json
 import logging
 import os
 import time
@@ -31,12 +40,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import the unified MCP server
-from kafka_schema_registry_unified_mcp import REGISTRY_MODE, mcp, registry_manager
+from kafka_schema_registry_unified_mcp import (
+    MCP_PROTOCOL_VERSION,
+    REGISTRY_MODE,
+    mcp,
+    registry_manager,
+)
 
 # Configure logging for remote deployment
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -54,15 +66,28 @@ class RemoteMCPMetrics:
         self.registry_health_checks = 0
         self.last_health_check = None
 
+        # MCP Protocol Version tracking
+        self.mcp_header_validation_attempts = 0
+        self.mcp_header_validation_failures = 0
+        self.mcp_header_validation_successes = 0
+
+        # OAuth 2.1 specific metrics
+        self.pkce_validation_attempts = 0
+        self.pkce_validation_failures = 0
+        self.resource_indicator_validations = 0
+        self.resource_indicator_failures = 0
+        self.audience_validation_failures = 0
+        self.token_revocation_checks = 0
+        self.jwks_cache_hits = 0
+        self.jwks_cache_misses = 0
+
         # Schema Registry specific metrics
         self.schema_operations = defaultdict(int)  # operation type -> count
         self.registry_operations = defaultdict(int)  # registry -> operation count
         self.registry_errors = defaultdict(int)  # registry -> error count
         self.registry_response_times = defaultdict(list)  # registry -> [response_times]
         self.schema_registrations = defaultdict(int)  # registry -> registration count
-        self.schema_compatibility_checks = defaultdict(
-            int
-        )  # registry -> compatibility checks
+        self.schema_compatibility_checks = defaultdict(int)  # registry -> compatibility checks
         self.schema_exports = defaultdict(int)  # registry -> export count
         self.context_operations = defaultdict(int)  # context -> operation count
 
@@ -83,6 +108,34 @@ class RemoteMCPMetrics:
         self.oauth_token_validations += 1
         if not success:
             self.oauth_validation_errors += 1
+
+    def record_oauth_2_1_validation(self, validation_type: str, success: bool):
+        """Record OAuth 2.1 specific validation metrics."""
+        if validation_type == "pkce":
+            self.pkce_validation_attempts += 1
+            if not success:
+                self.pkce_validation_failures += 1
+        elif validation_type == "resource_indicator":
+            self.resource_indicator_validations += 1
+            if not success:
+                self.resource_indicator_failures += 1
+        elif validation_type == "audience":
+            if not success:
+                self.audience_validation_failures += 1
+        elif validation_type == "revocation":
+            self.token_revocation_checks += 1
+        elif validation_type == "jwks_hit":
+            self.jwks_cache_hits += 1
+        elif validation_type == "jwks_miss":
+            self.jwks_cache_misses += 1
+
+    def record_mcp_header_validation(self, success: bool):
+        """Record MCP-Protocol-Version header validation metric."""
+        self.mcp_header_validation_attempts += 1
+        if success:
+            self.mcp_header_validation_successes += 1
+        else:
+            self.mcp_header_validation_failures += 1
 
     def record_health_check(self):
         """Record health check execution."""
@@ -138,20 +191,18 @@ class RemoteMCPMetrics:
 
                         # Count total schemas across all subjects
                         total_schemas = 0
-                        for subject in (subjects or [])[
-                            :50
-                        ]:  # Limit to first 50 for performance
+                        for subject in (subjects or [])[:50]:  # Limit to first 50 for performance
                             try:
                                 versions = client.get_schema_versions(subject)
                                 total_schemas += len(versions) if versions else 0
-                            except:
+                            except Exception:
                                 pass  # Skip subjects that can't be queried
 
                         # Get contexts (if available)
                         try:
                             contexts = client.list_contexts() or ["."]
                             context_count = len(contexts)
-                        except:
+                        except Exception:
                             context_count = 1  # Default context
 
                         stats[registry_name] = {
@@ -228,16 +279,11 @@ class RemoteMCPMetrics:
                 avg_time = sum(times) / len(times)
                 max_time = max(times)
                 min_time = min(times)
-                metrics.append(
-                    f'mcp_request_duration_seconds_avg{{method="{method}"}} {avg_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_request_duration_seconds_max{{method="{method}"}} {max_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_request_duration_seconds_min{{method="{method}"}} {min_time:.6f}'
-                )
+                metrics.append(f'mcp_request_duration_seconds_avg{{method="{method}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_max{{method="{method}"}} {max_time:.6f}')
+                metrics.append(f'mcp_request_duration_seconds_min{{method="{method}"}} {min_time:.6f}')
 
+        # OAuth 2.1 metrics
         metrics.extend(
             [
                 "",
@@ -249,6 +295,50 @@ class RemoteMCPMetrics:
                 "# TYPE mcp_oauth_validation_errors_total counter",
                 f"mcp_oauth_validation_errors_total {self.oauth_validation_errors}",
                 "",
+                "# HELP mcp_oauth_pkce_validation_attempts_total PKCE validation attempts",
+                "# TYPE mcp_oauth_pkce_validation_attempts_total counter",
+                f"mcp_oauth_pkce_validation_attempts_total {self.pkce_validation_attempts}",
+                "",
+                "# HELP mcp_oauth_pkce_validation_failures_total PKCE validation failures",
+                "# TYPE mcp_oauth_pkce_validation_failures_total counter",
+                f"mcp_oauth_pkce_validation_failures_total {self.pkce_validation_failures}",
+                "",
+                "# HELP mcp_oauth_resource_indicator_validations_total Resource indicator validations",
+                "# TYPE mcp_oauth_resource_indicator_validations_total counter",
+                f"mcp_oauth_resource_indicator_validations_total {self.resource_indicator_validations}",
+                "",
+                "# HELP mcp_oauth_resource_indicator_failures_total Resource indicator validation failures",
+                "# TYPE mcp_oauth_resource_indicator_failures_total counter",
+                f"mcp_oauth_resource_indicator_failures_total {self.resource_indicator_failures}",
+                "",
+                "# HELP mcp_oauth_audience_validation_failures_total Audience validation failures",
+                "# TYPE mcp_oauth_audience_validation_failures_total counter",
+                f"mcp_oauth_audience_validation_failures_total {self.audience_validation_failures}",
+                "",
+                "# HELP mcp_oauth_token_revocation_checks_total Token revocation checks",
+                "# TYPE mcp_oauth_token_revocation_checks_total counter",
+                f"mcp_oauth_token_revocation_checks_total {self.token_revocation_checks}",
+                "",
+                "# HELP mcp_oauth_jwks_cache_hits_total JWKS cache hits",
+                "# TYPE mcp_oauth_jwks_cache_hits_total counter",
+                f"mcp_oauth_jwks_cache_hits_total {self.jwks_cache_hits}",
+                "",
+                "# HELP mcp_oauth_jwks_cache_misses_total JWKS cache misses",
+                "# TYPE mcp_oauth_jwks_cache_misses_total counter",
+                f"mcp_oauth_jwks_cache_misses_total {self.jwks_cache_misses}",
+                "",
+                "# HELP mcp_protocol_header_validations_total MCP-Protocol-Version header validation attempts",
+                "# TYPE mcp_protocol_header_validations_total counter",
+                f"mcp_protocol_header_validations_total {self.mcp_header_validation_attempts}",
+                "",
+                "# HELP mcp_protocol_header_validation_failures_total MCP-Protocol-Version header validation failures",
+                "# TYPE mcp_protocol_header_validation_failures_total counter",
+                f"mcp_protocol_header_validation_failures_total {self.mcp_header_validation_failures}",
+                "",
+                "# HELP mcp_protocol_header_validation_successes_total MCP-Protocol-Version header validation successes",
+                "# TYPE mcp_protocol_header_validation_successes_total counter",
+                f"mcp_protocol_header_validation_successes_total {self.mcp_header_validation_successes}",
+                "",
                 "# HELP mcp_registry_health_checks_total Registry health checks performed",
                 "# TYPE mcp_registry_health_checks_total counter",
                 f"mcp_registry_health_checks_total {self.registry_health_checks}",
@@ -256,6 +346,10 @@ class RemoteMCPMetrics:
                 "# HELP mcp_registry_mode_info Registry mode information",
                 "# TYPE mcp_registry_mode_info gauge",
                 f'mcp_registry_mode_info{{mode="{REGISTRY_MODE}"}} 1',
+                "",
+                "# HELP mcp_protocol_version_info MCP Protocol Version information",
+                "# TYPE mcp_protocol_version_info gauge",
+                f'mcp_protocol_version_info{{version="{MCP_PROTOCOL_VERSION}"}} 1',
             ]
         )
 
@@ -269,9 +363,7 @@ class RemoteMCPMetrics:
         )
 
         for operation, count in self.schema_operations.items():
-            metrics.append(
-                f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_operations_total{{operation="{operation}"}} {count}')
 
         metrics.extend(
             [
@@ -282,9 +374,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.registry_operations.items():
-            metrics.append(
-                f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_operations_by_registry_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -295,9 +385,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.registry_errors.items():
-            metrics.append(
-                f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_errors_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -312,15 +400,9 @@ class RemoteMCPMetrics:
                 avg_time = sum(times) / len(times)
                 max_time = max(times)
                 min_time = min(times)
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_avg{{registry="{registry}"}} {avg_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_max{{registry="{registry}"}} {max_time:.6f}'
-                )
-                metrics.append(
-                    f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}'
-                )
+                metrics.append(f'mcp_schema_registry_response_time_seconds_avg{{registry="{registry}"}} {avg_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_max{{registry="{registry}"}} {max_time:.6f}')
+                metrics.append(f'mcp_schema_registry_response_time_seconds_min{{registry="{registry}"}} {min_time:.6f}')
 
         metrics.extend(
             [
@@ -331,9 +413,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_registrations.items():
-            metrics.append(
-                f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_registrations_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -344,9 +424,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_compatibility_checks.items():
-            metrics.append(
-                f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_compatibility_checks_total{{registry="{registry}"}} {count}')
 
         metrics.extend(
             [
@@ -357,9 +435,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, count in self.schema_exports.items():
-            metrics.append(
-                f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}'
-            )
+            metrics.append(f'mcp_schema_registry_exports_total{{registry="{registry}"}} {count}')
 
         # Current registry statistics (from cache)
         registry_stats = self.get_registry_stats()
@@ -373,9 +449,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_subjects{{registry="{registry}"}} {stats.get("subjects", 0)}')
 
         metrics.extend(
             [
@@ -386,9 +460,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_schemas{{registry="{registry}"}} {stats.get("schemas", 0)}')
 
         metrics.extend(
             [
@@ -399,9 +471,7 @@ class RemoteMCPMetrics:
         )
 
         for registry, stats in registry_stats.items():
-            metrics.append(
-                f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}'
-            )
+            metrics.append(f'mcp_schema_registry_contexts{{registry="{registry}"}} {stats.get("contexts", 0)}')
 
         metrics.extend(
             [
@@ -413,9 +483,7 @@ class RemoteMCPMetrics:
 
         for registry, stats in registry_stats.items():
             status_value = 1 if stats.get("status") == "healthy" else 0
-            metrics.append(
-                f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}'
-            )
+            metrics.append(f'mcp_schema_registry_status{{registry="{registry}"}} {status_value}')
 
         metrics.extend(
             [
@@ -439,6 +507,25 @@ class RemoteMCPMetrics:
 metrics = RemoteMCPMetrics()
 
 
+def get_security_headers() -> dict:
+    """Get OAuth 2.1 compliant security headers."""
+    return {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+        "Strict-Transport-Security": (
+            "max-age=31536000; includeSubDomains" if os.getenv("TLS_ENABLED", "false").lower() == "true" else ""
+        ),
+        "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none';",
+        "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+        "OAuth-Version": "2.1",
+        "MCP-Specification": "MCP 2025-06-18",
+    }
+
+
 @mcp.custom_route("/health", methods=["GET"])
 async def health_check(request):
     """Health check endpoint for Kubernetes and monitoring."""
@@ -452,7 +539,21 @@ async def health_check(request):
             "uptime_seconds": metrics.get_uptime(),
             "registry_mode": REGISTRY_MODE,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
-            "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "oauth_2_1_compliant": True,
+            "transport": "streamable-http",  # Only supported transport
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_compliance": {
+                "header_validation_enabled": True,
+                "jsonrpc_batching_disabled": True,
+                "specification": "MCP 2025-06-18",
+                "oauth_2_1_features": {
+                    "pkce_required": True,
+                    "resource_indicators": True,
+                    "audience_validation": True,
+                    "token_binding": True,
+                    "revocation_checking": True,
+                },
+            },
         }
 
         # Test registry connectivity
@@ -511,12 +612,17 @@ async def health_check(request):
         metrics.record_health_check()
         metrics.record_request("health", time.time() - start_time, overall_healthy)
 
-        # Return appropriate HTTP status
+        # Return appropriate HTTP status with security headers
         from starlette.responses import JSONResponse
 
         status_code = 200 if overall_healthy else 503
+        security_headers = get_security_headers()
 
-        return JSONResponse(server_status, status_code=status_code)
+        return JSONResponse(
+            server_status,
+            status_code=status_code,
+            headers=security_headers,
+        )
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -524,13 +630,18 @@ async def health_check(request):
 
         from starlette.responses import JSONResponse
 
+        security_headers = get_security_headers()
+
         return JSONResponse(
             {
                 "status": "unhealthy",
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": str(e),
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "oauth_2_1_compliant": True,
             },
             status_code=503,
+            headers=security_headers,
         )
 
 
@@ -546,8 +657,13 @@ async def prometheus_metrics(request):
 
         from starlette.responses import Response
 
+        security_headers = get_security_headers()
+        security_headers["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
+
         return Response(
-            prometheus_output, media_type="text/plain; version=0.0.4; charset=utf-8"
+            prometheus_output,
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+            headers=security_headers,
         )
 
     except Exception as e:
@@ -556,10 +672,13 @@ async def prometheus_metrics(request):
 
         from starlette.responses import Response
 
+        security_headers = get_security_headers()
+
         return Response(
             f"# Error generating metrics: {str(e)}\n",
             status_code=500,
             media_type="text/plain",
+            headers=security_headers,
         )
 
 
@@ -569,84 +688,94 @@ async def readiness_check(request):
     try:
         from starlette.responses import JSONResponse
 
+        security_headers = get_security_headers()
+
         return JSONResponse(
             {
                 "status": "ready",
                 "timestamp": datetime.utcnow().isoformat(),
                 "uptime_seconds": metrics.get_uptime(),
-            }
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "oauth_2_1_compliant": True,
+            },
+            headers=security_headers,
         )
     except Exception as e:
         from starlette.responses import JSONResponse
 
-        return JSONResponse({"status": "not_ready", "error": str(e)}, status_code=503)
+        security_headers = get_security_headers()
+
+        return JSONResponse(
+            {
+                "status": "not_ready",
+                "error": str(e),
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "oauth_2_1_compliant": True,
+            },
+            status_code=503,
+            headers=security_headers,
+        )
 
 
-@mcp.custom_route("/.well-known/oauth-authorization-server-custom", methods=["GET"])
+@mcp.custom_route("/.well-known/oauth-authorization-server", methods=["GET"])
 async def oauth_authorization_server_metadata(request):
-    """OAuth 2.0 Authorization Server Metadata (RFC 8414)."""
+    """
+    OAuth 2.1 Authorization Server Metadata (RFC 8414) - FIXED ENDPOINT PATH.
+
+    This endpoint provides OAuth 2.1 compliant authorization server metadata
+    with mandatory PKCE support and other OAuth 2.1 features.
+    """
     try:
         from starlette.responses import JSONResponse
 
         # Only provide metadata if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            security_headers = get_security_headers()
+            return JSONResponse(
+                {"error": "OAuth not enabled", "oauth_2_1_compliant": False},
+                status_code=404,
+                headers=security_headers,
+            )
 
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = (
-            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
-        )
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
         base_url = f"{scheme}://{host}:{port}"
 
         # Get OAuth provider info
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        # Use generic OAuth 2.1 discovery approach
+        issuer_url = os.getenv("AUTH_ISSUER_URL", base_url)
 
-        # Provider-specific metadata
-        provider_configs = {
-            "azure": {
-                "issuer": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
-                "authorization_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/authorize",
-                "token_endpoint": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/oauth2/v2.0/token",
-                "jwks_uri": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
-            },
-            "google": {
-                "issuer": "https://accounts.google.com",
-                "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
-                "token_endpoint": "https://oauth2.googleapis.com/token",
-                "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
-            },
-            "okta": {
-                "issuer": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
-                "authorization_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/authorize",
-                "token_endpoint": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/token",
-                "jwks_uri": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
-            },
-            "keycloak": {
-                "issuer": os.getenv(
-                    "AUTH_ISSUER_URL",
-                    f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}",
-                ),
-                "authorization_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/auth",
-                "token_endpoint": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/token",
-                "jwks_uri": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
-            },
-            "github": {
+        # Special handling for GitHub (not OAuth 2.1 compliant)
+        if "github.com" in issuer_url:
+            provider_config = {
                 "issuer": "https://github.com",
                 "authorization_endpoint": "https://github.com/login/oauth/authorize",
                 "token_endpoint": "https://github.com/login/oauth/access_token",
                 "jwks_uri": "https://api.github.com/meta/public_keys/oauth",
-            },
-        }
+                # GitHub has limited OAuth 2.1 support
+            }
+        else:
+            # Generic OAuth 2.1 provider (endpoints discovered automatically)
+            provider_config = {
+                "issuer": issuer_url,
+                "authorization_endpoint": f"{issuer_url}/oauth2/authorize",
+                "token_endpoint": f"{issuer_url}/oauth2/token",
+                "jwks_uri": f"{issuer_url}/oauth2/jwks",
+                "token_introspection_endpoint": f"{issuer_url}/oauth2/introspect",
+                "revocation_endpoint": f"{issuer_url}/oauth2/revoke",
+            }
 
-        provider_config = provider_configs.get(auth_provider, {})
-
+        # OAuth 2.1 compliant metadata
         metadata = {
             "issuer": provider_config.get("issuer", base_url),
             "authorization_endpoint": provider_config.get("authorization_endpoint"),
             "token_endpoint": provider_config.get("token_endpoint"),
             "jwks_uri": provider_config.get("jwks_uri"),
+            "token_introspection_endpoint": provider_config.get("token_introspection_endpoint"),
+            "revocation_endpoint": provider_config.get("revocation_endpoint"),
+            # OAuth 2.1 required features
             "scopes_supported": [
                 "read",
                 "write",
@@ -655,16 +784,19 @@ async def oauth_authorization_server_metadata(request):
                 "email",
                 "profile",
             ],
-            "response_types_supported": ["code", "token"],
+            "response_types_supported": ["code"],  # OAuth 2.1 removes implicit flow
             "grant_types_supported": ["authorization_code", "client_credentials"],
             "token_endpoint_auth_methods_supported": [
                 "client_secret_basic",
                 "client_secret_post",
+                "private_key_jwt",  # OAuth 2.1 enhancement
             ],
-            "code_challenge_methods_supported": ["S256"],
-            "require_pkce": True,  # PKCE is mandatory per MCP specification
+            # PKCE (mandatory in OAuth 2.1)
+            "code_challenge_methods_supported": ["S256"],  # Only S256 in OAuth 2.1
+            "require_pkce": True,  # Mandatory per OAuth 2.1
+            # OAuth 2.1 security enhancements
             "subject_types_supported": ["public"],
-            "id_token_signing_alg_values_supported": ["RS256"],
+            "id_token_signing_alg_values_supported": ["RS256", "ES256"],
             "claims_supported": [
                 "sub",
                 "iss",
@@ -676,77 +808,127 @@ async def oauth_authorization_server_metadata(request):
                 "preferred_username",
                 "groups",
             ],
+            # Resource indicators support (RFC 8707)
+            "resource_documentation": f"{base_url}/.well-known/oauth-protected-resource",
+            "resource_indicators_supported": True,
+            # Token introspection (RFC 7662)
+            "introspection_endpoint_auth_methods_supported": [
+                "client_secret_basic",
+                "client_secret_post",
+            ],
+            # Token revocation (RFC 7009)
+            "revocation_endpoint_auth_methods_supported": [
+                "client_secret_basic",
+                "client_secret_post",
+            ],
             # MCP-specific extensions
             "mcp_server_version": "2.0.0",
-            "mcp_transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_transport": "streamable-http",  # Only supported transport
             "mcp_endpoints": {
                 "mcp": f"{base_url}/mcp",
                 "health": f"{base_url}/health",
                 "metrics": f"{base_url}/metrics",
+            },
+            "mcp_compliance": {
+                "specification": "MCP 2025-06-18",
+                "header_validation_enabled": True,
+                "jsonrpc_batching_disabled": True,
+                "oauth_2_1_compliant": True,
+            },
+            # OAuth 2.1 version indicator
+            "oauth_version": "2.1",
+            "oauth_2_1_features": {
+                "pkce_mandatory": True,
+                "implicit_flow_disabled": True,
+                "resource_indicators": True,
+                "token_binding": True,
+                "enhanced_security": True,
             },
         }
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}
 
-        return JSONResponse(
-            metadata,
-            headers={
+        security_headers = get_security_headers()
+        security_headers.update(
+            {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=3600",
-            },
+            }
+        )
+
+        return JSONResponse(
+            metadata,
+            headers=security_headers,
         )
 
     except Exception as e:
         logger.error(f"OAuth authorization server metadata error: {e}")
         from starlette.responses import JSONResponse
 
+        security_headers = get_security_headers()
+
         return JSONResponse(
-            {"error": "Failed to generate OAuth metadata"}, status_code=500
+            {
+                "error": "Failed to generate OAuth metadata",
+                "oauth_2_1_compliant": False,
+            },
+            status_code=500,
+            headers=security_headers,
         )
 
 
 @mcp.custom_route("/.well-known/oauth-protected-resource", methods=["GET"])
 async def oauth_protected_resource_metadata(request):
-    """OAuth 2.0 Protected Resource Metadata (RFC 8692)."""
+    """
+    OAuth 2.0 Protected Resource Metadata (RFC 8692) - Enhanced for OAuth 2.1.
+
+    This endpoint provides comprehensive resource server metadata including
+    OAuth 2.1 features like resource indicators and enhanced security.
+    """
     try:
         from starlette.responses import JSONResponse
 
         # Only provide metadata if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            security_headers = get_security_headers()
+            return JSONResponse(
+                {"error": "OAuth not enabled", "oauth_2_1_compliant": False},
+                status_code=404,
+                headers=security_headers,
+            )
 
         # Get the server's base URL
         host = request.url.hostname or os.getenv("MCP_HOST", "localhost")
         port = request.url.port or int(os.getenv("MCP_PORT", "8000"))
-        scheme = (
-            "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
-        )
+        scheme = "https" if os.getenv("TLS_ENABLED", "false").lower() == "true" else "http"
         base_url = f"{scheme}://{host}:{port}"
 
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        # Get authorization server URL (generic OAuth 2.1)
+        authorization_server = os.getenv("AUTH_ISSUER_URL", base_url)
 
-        # Get authorization server URL
-        auth_server_configs = {
-            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/v2.0",
-            "google": "https://accounts.google.com",
-            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default",
-            "keycloak": os.getenv(
-                "AUTH_ISSUER_URL",
-                f"https://keycloak.example.com/realms/{os.getenv('KEYCLOAK_REALM', 'master')}",
-            ),
-            "github": "https://github.com",
-        }
+        # Resource indicators configuration
+        resource_indicators = []
+        if os.getenv("RESOURCE_INDICATORS"):
+            resource_indicators = [url.strip() for url in os.getenv("RESOURCE_INDICATORS").split(",") if url.strip()]
 
-        authorization_server = auth_server_configs.get(auth_provider, base_url)
+        # Default resource indicator is our server URL
+        if not resource_indicators:
+            resource_indicators = [base_url]
 
+        # RFC 8692 compliant protected resource metadata
         metadata = {
+            # Core resource server information
             "resource": base_url,
             "authorization_servers": [authorization_server],
             "jwks_uri": f"{base_url}/.well-known/jwks.json",
-            "bearer_methods_supported": ["header"],
+            "bearer_methods_supported": ["header"],  # Only header method per OAuth 2.1
             "resource_documentation": f"{base_url}/docs",
+            # Resource indicators (RFC 8707)
+            "resource_indicators": resource_indicators,
+            "resource_indicators_supported": True,
             # Scopes and permissions
             "scopes_supported": ["read", "write", "admin"],
             "scope_descriptions": {
@@ -754,133 +936,238 @@ async def oauth_protected_resource_metadata(request):
                 "write": "Can register schemas, update configs (includes read permissions)",
                 "admin": "Can delete subjects, manage registries (includes write and read permissions)",
             },
+            # Audience validation
+            "audience_supported": True,
+            "audience_values": [base_url] + resource_indicators,
+            # Token validation methods
+            "token_validation_methods": (
+                ["jwt", "introspection"] if "github.com" not in authorization_server else ["api_validation"]
+            ),
+            "token_introspection_endpoint": (
+                f"{authorization_server}/introspect" if "github.com" not in authorization_server else None
+            ),
+            "token_revocation_endpoint": (
+                f"{authorization_server}/revoke" if "github.com" not in authorization_server else None
+            ),
+            # OAuth 2.1 security features
+            "oauth_version": "2.1",
+            "oauth_2_1_features": {
+                "pkce_required": True,
+                "resource_indicator_validation": True,
+                "audience_validation": True,
+                "token_binding_support": True,
+                "enhanced_token_validation": True,
+                "implicit_flow_disabled": True,
+            },
+            # Token binding (if supported)
+            "token_binding_methods_supported": (["tls-server-end-point"] if scheme == "https" else []),
             # MCP-specific resource information
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
                 "version": "2.0.0",
-                "transport": os.getenv("MCP_TRANSPORT", "streamable-http"),
-                "tools_count": 48,
+                "protocol_version": MCP_PROTOCOL_VERSION,
+                "transport": "streamable-http",  # Only supported transport
+                "tools_count": 70,
                 "supported_registries": ["confluent", "apicurio", "hortonworks"],
+                "compliance": {
+                    "specification": "MCP 2025-06-18",
+                    "header_validation_enabled": True,
+                    "jsonrpc_batching_disabled": True,
+                    "oauth_2_1_compliant": True,
+                },
             },
-            # API endpoints that require OAuth
+            # Protected endpoints requiring OAuth
             "protected_endpoints": {
                 "mcp": f"{base_url}/mcp",
                 "tools": f"{base_url}/mcp",
                 "resources": f"{base_url}/mcp",
             },
-            # Token validation info
-            "token_introspection_endpoint": (
-                f"{authorization_server}/introspect"
-                if auth_provider != "github"
-                else None
-            ),
-            "token_validation_methods": (
-                ["jwt", "introspection"]
-                if auth_provider != "github"
-                else ["api_validation"]
-            ),
-            # PKCE requirements (mandatory per MCP specification)
+            # Public endpoints (no OAuth required)
+            "public_endpoints": {
+                "health": f"{base_url}/health",
+                "metrics": f"{base_url}/metrics",
+                "oauth_metadata": f"{base_url}/.well-known/oauth-authorization-server",
+                "resource_metadata": f"{base_url}/.well-known/oauth-protected-resource",
+                "jwks": f"{base_url}/.well-known/jwks.json",
+            },
+            # PKCE requirements (mandatory per OAuth 2.1)
             "require_pkce": True,
-            "pkce_code_challenge_methods": ["S256"],
-            "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows",
+            "pkce_code_challenge_methods": ["S256"],  # Only S256 in OAuth 2.1
+            "pkce_note": "PKCE (Proof Key for Code Exchange) is mandatory for all authorization flows per OAuth 2.1",
+            # MCP Protocol Version requirements
+            "mcp_protocol_requirements": {
+                "required_header": "MCP-Protocol-Version",
+                "supported_versions": [MCP_PROTOCOL_VERSION],
+                "header_validation": "Enforced for all MCP endpoints",
+            },
+            # Security policies
+            "security_policies": {
+                "token_lifetime_max": 3600,  # 1 hour max
+                "refresh_token_rotation": True,
+                "scope_validation": "strict",
+                "audience_validation": "mandatory",
+                "resource_indicator_validation": "enabled",
+            },
+            # Supported algorithms
+            "token_signing_alg_values_supported": ["RS256", "ES256"],
+            "token_encryption_alg_values_supported": (["RSA-OAEP", "A256KW"] if scheme == "https" else []),
+            # Error handling
+            "error_uris": {
+                "invalid_token": f"{base_url}/docs/errors#invalid_token",
+                "insufficient_scope": f"{base_url}/docs/errors#insufficient_scope",
+                "invalid_audience": f"{base_url}/docs/errors#invalid_audience",
+            },
         }
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}
 
-        return JSONResponse(
-            metadata,
-            headers={
+        security_headers = get_security_headers()
+        security_headers.update(
+            {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=3600",
-            },
+            }
+        )
+
+        return JSONResponse(
+            metadata,
+            headers=security_headers,
         )
 
     except Exception as e:
         logger.error(f"OAuth protected resource metadata error: {e}")
         from starlette.responses import JSONResponse
 
+        security_headers = get_security_headers()
+
         return JSONResponse(
-            {"error": "Failed to generate protected resource metadata"}, status_code=500
+            {
+                "error": "Failed to generate protected resource metadata",
+                "oauth_2_1_compliant": False,
+            },
+            status_code=500,
+            headers=security_headers,
         )
 
 
 @mcp.custom_route("/.well-known/jwks.json", methods=["GET"])
 async def jwks_endpoint(request):
-    """JSON Web Key Set endpoint for token validation."""
+    """JSON Web Key Set endpoint for token validation with enhanced caching."""
     try:
         from starlette.responses import JSONResponse
 
         # Only provide JWKS if OAuth is enabled
         if not os.getenv("ENABLE_AUTH", "false").lower() == "true":
-            return JSONResponse({"error": "OAuth not enabled"}, status_code=404)
+            security_headers = get_security_headers()
+            return JSONResponse(
+                {"error": "OAuth not enabled", "oauth_2_1_compliant": False},
+                status_code=404,
+                headers=security_headers,
+            )
 
-        auth_provider = os.getenv("AUTH_PROVIDER", "auto").lower()
+        # Get JWKS URL from issuer (generic OAuth 2.1)
+        issuer_url = os.getenv("AUTH_ISSUER_URL", "")
 
-        # For most providers, redirect to their JWKS endpoint
-        jwks_urls = {
-            "azure": f"https://login.microsoftonline.com/{os.getenv('AZURE_TENANT_ID', 'common')}/discovery/v2.0/keys",
-            "google": "https://www.googleapis.com/oauth2/v3/certs",
-            "okta": f"https://{os.getenv('OKTA_DOMAIN', 'your-domain')}/oauth2/default/v1/keys",
-            "keycloak": f"{os.getenv('AUTH_ISSUER_URL', 'https://keycloak.example.com/realms/master')}/protocol/openid-connect/certs",
-            "github": "https://api.github.com/meta/public_keys/oauth",
-        }
-
-        jwks_url = jwks_urls.get(auth_provider)
+        # Special handling for GitHub
+        if "github.com" in issuer_url:
+            jwks_url = "https://api.github.com/meta/public_keys/oauth"
+        else:
+            # Generic OAuth 2.1 provider - use standard JWKS endpoint
+            jwks_url = f"{issuer_url}/oauth2/jwks"
 
         if jwks_url:
-            # Proxy the request to the actual JWKS endpoint
+            # Proxy the request to the actual JWKS endpoint with caching
             import aiohttp
 
             try:
+                metrics.record_oauth_2_1_validation("jwks_miss", True)
+
                 async with aiohttp.ClientSession() as session:
                     async with session.get(jwks_url, timeout=10) as response:
                         if response.status == 200:
                             jwks_data = await response.json()
-                            return JSONResponse(
-                                jwks_data,
-                                headers={
+
+                            # Add OAuth 2.1 compliance information
+                            jwks_data["oauth_2_1_compliant"] = True
+                            jwks_data["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+
+                            security_headers = get_security_headers()
+                            security_headers.update(
+                                {
                                     "Content-Type": "application/json",
                                     "Access-Control-Allow-Origin": "*",
                                     "Cache-Control": "public, max-age=3600",
-                                },
+                                }
+                            )
+
+                            return JSONResponse(
+                                jwks_data,
+                                headers=security_headers,
                             )
             except Exception:
                 pass
 
-        # Fallback: return empty JWKS
-        return JSONResponse(
-            {"keys": [], "note": f"JWKS available at provider endpoint: {jwks_url}"},
-            headers={
+        # Fallback: return empty JWKS with OAuth 2.1 compliance info
+        security_headers = get_security_headers()
+        security_headers.update(
+            {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
+            }
+        )
+
+        return JSONResponse(
+            {
+                "keys": [],
+                "note": f"JWKS available at provider endpoint: {jwks_url}",
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "oauth_2_1_compliant": True,
+                "provider": ("github" if "github.com" in issuer_url else "oauth2.1"),
             },
+            headers=security_headers,
         )
 
     except Exception as e:
         logger.error(f"JWKS endpoint error: {e}")
         from starlette.responses import JSONResponse
 
-        return JSONResponse({"keys": []}, status_code=500)
+        security_headers = get_security_headers()
+
+        return JSONResponse(
+            {
+                "keys": [],
+                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "oauth_2_1_compliant": False,
+                "error": str(e),
+            },
+            status_code=500,
+            headers=security_headers,
+        )
 
 
 def main():
-    """Run MCP server with remote transport configuration and monitoring."""
+    """Run MCP server with streamable-http transport only (MCP 2025-06-18 compliant)."""
 
-    # Get transport configuration from environment
-    transport = os.getenv("MCP_TRANSPORT", "streamable-http")  # Default to modern HTTP
+    # Force streamable-http transport only (SSE deprecated per MCP 2025-06-18)
+    transport = "streamable-http"
     host = os.getenv("MCP_HOST", "0.0.0.0")  # Bind to all interfaces for containers
     port = int(os.getenv("MCP_PORT", "8000"))
-    path = os.getenv("MCP_PATH", "/mcp" if transport == "streamable-http" else "/sse")
+    path = os.getenv("MCP_PATH", "/mcp")  # Always use /mcp for streamable-http
 
-    logger.info(f"🚀 Starting Kafka Schema Registry Remote MCP Server")
-    logger.info(f"📡 Transport: {transport}")
+    logger.info("🚀 Starting Kafka Schema Registry Remote MCP Server")
+    logger.info(f"📡 Transport: {transport} (SSE transport deprecated per MCP 2025-06-18)")
     logger.info(f"🌐 Host: {host}")
     logger.info(f"🔌 Port: {port}")
     logger.info(f"📍 Path: {path}")
     logger.info(f"🔐 OAuth Enabled: {os.getenv('ENABLE_AUTH', 'false')}")
     logger.info(f"🏷️  OAuth Provider: {os.getenv('AUTH_PROVIDER', 'auto')}")
+    logger.info(f"✅ MCP Protocol Version: {MCP_PROTOCOL_VERSION}")
+    logger.info("✅ MCP-Protocol-Version Header Validation: ENABLED")
+    logger.info("✅ OAuth 2.1 Compliance: ENABLED")
+    logger.info("✅ PKCE Enforcement: MANDATORY")
+    logger.info("✅ Resource Indicators: SUPPORTED")
 
     # Remote server URL for client connections
     server_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}{path}"
@@ -889,24 +1176,22 @@ def main():
     # Monitoring endpoints
     health_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/health"
     metrics_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/metrics"
+    oauth_metadata_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/.well-known/oauth-authorization-server"
+    resource_metadata_url = f"http{'s' if os.getenv('TLS_ENABLED', 'false').lower() == 'true' else ''}://{host}:{port}/.well-known/oauth-protected-resource"
+
     logger.info(f"🏥 Health Check URL: {health_url}")
     logger.info(f"📊 Metrics URL: {metrics_url}")
+    logger.info(f"🔐 OAuth Metadata URL: {oauth_metadata_url}")
+    logger.info(f"🛡️  Resource Metadata URL: {resource_metadata_url}")
 
     try:
         # Set uvicorn environment variables for FastMCP
         os.environ["UVICORN_HOST"] = host
         os.environ["UVICORN_PORT"] = str(port)
 
-        if transport == "streamable-http":
-            # Modern HTTP transport (recommended)
-            mcp.run(transport="streamable-http")
-        elif transport == "sse":
-            # SSE transport (compatible with existing SSE clients)
-            mcp.run(transport="sse")
-        else:
-            logger.error(f"Unsupported transport: {transport}")
-            logger.info("Supported transports: streamable-http, sse")
-            return 1
+        # Only streamable-http transport is supported (SSE deprecated per MCP 2025-06-18)
+        logger.info("🚀 Starting MCP server with streamable-http transport")
+        mcp.run(transport="streamable-http")
 
     except Exception as e:
         logger.error(f"Failed to start remote MCP server: {e}")

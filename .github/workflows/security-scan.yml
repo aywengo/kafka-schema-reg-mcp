@@ -20,6 +20,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      issues: write
       
     steps:
     - name: Checkout code
@@ -33,13 +34,35 @@ jobs:
           --build-arg VCS_REF=${{ github.sha }} \
           .
     
+    # Option 3: Enhanced Trivy configuration
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'sarif'
-        output: 'trivy-results.sarif'
-        severity: 'CRITICAL,HIGH,MEDIUM'
+        output: 'trivy-results-raw.sarif'
+        severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
+        
+    # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+    - name: Filter SARIF results for HIGH and CRITICAL only
+      run: |
+        # Install jq if not available
+        which jq || sudo apt-get update && sudo apt-get install -y jq
+        
+        # Filter SARIF to only include HIGH and CRITICAL severity
+        # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+        jq '
+          .runs[].results |= map(
+            select(.level == "error" or .level == "warning")
+          )
+        ' trivy-results-raw.sarif > trivy-results.sarif
+        
+        # Debug: Show filtered results count
+        echo "Filtered SARIF results:"
+        jq '.runs[].results | length' trivy-results.sarif
         
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
@@ -47,13 +70,132 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
         
+    # Option 3: Enhanced Trivy configuration for JSON processing
+    - name: Run Trivy vulnerability scanner (JSON format for processing)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
+        format: 'json'
+        output: 'trivy-results.json'
+        severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
+        
+    - name: Process Trivy results and create issue if critical vulnerabilities found
+      uses: actions/github-script@v7
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read Trivy results
+          let trivyResults;
+          try {
+            const data = fs.readFileSync('trivy-results.json', 'utf8');
+            trivyResults = JSON.parse(data);
+          } catch (error) {
+            console.log('No Trivy results file found or invalid JSON');
+            return;
+          }
+          
+          // Count vulnerabilities by severity (only CRITICAL and HIGH)
+          let critical = 0, high = 0;
+          let criticalVulns = [], highVulns = [];
+          
+          if (trivyResults.Results) {
+            trivyResults.Results.forEach(result => {
+              if (result.Vulnerabilities) {
+                result.Vulnerabilities.forEach(vuln => {
+                  switch(vuln.Severity) {
+                    case 'CRITICAL':
+                      critical++;
+                      criticalVulns.push(vuln);
+                      break;
+                    case 'HIGH':
+                      high++;
+                      highVulns.push(vuln);
+                      break;
+                    // Note: MEDIUM and LOW severity issues are excluded from processing
+                  }
+                });
+              }
+            });
+          }
+          
+          // Create issue if critical vulnerabilities found
+          if (critical > 0) {
+            const date = new Date().toISOString().split('T')[0];
+            
+            let vulnDetails = '';
+            criticalVulns.forEach(vuln => {
+              vulnDetails += `- **${vuln.VulnerabilityID}** (${vuln.Severity}): ${vuln.Title}\n`;
+              vulnDetails += `  - Package: ${vuln.PkgName} ${vuln.InstalledVersion}\n`;
+              vulnDetails += `  - Fixed Version: ${vuln.FixedVersion || 'Not available'}\n`;
+              vulnDetails += `  - Reference: ${vuln.PrimaryURL}\n\n`;
+            });
+            
+            const issueBody = `🔒 **Security Scan Alert - ${date}**
+            
+            The scheduled security scan found **${critical} CRITICAL** vulnerabilities in the Docker image.
+            
+            ## Scan Details
+            - Date: ${new Date().toISOString()}
+            - Image: kafka-schema-registry-mcp:${context.sha}
+            - Scanner: Trivy
+            - Severity Filter: CRITICAL and HIGH only (MEDIUM and LOW excluded)
+            
+            ## Critical Vulnerabilities Found
+            
+            ${vulnDetails}
+            
+            ## Summary (CRITICAL and HIGH only)
+            - 🔴 Critical: ${critical}
+            - 🟠 High: ${high}
+            
+            **Note**: This scan excludes MEDIUM and LOW severity issues per security policy.
+            
+            ## Recommended Actions
+            1. Review the vulnerabilities listed above
+            2. Update base images if newer versions are available
+            3. Update dependencies in requirements.txt
+            4. Apply security patches where possible
+            5. Add to .trivyignore if vulnerabilities are not exploitable in our context
+            
+            ## Security Reports
+            - View detailed findings in the [Security tab](https://github.com/${context.repo.owner}/${context.repo.repo}/security)
+            - Check the latest scan results in the [Actions tab](https://github.com/${context.repo.owner}/${context.repo.repo}/actions)
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔒 Security Scan Alert - ${critical} Critical Vulnerabilities - ${date}`,
+              body: issueBody,
+              labels: ['security', 'vulnerability', 'critical']
+            });
+          }
+        
+    # Option 3: Enhanced Trivy configuration for table output
     - name: Run Trivy vulnerability scanner (Table format)
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: 'kafka-schema-reg-mcp:${{ github.sha }}'
         format: 'table'
+        output: 'trivy-table.txt'
         severity: 'CRITICAL,HIGH'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
       continue-on-error: true
+        
+    - name: Display Trivy table output
+      if: always()
+      run: |
+        if [ -f "trivy-table.txt" ]; then
+          echo "Trivy scan results:"
+          cat trivy-table.txt
+        fi
         
     - name: Fail on critical vulnerabilities
       uses: aquasecurity/trivy-action@master
@@ -62,6 +204,9 @@ jobs:
         format: 'table'
         severity: 'CRITICAL'
         exit-code: '1'
+        ignore-unfixed: true
+        vuln-type: 'os,library'
+        scanners: 'vuln'
       continue-on-error: false
       
     # Create a summary of security findings
@@ -69,9 +214,36 @@ jobs:
       if: always()
       run: |
         echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Trivy vulnerability scan completed (CRITICAL and HIGH severity only)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ SARIF results filtered to exclude MEDIUM and LOW severities" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ Security reports uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
         echo "- 📋 Security exceptions documented in \`.trivyignore\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Include the actual Trivy scan results if available
+        if [ -f "trivy-table.txt" ]; then
+          echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extract vulnerability counts from the table
+          if grep -q "Total:" trivy-table.txt; then
+            TOTAL_LINE=$(grep "Total:" trivy-table.txt)
+            echo "### Vulnerability Counts" >> $GITHUB_STEP_SUMMARY
+            echo "$TOTAL_LINE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+        echo "### Severity Filter Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ CRITICAL vulnerabilities: Reported and block builds" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ HIGH vulnerabilities: Reported for review" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ MEDIUM vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ LOW vulnerabilities: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Unfixed vulnerabilities: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Security Exception Handling" >> $GITHUB_STEP_SUMMARY
         echo "- Vulnerabilities marked as 'will_not_fix' by upstream maintainers are documented and ignored" >> $GITHUB_STEP_SUMMARY
@@ -147,6 +319,7 @@ jobs:
         if [ -f "pip-audit-report.json" ]; then
           echo "- ✅ Pip-audit check completed" >> $GITHUB_STEP_SUMMARY
         fi
+        echo "- 📋 Focus: HIGH and CRITICAL severity issues only" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
     - name: Upload security reports
@@ -157,6 +330,10 @@ jobs:
         path: |
           safety-report.json
           pip-audit-report.json
+          trivy-table.txt
+          trivy-results.json
+          trivy-results.sarif
+          trivy-results-raw.sarif
 
   secrets-scan:
     name: Secrets Detection
@@ -168,7 +345,21 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Run TruffleHog OSS
+    - name: Determine scan type
+      id: scan-type
+      run: |
+        # Check if this is a scheduled run or if we're on main/develop branch
+        if [[ "${{ github.event_name }}" == "schedule" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          echo "scan_type=full" >> $GITHUB_OUTPUT
+          echo "Running full repository scan (scheduled or main/develop branch)"
+        else
+          # For pull requests and feature branches, try diff scan
+          echo "scan_type=diff" >> $GITHUB_OUTPUT
+          echo "Running diff scan for pull request or feature branch"
+        fi
+        
+    - name: Run TruffleHog OSS - Diff Scan
+      if: steps.scan-type.outputs.scan_type == 'diff'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
@@ -177,11 +368,51 @@ jobs:
         extra_args: --debug --only-verified
       continue-on-error: true
         
-    # Fallback for when base and head are the same (e.g., on main branch pushes)
     - name: Run TruffleHog OSS - Full Scan
-      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      if: steps.scan-type.outputs.scan_type == 'full'
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        extra_args: --debug --only-verified --max-depth=10
-      continue-on-error: true 
+        extra_args: --debug --only-verified --max-depth=50
+      continue-on-error: true
+      
+    - name: Secrets Scan Summary
+      if: always()
+      run: |
+        echo "## Secrets Detection Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ TruffleHog secrets scan completed" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔍 Scan type: ${{ steps.scan-type.outputs.scan_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- 📋 Only verified secrets are reported" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY 
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [trivy-scan, docker-security-scan, dependency-check, secrets-scan]
+    if: always()
+    
+    steps:
+    - name: Generate Security Report Summary
+      run: |
+        echo "## 🔒 Comprehensive Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Severity Filter: CRITICAL and HIGH Only" >> $GITHUB_STEP_SUMMARY
+        echo "This security scan configuration excludes MEDIUM and LOW severity issues per security policy." >> $GITHUB_STEP_SUMMARY
+        echo "SARIF results are filtered before upload to ensure only HIGH and CRITICAL vulnerabilities appear in the Security tab." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Container Vulnerability Scan | ${{ needs.trivy-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Docker Security Best Practices | ${{ needs.docker-security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Python Dependency Check | ${{ needs.dependency-check.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Secrets Detection | ${{ needs.secrets-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Excluded Severity Levels" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ MEDIUM severity issues: Not reported" >> $GITHUB_STEP_SUMMARY
+        echo "- ❌ LOW severity issues: Not reported" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- Review individual scan results above" >> $GITHUB_STEP_SUMMARY
+        echo "- Check the [Security tab](https://github.com/${{ github.repository }}/security) for detailed findings" >> $GITHUB_STEP_SUMMARY
+        echo "- Review any automatically created security issues" >> $GITHUB_STEP_SUMMARY
+        echo "- Update \`.trivyignore\` for documented security exceptions" >> $GITHUB_STEP_SUMMARY

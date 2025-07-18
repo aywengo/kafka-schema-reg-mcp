@@ -6,11 +6,9 @@ Tests OAuth functionality including scope validation, token handling,
 and permission-based access control.
 """
 
-import json
 import os
 import sys
 import traceback
-from typing import Any, Dict
 
 # Add parent directory to path to import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -75,9 +73,7 @@ class OAuthTest:
                 print(f"   ✅ {var}: {value}")
 
         if missing_vars:
-            print(
-                f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}"
-            )
+            print(f"   ⚠️  Missing OAuth environment variables: {', '.join(missing_vars)}")
             # This is expected when OAuth is enabled but not fully configured
             return True
 
@@ -113,14 +109,10 @@ class OAuthTest:
 
                 for scope_key in required_scope_keys:
                     if scope_key not in scope_info:
-                        print(
-                            f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'"
-                        )
+                        print(f"   ❌ Missing scope key '{scope_key}' in scope '{scope}'")
                         return False
 
-                print(
-                    f"   ✅ Scope '{scope}': Level {scope_info['level']}, {len(scope_info['includes'])} tools"
-                )
+                print(f"   ✅ Scope '{scope}': Level {scope_info['level']}, {len(scope_info['includes'])} tools")
 
             print("   ✅ All scope definitions are valid")
             return True
@@ -167,9 +159,7 @@ class OAuthTest:
                     if all(scope in actual_scopes for scope in expected_scopes):
                         print(f"   ✅ {tool}: {actual_scopes}")
                     else:
-                        print(
-                            f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}"
-                        )
+                        print(f"   ⚠️  {tool}: expected {expected_scopes}, got {actual_scopes}")
                 else:
                     print(f"   ⚠️  Tool '{tool}' not found in scope definitions")
 
@@ -207,11 +197,11 @@ class OAuthTest:
                 required_scopes = set(oauth_info["required_scopes"])
 
                 if not default_scopes.issubset(valid_scopes):
-                    print(f"   ❌ Default scopes not subset of valid scopes")
+                    print("   ❌ Default scopes not subset of valid scopes")
                     return False
 
                 if not required_scopes.issubset(valid_scopes):
-                    print(f"   ❌ Required scopes not subset of valid scopes")
+                    print("   ❌ Required scopes not subset of valid scopes")
                     return False
 
                 print("   ✅ Scope configuration is consistent")
@@ -257,8 +247,8 @@ class OAuthTest:
             return False
 
     def test_oauth_provider_configs(self) -> bool:
-        """Test OAuth provider configuration examples."""
-        print("🏢 Testing OAuth provider configurations...")
+        """Test OAuth 2.1 generic configuration and provider examples."""
+        print("🏢 Testing OAuth 2.1 generic configurations...")
 
         try:
             provider_configs = get_oauth_provider_configs()
@@ -268,156 +258,105 @@ class OAuthTest:
                 print("   ❌ No provider configurations returned")
                 return False
 
-            print(f"   ✅ Found {len(provider_configs)} provider configurations")
+            print(f"   ✅ Found {len(provider_configs)} configuration sections")
 
-            # Expected providers
-            expected_providers = ["azure", "google", "keycloak", "okta"]
+            # Check for the new generic OAuth 2.1 configuration
+            if "oauth_2_1_generic" not in provider_configs:
+                print("   ❌ Missing oauth_2_1_generic configuration")
+                return False
+
+            generic_config = provider_configs["oauth_2_1_generic"]
+            print("   ✅ Found oauth_2_1_generic configuration")
+
+            # Check required keys for generic config
+            required_keys = [
+                "name",
+                "description",
+                "required_env",
+                "optional_env",
+                "oauth_2_1_features",
+            ]
+            for key in required_keys:
+                if key not in generic_config:
+                    print(f"   ❌ Missing key '{key}' in generic configuration")
+                    return False
+
+            # Validate OAuth 2.1 features
+            oauth_features = generic_config["oauth_2_1_features"]
+            expected_features = [
+                "pkce_support",
+                "resource_indicators",
+                "discovery",
+                "automatic_endpoint_discovery",
+            ]
+            for feature in expected_features:
+                if feature not in oauth_features:
+                    print(f"   ❌ Missing OAuth 2.1 feature: {feature}")
+                    return False
+                if oauth_features[feature] != True and feature != "discovery":
+                    print(f"   ❌ OAuth 2.1 feature '{feature}' should be True")
+                    return False
+
+            print("   ✅ OAuth 2.1 generic configuration is valid")
+
+            # Check provider examples
+            if "examples" not in provider_configs:
+                print("   ❌ Missing provider examples")
+                return False
+
+            examples = provider_configs["examples"]
+            expected_providers = ["azure", "google", "okta", "keycloak", "github"]
 
             for provider in expected_providers:
-                if provider not in provider_configs:
-                    print(f"   ❌ Missing provider configuration: {provider}")
+                if provider not in examples:
+                    print(f"   ❌ Missing provider example: {provider}")
                     return False
 
-                config = provider_configs[provider]
-                print(f"   ✅ Found provider: {provider}")
+                provider_example = examples[provider]
+                required_example_keys = ["name", "issuer_url_pattern", "example_setup"]
 
-                # Check required configuration keys for each provider
-                required_keys = [
-                    "name",
-                    "issuer_url",
-                    "auth_url",
-                    "token_url",
-                    "scopes",
-                    "setup_docs",
-                ]
-
-                for key in required_keys:
-                    if key not in config:
-                        print(f"   ❌ Missing key '{key}' in {provider} configuration")
+                for key in required_example_keys:
+                    if key not in provider_example:
+                        print(f"   ❌ Missing key '{key}' in {provider} example")
                         return False
 
-                # Validate specific configurations
-                if provider == "azure":
-                    expected_values = {
-                        "name": "Azure AD / Entra ID",
-                        "client_id_env": "AZURE_CLIENT_ID",
-                        "client_secret_env": "AZURE_CLIENT_SECRET",
-                        "tenant_id_env": "AZURE_TENANT_ID",
-                    }
-                    for key, expected_value in expected_values.items():
-                        if config.get(key) != expected_value:
-                            print(
-                                f"   ❌ Azure config key '{key}': expected '{expected_value}', got '{config.get(key)}'"
-                            )
-                            return False
-
-                    # Check Azure-specific scopes
-                    if "https://graph.microsoft.com/User.Read" not in config["scopes"]:
-                        print("   ❌ Azure config missing Microsoft Graph scope")
-                        return False
-
-                    print("   ✅ Azure AD configuration is valid")
-
-                elif provider == "google":
-                    expected_values = {
-                        "name": "Google OAuth 2.0",
-                        "issuer_url": "https://accounts.google.com",
-                        "client_id_env": "GOOGLE_CLIENT_ID",
-                        "client_secret_env": "GOOGLE_CLIENT_SECRET",
-                    }
-                    for key, expected_value in expected_values.items():
-                        if config.get(key) != expected_value:
-                            print(
-                                f"   ❌ Google config key '{key}': expected '{expected_value}', got '{config.get(key)}'"
-                            )
-                            return False
-
-                    print("   ✅ Google OAuth configuration is valid")
-
-                elif provider == "keycloak":
-                    expected_values = {
-                        "name": "Keycloak",
-                        "client_id_env": "KEYCLOAK_CLIENT_ID",
-                        "client_secret_env": "KEYCLOAK_CLIENT_SECRET",
-                        "keycloak_server_env": "KEYCLOAK_SERVER_URL",
-                        "keycloak_realm_env": "KEYCLOAK_REALM",
-                    }
-                    for key, expected_value in expected_values.items():
-                        if config.get(key) != expected_value:
-                            print(
-                                f"   ❌ Keycloak config key '{key}': expected '{expected_value}', got '{config.get(key)}'"
-                            )
-                            return False
-
-                    # Check Keycloak URL patterns
-                    if (
-                        "{keycloak-server}" not in config["issuer_url"]
-                        or "{realm}" not in config["issuer_url"]
-                    ):
-                        print(
-                            "   ❌ Keycloak issuer URL doesn't contain expected placeholders"
-                        )
-                        return False
-
-                    print("   ✅ Keycloak configuration is valid")
-
-                elif provider == "okta":
-                    expected_values = {
-                        "name": "Okta",
-                        "client_id_env": "OKTA_CLIENT_ID",
-                        "client_secret_env": "OKTA_CLIENT_SECRET",
-                        "okta_domain_env": "OKTA_DOMAIN",
-                    }
-                    for key, expected_value in expected_values.items():
-                        if config.get(key) != expected_value:
-                            print(
-                                f"   ❌ Okta config key '{key}': expected '{expected_value}', got '{config.get(key)}'"
-                            )
-                            return False
-
-                    # Check Okta URL patterns
-                    if "{okta-domain}" not in config["issuer_url"]:
-                        print(
-                            "   ❌ Okta issuer URL doesn't contain expected placeholders"
-                        )
-                        return False
-
-                    print("   ✅ Okta configuration is valid")
-
-                # Check that scopes include standard OpenID Connect scopes
-                standard_scopes = ["openid", "email", "profile"]
-                config_scopes = config["scopes"]
-
-                for scope in standard_scopes:
-                    if scope not in config_scopes:
-                        print(
-                            f"   ❌ {provider} configuration missing standard scope: {scope}"
-                        )
-                        return False
-
-                # Check that URLs are properly formatted
-                url_keys = ["issuer_url", "auth_url", "token_url"]
-                for url_key in url_keys:
-                    url = config[url_key]
-                    if not url.startswith("https://"):
-                        print(
-                            f"   ❌ {provider} {url_key} should start with https://: {url}"
-                        )
-                        return False
-
-                # Check that setup docs URL is valid
-                setup_docs = config["setup_docs"]
-                if not setup_docs.startswith("https://"):
-                    print(
-                        f"   ❌ {provider} setup_docs should start with https://: {setup_docs}"
-                    )
+                # Validate example setup has required OAuth 2.1 variables
+                example_setup = provider_example["example_setup"]
+                if "AUTH_ISSUER_URL" not in example_setup:
+                    print(f"   ❌ {provider} example missing AUTH_ISSUER_URL")
+                    return False
+                if "AUTH_AUDIENCE" not in example_setup:
+                    print(f"   ❌ {provider} example missing AUTH_AUDIENCE")
                     return False
 
-            print("   ✅ All provider configurations are valid")
+                # Check OAuth 2.1 compliance status
+                is_compliant = provider_example.get("oauth_2_1_compliant", False)
+                if provider == "github":
+                    if is_compliant:
+                        print(f"   ⚠️  {provider} marked as OAuth 2.1 compliant but should be False")
+                else:
+                    if not is_compliant:
+                        print(f"   ❌ {provider} should be OAuth 2.1 compliant")
+                        return False
+
+                print(f"   ✅ {provider} example configuration is valid")
+
+            # Check migration note
+            if "migration_note" not in provider_configs:
+                print("   ❌ Missing migration note")
+                return False
+
+            migration_note = provider_configs["migration_note"]
+            if "message" not in migration_note or "details" not in migration_note:
+                print("   ❌ Migration note missing required fields")
+                return False
+
+            print("   ✅ Migration note is present")
+            print("   ✅ All OAuth 2.1 configurations are valid")
             return True
 
         except Exception as e:
-            print(f"   ❌ Error testing provider configurations: {e}")
+            print(f"   ❌ Error testing OAuth 2.1 configurations: {e}")
             return False
 
     def print_usage_examples(self):
@@ -426,12 +365,16 @@ class OAuthTest:
         print(" OAuth Usage Examples")
         print("=" * 60)
 
-        print("\n🚀 To enable OAuth for testing:")
+        print("\n🚀 OAuth 2.1 Generic Configuration (Simplified!):")
+        print("# Works with ANY OAuth 2.1 compliant provider")
         print("export ENABLE_AUTH=true")
-        print("export AUTH_ISSUER_URL=https://your-auth-server.com")
-        print("export AUTH_VALID_SCOPES=read,write,admin")
-        print("export AUTH_DEFAULT_SCOPES=read")
-        print("export AUTH_REQUIRED_SCOPES=read")
+        print("export AUTH_ISSUER_URL=https://your-oauth-provider.com")
+        print("export AUTH_AUDIENCE=your-client-id-or-api-identifier")
+
+        print("\n🎯 Optional OAuth 2.1 Features:")
+        print("export REQUIRE_PKCE=true")
+        print("export RESOURCE_INDICATORS=https://your-api.com")
+        print("export TOKEN_BINDING_ENABLED=true")
 
         print("\n📡 Testing with curl (if OAuth enabled):")
         print("# Read-only access:")
@@ -448,19 +391,29 @@ class OAuthTest:
         print('     -X POST -d \'{"subject": "test"}\' \\')
         print("     http://localhost:8000/mcp/tools/delete_subject")
 
-        print("\n🔧 Production setup:")
-        print("1. Replace dev tokens with real JWT tokens")
-        print("2. Implement proper token validation in oauth_provider.py")
-        print("3. Set up a real OAuth 2.0 server (Azure AD, Google, Keycloak, Okta)")
-        print("4. Use get_oauth_provider_configs() for provider-specific settings")
+        print("\n🔧 Production Setup Examples:")
+        print("# Azure AD")
+        print("export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0")
+        print("export AUTH_AUDIENCE=your-azure-client-id")
+        print()
+        print("# Google OAuth 2.0")
+        print("export AUTH_ISSUER_URL=https://accounts.google.com")
+        print("export AUTH_AUDIENCE=your-client-id.apps.googleusercontent.com")
+        print()
+        print("# Okta")
+        print("export AUTH_ISSUER_URL=https://your-domain.okta.com/oauth2/default")
+        print("export AUTH_AUDIENCE=api://your-api-identifier")
+        print()
+        print("# Keycloak")
+        print("export AUTH_ISSUER_URL=https://keycloak.example.com/realms/your-realm")
+        print("export AUTH_AUDIENCE=your-keycloak-client-id")
 
-        print("\n🏢 OAuth Provider Configuration:")
+        print("\n🏢 OAuth 2.1 Generic Configuration:")
         print("from oauth_provider import get_oauth_provider_configs")
         print("configs = get_oauth_provider_configs()")
-        print("azure_config = configs['azure']")
-        print("google_config = configs['google']")
-        print("keycloak_config = configs['keycloak']")
-        print("okta_config = configs['okta']")
+        print("generic_config = configs['oauth_2_1_generic']")
+        print("examples = configs['examples']")
+        print("# No provider-specific code needed - uses standard discovery!")
 
     def generate_summary(self):
         """Generate test summary."""
@@ -471,11 +424,13 @@ class OAuthTest:
 
         if passed_tests == total_tests:
             print("\n🎉 ALL OAUTH TESTS PASSED!")
-            print("✅ OAuth configuration is valid")
+            print("✅ OAuth 2.1 configuration is valid")
             print("✅ Scope definitions are correct")
             print("✅ Tool permissions are properly mapped")
             print("✅ Configuration values are consistent")
-            print("✅ OAuth provider configs are valid (Azure, Google, Keycloak, Okta)")
+            print("✅ OAuth 2.1 generic discovery configuration is valid")
+            print("✅ Provider examples are valid (Azure, Google, Keycloak, Okta, GitHub)")
+            print("🚀 Using simplified OAuth 2.1 discovery - no provider-specific configuration needed!")
 
             if ENABLE_AUTH:
                 print("✅ OAuth is enabled and ready for testing")

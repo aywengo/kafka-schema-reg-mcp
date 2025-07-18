@@ -1,0 +1,339 @@
+{
+    "templates": {
+        "event_schema": {
+            "template_name": "Event Schema",
+            "description": "Template for domain event schemas with AI guidance",
+            "category": "events",
+            "schema_template": {
+                "type": "record",
+                "name": "{{EventName}}Event",
+                "namespace": "{{namespace}}",
+                "doc": "{{event_description}}",
+                "fields": [
+                    {
+                        "name": "eventId",
+                        "type": "string",
+                        "doc": "Unique identifier for this event instance"
+                    },
+                    {
+                        "name": "eventType",
+                        "type": "string",
+                        "doc": "Type of event for routing and processing"
+                    },
+                    {
+                        "name": "timestamp",
+                        "type": "long",
+                        "doc": "Unix timestamp when event occurred"
+                    },
+                    {
+                        "name": "version",
+                        "type": "string",
+                        "default": "1.0",
+                        "doc": "Schema version for compatibility tracking"
+                    },
+                    {
+                        "name": "data",
+                        "type": "{{DataRecordType}}",
+                        "doc": "Event-specific payload data"
+                    },
+                    {
+                        "name": "metadata",
+                        "type": ["null", {
+                            "type": "map",
+                            "values": "string"
+                        }],
+                        "default": null,
+                        "doc": "Optional event metadata for extensibility"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate an event schema for {{domain}} domain with {{EventName}} event type",
+                "evolution": "Evolve this event schema to support {{new_requirements}} while maintaining backward compatibility",
+                "validation": "Validate this event schema against existing schemas in {{context}} context"
+            }
+        },
+        "entity_schema": {
+            "template_name": "Entity Schema",
+            "description": "Template for business entity schemas",
+            "category": "entities",
+            "schema_template": {
+                "type": "record",
+                "name": "{{EntityName}}",
+                "namespace": "{{namespace}}",
+                "doc": "{{entity_description}}",
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": "string",
+                        "doc": "Unique identifier for this {{EntityName}}"
+                    },
+                    {
+                        "name": "version",
+                        "type": "long",
+                        "doc": "Entity version for optimistic locking"
+                    },
+                    {
+                        "name": "createdAt",
+                        "type": "long",
+                        "doc": "Unix timestamp when entity was created"
+                    },
+                    {
+                        "name": "updatedAt",
+                        "type": "long",
+                        "doc": "Unix timestamp when entity was last updated"
+                    },
+                    {
+                        "name": "status",
+                        "type": {
+                            "type": "enum",
+                            "name": "{{EntityName}}Status",
+                            "symbols": ["ACTIVE", "INACTIVE", "DELETED"]
+                        },
+                        "default": "ACTIVE",
+                        "doc": "Current status of the entity"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate an entity schema for {{EntityName}} with fields: {{field_list}}",
+                "relationships": "Add relationship fields to connect {{EntityName}} with {{related_entities}}",
+                "constraints": "Add validation constraints for {{business_rules}}"
+            }
+        },
+        "command_schema": {
+            "template_name": "Command Schema",
+            "description": "Template for CQRS command schemas",
+            "category": "commands",
+            "schema_template": {
+                "type": "record",
+                "name": "{{CommandName}}Command",
+                "namespace": "{{namespace}}.commands",
+                "doc": "{{command_description}}",
+                "fields": [
+                    {
+                        "name": "commandId",
+                        "type": "string",
+                        "doc": "Unique identifier for this command instance"
+                    },
+                    {
+                        "name": "commandType",
+                        "type": "string",
+                        "doc": "Type of command for processing"
+                    },
+                    {
+                        "name": "aggregateId",
+                        "type": "string",
+                        "doc": "Identifier of the aggregate this command targets"
+                    },
+                    {
+                        "name": "userId",
+                        "type": ["null", "string"],
+                        "default": null,
+                        "doc": "User who initiated this command"
+                    },
+                    {
+                        "name": "timestamp",
+                        "type": "long",
+                        "doc": "Unix timestamp when command was created"
+                    },
+                    {
+                        "name": "payload",
+                        "type": "{{CommandPayloadType}}",
+                        "doc": "Command-specific data payload"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate a command schema for {{CommandName}} that affects {{AggregateType}}",
+                "validation": "Add validation rules for {{CommandName}} command payload",
+                "evolution": "Evolve command to support {{new_capabilities}} while maintaining idempotency"
+            }
+        },
+        "aggregate_schema": {
+            "template_name": "Aggregate Schema",
+            "description": "Template for domain aggregate schemas",
+            "category": "aggregates",
+            "schema_template": {
+                "type": "record",
+                "name": "{{AggregateName}}Aggregate",
+                "namespace": "{{namespace}}.aggregates",
+                "doc": "{{aggregate_description}}",
+                "fields": [
+                    {
+                        "name": "aggregateId",
+                        "type": "string",
+                        "doc": "Unique identifier for this aggregate instance"
+                    },
+                    {
+                        "name": "aggregateType",
+                        "type": "string",
+                        "doc": "Type of aggregate for processing"
+                    },
+                    {
+                        "name": "version",
+                        "type": "long",
+                        "doc": "Aggregate version for event sourcing"
+                    },
+                    {
+                        "name": "state", 
+                        "type": {
+                            "type": "enum",
+                            "name": "{{AggregateName}}State",
+                            "symbols": ["CREATED", "ACTIVE", "SUSPENDED", "DELETED"]
+                        },
+                        "default": "CREATED",
+                        "doc": "Current state of the aggregate"
+                    },
+                    {
+                        "name": "data",
+                        "type": "{{AggregateDataType}}",
+                        "doc": "Aggregate-specific data"
+                    },
+                    {
+                        "name": "lastModified",
+                        "type": "long",
+                        "doc": "Unix timestamp of last modification"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate an aggregate schema for {{AggregateName}} with state {{states}} and data {{data_fields}}",
+                "evolution": "Evolve aggregate to support new state transitions: {{new_states}}",
+                "validation": "Add business rule validation for {{AggregateName}} state changes"
+            }
+        },
+        "value_object_schema": {
+            "template_name": "Value Object Schema",
+            "description": "Template for domain value object schemas",
+            "category": "value_objects",
+            "schema_template": {
+                "type": "record",
+                "name": "{{ValueObjectName}}",
+                "namespace": "{{namespace}}.values",
+                "doc": "{{value_object_description}}",
+                "fields": [
+                    {
+                        "name": "value",
+                        "type": "{{ValueType}}",
+                        "doc": "The actual value of this value object"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate a value object schema for {{ValueObjectName}} with validation rules: {{validation_rules}}",
+                "constraints": "Add constraints for {{ValueObjectName}} to ensure {{business_invariants}}",
+                "evolution": "Extend value object to support {{additional_formats}} while maintaining immutability"
+            }
+        },
+        "api_response_schema": {
+            "template_name": "API Response Schema",
+            "description": "Template for standardized API response schemas",
+            "category": "api",
+            "schema_template": {
+                "type": "record",
+                "name": "{{ApiName}}Response",
+                "namespace": "{{namespace}}.api",
+                "doc": "{{api_description}}",
+                "fields": [
+                    {
+                        "name": "success",
+                        "type": "boolean",
+                        "doc": "Indicates if the API call was successful"
+                    },
+                    {
+                        "name": "timestamp",
+                        "type": "long",
+                        "doc": "Unix timestamp of the response"
+                    },
+                    {
+                        "name": "data",
+                        "type": ["null", "{{ResponseDataType}}"],
+                        "default": null,
+                        "doc": "Response data payload"
+                    },
+                    {
+                        "name": "error",
+                        "type": ["null", {
+                            "type": "record",
+                            "name": "ApiError",
+                            "fields": [
+                                {"name": "code", "type": "string"},
+                                {"name": "message", "type": "string"},
+                                {"name": "details", "type": ["null", "string"], "default": null}
+                            ]
+                        }],
+                        "default": null,
+                        "doc": "Error information if success is false"
+                    },
+                    {
+                        "name": "metadata",
+                        "type": ["null", {
+                            "type": "map",
+                            "values": "string"
+                        }],
+                        "default": null,
+                        "doc": "Additional response metadata"
+                    }
+                ]
+            },
+            "ai_prompts": {
+                "generation": "Generate an API response schema for {{ApiName}} with data type {{ResponseDataType}}",
+                "error_handling": "Add error handling patterns for {{error_scenarios}}",
+                "pagination": "Add pagination support for {{ApiName}} response with {{pagination_strategy}}"
+            }
+        }
+    },
+    "template_categories": {
+        "events": {
+            "description": "Event-driven architecture schemas",
+            "templates": ["event_schema"],
+            "common_fields": ["eventId", "eventType", "timestamp", "data"]
+        },
+        "entities": {
+            "description": "Domain entity schemas",
+            "templates": ["entity_schema"],
+            "common_fields": ["id", "version", "createdAt", "updatedAt"]
+        },
+        "commands": {
+            "description": "CQRS command schemas",
+            "templates": ["command_schema"],
+            "common_fields": ["commandId", "commandType", "aggregateId", "timestamp"]
+        },
+        "aggregates": {
+            "description": "Domain aggregate schemas",
+            "templates": ["aggregate_schema"],
+            "common_fields": ["aggregateId", "version", "state", "lastModified"]
+        },
+        "value_objects": {
+            "description": "Value object schemas",
+            "templates": ["value_object_schema"],
+            "common_fields": ["value"]
+        },
+        "api": {
+            "description": "API response schemas",
+            "templates": ["api_response_schema"],
+            "common_fields": ["success", "timestamp", "data", "error"]
+        }
+    },
+    "ai_configuration": {
+        "template_selection": {
+            "enabled": true,
+            "auto_suggest_template": true,
+            "analyze_context": true,
+            "recommend_category": true
+        },
+        "field_generation": {
+            "enabled": true,
+            "suggest_missing_fields": true,
+            "auto_complete_types": true,
+            "generate_documentation": true
+        },
+        "validation": {
+            "enabled": true,
+            "check_template_consistency": true,
+            "validate_against_patterns": true,
+            "suggest_improvements": true
+        }
+    }
+} 

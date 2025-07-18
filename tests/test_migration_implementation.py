@@ -54,7 +54,7 @@ def test_implemented_migration_files():
         "test_compatibility_migration.py",
         "test_bulk_migration.py",
         "test_registry_comparison.py",
-        "test_readonly_validation.py",
+        "test_viewonly_validation.py",
         "test_schema_drift.py",
         "test_version_migration.py",
         "test_migration_integration.py",
@@ -81,9 +81,7 @@ def test_implemented_migration_files():
         else:
             print(f"❌ {test_file}: Missing")
 
-    print(
-        f"\n📊 Implementation status: {valid_files}/{len(implemented_files)} files implemented"
-    )
+    print(f"\n📊 Implementation status: {valid_files}/{len(implemented_files)} files implemented")
     return valid_files == len(implemented_files)
 
 
@@ -124,9 +122,7 @@ def test_quick_migration_functionality():
 
             if get_response.status_code == 200:
                 schema_data = get_response.json()
-                print(
-                    f"✅ Schema retrieval successful (version {schema_data.get('version')})"
-                )
+                print(f"✅ Schema retrieval successful (version {schema_data.get('version')})")
                 return True
             else:
                 print(f"⚠️  Schema retrieval failed: {get_response.status_code}")
@@ -149,9 +145,7 @@ def run_sample_migration_test():
 
     if os.path.exists(test_file):
         try:
-            result = subprocess.run(
-                [sys.executable, test_file], capture_output=True, text=True, timeout=30
-            )
+            result = subprocess.run([sys.executable, test_file], capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
                 print("✅ Sample migration test passed!")

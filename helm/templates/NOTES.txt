@@ -36,7 +36,7 @@
 {{- if .Values.schemaRegistry.multiRegistry.enabled }}
 ✅ Multi-Registry: Enabled ({{ len .Values.schemaRegistry.multiRegistry.registries }} registries)
 {{- range .Values.schemaRegistry.multiRegistry.registries }}
-   - {{ .name }}: {{ .url }} (readonly: {{ .readonly }})
+   - {{ .name }}: {{ .url }} (viewonly: {{ .viewonly }})
 {{- end }}
 {{- end }}
 ✅ Replicas: {{ .Values.replicaCount }}

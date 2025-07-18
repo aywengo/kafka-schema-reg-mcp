@@ -8,7 +8,7 @@ metadata:
   {{- include "kafka-schema-registry-mcp.annotations" . | nindent 4 }}
 data:
   # Application settings
-  READONLY: {{ .Values.app.readonly | quote }}
+  VIEWONLY: {{ .Values.app.viewonly | quote }}
   LOG_LEVEL: {{ .Values.app.logLevel | quote }}
   
   # OAuth2 settings
@@ -33,7 +33,7 @@ data:
   {{- $registryIndex := add $index 1 }}
   SCHEMA_REGISTRY_NAME_{{ $registryIndex }}: {{ $registry.name | quote }}
   SCHEMA_REGISTRY_URL_{{ $registryIndex }}: {{ $registry.url | quote }}
-  READONLY_{{ $registryIndex }}: {{ $registry.readonly | quote }}
+  VIEWONLY_{{ $registryIndex }}: {{ $registry.viewonly | quote }}
   {{- end }}
   {{- end }}
   

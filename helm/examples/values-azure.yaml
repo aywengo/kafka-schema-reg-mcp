@@ -13,16 +13,17 @@ replicaCount: 2
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "1.8.0"
+  tag: "2.0.0"
 
-# 🟦 Azure AD Authentication Configuration
+# 🟦 Azure AD Authentication Configuration (OAuth 2.1 Generic)
 auth:
   enabled: true
   oauth2:
     issuerUrl: "https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0"
-    validScopes: "openid,email,profile,https://graph.microsoft.com/User.Read"
-    defaultScopes: "openid,email,profile"
-    requiredScopes: "openid,email"
+    audience: "YOUR_AZURE_CLIENT_ID"
+    validScopes: "read,write,admin"
+    defaultScopes: "read"
+    requiredScopes: "read"
     clientRegistrationEnabled: true
     revocationEnabled: true
   createSecret:
@@ -37,17 +38,17 @@ schemaRegistry:
     registries:
       - name: "development"
         url: "http://schema-registry-dev.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
         user: ""
         password: ""
       - name: "staging"
         url: "http://schema-registry-staging.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
         user: ""
         password: ""
       - name: "production"
         url: "http://schema-registry-prod.kafka.svc.cluster.local:8081"
-        readonly: true
+        viewonly: true
         user: ""
         password: ""
 
@@ -98,7 +99,7 @@ autoscaling:
 
 # App configuration
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 

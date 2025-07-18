@@ -8,6 +8,20 @@
 # 3. Collects and reports results
 # 4. Cleans up environment
 #
+# NEW in v2.0.0: OAuth 2.1 Generic Discovery Tests
+# - Tests OAuth 2.1 generic discovery instead of provider-specific configurations
+# - Validates RFC 8414 compliance and automatic endpoint discovery
+# - Tests universal OAuth 2.1 compatibility with any compliant provider
+#
+# NEW: SLIM_MODE Integration Tests
+# - Tests SLIM_MODE functionality that reduces tools from 53+ to ~15
+# - Validates performance improvements and tool reduction
+#
+# NEW in v2.1.0: Smart Defaults Tests
+# - Tests pattern recognition and learning engine
+# - Validates elicitation integration with smart suggestions
+# - Tests configuration and privacy controls
+#
 # Usage: ./run_all_tests.sh [options]
 # Options:
 #   --quick     Run only essential tests (faster execution)
@@ -149,6 +163,39 @@ check_prerequisites() {
         exit 1
     fi
     
+    # Check MCP compliance test files
+    if [[ -f "$SCRIPT_DIR/test_mcp_compliance.py" ]]; then
+        print_color $GREEN "✅ MCP compliance test file found (tests directory)"
+    else
+        print_color $YELLOW "⚠️  MCP compliance test file not found in tests directory"
+    fi
+    
+    if [[ -f "$SCRIPT_DIR/test_mcp_header_validation.py" ]]; then
+        print_color $GREEN "✅ MCP header validation test file found (tests directory)"
+    else
+        print_color $YELLOW "⚠️  MCP header validation test file not found in tests directory"
+    fi
+    
+    if [[ -f "$SCRIPT_DIR/test_structured_output.py" ]]; then
+        print_color $GREEN "✅ MCP structured output test file found (tests directory)"
+    else
+        print_color $YELLOW "⚠️  MCP structured output test file not found in tests directory"
+    fi
+    
+    # Check SLIM_MODE test file
+    if [[ -f "$SCRIPT_DIR/test_slim_mode_integration.py" ]]; then
+        print_color $GREEN "✅ SLIM_MODE integration test file found"
+    else
+        print_color $YELLOW "⚠️  SLIM_MODE integration test file not found"
+    fi
+
+    # Check smart defaults test files
+    if [[ -f "$SCRIPT_DIR/test_smart_defaults.py" ]]; then
+        print_color $GREEN "✅ Smart defaults test file found"
+    else
+        print_color $YELLOW "⚠️  Smart defaults test file not found"
+    fi
+    
     print_color $GREEN "✅ All prerequisites satisfied"
 }
 
@@ -237,6 +284,9 @@ run_tests() {
             "essential_integration"
             "multi_registry_core"
             "mcp_container_tests"
+            "mcp_compliance_tests"
+            "slim_mode_tests"
+            "smart_defaults_tests"
         )
     else
         test_categories=(
@@ -244,7 +294,10 @@ run_tests() {
             "integration_tests"
             "multi_registry_tests"
             "mcp_container_tests"
+            "mcp_compliance_tests"
+            "slim_mode_tests"
             "advanced_features"
+            "smart_defaults_tests"
         )
     fi
     
@@ -285,11 +338,20 @@ run_test_category() {
         "multi_registry_tests")
             run_multi_registry_tests
             ;;
+        "mcp_compliance_tests")
+            run_mcp_compliance_tests
+            ;;
+        "slim_mode_tests")
+            run_slim_mode_tests
+            ;;
         "advanced_features")
             run_advanced_feature_tests
             ;;
         "mcp_container_tests")
             run_mcp_container_tests
+            ;;
+        "smart_defaults_tests")
+            run_smart_defaults_tests
             ;;
         *)
             print_color $YELLOW "⚠️  Unknown test category: $category"
@@ -306,11 +368,11 @@ run_basic_tests() {
         "test_mcp_server.py:MCP protocol connectivity"
         "test_prompts.py:MCP prompts functionality and content validation"
         "test_config.py:Configuration management"
-        "test_provider_configs_only.py:OAuth provider configurations validation"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
         "test_simple_python.py:Python environment validation"
+        "test_ssrf_vulnerability.py:SSRF vulnerability protection and URL validation"
     )
     
     run_test_list "${tests[@]}"
@@ -323,15 +385,18 @@ run_essential_integration_tests() {
     local tests=(
         "test_integration.py:Core schema operations"
         "test_prompts.py:MCP prompts functionality and workflow scenarios"
-        "test_readonly_mode.py:READONLY mode enforcement"
+        "test_viewonly_mode.py:VIEWONLY mode enforcement"
         "test_counting_tools.py:Schema counting and statistics"
         "test_statistics_tasks.py:Statistics tasks with async optimization"
-        "test_oauth.py:OAuth authentication and provider configurations"
-        "test_github_oauth.py:GitHub OAuth integration and token validation"
-        "test_oauth_discovery.py:OAuth discovery endpoints for MCP client auto-configuration"
+        "test_ssl_tls_integration.py:SSL/TLS security enhancement integration (issue #24)"
+        "test_oauth.py:OAuth 2.1 generic discovery and authentication"
+        "test_github_oauth.py:GitHub OAuth 2.1 integration with fallback handling"
+        "test_oauth_discovery.py:OAuth 2.1 discovery endpoints and RFC 8414 compliance"
         "test_user_roles.py:OAuth user role assignment and scope extraction"
         "test_remote_mcp_server.py:Remote MCP server deployment functionality"
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
+        "test_elicitation.py:Elicitation framework core functionality"
+        "test_multi_step_elicitation.py:Multi-step elicitation workflows (Issue #73 - essential functionality)"
     )
     
     run_test_list "${tests[@]}"
@@ -342,18 +407,12 @@ run_integration_tests() {
     print_color $CYAN "🔗 Integration Tests"
     
     local tests=(
-        "test_integration.py:Comprehensive schema operations"
-        "test_readonly_mode.py:READONLY mode enforcement"
-        "test_counting_tools.py:Schema counting and statistics"
-        "test_statistics_tasks.py:Statistics tasks with async optimization"
-        "test_readonly_mcp_client.py:READONLY mode with MCP client"
-        "test_readonly_validation.py:READONLY mode validation"
+        "test_viewonly_mcp_client.py:VIEWONLY mode with MCP client"
+        "test_viewonly_validation.py:VIEWONLY mode validation"
         "test_docker_mcp.py:Docker integration"
-        "test_oauth.py:OAuth authentication and provider configurations"
-        "test_github_oauth.py:GitHub OAuth integration and token validation"
-        "test_oauth_discovery.py:OAuth discovery endpoints for MCP client auto-configuration"
-        "test_user_roles.py:OAuth user role assignment and scope extraction"
         "advanced_mcp_test.py:Advanced MCP functionality"
+        "test_elicitation_integration.py:Elicitation integration with MCP tools"
+        "test_elicitation_edge_cases.py:Elicitation edge case handling"
     )
     
     run_test_list "${tests[@]}"
@@ -387,6 +446,33 @@ run_multi_registry_tests() {
     run_test_list "${tests[@]}"
 }
 
+# Run MCP compliance tests (UPDATED CATEGORY)
+run_mcp_compliance_tests() {
+    print_color $CYAN "🛡️  MCP 2025-06-18 Compliance Tests"
+    
+    # All MCP compliance tests are now in the tests directory
+    local tests=(
+        "test_mcp_compliance.py:MCP-Protocol-Version header validation and compliance verification"
+        "test_mcp_header_validation.py:MCP header validation middleware and exempt path functionality"
+        "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
+        "test_mcp_ping.py:MCP ping/pong protocol support and server health checking"
+        "test_registry_specific_resources.py:Registry-specific resources (registry://status/{name}, registry://info/{name}, registry://mode/{name}, registry://names, schema://{name}/{context}/{subject}, schema://{name}/{subject})"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
+# Run SLIM_MODE tests (NEW CATEGORY)
+run_slim_mode_tests() {
+    print_color $CYAN "🏃 SLIM_MODE Integration Tests"
+    
+    local tests=(
+        "test_slim_mode_integration.py:SLIM_MODE functionality - tool reduction from 53+ to ~15 for improved LLM performance"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
 # Run MCP container tests
 run_mcp_container_tests() {
     print_color $CYAN "🐳 MCP Container Integration Tests"
@@ -411,6 +497,17 @@ run_mcp_container_tests() {
     run_test_list "${tests[@]}"
 }
 
+# Run smart defaults tests
+run_smart_defaults_tests() {
+    print_color $CYAN "🧠 Smart Defaults Tests"
+    
+    local tests=(
+        "test_smart_defaults.py:Smart defaults pattern recognition and learning engine"
+    )
+    
+    run_test_list "${tests[@]}"
+}
+
 # Run advanced feature tests (comparison, migration, complex workflows)
 run_advanced_feature_tests() {
     print_color $CYAN "🚀 Advanced Feature Tests (Comparison & Migration)"
@@ -426,6 +523,7 @@ run_advanced_feature_tests() {
         "test_sparse_version_migration.py:Sparse version migration"
         "test_id_preservation_migration.py:ID preservation migration"
         "test_bulk_migration.py:Bulk migration operations"
+        "test_bulk_operations_wizard.py:Bulk Operations Wizard with elicitation-based workflows"
         "test_compatibility_migration.py:Compatibility migration testing"
         "test_batch_cleanup_integration.py:Advanced batch cleanup"
         "test_registry_comparison.py:Registry comparison functionality"
@@ -433,8 +531,11 @@ run_advanced_feature_tests() {
         "test_end_to_end_workflows.py:End-to-end workflow testing"
         "test_error_handling.py:Error handling and recovery"
         "test_all_tools_validation.py:All MCP tools validation"
+        "test_metadata_integration.py:Consolidated metadata integration testing"
         "test_performance_load.py:Performance and load testing"
         "test_production_readiness.py:Production readiness validation"
+        "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
+        "test_schema_evolution_assistant.py:Schema Evolution Assistant with breaking change detection and migration strategies"
     )
     
     run_test_list "${tests[@]}"
@@ -527,11 +628,15 @@ Test Categories Executed:
 $([ "$QUICK_MODE" == true ] && echo "- Basic Unified Server Tests
 - Essential Integration Tests  
 - Multi-Registry Core Tests
-- MCP Container Integration Tests" || echo "- Basic Unified Server Tests (imports, connectivity)
-- Integration Tests (schema operations, readonly mode)
+- MCP Container Integration Tests
+- MCP 2025-06-18 Compliance Tests ⭐
+- SLIM_MODE Integration Tests 🏃" || echo "- Basic Unified Server Tests (imports, connectivity)
+- Integration Tests (schema operations, viewonly mode)
 - Multi-Registry Tests (multi-registry operations)
 - MCP Container Integration Tests (Docker container deployment)
-- Advanced Feature Tests (comparison, migration, workflows)")
+- MCP 2025-06-18 Compliance Tests (header validation, protocol compliance) ⭐
+- Advanced Feature Tests (comparison, migration, workflows, resource linking)
+- Smart Defaults Tests (pattern recognition, learning engine) 🧠")
 
 Log Files:
 - Unified Log: $UNIFIED_LOG
@@ -545,6 +650,23 @@ else
 echo ""
 echo "🎉 All tests passed successfully!"
 fi)
+
+⭐ NEW: MCP 2025-06-18 Compliance Tests validate header validation middleware,
+   exempt path functionality, and protocol version compliance.
+
+🏃 NEW: SLIM_MODE Integration Tests validate tool reduction from 53+ to ~15 for
+   improved LLM performance and reduced token usage.
+
+🔗 Resource Linking Tests: URI navigation and link generation for enhanced MCP client experience.
+
+🚀 OAuth 2.1 Generic Discovery: Tests now validate universal OAuth 2.1 compatibility
+   instead of provider-specific configurations (75% configuration reduction).
+
+🧠 Smart Defaults Tests: Pattern recognition and learning engine for intelligent
+   form pre-population based on user behavior and organizational conventions.
+
+📁 Test Organization: All MCP compliance tests are now properly organized in the tests directory
+   for better maintainability and CI/CD integration.
 
 EOF
     
@@ -630,4 +752,4 @@ main() {
 }
 
 # Execute main function with all arguments
-main "$@" 
+main "$@"

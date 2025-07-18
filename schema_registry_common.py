@@ -7,23 +7,207 @@ Includes registry management, HTTP utilities, authentication, and export functio
 """
 
 import base64
+import ipaddress
 import json
 import logging
 import os
+import re
+import ssl
+import sys
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import quote, urlparse
 
 import aiohttp
 import requests
+import urllib3
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
 # Environment variables for single registry mode (backward compatibility)
 SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
-SINGLE_READONLY = os.getenv("READONLY", "false").lower() in ("true", "1", "yes", "on")
+# Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
+SINGLE_VIEWONLY = os.getenv("VIEWONLY", os.getenv("READONLY", "false")).lower() in ("true", "1", "yes", "on")
+
+# Warn if deprecated READONLY parameter is used
+if os.getenv("READONLY") is not None and os.getenv("VIEWONLY") is None:
+    import warnings
+
+    warnings.warn(
+        "READONLY parameter is deprecated. Please use VIEWONLY instead. "
+        "Support for READONLY will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    print("⚠️  WARNING: READONLY parameter is deprecated. Please use VIEWONLY instead.")
+    print("   Example: export VIEWONLY=true")
+    print("   Support for READONLY will be removed in a future version.")
+
+# SSL/TLS Security Configuration
+ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
+CUSTOM_CA_BUNDLE_PATH = os.getenv("CUSTOM_CA_BUNDLE_PATH", "")
+SSL_CERT_PINNING_ENABLED = os.getenv("SSL_CERT_PINNING_ENABLED", "false").lower() in ("true", "1", "yes", "on")
+
+
+# SSL/TLS Configuration Logging
+def log_ssl_configuration():
+    """Log SSL/TLS configuration for security audit purposes."""
+    logger = logging.getLogger(__name__)
+    logger.info(f"SSL/TLS Verification: {'ENABLED' if ENFORCE_SSL_TLS_VERIFICATION else 'DISABLED'}")
+    if CUSTOM_CA_BUNDLE_PATH:
+        if os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+            logger.info(f"Custom CA Bundle: {CUSTOM_CA_BUNDLE_PATH} (exists)")
+        else:
+            logger.warning(f"Custom CA Bundle: {CUSTOM_CA_BUNDLE_PATH} (FILE NOT FOUND)")
+    else:
+        logger.info("Custom CA Bundle: Using system default CA bundle")
+
+    if SSL_CERT_PINNING_ENABLED:
+        logger.info("Certificate Pinning: ENABLED (Future enhancement)")
+    else:
+        logger.info("Certificate Pinning: DISABLED")
+
+
+# Log SSL configuration on import
+log_ssl_configuration()
+
+
+# Sensitive data filter for logging
+class SensitiveDataFilter(logging.Filter):
+    """Filter to mask sensitive data in log messages."""
+
+    def filter(self, record):
+        """Mask Authorization headers and other sensitive data in log messages."""
+        if hasattr(record, "msg") and record.msg:
+            msg = str(record.msg)
+
+            # Mask Authorization headers (various formats)
+            # Pattern 1: Standard header format
+            msg = re.sub(
+                r'Authorization["\']?\s*:\s*["\']?Basic\s+[A-Za-z0-9+/=]+["\']?',
+                "Authorization: Basic ***MASKED***",
+                msg,
+                flags=re.IGNORECASE,
+            )
+
+            # Pattern 2: JSON format with quotes
+            msg = re.sub(
+                r'"Authorization"["\']?\s*:\s*["\']Basic\s+[A-Za-z0-9+/=]+["\']',
+                '"Authorization": "Basic ***MASKED***"',
+                msg,
+                flags=re.IGNORECASE,
+            )
+
+            # Pattern 3: Any Base64 string that looks like credentials (longer than 20 chars)
+            msg = re.sub(r"Basic\s+[A-Za-z0-9+/]{20,}={0,2}", "Basic ***MASKED***", msg, flags=re.IGNORECASE)
+
+            # Mask potential credentials in URLs
+            msg = re.sub(r"://([^:]+):([^@]+)@", "://***MASKED***:***MASKED***@", msg)
+
+            record.msg = msg
+        return True
+
+
+# Apply sensitive data filter to all loggers
+logging.getLogger().addFilter(SensitiveDataFilter())
+
+
+# Configure secure logging for requests library
+def configure_secure_requests_logging():
+    """Configure requests library to avoid logging sensitive data."""
+    # Disable urllib3 debug logging that might expose headers
+    urllib3_logger = logging.getLogger("urllib3")
+    urllib3_logger.setLevel(logging.WARNING)
+    urllib3_logger.addFilter(SensitiveDataFilter())
+
+    # Disable requests library debug logging
+    requests_logger = logging.getLogger("requests")
+    requests_logger.setLevel(logging.WARNING)
+    requests_logger.addFilter(SensitiveDataFilter())
+
+    # Add filter to httpcore logger (used by some HTTP libraries)
+    httpcore_logger = logging.getLogger("httpcore")
+    httpcore_logger.addFilter(SensitiveDataFilter())
+
+
+# Apply secure logging configuration
+configure_secure_requests_logging()
+
+
+def validate_url(url: str) -> bool:
+    """Validate URL is safe to use"""
+    try:
+        parsed = urlparse(url)
+        # Whitelist allowed protocols
+        if parsed.scheme not in ["http", "https"]:
+            return False
+
+        # Allow localhost in test/development mode
+        # Check for common test/development indicators
+        is_test_mode = (
+            os.getenv("TESTING", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("CI", "").lower() in ("true", "1", "yes", "on")
+            or os.getenv("PYTEST_CURRENT_TEST") is not None
+            or os.getenv("ALLOW_LOCALHOST", "").lower() in ("true", "1", "yes", "on")
+            or
+            # Check if we're in a test directory
+            "test" in os.getcwd().lower()
+            or
+            # Check if the main script being run is a test
+            "test" in sys.argv[0].lower()
+            or
+            # Check for common test runners
+            any("pytest" in arg.lower() or "test" in arg.lower() for arg in sys.argv)
+            or
+            # Check if __main__ module is a test
+            (
+                hasattr(sys.modules.get("__main__"), "__file__")
+                and sys.modules["__main__"].__file__
+                and "test" in sys.modules["__main__"].__file__.lower()
+            )
+        )
+
+        # Prevent internal network access in production
+        if parsed.hostname in ["localhost", "127.0.0.1", "0.0.0.0"]:
+            if not is_test_mode:
+                return False
+        # Check for private IP ranges
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private and not is_test_mode:
+                return False
+        except ValueError:
+            # Not an IP address, continue
+            pass
+        return True
+    except Exception:
+        return False
+
+
+class SecureHTTPAdapter(HTTPAdapter):
+    """Custom HTTP adapter with enhanced SSL/TLS security."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        """Initialize the pool manager with secure SSL context."""
+        context = ssl.create_default_context()
+
+        # Configure SSL context for maximum security
+        context.check_hostname = True
+        context.verify_mode = ssl.CERT_REQUIRED
+
+        # Disable weak protocols and ciphers
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS")
+
+        kwargs["ssl_context"] = context
+        return super().init_poolmanager(*args, **kwargs)
 
 
 @dataclass
@@ -35,10 +219,24 @@ class RegistryConfig:
     user: str = ""
     password: str = ""
     description: str = ""
-    readonly: bool = False
+    viewonly: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        """Convert to dictionary with sensitive data masked."""
+        result = asdict(self)
+        if result.get("password"):
+            result["password"] = "***MASKED***"
+        return result
+
+    def __repr__(self) -> str:
+        """Safe representation without credentials."""
+        password_masked = "***MASKED***" if self.password else ""
+        return f"RegistryConfig(name={self.name!r}, url={self.url!r}, user={self.user!r}, password={password_masked!r}, description={self.description!r}, viewonly={self.viewonly})"
+
+    def __str__(self) -> str:
+        """Safe string representation without credentials."""
+        auth_info = f"user={self.user}" if self.user else "no-auth"
+        return f"Registry config: {self.name} at {self.url} ({auth_info})"
 
 
 @dataclass
@@ -61,30 +259,113 @@ class RegistryClient:
     """Client for interacting with a single Schema Registry instance."""
 
     def __init__(self, config: RegistryConfig):
+        # Validate the registry URL on initialization
+        if not validate_url(config.url):
+            raise ValueError(f"Invalid or unsafe registry URL: {config.url}")
+
         self.config = config
         self.auth = None
-        self.headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
-        self.standard_headers = {"Content-Type": "application/json"}
+        # Don't store authorization headers as instance variables
+        self._base_headers = {"Content-Type": "application/vnd.schemaregistry.v1+json"}
+        self._base_standard_headers = {"Content-Type": "application/json"}
 
         if config.user and config.password:
             self.auth = HTTPBasicAuth(config.user, config.password)
-            credentials = base64.b64encode(
-                f"{config.user}:{config.password}".encode()
-            ).decode()
-            self.headers["Authorization"] = f"Basic {credentials}"
-            self.standard_headers["Authorization"] = f"Basic {credentials}"
+
+        # Create secure session with SSL/TLS configuration
+        self.session = self._create_secure_session()
+
+        # Log SSL configuration for this client
+        logger = logging.getLogger(__name__)
+        logger.info(f"Created secure session for registry '{config.name}' at {config.url}")
+
+    def _create_secure_session(self) -> requests.Session:
+        """Create a secure requests session with proper SSL/TLS configuration."""
+        session = requests.Session()
+
+        # Configure SSL verification
+        if ENFORCE_SSL_TLS_VERIFICATION:
+            session.verify = True
+
+            # Use custom CA bundle if specified
+            if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+                session.verify = CUSTOM_CA_BUNDLE_PATH
+                logging.getLogger(__name__).info(f"Using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
+
+            # Mount secure adapter for HTTPS connections
+            session.mount("https://", SecureHTTPAdapter())
+
+        else:
+            # SSL verification disabled (not recommended for production)
+            session.verify = False
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            logging.getLogger(__name__).warning(
+                "SSL verification is DISABLED - this is not recommended for production use"
+            )
+
+        # Configure session timeouts for security
+        session.timeout = 30  # 30 second default timeout
+
+        # Add security headers
+        session.headers.update(
+            {
+                "User-Agent": "KafkaSchemaRegistryMCP/2.0.0 (Security Enhanced)",
+                "Connection": "close",  # Don't keep connections alive unnecessarily
+            }
+        )
+
+        return session
+
+    def _get_headers(self, content_type: str = "application/vnd.schemaregistry.v1+json") -> Dict[str, str]:
+        """Get headers with authentication, created fresh each time."""
+        headers = {"Content-Type": content_type}
+        if self.auth:
+            # Create auth header dynamically without storing credentials
+            credentials = base64.b64encode(f"{self.config.user}:{self.config.password}".encode()).decode()
+            headers["Authorization"] = f"Basic {credentials}"
+        return headers
+
+    def _get_standard_headers(self) -> Dict[str, str]:
+        """Get standard headers with authentication, created fresh each time."""
+        return self._get_headers("application/json")
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        """Get default headers for registry operations."""
+        return self._get_headers()
+
+    @property
+    def standard_headers(self) -> Dict[str, str]:
+        """Get standard headers for configuration operations."""
+        return self._get_standard_headers()
+
+    def __repr__(self) -> str:
+        """Safe representation without credentials."""
+        return f"RegistryClient(name={self.config.name!r}, url={self.config.url!r}, viewonly={self.config.viewonly})"
+
+    def __str__(self) -> str:
+        """Safe string representation without credentials."""
+        auth_status = "authenticated" if self.config.user else "no-auth"
+        ssl_status = "SSL-enabled" if ENFORCE_SSL_TLS_VERIFICATION else "SSL-disabled"
+        return f"Registry '{self.config.name}' at {self.config.url} ({auth_status}, {ssl_status})"
 
     def build_context_url(self, base_url: str, context: Optional[str] = None) -> str:
         """Build URL with optional context support."""
+        # Validate base registry URL
+        if not validate_url(self.config.url):
+            raise ValueError("Invalid registry URL")
+
         # Handle default context "." as no context
         if context and context != ".":
-            return f"{self.config.url}/contexts/{context}{base_url}"
+            # URL encode the context to prevent injection
+            safe_context = quote(context, safe="")
+            return f"{self.config.url}/contexts/{safe_context}{base_url}"
         return f"{self.config.url}{base_url}"
 
     def test_connection(self) -> Dict[str, Any]:
         """Test connection to this registry."""
         try:
-            response = requests.get(
+            response = self.session.get(
                 f"{self.config.url}/subjects",
                 auth=self.auth,
                 headers=self.headers,
@@ -96,6 +377,7 @@ class RegistryClient:
                     "registry": self.config.name,
                     "url": self.config.url,
                     "response_time_ms": response.elapsed.total_seconds() * 1000,
+                    "ssl_verified": ENFORCE_SSL_TLS_VERIFICATION,
                 }
             else:
                 return {
@@ -103,6 +385,13 @@ class RegistryClient:
                     "registry": self.config.name,
                     "error": f"HTTP {response.status_code}: {response.text}",
                 }
+        except requests.exceptions.SSLError as e:
+            return {
+                "status": "error",
+                "registry": self.config.name,
+                "error": f"SSL verification failed: {str(e)}",
+                "ssl_error": True,
+            }
         except Exception as e:
             return {"status": "error", "registry": self.config.name, "error": str(e)}
 
@@ -110,7 +399,7 @@ class RegistryClient:
         """Get subjects from this registry."""
         try:
             url = self.build_context_url("/subjects", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception:
@@ -119,9 +408,7 @@ class RegistryClient:
     def get_contexts(self) -> List[str]:
         """Get contexts from this registry."""
         try:
-            response = requests.get(
-                f"{self.config.url}/contexts", auth=self.auth, headers=self.headers
-            )
+            response = self.session.get(f"{self.config.url}/contexts", auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception:
@@ -131,22 +418,16 @@ class RegistryClient:
         """Delete a subject from this registry."""
         try:
             url = self.build_context_url(f"/subjects/{subject}", context)
-            response = requests.delete(
-                url, auth=self.auth, headers=self.headers, timeout=30
-            )
+            response = self.session.delete(url, auth=self.auth, headers=self.headers, timeout=30)
             return response.status_code in [200, 404]  # 404 means already deleted
         except Exception:
             return False
 
-    def get_schema(
-        self, subject: str, version: str = "latest", context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_schema(self, subject: str, version: str = "latest", context: Optional[str] = None) -> Dict[str, Any]:
         """Get a specific version of a schema."""
         try:
-            url = self.build_context_url(
-                f"/subjects/{subject}/versions/{version}", context
-            )
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            url = self.build_context_url(f"/subjects/{subject}/versions/{version}", context)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -168,9 +449,7 @@ class RegistryClient:
                 "schemaType": schema_type,
             }
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
-            response = requests.post(
-                url, data=json.dumps(payload), auth=self.auth, headers=self.headers
-            )
+            response = self.session.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -182,7 +461,7 @@ class RegistryClient:
         """Get global configuration settings."""
         try:
             url = self.build_context_url("/config", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -190,14 +469,12 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_global_config(
-        self, compatibility: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_global_config(self, compatibility: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update global configuration settings."""
         try:
             url = self.build_context_url("/config", context)
             payload = {"compatibility": compatibility}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -210,13 +487,11 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_subject_config(
-        self, subject: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_subject_config(self, subject: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Get configuration settings for a specific subject."""
         try:
             url = self.build_context_url(f"/config/{subject}", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -224,14 +499,12 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_subject_config(
-        self, subject: str, compatibility: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_subject_config(self, subject: str, compatibility: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update configuration settings for a specific subject."""
         try:
             url = self.build_context_url(f"/config/{subject}", context)
             payload = {"compatibility": compatibility}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -248,7 +521,7 @@ class RegistryClient:
         """Get the current mode of the Schema Registry."""
         try:
             url = self.build_context_url("/mode", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -261,7 +534,7 @@ class RegistryClient:
         try:
             url = self.build_context_url("/mode", context)
             payload = {"mode": mode}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -274,13 +547,11 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_subject_mode(
-        self, subject: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_subject_mode(self, subject: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Get the mode for a specific subject."""
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
-            response = requests.get(url, auth=self.auth, headers=self.standard_headers)
+            response = self.session.get(url, auth=self.auth, headers=self.standard_headers)
             response.raise_for_status()
             result = response.json()
             result["registry"] = self.config.name
@@ -288,14 +559,12 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def update_subject_mode(
-        self, subject: str, mode: str, context: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def update_subject_mode(self, subject: str, mode: str, context: Optional[str] = None) -> Dict[str, Any]:
         """Update the mode for a specific subject."""
         try:
             url = self.build_context_url(f"/mode/{subject}", context)
             payload = {"mode": mode}
-            response = requests.put(
+            response = self.session.put(
                 url,
                 data=json.dumps(payload),
                 auth=self.auth,
@@ -308,13 +577,11 @@ class RegistryClient:
         except Exception as e:
             return {"error": str(e)}
 
-    def get_schema_versions(
-        self, subject: str, context: Optional[str] = None
-    ) -> Union[List[int], Dict[str, str]]:
+    def get_schema_versions(self, subject: str, context: Optional[str] = None) -> Union[List[int], Dict[str, str]]:
         """Get all versions of a schema."""
         try:
             url = self.build_context_url(f"/subjects/{subject}/versions", context)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response = self.session.get(url, auth=self.auth, headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -327,17 +594,29 @@ class RegistryClient:
         schema_type: str = "AVRO",
         context: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Check if a schema is compatible with the specified subject."""
+        """Check if a schema is compatible with the latest version of a subject."""
         try:
             payload = {
                 "schema": json.dumps(schema_definition),
                 "schemaType": schema_type,
             }
-            url = self.build_context_url(
-                f"/compatibility/subjects/{subject}/versions/latest", context
-            )
-            response = requests.post(
-                url, data=json.dumps(payload), auth=self.auth, headers=self.headers
+            url = self.build_context_url(f"/compatibility/subjects/{subject}/versions/latest", context)
+            response = self.session.post(url, data=json.dumps(payload), auth=self.auth, headers=self.headers)
+            response.raise_for_status()
+            result = response.json()
+            result["registry"] = self.config.name
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_metadata_id(self) -> Dict[str, Any]:
+        """Get metadata ID information from the registry."""
+        try:
+            response = self.session.get(
+                f"{self.config.url}/v1/metadata/id",
+                auth=self.auth,
+                headers=self.headers,
+                timeout=10,
             )
             response.raise_for_status()
             result = response.json()
@@ -345,6 +624,55 @@ class RegistryClient:
             return result
         except Exception as e:
             return {"error": str(e)}
+
+    def get_metadata_version(self) -> Dict[str, Any]:
+        """Get version and commit information from the registry."""
+        try:
+            response = self.session.get(
+                f"{self.config.url}/v1/metadata/version",
+                auth=self.auth,
+                headers=self.headers,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            result["registry"] = self.config.name
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_server_metadata(self) -> Dict[str, Any]:
+        """Get comprehensive server metadata including ID and version information."""
+        metadata = {}
+
+        # Get metadata ID information
+        metadata_id = self.get_metadata_id()
+        if "error" not in metadata_id:
+            metadata.update(
+                {
+                    "scope": metadata_id.get("scope", {}),
+                    "kafka_cluster_id": metadata_id.get("scope", {}).get("clusters", {}).get("kafka-cluster"),
+                    "schema_registry_cluster_id": metadata_id.get("scope", {})
+                    .get("clusters", {})
+                    .get("schema-registry-cluster"),
+                }
+            )
+        else:
+            metadata["metadata_id_error"] = metadata_id["error"]
+
+        # Get version information
+        metadata_version = self.get_metadata_version()
+        if "error" not in metadata_version:
+            metadata.update(
+                {
+                    "version": metadata_version.get("version"),
+                    "commit_id": metadata_version.get("commitId"),
+                }
+            )
+        else:
+            metadata["metadata_version_error"] = metadata_version["error"]
+
+        return metadata
 
 
 class BaseRegistryManager:
@@ -382,6 +710,15 @@ class BaseRegistryManager:
         if "error" in connection_test:
             info["connection_error"] = connection_test["error"]
 
+        # Add SSL status information
+        info["ssl_verification_enabled"] = ENFORCE_SSL_TLS_VERIFICATION
+        if "ssl_verified" in connection_test:
+            info["ssl_verified"] = connection_test["ssl_verified"]
+
+        # Get server metadata
+        server_metadata = client.get_server_metadata()
+        info.update(server_metadata)
+
         return info
 
     def test_all_registries(self) -> Dict[str, Any]:
@@ -395,10 +732,9 @@ class BaseRegistryManager:
         return {
             "registry_tests": results,
             "total_registries": len(results),
-            "connected": sum(
-                1 for r in results.values() if r.get("status") == "connected"
-            ),
+            "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
             "failed": sum(1 for r in results.values() if r.get("status") == "error"),
+            "ssl_verification_enabled": ENFORCE_SSL_TLS_VERIFICATION,
         }
 
     async def test_all_registries_async(self) -> Dict[str, Any]:
@@ -436,15 +772,11 @@ class BaseRegistryManager:
         return {
             "registry_tests": results,
             "total_registries": len(results),
-            "connected": sum(
-                1 for r in results.values() if r.get("status") == "connected"
-            ),
+            "connected": sum(1 for r in results.values() if r.get("status") == "connected"),
             "failed": sum(1 for r in results.values() if r.get("status") == "error"),
         }
 
-    async def compare_registries_async(
-        self, source: str, target: str
-    ) -> Dict[str, Any]:
+    async def compare_registries_async(self, source: str, target: str) -> Dict[str, Any]:
         """Compare two registries asynchronously."""
         source_client = self.get_registry(source)
         target_client = self.get_registry(target)
@@ -470,26 +802,35 @@ class BaseRegistryManager:
                 },
             }
 
-    async def _get_subjects_async(
-        self, session: aiohttp.ClientSession, client: RegistryClient
-    ) -> List[str]:
+    async def _get_subjects_async(self, session: aiohttp.ClientSession, client: RegistryClient) -> List[str]:
         """Get subjects from a registry asynchronously."""
         try:
-            async with session.get(
-                f"{client.config.url}/subjects", headers=client.headers
-            ) as response:
+            async with session.get(f"{client.config.url}/subjects", headers=client.headers) as response:
                 if response.status == 200:
                     return await response.json()
                 return []
         except Exception:
             return []
 
-    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
-        """Check if a registry is in readonly mode."""
+    def is_viewonly(self, registry_name: Optional[str] = None) -> bool:
+        """Check if a registry is in viewonly mode."""
         client = self.get_registry(registry_name)
         if not client:
             return False
-        return client.config.readonly
+        return client.config.viewonly
+
+    # Backward compatibility alias
+    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
+        """Deprecated: Use is_viewonly instead."""
+        import warnings
+
+        warnings.warn(
+            "is_readonly() is deprecated. Please use is_viewonly() instead. "
+            "Support for is_readonly() will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_viewonly(registry_name)
 
     def get_default_registry(self) -> Optional[str]:
         """Get the default registry name."""
@@ -513,19 +854,20 @@ class SingleRegistryManager(BaseRegistryManager):
     def _load_single_registry(self):
         """Load single registry configuration."""
         if SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
-            logging.info(
-                f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-            )
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    viewonly=SINGLE_VIEWONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (viewonly: {SINGLE_VIEWONLY})")
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
 
 class MultiRegistryManager(BaseRegistryManager):
@@ -546,7 +888,8 @@ class MultiRegistryManager(BaseRegistryManager):
             url_var = f"SCHEMA_REGISTRY_URL_{i}"
             user_var = f"SCHEMA_REGISTRY_USER_{i}"
             password_var = f"SCHEMA_REGISTRY_PASSWORD_{i}"
-            readonly_var = f"READONLY_{i}"
+            viewonly_var = f"VIEWONLY_{i}"
+            readonly_var = f"READONLY_{i}"  # For backward compatibility
 
             name = os.getenv(name_var, "")
             url = os.getenv(url_var, "")
@@ -556,47 +899,64 @@ class MultiRegistryManager(BaseRegistryManager):
 
                 user = os.getenv(user_var, "")
                 password = os.getenv(password_var, "")
-                readonly = os.getenv(readonly_var, "false").lower() in (
+                # Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
+                viewonly = os.getenv(viewonly_var, os.getenv(readonly_var, "false")).lower() in (
                     "true",
                     "1",
                     "yes",
                     "on",
                 )
 
-                config = RegistryConfig(
-                    name=name,
-                    url=url,
-                    user=user,
-                    password=password,
-                    description=f"{name} Schema Registry (instance {i})",
-                    readonly=readonly,
-                )
+                # Warn if deprecated READONLY_{i} parameter is used
+                if os.getenv(readonly_var) is not None and os.getenv(viewonly_var) is None:
+                    import warnings
 
-                self.registries[name] = RegistryClient(config)
+                    warnings.warn(
+                        f"{readonly_var} parameter is deprecated. Please use {viewonly_var} instead. "
+                        f"Support for {readonly_var} will be removed in a future version.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    print(f"⚠️  WARNING: {readonly_var} parameter is deprecated. Please use {viewonly_var} instead.")
+                    print(f"   Example: export {viewonly_var}=true")
+                    print(f"   Support for {readonly_var} will be removed in a future version.")
 
-                # Set first registry as default
-                if self.default_registry is None:
-                    self.default_registry = name
+                try:
+                    config = RegistryConfig(
+                        name=name,
+                        url=url,
+                        user=user,
+                        password=password,
+                        description=f"{name} Schema Registry (instance {i})",
+                        viewonly=viewonly,
+                    )
 
-                logging.info(
-                    f"Loaded registry {i}: {name} at {url} (readonly: {readonly})"
-                )
+                    self.registries[name] = RegistryClient(config)
+
+                    # Set first registry as default
+                    if self.default_registry is None:
+                        self.default_registry = name
+
+                    logging.info(f"Loaded registry {i}: {name} at {url} (viewonly: {viewonly})")
+                except ValueError as e:
+                    logging.error(f"Failed to load registry {i} ({name}): {e}")
 
         # Fallback to single registry mode if no multi-registry found
         if not multi_registry_found and SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
-            logging.info(
-                f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (readonly: {SINGLE_READONLY})"
-            )
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    viewonly=SINGLE_VIEWONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+                logging.info(f"Loaded single registry: default at {SINGLE_REGISTRY_URL} (viewonly: {SINGLE_VIEWONLY})")
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
         if not self.registries:
             logging.warning(
@@ -616,35 +976,60 @@ class LegacyRegistryManager(BaseRegistryManager):
         """Load registry configurations from environment variables and JSON config."""
         # Single registry support (backward compatibility)
         if SINGLE_REGISTRY_URL:
-            config = RegistryConfig(
-                name="default",
-                url=SINGLE_REGISTRY_URL,
-                user=SINGLE_REGISTRY_USER,
-                password=SINGLE_REGISTRY_PASSWORD,
-                description="Default Schema Registry",
-                readonly=SINGLE_READONLY,
-            )
-            self.registries["default"] = RegistryClient(config)
-            self.default_registry = "default"
+            try:
+                config = RegistryConfig(
+                    name="default",
+                    url=SINGLE_REGISTRY_URL,
+                    user=SINGLE_REGISTRY_USER,
+                    password=SINGLE_REGISTRY_PASSWORD,
+                    description="Default Schema Registry",
+                    viewonly=SINGLE_VIEWONLY,
+                )
+                self.registries["default"] = RegistryClient(config)
+                self.default_registry = "default"
+            except ValueError as e:
+                logging.error(f"Failed to load single registry: {e}")
 
         # Multi-registry support via JSON configuration
         if self.registries_config:
             try:
                 registries_data = json.loads(self.registries_config)
                 for name, config_data in registries_data.items():
-                    config = RegistryConfig(
-                        name=name,
-                        url=config_data["url"],
-                        user=config_data.get("user", ""),
-                        password=config_data.get("password", ""),
-                        description=config_data.get("description", f"{name} registry"),
-                        readonly=config_data.get("readonly", False),
-                    )
-                    self.registries[name] = RegistryClient(config)
+                    try:
+                        # Support both viewonly (new) and readonly (deprecated) for backward compatibility
+                        viewonly = config_data.get("viewonly", config_data.get("readonly", False))
 
-                    # Set first registry as default if no default exists
-                    if self.default_registry is None:
-                        self.default_registry = name
+                        # Warn if deprecated "readonly" field is used in JSON config
+                        if "readonly" in config_data and "viewonly" not in config_data:
+                            import warnings
+
+                            warnings.warn(
+                                f"'readonly' field in JSON configuration is deprecated. Please use 'viewonly' instead for registry '{name}'. "
+                                "Support for 'readonly' will be removed in a future version.",
+                                DeprecationWarning,
+                                stacklevel=2,
+                            )
+                            print(
+                                f"⚠️  WARNING: 'readonly' field in JSON configuration is deprecated for registry '{name}'."
+                            )
+                            print("   Please use 'viewonly' instead in your JSON configuration.")
+                            print("   Support for 'readonly' will be removed in a future version.")
+
+                        config = RegistryConfig(
+                            name=name,
+                            url=config_data["url"],
+                            user=config_data.get("user", ""),
+                            password=config_data.get("password", ""),
+                            description=config_data.get("description", f"{name} registry"),
+                            viewonly=viewonly,
+                        )
+                        self.registries[name] = RegistryClient(config)
+
+                        # Set first registry as default if no default exists
+                        if self.default_registry is None:
+                            self.default_registry = name
+                    except ValueError as e:
+                        logging.error(f"Failed to load registry {name}: {e}")
 
             except json.JSONDecodeError as e:
                 logging.error(f"Failed to parse REGISTRIES_CONFIG: {e}")
@@ -653,28 +1038,46 @@ class LegacyRegistryManager(BaseRegistryManager):
 # ===== UTILITY FUNCTIONS =====
 
 
-def check_readonly_mode(
+def check_viewonly_mode(
     registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
 ) -> Optional[Dict[str, str]]:
-    """Check if operations should be blocked due to readonly mode."""
-    if registry_manager.is_readonly(registry_name):
+    """Check if operations should be blocked due to viewonly mode."""
+    if registry_manager.is_viewonly(registry_name):
         return {
-            "error": "Registry is in READONLY mode. Modification operations are disabled for safety.",
-            "readonly_mode": "true",
-            "registry": registry_name
-            or registry_manager.get_default_registry()
-            or "unknown",
+            "error": "Registry is in VIEWONLY mode. Modification operations are disabled for safety.",
+            "viewonly_mode": "true",
+            "registry": registry_name or registry_manager.get_default_registry() or "unknown",
         }
     return None
 
 
-def build_context_url(
-    base_url: str, registry_url: str, context: Optional[str] = None
-) -> str:
+# Backward compatibility alias
+def check_readonly_mode(
+    registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
+) -> Optional[Dict[str, str]]:
+    """Deprecated: Use check_viewonly_mode instead."""
+    import warnings
+
+    warnings.warn(
+        "check_readonly_mode() is deprecated. Please use check_viewonly_mode() instead. "
+        "Support for check_readonly_mode() will be removed in a future version.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return check_viewonly_mode(registry_manager, registry_name)
+
+
+def build_context_url(base_url: str, registry_url: str, context: Optional[str] = None) -> str:
     """Build URL with optional context support (global function for backward compatibility)."""
+    # Validate the registry URL
+    if not validate_url(registry_url):
+        raise ValueError("Invalid registry URL")
+
     # Handle default context "." as no context
     if context and context != ".":
-        return f"{registry_url}/contexts/{context}{base_url}"
+        # URL encode the context to prevent injection
+        safe_context = quote(context, safe="")
+        return f"{registry_url}/contexts/{safe_context}{base_url}"
     return f"{registry_url}{base_url}"
 
 
@@ -764,6 +1167,14 @@ def get_schema_with_metadata(
         schema_data = client.get_schema(subject, version, context)
         if "error" in schema_data:
             return schema_data
+
+        # Ensure schema is parsed as JSON object if it's a string
+        if isinstance(schema_data.get("schema"), str):
+            try:
+                schema_data["schema"] = json.loads(schema_data["schema"])
+            except (json.JSONDecodeError, TypeError):
+                # Keep as string if not valid JSON
+                pass
 
         # Add export metadata
         schema_data["metadata"] = {
@@ -909,22 +1320,16 @@ def export_global(
         # Export each context
         contexts_data = []
         for context in contexts_list:
-            context_export = export_context(
-                client, context, include_metadata, include_config, include_versions
-            )
+            context_export = export_context(client, context, include_metadata, include_config, include_versions)
             if "error" not in context_export:
                 contexts_data.append(context_export)
 
         # Export default context (no context specified)
-        default_export = export_context(
-            client, "", include_metadata, include_config, include_versions
-        )
+        default_export = export_context(client, "", include_metadata, include_config, include_versions)
 
         result = {
             "contexts": contexts_data,
-            "default_context": (
-                default_export if "error" not in default_export else None
-            ),
+            "default_context": (default_export if "error" not in default_export else None),
         }
 
         if include_config:
@@ -1003,9 +1408,7 @@ def clear_context_batch(
 
             # Execute deletions in parallel (max 10 concurrent)
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                deletion_results = list(
-                    executor.map(delete_single_subject, subjects_list)
-                )
+                deletion_results = list(executor.map(delete_single_subject, subjects_list))
 
             # Process results
             for result in deletion_results:
@@ -1045,17 +1448,11 @@ def clear_context_batch(
             "subjects_deleted": len(deleted_subjects),
             "subjects_failed": len(failed_deletions),
             "context_deleted": context_deleted,
-            "success_rate": (
-                round((len(deleted_subjects) / len(subjects_list)) * 100, 1)
-                if subjects_list
-                else 100
-            ),
+            "success_rate": (round((len(deleted_subjects) / len(subjects_list)) * 100, 1) if subjects_list else 100),
             "deleted_subjects": deleted_subjects,
             "failed_deletions": failed_deletions[:5],  # Show first 5 failures
             "performance": {
-                "subjects_per_second": round(
-                    len(deleted_subjects) / max(duration, 0.1), 1
-                ),
+                "subjects_per_second": round(len(deleted_subjects) / max(duration, 0.1), 1),
                 "parallel_execution": not dry_run,
                 "max_concurrent_deletions": 10,
             },
@@ -1066,13 +1463,9 @@ def clear_context_batch(
 
         # Summary message
         if dry_run:
-            result["message"] = (
-                f"DRY RUN: Would delete {len(subjects_list)} subjects from context '{context}'"
-            )
+            result["message"] = f"DRY RUN: Would delete {len(subjects_list)} subjects from context '{context}'"
         elif len(deleted_subjects) == len(subjects_list):
-            result["message"] = (
-                f"Successfully cleared context '{context}' - deleted {len(deleted_subjects)} subjects"
-            )
+            result["message"] = f"Successfully cleared context '{context}' - deleted {len(deleted_subjects)} subjects"
         else:
             result["message"] = (
                 f"Partially cleared context '{context}' - deleted {len(deleted_subjects)}/{len(subjects_list)} subjects"

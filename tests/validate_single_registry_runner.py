@@ -25,7 +25,7 @@ def validate_single_registry_tests():
         "test_basic_server.py",
         "test_mcp_server.py",
         "test_config.py",
-        "test_readonly_mcp_client.py",
+        "test_viewonly_mcp_client.py",
         "test_integration.py",
         "advanced_mcp_test.py",
         "test_docker_mcp.py",
@@ -61,7 +61,7 @@ def validate_single_registry_tests():
             print(f"   ❌ {test_file} (MISSING)")
             missing_working.append(test_file)
 
-    print(f"\n📋 Checking Incompatible Tests (should be skipped):")
+    print("\n📋 Checking Incompatible Tests (should be skipped):")
     for test_file in incompatible_tests:
         test_path = os.path.join(script_dir, test_file)
         if os.path.exists(test_path):
@@ -70,7 +70,7 @@ def validate_single_registry_tests():
         else:
             print(f"   ✅ {test_file} (not found, which is fine)")
 
-    print(f"\n📋 Checking Multi-Registry Tests (should be excluded):")
+    print("\n📋 Checking Multi-Registry Tests (should be excluded):")
     for test_file in excluded_tests:
         test_path = os.path.join(script_dir, test_file)
         if os.path.exists(test_path):
@@ -80,19 +80,18 @@ def validate_single_registry_tests():
             print(f"   ✅ {test_file} (not found, which is fine)")
 
     # Test basic imports
-    print(f"\n🧪 Testing Basic Imports:")
+    print("\n🧪 Testing Basic Imports:")
     try:
         import kafka_schema_registry_unified_mcp
 
-        print(f"   ✅ kafka_schema_registry_unified_mcp can be imported")
+        print("   ✅ kafka_schema_registry_unified_mcp can be imported")
     except ImportError as e:
         print(f"   ❌ Cannot import kafka_schema_registry_unified_mcp: {e}")
         return False
 
     try:
-        from mcp import ClientSession, StdioServerParameters
-
-        print(f"   ✅ MCP components can be imported")
+        # FastMCP Client already imported at top of file
+        print("   ✅ MCP components can be imported")
     except ImportError as e:
         print(f"   ❌ Cannot import MCP components: {e}")
         return False
@@ -100,44 +99,44 @@ def validate_single_registry_tests():
     try:
         import requests
 
-        print(f"   ✅ Requests can be imported")
+        print("   ✅ Requests can be imported")
     except ImportError as e:
         print(f"   ❌ Cannot import requests: {e}")
         return False
 
     # Summary
-    print(f"\n📊 Validation Summary:")
+    print("\n📊 Validation Summary:")
     print(f"   Compatible Tests: {len(found_working)}/{len(working_tests)} found")
     print(f"   Incompatible Tests: {len(found_incompatible)} found (will be skipped)")
     print(f"   Multi-Registry Tests: {len(found_excluded)} found (will be excluded)")
 
     if missing_working:
-        print(f"\n❌ VALIDATION FAILED")
-        print(f"   Missing required unified server tests:")
+        print("\n❌ VALIDATION FAILED")
+        print("   Missing required unified server tests:")
         for test in missing_working:
             print(f"     • {test}")
         return False
     else:
-        print(f"\n✅ VALIDATION PASSED")
-        print(f"   All required unified server components are available!")
-        print(f"   The unified server test runner is ready to use.")
+        print("\n✅ VALIDATION PASSED")
+        print("   All required unified server components are available!")
+        print("   The unified server test runner is ready to use.")
 
         if found_incompatible:
-            print(f"\n⚠️  Incompatible tests found (will be automatically skipped):")
+            print("\n⚠️  Incompatible tests found (will be automatically skipped):")
             for test in found_incompatible:
                 print(f"     • {test} (FastAPI-based, incompatible with MCP)")
 
         if found_excluded:
-            print(f"\n⚠️  Multi-registry tests found (excluded from basic runner):")
+            print("\n⚠️  Multi-registry tests found (excluded from basic runner):")
             for test in found_excluded[:3]:  # Show first 3
                 print(f"     • {test}")
             if len(found_excluded) > 3:
                 print(f"     ... and {len(found_excluded) - 3} more")
 
-        print(f"\n🚀 Usage:")
-        print(f"   ./run_comprehensive_tests.sh           # Run all compatible tests")
-        print(f"   ./run_comprehensive_tests.sh --basic   # Run only basic tests")
-        print(f"   ./run_comprehensive_tests.sh --help    # Show all options")
+        print("\n🚀 Usage:")
+        print("   ./run_comprehensive_tests.sh           # Run all compatible tests")
+        print("   ./run_comprehensive_tests.sh --basic   # Run only basic tests")
+        print("   ./run_comprehensive_tests.sh --help    # Show all options")
 
         return True
 

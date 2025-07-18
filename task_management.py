@@ -11,13 +11,12 @@ import atexit
 import inspect
 import logging
 import threading
-import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -82,7 +81,7 @@ OPERATION_METADATA = {
         "duration": OperationDuration.QUICK,
         "pattern": AsyncPattern.DIRECT,
     },
-    "check_readonly_mode": {
+    "check_viewonly_mode": {
         "duration": OperationDuration.QUICK,
         "pattern": AsyncPattern.DIRECT,
     },
@@ -270,9 +269,7 @@ class AsyncTaskManager:
         self._lock = threading.Lock()
         self._shutdown = False
 
-    def create_task(
-        self, task_type: TaskType, metadata: Optional[Dict[str, Any]] = None
-    ) -> AsyncTask:
+    def create_task(self, task_type: TaskType, metadata: Optional[Dict[str, Any]] = None) -> AsyncTask:
         """Create a new async task."""
         if self._shutdown:
             raise RuntimeError("TaskManager is shutting down")
@@ -291,9 +288,7 @@ class AsyncTaskManager:
 
         return task
 
-    async def execute_task(
-        self, task: AsyncTask, func: Callable, *args, **kwargs
-    ) -> None:
+    async def execute_task(self, task: AsyncTask, func: Callable, *args, **kwargs) -> None:
         """Execute a task asynchronously."""
         if self._shutdown:
             task.status = TaskStatus.CANCELLED
@@ -345,9 +340,7 @@ class AsyncTaskManager:
         """Get task by ID."""
         return self.tasks.get(task_id)
 
-    def list_tasks(
-        self, task_type: Optional[TaskType] = None, status: Optional[TaskStatus] = None
-    ) -> List[AsyncTask]:
+    def list_tasks(self, task_type: Optional[TaskType] = None, status: Optional[TaskStatus] = None) -> List[AsyncTask]:
         """List tasks with optional filtering."""
         with self._lock:
             tasks = list(self.tasks.values())

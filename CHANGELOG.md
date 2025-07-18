@@ -5,180 +5,598 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - unreleased
+## [2.1.0] - 2025-07-17
 
-### 🚀 MAJOR RELEASE: Enterprise OAuth Integration & Remote MCP Server Revolution
+Overhaul of the MCP tools and resources to improve performance and reduce complexity.
 
-This **major version release** represents a fundamental transformation of the Kafka Schema Registry MCP Server from a local-only tool to a **production-ready, enterprise-grade remote MCP server**. This release introduces comprehensive OAuth 2.0 provider integration, remote deployment capabilities, and full compatibility with [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers).
+## [2.0.7] - 2025-07-16
 
-**🔥 BREAKING CHANGES & NEW ARCHITECTURE:**
-- **Single Image, Dual Mode**: Same Docker image supports both local (stdio) and remote (HTTP/SSE) deployment modes
-- **Enterprise Authentication**: Production OAuth 2.0 with cryptographic JWT validation
-- **Remote MCP Ecosystem**: Full compatibility with Anthropic's remote MCP server standards
-- **Transport Revolution**: FastMCP-powered SSE and Streamable HTTP support
+### Added
+- **🔄 Enhanced Task Management**: Complete MCP compliance for registry-specific resources
+  - Enhanced task management with progress reporting and logging
+- **🤖 Batch Operations Wizard**: Complete MCP compliance for registry-specific resources
+  - Interactive guided workflows for batch operations
+
+### Fixed
+- method `update_global_config` was not returning the correct response
+- method `export_context` was not returning the correct response
+
+## [2.0.6] - 2025-07-11
+
+### Added
+- **🔄 SLIM_MODE**: Complete MCP compliance for registry-specific resources
+  - lightweight mode for reduced LLM overhead
+  - reduced tool count from 53+ to ~15 essential tools
+  - faster LLM response times
+  - lower token usage and reduced costs
+  - ideal for production read-only operations
+  - maintaned full remote deployment support
+  - SLIM_MODE is enabled by default in slim images
+- **🤖 Smart Defaults**: Complete MCP compliance for registry-specific resources
+  - smart defaults for schema field elicitation
+  - smart defaults for schema migration elicitation
+  - smart defaults for context metadata elicitation
+  - smart defaults for export preferences elicitation
+  - smart defaults for schema field elicitation
+  - smart defaults for schema migration elicitation
+
+
+## [2.0.5] - 2025-07-09
+
+### Added
+- **🚀 New Quick Reference Prompt**: Added `quick-reference` prompt with copy-paste commands and common templates
+- **🔄 Multi-Step Elicitation System**: Complete workflow orchestration for complex operations (Issue #73)
+  - Interactive guided workflows for schema migration, context reorganization, and disaster recovery
+  - Multi-step user input collection with validation and progress tracking
+  - Enhanced workflow management tools and status monitoring
+- **🔄 Schema Evolution Elicitation**: Complete workflow orchestration for schema evolution (Issue #72)
+  - Interactive guided workflows for schema evolution
+- **🔄 Registry-Specific Resources**: Complete MCP compliance for registry-specific resources
+  - `registry://names` - List of all configured registry names with status information
+  - `registry://status/{name}` - Connection status and health for specific registry
+  - `registry://info/{name}` - Detailed configuration and metadata for specific registry  
+  - `registry://mode/{name}` - Mode and operational configuration for specific registry
+  - Single registry mode support with proper default registry handling
+  - Multi-registry mode support with registry validation
+  - Error handling for registry not found, connection failures
+  - Success scenarios with proper data validation and comprehensive metadata
+  - Default registry detection and status indication
+- **📋 Schema Resources**: Direct schema content access via MCP resources
+  - `schema://{name}/{context}/{subject}` - Schema content with explicit context specification
+  - `schema://{name}/{subject}` - Schema content using default context (.)
+  - Comprehensive schema metadata including version, ID, type information
+  - Registry existence validation and error handling
+  - Full integration with existing `get_schema_tool` functionality
+  - Support for both single and multi-registry modes
+
+### Improved
+- **📋 Action-Oriented Prompts**: Complete overhaul of all 8 existing prompts
+  - Added "Quick Actions" sections with copy-paste commands
+  - Enhanced visual organization with concrete examples and ready-to-use templates
+  - Integrated troubleshooting guides and performance tips
+
+### Changed
+- **📚 Documentation**: Updated `docs/prompts-guide.md` with improvements and customization guidelines
+
+## [2.0.4] - 2025-07-05
+
+### Fixed
+- Deprecated `READONLY_X` environment variable replaced with `VIEWONLY_X`
+- Security vulnerabilities: 22 CVEs addressed through package removal and documentation
+- CVE-2025-53365
+- CVE-2024-52304
+- CVE-2024-42367
+- CVE-2024-30251
+- CVE-2024-27306
+
+
+## [2.0.3] - 2025-07-01
+
+### Added
+- MCP ping/pong protocol support for health checks and proxy compatibility
+- Comprehensive `SECURITY.md` with vulnerability reporting process and security practices
+- Automatic GitHub issue creation for critical vulnerabilities in security scan workflow
+- Enhanced `.trivyignore` documentation with detailed CVE analysis and security rationale
+
+### Fixed
+- Docker build failures due to incorrect dependency versions (avro-python3)
+- Security vulnerabilities: 22 CVEs addressed through package removal and documentation
+
+### Security
+- Enhanced Dockerfile with security hardening (removed perl, ncurses packages)
+- Updated all Python dependencies to latest secure versions with conservative build compatibility
+- Added file permissions (750 for directories, 550 for Python files) and restrictive umask
+- Documented security exceptions for 22 CVEs with detailed non-exploitability rationale
+- Enhanced security scanning workflow with multi-scan dashboard and automated monitoring
+
+## [2.0.2] - 2025-06-30
+
+### Fixed
+- **🔒 Security Issue #26**: Resolved credential exposure vulnerability in logging and object representations
+  - **Secure Header Management**: Implemented `SecureHeaderDict` to generate fresh headers with credentials on each access instead of storing them persistently
+  - **Logging Security Filter**: Added `SensitiveDataFilter` to automatically mask authorization headers and sensitive data in all log messages
+  - **Safe Object Representations**: Updated `RegistryClient` and `RegistryConfig` `__repr__` and `__str__` methods to mask credentials
+  - **Library Security Configuration**: Enhanced secure logging for requests/urllib3 libraries to prevent credential leakage
+  - **Dynamic Authentication**: Modified authentication flow to create headers dynamically without storing credentials as instance variables
+- **🔒 Security Issue #24**: Resolved credential exposure vulnerability in SSL/TLS configuration
+  - **Explicit SSL/TLS Certificate Verification**: All HTTP requests now use explicit SSL certificate verification
+  - **Secure Sessions**: All Schema Registry and OAuth provider communications use secure `requests.Session` with `verify=True`
+  - **SecureHTTPAdapter**: Custom HTTP adapter with enhanced SSL/TLS security configuration
+  - **TLS 1.2+ Enforcement**: Minimum TLS version 1.2 with strong cipher suites only
+  - **Hostname Verification**: Strict hostname verification enabled for all connections
+  - **Custom CA Bundle Support**: Enterprise environment compatibility with custom Certificate Authority bundles
+
+### Added
+
+#### Interactive Single Schema Migration with Elicitation Support
+- **🤖 Smart Schema Migration**: Interactive `migrate_schema_interactive()` function with intelligent user preference elicitation
+  - **Schema Existence Detection**: Automatically detects if target schema exists using HTTP requests to target registry
+  - **Conditional Elicitation**: Dynamic elicitation fields based on schema existence status
+  - **User Preference Collection**: Interactive collection of migration preferences including:
+    - `replace_existing`: Whether to replace existing schemas in target registry
+    - `backup_before_replace`: Whether to create backup before replacement
+    - `preserve_ids`: Whether to preserve schema IDs during migration
+    - `compare_after_migration`: Whether to verify schemas match after migration
+    - `migrate_all_versions`: Whether to migrate all versions or just latest
+    - `dry_run`: Whether to perform a test run without actual changes
+
+- **🔍 Pre-Migration Intelligence**: Smart pre-migration analysis and user guidance
+  - **Target Registry Scanning**: Uses HTTP requests to check schema existence in target registry
+  - **Version Detection**: Identifies existing versions in target registry for informed decisions
+  - **Conflict Resolution**: Blocks migration gracefully when user declines replacement of existing schemas
+  - **Safety Checks**: Prevents accidental overwrites through explicit user confirmation
+
+- **💾 Automatic Backup Operations**: Integrated backup creation before schema replacement
+  - **Conditional Backup**: Creates backups only when schema exists and user requests it
+  - **Export Integration**: Uses existing `export_schema_tool` for reliable backup creation
+  - **Backup Metadata**: Includes backup results in migration response for audit trails
+  - **Error Handling**: Graceful backup failure handling with warning messages
+
+- **✅ Post-Migration Verification**: Comprehensive schema verification after successful migration
+  - **Multi-Level Checks**: Validates schema existence, content match, type match, and ID preservation
+  - **Detailed Reporting**: Provides specific check results with pass/fail status
+  - **Schema Comparison**: Compares source and target schemas for content accuracy
+  - **ID Preservation Validation**: Verifies schema IDs match when preservation is requested
+  - **Overall Success Indicator**: Clear success/failure status with detailed check breakdown
+
+- **📊 Comprehensive Result Metadata**: Enhanced migration results with complete operation context
+  - **Elicitation Status**: Records whether elicitation was used and what preferences were collected
+  - **Schema Existence**: Documents whether schema existed in target before migration
+  - **User Preferences**: Captures all elicited user preferences for audit and debugging
+  - **Backup Results**: Includes backup operation results when performed
+  - **Verification Results**: Complete post-migration verification details with individual check results
+
+- **🛡️ Robust Error Handling**: Comprehensive error management for all migration scenarios
+  - **Elicitation Failures**: Graceful handling when user input cannot be collected
+  - **Replacement Declined**: Clear error messages when user declines schema replacement
+  - **Backup Failures**: Warning handling for backup operations with migration continuation
+  - **Verification Failures**: Detailed reporting of post-migration verification issues
+  - **Network Errors**: Resilient handling of registry connectivity issues during existence checks
+
+#### Migration Elicitation Infrastructure
+- **📝 Schema Migration Elicitation**: New `create_migrate_schema_elicitation()` function
+  - **Dynamic Field Generation**: Context-aware elicitation fields based on migration scenario
+  - **Conditional Logic**: Different fields shown based on whether schema exists in target
+  - **Form Validation**: Structured form elicitation with validation and sensible defaults
+  - **User-Friendly Interface**: Clear descriptions and help text for migration decisions
+
+#### Testing & Quality Assurance
+- **🧪 Comprehensive Test Coverage**: Extensive testing suite ensuring reliability
+  - **9 New Test Functions**: Complete coverage of interactive migration functionality
+  - **Edge Case Testing**: Tests for declined replacements, elicitation failures, and error scenarios
+  - **Integration Testing**: End-to-end workflow testing with mocked registry clients and HTTP requests
+  - **Verification Testing**: Tests for all post-migration verification scenarios
+  - **Single Registry Support**: Tests ensuring compatibility with single registry mode
+
+### Usage Example
+
+```python
+# Interactive schema migration with elicitation
+from interactive_tools import migrate_schema_interactive
+
+result = await migrate_schema_interactive(
+    subject="user-events",
+    source_registry="development", 
+    target_registry="staging",
+    source_context="events",
+    target_context="events",
+    # No migration preferences specified - will trigger elicitation
+    migrate_schema_tool=migrate_schema_tool,
+    export_schema_tool=export_schema_tool,
+    registry_manager=registry_manager,
+    registry_mode="multi"
+)
+
+# Result includes elicitation metadata, backup results, and verification
+print(f"Elicitation used: {result['elicitation_used']}")
+print(f"Schema existed in target: {result['schema_existed_in_target']}")
+print(f"Backup created: {result.get('backup_result', {}).get('success', False)}")
+print(f"Verification passed: {result.get('verification_result', {}).get('overall_success', False)}")
+```
+
+## [2.0.1] - 2025-06-27
+
+### 📈 **Performance & Code Quality Improvements**
+- **🔧 Major Code Refactoring**: Streamlined codebase across 74 files with improved readability and performance
+- **📊 Reduced Code Complexity**: Simplified error handling, consolidated list comprehensions, and enhanced function definitions
+- **🧹 Clean Architecture**: Removed 2,442 lines of redundant code while maintaining full functionality
+- **⚡ Memory Optimization**: Enhanced logging statements and improved resource management
+
+### 🛡️ **Enhanced Schema Validation & Local Processing**
+- **🏠 Local JSON Schema Handling**: Implemented custom handler for draft-07 JSON Schema meta-schemas
+- **🚀 Zero Network Dependencies**: Local schema resolution prevents external network requests during validation
+- **📦 Custom Requests Adapter**: Enhanced requests library integration with mock responses for draft-07 schemas
+- **⚡ Improved Performance**: Faster validation and testing with consistent local behavior
+
+### 🎭 **Advanced Elicitation Management**
+- **✨ Enhanced Elicitation Tools**: Added structured output decorators for `cancel_elicitation_request` and `get_elicitation_status`
+- **📋 New Schema Definitions**: Introduced comprehensive schemas for elicitation requests and status management
+- **🔄 Improved Response Structure**: Better error handling and compliance with expected response formats
+- **🎯 Reliable Validation**: Local draft-07 schema resolver for consistent elicitation workflows
+
+### 🔄 **Robust Migration Confirmation System**
+- **⚠️ New Exception Handling**: `IDPreservationError` and `MigrationConfirmationRequired` for better migration control
+- **✅ User Confirmation Flow**: Enhanced `migrate_schema_tool` with ID preservation failure handling
+- **🛠️ New Confirmation Tool**: `confirm_migration_without_ids_tool` for proceeding without ID preservation
+- **📊 Detailed Migration Metadata**: Comprehensive structured output for migration results
+- **🧪 Comprehensive Testing**: 233 new test cases for migration confirmation scenarios
+            
+
+## [2.0.0] - 2025-06-26
+
+### 🚀 MAJOR RELEASE: FastMCP 2.8.0+ Upgrade & MCP 2025-06-18 Specification Compliance
+
+This **major version release** represents the complete migration to **FastMCP 2.8.0+** framework and full compliance with the **MCP 2025-06-18 specification**. This upgrade ensures compatibility with the latest Message Control Protocol ecosystem and provides a foundation for modern AI agent integration.
+
+**🔥 BREAKING CHANGES & FRAMEWORK MIGRATION:**
+- **FastMCP 2.8.0+ Framework**: Complete migration from legacy `mcp[cli]==1.9.4` to modern FastMCP architecture
+- **MCP 2025-06-18 Compliance**: Full support for the latest MCP specification
+- **JSON-RPC Batching Removal**: JSON-RPC batching explicitly disabled per MCP 2025-06-18 specification
+- **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 integration
+- **Modernized Client API**: Updated client interface using FastMCP's dependency injection system
 
 #### 🎯 Why v2.0.0? - Major Version Justification
 
 This release qualifies as a **major version bump** because it introduces:
 
-1. **🌐 Architectural Transformation**: Complete shift from local-only to local+remote dual-mode architecture
-2. **🔐 Security Model Revolution**: Introduction of enterprise OAuth 2.0 with JWT validation as a core feature
-3. **🚀 Deployment Paradigm Change**: New remote deployment patterns that fundamentally change how the server is used
-4. **📡 Transport Layer Evolution**: Addition of HTTP/SSE transports alongside existing stdio transport
-5. **🏢 Enterprise Readiness**: Production-grade features that transform this from a development tool to enterprise infrastructure
-6. **🔧 Configuration Complexity**: Significant expansion of configuration options and deployment modes
-7. **📚 API Surface Expansion**: New OAuth-related tools and remote-specific functionality
+1. **📡 MCP Framework Migration**: Complete architectural shift from legacy MCP SDK to FastMCP 2.8.0+
+2. **🚫 JSON-RPC Batching Removal**: Breaking change removing JSON-RPC batching support (MCP 2025-06-18 requirement)
+3. **🔄 Client API Changes**: New FastMCP client interface replacing legacy `mcp.ClientSession`
+4. **🔐 Authentication Architecture**: Migration to FastMCP's native BearerAuth system
+5. **📚 Import Structure Changes**: Updated import paths from `mcp.server.fastmcp` to `fastmcp`
+6. **🔧 Dependency System**: New FastMCP dependency injection for access tokens and authentication
+7. **🏗️ Test Framework Updates**: Complete test suite migration to new FastMCP client API
+8. **📖 API Surface Evolution**: Enhanced OAuth discovery endpoints and MCP compliance features
 
-**Migration Impact**: Existing local deployments continue to work unchanged, but the introduction of OAuth, remote deployment options, and new configuration patterns represents a significant evolution in the server's capabilities and intended use cases.
+**Migration Impact**: While basic functionality remains the same, the underlying MCP framework has been completely modernized. Custom clients and tests will need updates to use the new FastMCP API, and any clients using JSON-RPC batching must migrate to individual requests.
 
 #### Added
 
-##### OAuth Provider Integration
-- **Multi-Provider OAuth Support**: Native integration with 4 major identity platforms
-  - **Azure AD / Entra ID**: Complete enterprise integration with Microsoft Graph API scopes
+##### MCP 2025-06-18 Specification Compliance
+- **🚫 JSON-RPC Batching Disabled**: Explicitly disabled JSON-RPC batching per MCP 2025-06-18 specification
+  - FastMCP configuration: `allow_batch_requests: False`, `batch_support: False`
+  - Protocol version enforcement: `protocol_version: "2025-06-18"`
+  - Clear separation between JSON-RPC batching (disabled) and application-level batching (enabled)
+- **📊 Compliance Status Tool**: New `get_mcp_compliance_status()` tool for verification
+  - Real-time compliance status checking
+  - Configuration validation and verification
+  - Migration guidance and performance notes
+  - Detailed batching configuration status
+- **📋 Application-Level Batching Enhanced**: Clear distinction and enhanced functionality
+  - `clear_context_batch()`: Uses individual requests internally with parallel processing
+  - `clear_multiple_contexts_batch()`: Enhanced with compliance metadata
+  - Performance maintained through ThreadPoolExecutor and async coordination
+- **📚 Comprehensive Migration Guide**: `MCP-2025-06-18-MIGRATION-GUIDE.md`
+  - Step-by-step migration from JSON-RPC batching to individual requests
+  - Performance optimization strategies using parallel processing
+  - Code examples for client-side migration patterns
+  - Troubleshooting guide and rollout timeline
+
+##### FastMCP 2.8.0+ Framework Integration
+- **Modern MCP Architecture**: Complete migration from legacy `mcp[cli]==1.9.4` to FastMCP 2.8.0+
+- **Native BearerAuth Provider**: FastMCP's built-in authentication system with OAuth 2.0 support
+- **Dependency Injection System**: Modern access token management using FastMCP's `get_access_token()`
+- **Enhanced Transport Support**: Native stdio, SSE, and Streamable HTTP transport capabilities
+
+##### OAuth Provider Integration (FastMCP Compatible)
+- **Multi-Provider OAuth Support**: Native integration with 5 major identity platforms
+  - **Azure AD / Entra ID**: Enterprise identity with Microsoft Graph API scopes
   - **Google OAuth 2.0**: Google Workspace and Cloud integration
   - **Keycloak**: Self-hosted open-source identity management
   - **Okta**: Enterprise SaaS identity platform
-- **`get_oauth_provider_configs()` Function**: Programmatic access to provider-specific configurations
-  - Provider-specific endpoint URLs with templating support
-  - Environment variable mappings for each provider
-  - Standard and provider-specific OAuth scopes
-  - Setup documentation links for each platform
+  - **GitHub OAuth**: GitHub and GitHub Apps authentication
+- **FastMCP BearerAuthProvider**: Native FastMCP authentication provider with scope-based authorization
+- **Scope-Based Permissions**: Fine-grained `read`, `write`, `admin` permissions mapped to MCP tools
+- **Development Token Support**: Safe testing tokens (`dev-token-read`, `dev-token-write`, etc.)
 
-##### Kubernetes Production Deployment
-- **Helm Chart OAuth Examples**: Ready-to-use configurations for each provider
-  - `helm/examples/values-azure.yaml`: Azure AD deployment configuration
-  - `helm/examples/values-google.yaml`: Google OAuth deployment setup
-  - `helm/examples/values-keycloak.yaml`: Keycloak integration configuration
-  - `helm/examples/values-okta.yaml`: Okta enterprise deployment
-- **Production-Ready Security**: Network policies, RBAC, TLS, and secret management
-- **Multi-Registry + OAuth**: Secure access to multiple Schema Registry instances
+##### SSL/TLS Security Enhancement (Issue #24)
+- **🔒 Explicit SSL/TLS Certificate Verification**: All HTTP requests now use explicit SSL certificate verification
+  - **Secure Sessions**: All Schema Registry and OAuth provider communications use secure `requests.Session` with `verify=True`
+  - **SecureHTTPAdapter**: Custom HTTP adapter with enhanced SSL/TLS security configuration
+  - **TLS 1.2+ Enforcement**: Minimum TLS version 1.2 with strong cipher suites only
+  - **Hostname Verification**: Strict hostname verification enabled for all connections
+- **🏢 Custom CA Bundle Support**: Enterprise environment compatibility with custom Certificate Authority bundles
+  - **Environment Variable**: `CUSTOM_CA_BUNDLE_PATH` for custom CA certificate files
+  - **Automatic Fallback**: Falls back to system CA bundle if custom bundle is missing or invalid
+  - **Corporate Networks**: Support for internal/corporate certificate authorities
+- **📊 Security Logging & Monitoring**: Comprehensive SSL/TLS status tracking and logging
+  - **SSL Configuration Logging**: Startup logging of SSL/TLS verification status and CA bundle configuration
+  - **Session Creation Logging**: Secure session creation logged for each registry client
+  - **Registry Info Integration**: SSL verification status included in registry information and connection tests
+  - **Sensitive Data Protection**: Enhanced logging filters to prevent credential exposure
+- **⚠️ SSL Error Handling**: Robust error handling for SSL/TLS connection failures
+  - **SSLError Detection**: Specific handling and reporting of SSL certificate verification failures
+  - **Clear Error Messages**: Detailed error messages for SSL-related connection issues
+  - **Status Reporting**: SSL error flags in connection test results for debugging
+- **🧪 Comprehensive Testing**: Dedicated SSL/TLS integration test suite with 11 test cases
+  - **Test Coverage**: SSL verification, custom CA bundles, secure sessions, error handling
+  - **Integration Testing**: Included in both essential and full test suite categories
+  - **Environment Testing**: SSL environment variable control and configuration testing
 
-##### Remote MCP Server Deployment
-- **Remote MCP Compatibility**: Full support for [Anthropic's remote MCP ecosystem](https://docs.anthropic.com/en/docs/agents-and-tools/remote-mcp-servers)
-- **FastMCP Transport Support**: SSE and Streamable HTTP transports for remote connectivity
-- **Remote MCP Server Script** (`remote-mcp-server.py`): Dedicated script for remote deployment
-- **Production Helm Configuration** (`helm/values-remote-mcp.yaml`): Complete Kubernetes setup
-- **HTTPS/TLS Support**: Automatic certificate management with cert-manager
-- **Remote Client Testing** (`examples/test-remote-mcp.py`): Comprehensive connectivity validation
+##### Enhanced Client API
+- **FastMCP Client**: Modern client interface replacing legacy `mcp.ClientSession`
+- **Simplified Connection**: Direct `Client()` instantiation with automatic protocol handling
+- **Async/Await Support**: Native async operations with better error handling
+- **Improved Testing**: Streamlined test framework with easier mocking and setup
 
-##### Enhanced Documentation
-- **Remote MCP Deployment Guide** (`docs/remote-mcp-deployment.md`): Complete remote deployment instructions
-  - Quick deployment options (Docker and Kubernetes)
-  - OAuth authentication setup for all providers
-  - Transport configuration (SSE and Streamable HTTP)
-  - Client connection examples and testing
-  - Production security best practices
-- **OAuth Providers Guide** (`docs/oauth-providers-guide.md`): Complete setup instructions
-  - Step-by-step provider configuration for all 4 platforms
-  - Azure CLI and Portal setup instructions
-  - Google Cloud Console configuration
-  - Keycloak admin console setup
-  - Okta application integration
-  - Production JWT validation examples
-  - Security best practices and troubleshooting
+##### Updated Test Framework
+- **FastMCP Client Migration**: All tests updated to use new `fastmcp.Client` interface
+- **Simplified Test Setup**: Removed complex server parameter configuration
+- **Better Error Handling**: Enhanced error messages and debugging capabilities
+- **OAuth Discovery Testing**: Comprehensive testing of MCP 2025-06-18 OAuth endpoints
 
-##### VSCode + Copilot Integration
-- **OAuth Authentication Flow**: Seamless integration with enterprise identity
-- **Kubernetes Connection**: Direct connection to deployed MCP server
-- **Port-Forward Development**: Local development with OAuth
-- **Enhanced MCP Settings**: OAuth-aware VSCode configuration
+##### Documentation & Examples
+- **FastMCP Usage Examples**: Updated code examples for new client API
+- **OAuth Discovery Endpoints**: MCP-compliant OAuth metadata endpoints
+- **Migration Guide**: Comprehensive guide for upgrading from legacy MCP SDK
+- **Enhanced Error Messages**: Better debugging information for authentication issues
+
+#### Changed
+
+##### JSON-RPC Batching Removal (Breaking Change)
+- **⚠️ Breaking Change**: JSON-RPC batching support completely removed
+  - **Reason**: MCP 2025-06-18 specification explicitly removes JSON-RPC batching
+  - **Impact**: Clients using batch requests must migrate to individual requests
+  - **Migration Required**: See `MCP-2025-06-18-MIGRATION-GUIDE.md` for detailed migration steps
+- **Application-Level Batching**: Enhanced to use individual requests internally
+  - `clear_context_batch()`: Now uses parallel individual requests for performance
+  - `clear_multiple_contexts_batch()`: Enhanced with individual request coordination
+  - Maintains performance through ThreadPoolExecutor and async processing
+- **Performance Strategy**: Client-side request queuing replaces JSON-RPC batching
+  - Parallel processing with `asyncio.gather()` for multiple operations
+  - Request throttling and connection pooling for efficiency
+  - Enhanced error handling with individual request isolation
+
+##### Server Configuration Changes
+- **FastMCP Configuration**: Updated for MCP 2025-06-18 compliance
+  ```python
+  config = {
+      "name": server_name,
+      "allow_batch_requests": False,      # Explicitly disabled
+      "batch_support": False,             # No batch support
+      "protocol_version": "2025-06-18",   # Compliance version
+      "jsonrpc_batching_disabled": True,  # Clear flag,
+  }
+  ```
+- **Enhanced Logging**: Clear startup messages about batching status
+- **Resource Updates**: All MCP resources now include compliance status
 
 #### Improved
 
-##### Test Coverage
-- **OAuth Provider Tests**: Comprehensive validation of all 4 providers
-  - `test_oauth.py`: Enhanced with provider configuration testing
-  - `test_provider_configs_only.py`: Isolated provider validation
-  - Integration with main test runner (`run_all_tests.sh`)
-  - OAuth enabled/disabled mode testing
-- **Configuration Validation**: URL patterns, scopes, environment variables
-- **Production Testing**: Real OAuth flow validation examples
+##### Framework Architecture
+- **Performance**: FastMCP 2.8.0+ provides better performance and reliability than legacy MCP SDK
+- **Error Handling**: Enhanced error messages and recovery mechanisms with FastMCP's improved architecture
+- **Memory Usage**: More efficient memory management with modern FastMCP framework
+- **Protocol Compliance**: Full compliance with MCP 2025-06-18 specification requirements
 
-##### Security & Authentication
-- **Scope-Based Permissions**: Enhanced OAuth scope mapping to MCP tools
-- **JWT Token Validation**: Production-ready token verification framework
-- **Development Tokens**: Safe testing tokens for development environments
-- **Secret Management**: Kubernetes secrets integration for OAuth credentials
+##### Authentication System
+- **Simplified Configuration**: Streamlined OAuth setup with FastMCP's native BearerAuth
+- **Better Token Management**: FastMCP's dependency injection system for access tokens
+- **Enhanced Security**: Improved JWT validation with FastMCP's built-in cryptographic verification
+- **Scope Validation**: More robust scope checking with FastMCP's permission system
+
+##### Client Experience
+- **Modern API**: Clean, async-first client interface with FastMCP.Client
+- **Simplified Connection**: Direct client instantiation without complex server parameters
+- **Better Debugging**: Enhanced error messages and stack traces with FastMCP
+- **Test Simplicity**: Streamlined test setup and mocking capabilities
 
 ##### Developer Experience
-- **Provider Selection**: Easy switching between OAuth providers
-- **Configuration Templates**: Copy-paste ready configurations
-- **Quick Start Commands**: Simplified deployment for each provider
-- **Error Diagnostics**: Enhanced OAuth troubleshooting and debugging
+- **Migration Support**: Comprehensive migration guide from legacy MCP SDK
+- **Code Examples**: Updated examples using modern FastMCP patterns
+- **Documentation**: Clear documentation of FastMCP-specific features and capabilities
+- **Troubleshooting**: Better diagnostic tools for FastMCP authentication issues
 
 #### Technical Details
 
-##### OAuth Provider Support Matrix
-| Provider | Issuer URL | Scopes | Environment Variables | Production Ready |
-|----------|------------|--------|----------------------|------------------|
-| Azure AD | `login.microsoftonline.com/{tenant}/v2.0` | openid, email, profile, User.Read | AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID | ✅ |
-| Google | `accounts.google.com` | openid, email, profile | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET | ✅ |
-| Keycloak | `{server}/realms/{realm}` | openid, email, profile | KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, KEYCLOAK_SERVER_URL, KEYCLOAK_REALM | ✅ |
-| Okta | `{domain}/oauth2/default` | openid, email, profile | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN | ✅ |
+##### MCP 2025-06-18 Compliance Summary
+| Feature | Status | Implementation |
+|---------|---------|----------------|
+| **JSON-RPC Batching** | ❌ **DISABLED** | FastMCP config: `allow_batch_requests: False` |
+| **Individual Requests** | ✅ **REQUIRED** | All operations use individual JSON-RPC requests |
+| **Application Batching** | ✅ **ENHANCED** | Uses individual requests internally with parallel processing |
+| **Protocol Version** | ✅ **2025-06-18** | Explicit protocol version enforcement |
+| **Compliance Tools** | ✅ **ADDED** | `get_mcp_compliance_status()` for verification |
 
-##### Kubernetes Integration
-- **Helm Chart Enhancements**: OAuth provider-specific values files
-- **Security Policies**: Network policies for OAuth provider access
-- **TLS Configuration**: Automatic certificate management
-- **High Availability**: Multi-replica deployment with OAuth session handling
+##### FastMCP 2.8.0+ Framework Migration
+| Component | Legacy (v1.x) | FastMCP 2.8.0+ (v2.0.0) |
+|-----------|---------------|--------------------------| 
+| **Framework** | `mcp[cli]==1.9.4` | `fastmcp>=2.8.0` |
+| **Server Import** | `from mcp.server.fastmcp import FastMCP` | `from fastmcp import FastMCP` |
+| **Client Import** | `from mcp import ClientSession, StdioServerParameters` | `from fastmcp import Client` |
+| **JSON-RPC Batching** | Supported (legacy) | **DISABLED** (MCP 2025-06-18) |
+| **Authentication** | Custom OAuth implementation | Native FastMCP BearerAuthProvider |
+| **Token Access** | Manual token parsing | FastMCP dependency injection (`get_access_token()`) |
+| **Transport** | stdio via complex setup | Native stdio, SSE, HTTP support |
+
+##### Migration from JSON-RPC Batching
+| Aspect | Before (JSON-RPC Batching) | After (Individual Requests) |
+|--------|---------------------------|----------------------------|
+| **Request Format** | Array of JSON-RPC requests | Individual JSON-RPC requests |
+| **Network Overhead** | 1 HTTP request for N operations | N HTTP requests |
+| **Performance Strategy** | Single batch request | Parallel individual requests |
+| **Error Handling** | Batch-level error management | Individual request error isolation |
+| **Implementation** | Client sends request array | Client uses `asyncio.gather()` for parallelization |
+
+##### OAuth Provider Support (FastMCP Compatible)
+| Provider | Authentication Method | Scope Mapping | Environment Variables |
+|----------|----------------------|---------------|----------------------|
+| **Azure AD** | FastMCP BearerAuth + JWT | Azure scopes → MCP permissions | AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID |
+| **Google** | FastMCP BearerAuth + JWT | Google scopes → MCP permissions | GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET |
+| **Keycloak** | FastMCP BearerAuth + JWT | OIDC scopes → MCP permissions | KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, KEYCLOAK_SERVER_URL |
+| **Okta** | FastMCP BearerAuth + JWT | Okta scopes → MCP permissions | OKTA_CLIENT_ID, OKTA_CLIENT_SECRET, OKTA_DOMAIN |
+| **GitHub** | FastMCP BearerAuth + API | GitHub scopes → MCP permissions | GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_ORG |
 
 ##### Backward Compatibility
-- **100% Compatible**: All existing functionality preserved
-- **Optional OAuth**: Can be enabled/disabled without code changes
-- **Legacy Support**: Original authentication methods still supported
-- **Migration Path**: Smooth transition to OAuth authentication
+- **✅ 100% Tool Compatibility**: All 48 MCP tools work identically with new framework
+- **✅ Configuration Preserved**: All environment variables and settings remain the same
+- **✅ Optional Authentication**: OAuth can be enabled/disabled without affecting core functionality
+- **⚠️ JSON-RPC Batching**: Breaking change - clients must migrate to individual requests
+- **✅ Application Batching**: Enhanced application-level operations remain functional
 
 #### Usage Examples
 
-##### Quick Deployment
-```bash
-# Deploy with Azure AD
-cp helm/examples/values-azure.yaml helm/values-production.yaml
-helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
+##### Migration from JSON-RPC Batching
 
-# Deploy with Google OAuth
-cp helm/examples/values-google.yaml helm/values-production.yaml
-helm upgrade --install kafka-schema-registry-mcp . -f values-production.yaml
-```
-
-##### VSCode Integration
-```json
-{
-  "mcp.servers": {
-    "kafka-schema-registry-k8s": {
-      "transport": "http",
-      "baseUrl": "https://mcp-schema-registry.your-domain.com",
-      "authentication": {
-        "type": "oauth2",
-        "oauth2": {
-          "authUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/authorize",
-          "tokenUrl": "https://login.microsoftonline.com/TENANT_ID/oauth2/v2.0/token",
-          "clientId": "YOUR_CLIENT_ID",
-          "scopes": ["openid", "email", "profile"]
-        }
-      }
-    }
-  }
-}
-```
-
-##### Programmatic Access
+**❌ Before (JSON-RPC Batching - No Longer Supported):**
 ```python
-from oauth_provider import get_oauth_provider_configs
+# This will now fail with MCP 2025-06-18 compliance
+batch_request = [
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 1},
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 2},
+    {"jsonrpc": "2.0", "method": "tools/call", "params": {...}, "id": 3},
+]
+response = await client.send_batch(batch_request)  # ❌ NOT SUPPORTED
+```
 
-configs = get_oauth_provider_configs()
-azure_config = configs['azure']
-google_config = configs['google']
-keycloak_config = configs['keycloak']
-okta_config = configs['okta']
+**✅ After (Individual Requests with Parallelization):**
+```python
+# New compliant approach using individual requests
+import asyncio
+from fastmcp import Client
+
+async def main():
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # Method 1: Sequential individual requests
+        result1 = await client.call_tool("list_subjects", {"context": "users"})
+        result2 = await client.call_tool("get_schema", {"subject": "user-events"})
+        result3 = await client.call_tool("register_schema", {...})
+        
+        # Method 2: Parallel individual requests (recommended for performance)
+        tasks = [
+            client.call_tool("list_subjects", {"context": "users"}),
+            client.call_tool("get_schema", {"subject": "user-events"}),
+            client.call_tool("register_schema", {...})
+        ]
+        results = await asyncio.gather(*tasks)
+        
+        # Method 3: Use application-level batching where available
+        batch_result = await client.call_tool("clear_context_batch", {
+            "context": "test-context",
+            "dry_run": False
+        })
+        # Monitor task progress
+        task_id = batch_result["task_id"]
+        status = await client.call_tool("get_task_status", {"task_id": task_id})
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+##### Check MCP 2025-06-18 Compliance
+```python
+from fastmcp import Client
+
+async def check_compliance():
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # Verify server compliance
+        compliance = await client.call_tool("get_mcp_compliance_status")
+        
+        print(f"Compliance Status: {compliance['compliance_status']}")
+        print(f"Protocol Version: {compliance['protocol_version']}")
+        print(f"JSON-RPC Batching: {compliance['batching_configuration']['jsonrpc_batching']}")
+        print(f"Application Batching: {compliance['batching_configuration']['application_level_batching']}")
+        
+        # Check if migration is needed
+        if compliance['compliance_status'] == 'COMPLIANT':
+            print("✅ Server is MCP 2025-06-18 compliant")
+        else:
+            print("⚠️  Server requires updates for compliance")
+```
+
+##### FastMCP Client (New in v2.0.0)
+```python
+from fastmcp import Client
+import asyncio
+
+async def main():
+    # Modern FastMCP client usage
+    client = Client("kafka_schema_registry_unified_mcp.py")
+    
+    async with client:
+        # List available tools
+        tools = await client.list_tools()
+        print(f"Available tools: {len(tools)}")
+        
+        # Call a tool with authentication
+        result = await client.call_tool("register_schema", {
+            "subject": "user-events",
+            "schema_definition": {"type": "record", "name": "User", "fields": [
+                {"name": "id", "type": "long"},
+                {"name": "name", "type": "string"}
+            ]},
+            "schema_type": "AVRO"
+        })
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+##### OAuth Authentication Setup
+```bash
+# Enable FastMCP OAuth authentication
+export ENABLE_AUTH=true
+export AUTH_PROVIDER=azure  # or google, keycloak, okta, github
+export AUTH_ISSUER_URL=https://login.microsoftonline.com/your-tenant/v2.0
+export AZURE_CLIENT_ID=your_client_id
+export AZURE_CLIENT_SECRET=your_client_secret
+
+# Run with FastMCP 2.8.0+ and MCP 2025-06-18 compliance
+python kafka_schema_registry_unified_mcp.py
 ```
 
 ### Maintained
-- **All 48 MCP Tools**: Complete backward compatibility
+- **All 48 MCP Tools**: Complete backward compatibility (except JSON-RPC batching removal)
 - **Multi-Registry Support**: Existing functionality enhanced with OAuth
 - **Docker Images**: Same deployment patterns with OAuth support
 - **Configuration**: All existing environment variables supported
+- **Application-Level Batching**: Enhanced and maintained with individual request implementation
+
+### Removed (Breaking Changes)
+- **JSON-RPC Batching Support**: Removed per MCP 2025-06-18 specification requirement
+  - Clients using batch requests must migrate to individual requests
+  - See `MCP-2025-06-18-MIGRATION-GUIDE.md` for detailed migration guidance
+  - Performance maintained through parallel individual requests and application-level batching
+
+### Migration Guide
+
+#### For Existing Users (v1.x → v2.0.0)
+1. **Basic Usage**: No changes required for standard MCP tool usage
+2. **JSON-RPC Batching**: Migrate to individual requests with parallel processing
+3. **Authentication**: OAuth is optional and can be enabled incrementally
+4. **Testing**: Update test framework if using custom FastMCP clients
+
+#### For JSON-RPC Batching Users
+1. **Immediate Action**: Review client code for JSON-RPC batch usage
+2. **Migration Path**: Implement parallel individual requests using `asyncio.gather()`
+3. **Performance**: Use application-level batch operations where available
+4. **Testing**: Validate performance with new individual request patterns
+
+See `MCP-2025-06-18-MIGRATION-GUIDE.md` for comprehensive migration instructions.
 
 ## [1.8.3] - 2025-06-07
 
@@ -401,7 +819,7 @@ This release completes the async transformation with comprehensive task queue im
 ### Added
 - **Multi-Registry Mode**: Support for up to 8 Schema Registry instances
 - **Numbered Environment Config**: Clean `SCHEMA_REGISTRY_NAME_X`, `SCHEMA_REGISTRY_URL_X` pattern
-- **Per-Registry READONLY**: Independent `READONLY_X` control for each registry
+- **Per-Registry VIEWONLY**: Independent `VIEWONLY_X` control for each registry
 - **Registry Management Tools**: List, test, and manage multiple registries
 - **Cross-Registry Operations**: Compare and migrate between registries
 
@@ -520,7 +938,7 @@ while True:
 - **48 MCP Tools**: Comprehensive schema registry operations
 - **Context Support**: Production/staging environment isolation
 - **Schema Export**: JSON and Avro IDL export formats
-- **READONLY Mode**: Production safety features
+- **VIEWONLY Mode**: Production safety features
 - **Docker Support**: Multi-platform images (AMD64/ARM64)
 
 ### Changed
@@ -533,14 +951,15 @@ while True:
 - **All 48 Tools Preserved**: Every existing MCP tool maintains the same API and functionality
 - **Configuration Migration**: Existing environment variables and Docker usage remain the same
 - **Optional Features**: OAuth and remote deployment are opt-in features
-- **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption
+- **⚠️ JSON-RPC Batching**: Breaking change - removed per MCP 2025-06-18 specification
+- **Zero Downtime Upgrades**: Can upgrade from v1.x to v2.0.0 without service interruption (except batching)
 
-### Docker v2.0.0
+### Docker v2.0.3
 ```bash
-# v2.0.0 Release
-docker pull aywengo/kafka-schema-reg-mcp:2.0.0
+# v2.0.3 Release (Security & Ping/Pong)
+docker pull aywengo/kafka-schema-reg-mcp:2.0.3
 docker pull aywengo/kafka-schema-reg-mcp:stable  # Latest stable
 
 # Previous stable
-docker pull aywengo/kafka-schema-reg-mcp:1.8.3
+docker pull aywengo/kafka-schema-reg-mcp:2.0.2
 ``` 

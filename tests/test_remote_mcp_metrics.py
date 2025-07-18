@@ -11,7 +11,6 @@ Tests the new Prometheus metrics and monitoring endpoints including:
 """
 
 import importlib.util
-import json
 import os
 import sys
 import time
@@ -25,12 +24,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # Import the remote MCP server module properly
 def import_remote_mcp_server():
     """Import remote-mcp-server.py and return the module."""
-    remote_script_path = os.path.join(
-        os.path.dirname(__file__), "..", "remote-mcp-server.py"
-    )
-    spec = importlib.util.spec_from_file_location(
-        "remote_mcp_server", remote_script_path
-    )
+    remote_script_path = os.path.join(os.path.dirname(__file__), "..", "remote-mcp-server.py")
+    spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
     module = importlib.util.module_from_spec(spec)
 
     # Mock the dependencies
@@ -92,16 +87,10 @@ class TestRemoteMCPMetrics(unittest.TestCase):
     def test_record_schema_operation(self):
         """Test recording schema registry operations."""
         # Test various operation types
-        self.metrics.record_schema_operation(
-            "register_schema", "production", 0.1, True, "user-events"
-        )
+        self.metrics.record_schema_operation("register_schema", "production", 0.1, True, "user-events")
         self.metrics.record_schema_operation("get_schema", "staging", 0.05, True)
-        self.metrics.record_schema_operation(
-            "check_compatibility", "production", 0.03, True
-        )
-        self.metrics.record_schema_operation(
-            "export_schema", "staging", 0.2, False
-        )  # Failed
+        self.metrics.record_schema_operation("check_compatibility", "production", 0.03, True)
+        self.metrics.record_schema_operation("export_schema", "staging", 0.2, False)  # Failed
 
         # Verify operation counting
         self.assertEqual(self.metrics.schema_operations["register_schema"], 1)
@@ -225,9 +214,7 @@ class TestRemoteMCPMetrics(unittest.TestCase):
         # Record various schema operations
         self.metrics.record_schema_operation("register_schema", "production", 0.1, True)
         self.metrics.record_schema_operation("get_schema", "staging", 0.05, True)
-        self.metrics.record_schema_operation(
-            "check_compatibility", "production", 0.03, True
-        )
+        self.metrics.record_schema_operation("check_compatibility", "production", 0.03, True)
 
         output = self.metrics.get_prometheus_metrics()
 
@@ -283,9 +270,7 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
                 "get_registry",
                 return_value=mock_client,
             ):
-                with patch(
-                    "builtins.globals", return_value={"REGISTRY_MODE": "single"}
-                ):
+                with patch("builtins.globals", return_value={"REGISTRY_MODE": "single"}):
                     # Since we can't easily test async functions in unittest, we'll skip the async test
                     # This test validates the mocking setup works
                     self.assertTrue(True)
@@ -331,9 +316,7 @@ class TestMetricsIntegration(unittest.TestCase):
 
         # Add some test data
         test_metrics.record_request("test_method", 0.1, True)
-        test_metrics.record_schema_operation(
-            "register_schema", "test_registry", 0.05, True
-        )
+        test_metrics.record_schema_operation("register_schema", "test_registry", 0.05, True)
 
         output = test_metrics.get_prometheus_metrics()
         lines = output.split("\n")

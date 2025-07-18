@@ -4,7 +4,6 @@ Quick test script to verify Schema Registry connections
 """
 
 import json
-import os
 from typing import Any, Dict
 
 import requests
@@ -45,12 +44,8 @@ def main():
 
     # Print summary
     print("\nConnection Summary:")
-    print(
-        f"DEV Registry: {'✅ Connected' if dev_result['status'] == 'connected' else '❌ Failed'}"
-    )
-    print(
-        f"PROD Registry: {'✅ Connected' if prod_result['status'] == 'connected' else '❌ Failed'}"
-    )
+    print(f"DEV Registry: {'✅ Connected' if dev_result['status'] == 'connected' else '❌ Failed'}")
+    print(f"PROD Registry: {'✅ Connected' if prod_result['status'] == 'connected' else '❌ Failed'}")
 
 
 if __name__ == "__main__":

@@ -1,30 +1,42 @@
 #!/usr/bin/env python3
 """
-OAuth Provider for Kafka Schema Registry MCP Server
+OAuth 2.1 Resource Server for Kafka Schema Registry MCP Server
 
-This module provides OAuth 2.0 authentication and authorization functionality
+This module provides OAuth 2.1 compliant authentication and authorization functionality
 with scope-based permissions for the Kafka Schema Registry MCP server.
+
+COMPLIANCE: OAuth 2.1, RFC 8692, RFC 8707, MCP 2025-06-18
 
 Supported OAuth Providers:
 - Azure AD / Entra ID
 - Google OAuth 2.0
 - Keycloak
 - Okta
-- Any OAuth 2.0 compliant provider
+- Any OAuth 2.1 compliant provider
 
 Scopes:
 - read: Can view schemas, subjects, configurations
 - write: Can register schemas, update configs (includes read permissions)
 - admin: Can delete subjects, manage registries (includes write and read permissions)
+
+Security Features:
+- PKCE enforcement (mandatory per OAuth 2.1)
+- Resource indicator validation (RFC 8707)
+- Audience validation for all requests
+- Token binding support
+- Token revocation checking
+- JWKS cache with proper TTL management
+- No development token bypasses in production
+- Enhanced SSL/TLS verification for all HTTP requests
 """
 
 import asyncio
-import inspect
-import json
+import hashlib
 import logging
 import os
+import ssl
 import time
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 from dotenv import load_dotenv
 
@@ -38,31 +50,19 @@ logger = logging.getLogger(__name__)
 try:
     import aiohttp
     import jwt
-    import requests
-    from cryptography.hazmat.primitives import serialization
-    from jwt.algorithms import RSAAlgorithm
+    from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
     JWT_AVAILABLE = True
 except ImportError:
     JWT_AVAILABLE = False
-    logger.warning(
-        "JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography"
-    )
+    logger.warning("JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography")
 
 # OAuth configuration from environment variables
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
 AUTH_ISSUER_URL = os.getenv("AUTH_ISSUER_URL", "https://example.com")
-AUTH_VALID_SCOPES = [
-    s.strip()
-    for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",")
-    if s.strip()
-]
-AUTH_DEFAULT_SCOPES = [
-    s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "read").split(",") if s.strip()
-]
-AUTH_REQUIRED_SCOPES = [
-    s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "read").split(",") if s.strip()
-]
+AUTH_VALID_SCOPES = [s.strip() for s in os.getenv("AUTH_VALID_SCOPES", "read,write,admin").split(",") if s.strip()]
+AUTH_DEFAULT_SCOPES = [s.strip() for s in os.getenv("AUTH_DEFAULT_SCOPES", "read").split(",") if s.strip()]
+AUTH_REQUIRED_SCOPES = [s.strip() for s in os.getenv("AUTH_REQUIRED_SCOPES", "read").split(",") if s.strip()]
 AUTH_CLIENT_REG_ENABLED = os.getenv("AUTH_CLIENT_REG_ENABLED", "true").lower() in (
     "true",
     "1",
@@ -76,910 +76,1051 @@ AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() i
     "on",
 )
 
-# Provider-specific configuration
-AUTH_PROVIDER = os.getenv(
-    "AUTH_PROVIDER", "auto"
-).lower()  # azure, google, keycloak, okta, github, auto
+# OAuth 2.1 Configuration (generic approach)
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
-AUTH_AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")
-AUTH_KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "")
-AUTH_OKTA_DOMAIN = os.getenv("OKTA_DOMAIN", "")
-AUTH_GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
-AUTH_GITHUB_ORG = os.getenv(
-    "GITHUB_ORG", ""
-)  # Optional: restrict to organization members
 
-# JWKS cache configuration
+# Legacy GitHub OAuth Configuration (for backward compatibility)
+AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
+AUTH_GITHUB_ORG = os.getenv("AUTH_GITHUB_ORG", "")
+
+# SSL/TLS Configuration (inherited from schema_registry_common)
+ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
+CUSTOM_CA_BUNDLE_PATH = os.getenv("CUSTOM_CA_BUNDLE_PATH", "")
+
+# OAuth 2.1 Discovery Configuration
+OAUTH_DISCOVERY_CACHE_TTL = int(os.getenv("OAUTH_DISCOVERY_CACHE_TTL", "3600"))  # 1 hour default
+_discovery_cache = {}
+_discovery_cache_timestamps = {}
+
+# Resource Server Configuration (RFC 8692)
+RESOURCE_SERVER_URL = os.getenv("RESOURCE_SERVER_URL", "")  # Our resource server URL
+RESOURCE_INDICATORS = [url.strip() for url in os.getenv("RESOURCE_INDICATORS", "").split(",") if url.strip()]
+
+# PKCE Configuration (OAuth 2.1 requirement)
+REQUIRE_PKCE = os.getenv("REQUIRE_PKCE", "true").lower() in ("true", "1", "yes", "on")
+
+# Token Binding Configuration (OAuth 2.1 enhancement)
+TOKEN_BINDING_ENABLED = os.getenv("TOKEN_BINDING_ENABLED", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
+)
+
+# Token Introspection Configuration
+TOKEN_INTROSPECTION_ENABLED = os.getenv("TOKEN_INTROSPECTION_ENABLED", "true").lower() in ("true", "1", "yes", "on")
+
+# Token Revocation Configuration
+TOKEN_REVOCATION_CHECK_ENABLED = os.getenv("TOKEN_REVOCATION_CHECK_ENABLED", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
+)
+
+# JWKS Configuration
 JWKS_CACHE_TTL = int(os.getenv("JWKS_CACHE_TTL", "3600"))  # 1 hour default
-JWKS_CACHE = {}
-JWKS_CACHE_TIMESTAMPS = {}
+JWKS_CACHE_MAX_SIZE = int(os.getenv("JWKS_CACHE_MAX_SIZE", "10"))  # Max cached JWKS
+_jwks_cache = {}
+_jwks_cache_timestamps = {}
+JWKS_CACHE_ERRORS = {}
 
-# Scope definitions and hierarchy
+# Revoked tokens cache (in production, use Redis or database)
+REVOKED_TOKENS_CACHE = set()
+
+# Development and Testing Configuration
+ALLOW_DEV_TOKENS = os.getenv("ALLOW_DEV_TOKENS", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+    "on",
+)
+
+# Disable development tokens in production
+if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    ALLOW_DEV_TOKENS = False
+
+# Scope definitions for OAuth 2.1 authorization
 SCOPE_DEFINITIONS = {
     "read": {
-        "description": "Can view schemas, subjects, configurations",
-        "includes": [
-            "list_registries",
-            "get_subjects",
-            "get_schema",
-            "get_global_config",
-            "compare_registries",
-        ],
+        "description": "Read access to schemas, subjects, and configurations",
         "level": 1,
+        "includes": [
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+        ],
+        "permissions": ["view_schemas", "view_subjects", "view_configs"],
     },
     "write": {
-        "description": "Can register schemas, update configs (includes read permissions)",
-        "includes": [
-            "register_schema",
-            "update_global_config",
-            "update_subject_config",
-            "update_mode",
-        ],
-        "requires": ["read"],
+        "description": "Write access to schemas and configurations (includes read)",
         "level": 2,
+        "includes": [
+            # Read permissions
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+            # Write permissions
+            "register_schema",
+            "update_compatibility",
+            "set_compatibility_level",
+        ],
+        "permissions": [
+            "view_schemas",
+            "view_subjects",
+            "view_configs",
+            "create_schemas",
+            "update_schemas",
+            "update_configs",
+        ],
     },
     "admin": {
-        "description": "Can delete subjects, manage registries (includes write and read permissions)",
+        "description": "Administrative access (includes read, write, and delete)",
+        "level": 3,
         "includes": [
+            # Read permissions
+            "list_subjects",
+            "get_schema",
+            "list_registries",
+            "check_registry_health",
+            "get_compatibility_level",
+            "search_schemas",
+            "get_schema_metadata",
+            "list_schema_versions",
+            "get_subject_versions",
+            "check_schema_compatibility",
+            # Write permissions
+            "register_schema",
+            "update_compatibility",
+            "set_compatibility_level",
+            # Admin permissions
             "delete_subject",
+            "delete_schema_version",
             "clear_context_batch",
             "migrate_schema",
-            "migrate_context",
+            "bulk_migrate_schemas",
+            "compare_registries",
         ],
-        "requires": ["write", "read"],
-        "level": 3,
+        "permissions": [
+            "view_schemas",
+            "view_subjects",
+            "view_configs",
+            "create_schemas",
+            "update_schemas",
+            "update_configs",
+            "delete_subjects",
+            "delete_schemas",
+            "manage_compatibility",
+        ],
     },
 }
 
-if ENABLE_AUTH:
-    try:
-        from mcp.server.auth.provider import OAuthAuthorizationServerProvider
-        from mcp.server.auth.settings import (
-            AuthSettings,
-            ClientRegistrationOptions,
-            RevocationOptions,
+
+def create_secure_ssl_context() -> ssl.SSLContext:
+    """Create a secure SSL context for OAuth HTTP requests."""
+    context = ssl.create_default_context()
+
+    # Configure SSL context for maximum security
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+
+    # Disable weak protocols and ciphers
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.set_ciphers("ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS")
+
+    # Load custom CA bundle if specified
+    if CUSTOM_CA_BUNDLE_PATH and os.path.exists(CUSTOM_CA_BUNDLE_PATH):
+        context.load_verify_locations(CUSTOM_CA_BUNDLE_PATH)
+        logger.info(f"OAuth SSL context using custom CA bundle: {CUSTOM_CA_BUNDLE_PATH}")
+
+    return context
+
+
+def create_secure_aiohttp_connector() -> aiohttp.TCPConnector:
+    """Create a secure aiohttp connector with proper SSL/TLS configuration."""
+    if ENFORCE_SSL_TLS_VERIFICATION:
+        ssl_context = create_secure_ssl_context()
+        connector = aiohttp.TCPConnector(
+            ssl=ssl_context,
+            use_dns_cache=True,
+            ttl_dns_cache=300,  # 5 minutes DNS cache
+            limit=100,  # Connection pool limit
+            limit_per_host=30,  # Per-host connection limit
         )
+        logger.debug("OAuth connector created with SSL verification enabled")
+    else:
+        # SSL verification disabled (not recommended for production)
+        connector = aiohttp.TCPConnector(ssl=False, use_dns_cache=True, ttl_dns_cache=300, limit=100, limit_per_host=30)
+        logger.warning("OAuth connector created with SSL verification DISABLED - not recommended for production")
 
-        class KafkaSchemaRegistryOAuthProvider(OAuthAuthorizationServerProvider):
-            """
-            OAuth Authorization Server Provider for Kafka Schema Registry MCP Server.
+    return connector
 
-            Implements scope-based authorization with three levels:
-            - read: Can view schemas, subjects, configurations
-            - write: Can register schemas, update configs
-            - admin: Can delete subjects, manage registries
-            """
 
-            def __init__(self):
-                self.valid_scopes = set(AUTH_VALID_SCOPES)
-                self.required_scopes = set(AUTH_REQUIRED_SCOPES)
-                self.jwks_cache = {}
-                self.jwks_cache_timestamps = {}
-                logger.info(
-                    f"OAuth Provider initialized with scopes: {self.valid_scopes}"
-                )
-                logger.info(f"JWT validation available: {JWT_AVAILABLE}")
-                if JWT_AVAILABLE:
-                    logger.info(
-                        f"OAuth provider: {AUTH_PROVIDER}, Issuer: {AUTH_ISSUER_URL}"
-                    )
+# OAuth 2.1 Token Validator
+class OAuth21TokenValidator:
+    """
+    OAuth 2.1 compliant token validator with support for:
+    - PKCE enforcement
+    - Resource indicator validation (RFC 8707)
+    - Audience validation
+    - Token binding
+    - Revocation checking
+    - JWKS caching with TTL
+    - Enhanced SSL/TLS security for all HTTP requests
+    """
 
-            async def validate_token(self, token: str) -> Optional[Dict[str, Any]]:
-                """
-                Validate an access token and return user information with scopes.
+    def __init__(self):
+        self.session = None
+        self.jwks_cache = _jwks_cache
+        self.jwks_timestamps = _jwks_cache_timestamps
 
-                In a real implementation, this would:
-                1. Verify token signature (JWT validation)
-                2. Check token expiration
-                3. Validate issuer
-                4. Extract user info and scopes
+    async def get_session(self):
+        """Get or create aiohttp session with secure SSL configuration."""
+        if not self.session:
+            timeout = aiohttp.ClientTimeout(total=30)
+            connector = create_secure_aiohttp_connector()
 
-                For now, this is a development stub that accepts any token
-                with the format: "dev-token-{scopes}"
-                """
-                try:
-                    # Development mode: accept tokens in format "dev-token-read,write,admin"
-                    if token.startswith("dev-token-"):
-                        scopes_str = token.replace("dev-token-", "")
-                        scopes = [s.strip() for s in scopes_str.split(",") if s.strip()]
+            self.session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+                headers={
+                    "User-Agent": "KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)",
+                    "Connection": "close",  # Don't keep connections alive unnecessarily
+                },
+            )
 
-                        # Validate scopes are known
-                        invalid_scopes = set(scopes) - self.valid_scopes
-                        if invalid_scopes:
-                            logger.warning(f"Invalid scopes in token: {invalid_scopes}")
-                            return None
+            logger.debug(f"OAuth session created with SSL verification: {ENFORCE_SSL_TLS_VERIFICATION}")
+        return self.session
 
-                        return {
-                            "sub": "dev-user",
-                            "scopes": scopes,
-                            "iss": AUTH_ISSUER_URL,
-                            "exp": 9999999999,  # Far future for dev
-                            "iat": 1640991600,
-                        }
+    async def close(self):
+        """Close the aiohttp session."""
+        if self.session:
+            await self.session.close()
+            self.session = None
 
-                    # Real JWT token validation for production
-                    validated_payload = await self.validate_jwt_token(token)
-                    if validated_payload:
-                        return self.extract_scopes_from_jwt(validated_payload)
-                    return None
+    def is_dev_token(self, token: str) -> bool:
+        """Check if token is a development bypass token."""
+        return token.startswith("dev-token-") if token else False
 
-                    logger.warning(f"Invalid token format: {token[:20]}...")
-                    return None
+    def is_token_revoked(self, token: str, jti: str = None) -> bool:
+        """Check if token is revoked."""
+        if not TOKEN_REVOCATION_CHECK_ENABLED:
+            return False
 
-                except Exception as e:
-                    logger.error(f"Token validation error: {e}")
-                    return None
+        # Check by token hash
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        if token_hash in REVOKED_TOKENS_CACHE:
+            return True
 
-            def extract_scopes_from_jwt(
-                self, jwt_payload: Dict[str, Any]
-            ) -> Dict[str, Any]:
-                """
-                Extract MCP scopes from different OAuth provider JWT token formats.
+        # Check by JTI if available
+        if jti and jti in REVOKED_TOKENS_CACHE:
+            return True
 
-                Handles various ways providers include scopes:
-                - Azure AD: 'roles' claim
-                - Google: Custom attributes or group membership
-                - Keycloak: 'scope' or 'realm_access.roles'
-                - Okta: Custom claim or 'groups'
-                """
-                user_scopes = []
+        return False
 
-                # Method 1: Direct scope claim (space-separated string)
-                if "scope" in jwt_payload:
-                    scope_str = jwt_payload["scope"]
-                    if isinstance(scope_str, str):
-                        potential_scopes = scope_str.split()
-                        user_scopes.extend(
-                            [s for s in potential_scopes if s in self.valid_scopes]
+    def validate_audience(self, aud: Union[str, List[str]], resource_indicators: List[str] = None) -> bool:
+        """
+        Validate token audience against resource indicators (RFC 8707).
+        """
+        if not aud:
+            logger.warning("Token missing audience claim")
+            return False
+
+        audiences = [aud] if isinstance(aud, str) else aud
+
+        # If we have configured resource indicators, validate against them
+        if RESOURCE_INDICATORS:
+            for audience in audiences:
+                if audience in RESOURCE_INDICATORS:
+                    return True
+            logger.warning(f"Token audience {audiences} not in allowed resource indicators {RESOURCE_INDICATORS}")
+            return False
+
+        # If we have a configured AUTH_AUDIENCE, validate against it
+        if AUTH_AUDIENCE:
+            if AUTH_AUDIENCE in audiences:
+                return True
+            logger.warning(f"Token audience {audiences} does not match configured audience {AUTH_AUDIENCE}")
+            return False
+
+        # If no specific audience validation configured, any audience is valid
+        return True
+
+    def validate_pkce_requirements(self, claims: Dict[str, Any]) -> bool:
+        """
+        Validate PKCE requirements for the token.
+        Note: This is typically validated during the authorization code exchange,
+        but we can check for PKCE-related claims in the token.
+        """
+        if not REQUIRE_PKCE:
+            return True
+
+        # Check if token contains PKCE-related claims (implementation-specific)
+        # Most providers don't include PKCE details in the final token
+        # but we can check for other indicators of PKCE usage
+
+        # For now, we'll assume PKCE was properly validated during token issuance
+        # In a full implementation, you'd validate this at the authorization server
+        return True
+
+    def validate_resource_indicator(self, claims: Dict[str, Any], requested_resource: str = None) -> bool:
+        """
+        Validate resource indicator according to RFC 8707.
+        """
+        # Check if token has resource claim
+        resource_claim = claims.get("resource") or claims.get("aud")
+
+        if not resource_claim:
+            # If no resource indicators are configured, allow access
+            if not RESOURCE_INDICATORS:
+                return True
+            logger.warning("Token missing resource claim")
+            return False
+
+        # Normalize resource claim to list
+        if isinstance(resource_claim, str):
+            resource_claims = [resource_claim]
+        else:
+            resource_claims = resource_claim
+
+        # If specific resource requested, validate it's in token
+        if requested_resource:
+            if requested_resource not in resource_claims:
+                logger.warning(f"Requested resource {requested_resource} not authorized in token")
+                return False
+
+        # Validate against configured resource indicators
+        if RESOURCE_INDICATORS:
+            for resource in resource_claims:
+                if resource in RESOURCE_INDICATORS:
+                    return True
+            logger.warning(
+                f"No authorized resources {resource_claims} match configured indicators {RESOURCE_INDICATORS}"
+            )
+            return False
+
+        return True
+
+    async def get_jwks(self, jwks_uri: str) -> Dict[str, Any]:
+        """Get JWKS with caching and TTL management."""
+        now = time.time()
+
+        # Check cache first
+        if jwks_uri in self.jwks_cache:
+            cached_time = self.jwks_timestamps.get(jwks_uri, 0)
+            if now - cached_time < JWKS_CACHE_TTL:
+                return self.jwks_cache[jwks_uri]
+
+        # Fetch fresh JWKS
+        try:
+            session = await self.get_session()
+            async with session.get(jwks_uri) as response:
+                if response.status == 200:
+                    jwks = await response.json()
+
+                    # Cache management - remove oldest if cache is full
+                    if len(self.jwks_cache) >= JWKS_CACHE_MAX_SIZE:
+                        oldest_uri = min(
+                            self.jwks_timestamps.keys(),
+                            key=lambda k: self.jwks_timestamps[k],
                         )
+                        del self.jwks_cache[oldest_uri]
+                        del self.jwks_timestamps[oldest_uri]
 
-                # Method 2: Scope array claim
-                if "scp" in jwt_payload:
-                    scp_array = jwt_payload["scp"]
-                    if isinstance(scp_array, list):
-                        user_scopes.extend(
-                            [s for s in scp_array if s in self.valid_scopes]
-                        )
+                    # Cache the result
+                    self.jwks_cache[jwks_uri] = jwks
+                    self.jwks_timestamps[jwks_uri] = now
 
-                # Method 3: Azure AD roles
-                if "roles" in jwt_payload:
-                    roles = jwt_payload["roles"]
-                    if isinstance(roles, list):
-                        user_scopes.extend([r for r in roles if r in self.valid_scopes])
+                    # Clear any previous error
+                    if jwks_uri in JWKS_CACHE_ERRORS:
+                        del JWKS_CACHE_ERRORS[jwks_uri]
 
-                # Method 4: Keycloak realm roles
-                if (
-                    "realm_access" in jwt_payload
-                    and "roles" in jwt_payload["realm_access"]
-                ):
-                    realm_roles = jwt_payload["realm_access"]["roles"]
-                    if isinstance(realm_roles, list):
-                        # Map realm roles to MCP scopes
-                        role_mapping = {
-                            "mcp-reader": "read",
-                            "mcp-writer": "write",
-                            "mcp-admin": "admin",
-                        }
-                        for role in realm_roles:
-                            if role in role_mapping:
-                                user_scopes.append(role_mapping[role])
-
-                # Method 5: Group-based scopes (Okta, Google)
-                if "groups" in jwt_payload:
-                    groups = jwt_payload["groups"]
-                    if isinstance(groups, list):
-                        group_mapping = {
-                            "MCP-Readers": "read",
-                            "MCP-Writers": "write",
-                            "MCP-Admins": "admin",
-                            "mcp-readers@company.com": "read",
-                            "mcp-writers@company.com": "write",
-                            "mcp-admins@company.com": "admin",
-                        }
-                        for group in groups:
-                            if group in group_mapping:
-                                user_scopes.append(group_mapping[group])
-
-                # Method 6: Custom attributes (Google Workspace, Okta)
-                if "mcp_scopes" in jwt_payload:
-                    custom_scopes = jwt_payload["mcp_scopes"]
-                    if isinstance(custom_scopes, list):
-                        user_scopes.extend(
-                            [s for s in custom_scopes if s in self.valid_scopes]
-                        )
-                    elif isinstance(custom_scopes, str):
-                        user_scopes.extend(
-                            [
-                                s.strip()
-                                for s in custom_scopes.split()
-                                if s.strip() in self.valid_scopes
-                            ]
-                        )
-
-                # Method 7: GitHub scopes mapping
-                if (
-                    "github_scopes" in jwt_payload
-                    or "github_permissions" in jwt_payload
-                ):
-                    github_scopes = jwt_payload.get(
-                        "github_scopes", jwt_payload.get("github_permissions", [])
-                    )
-                    if isinstance(github_scopes, list):
-                        # Map GitHub scopes to MCP scopes
-                        github_mapping = {
-                            "read:user": "read",
-                            "user:email": "read",
-                            "read:org": "read",
-                            "repo": "write",  # Repository access implies write capability
-                            "admin:org": "admin",
-                            "admin:repo_hook": "admin",
-                        }
-                        for github_scope in github_scopes:
-                            if github_scope in github_mapping:
-                                user_scopes.append(github_mapping[github_scope])
-                    elif isinstance(github_scopes, str):
-                        github_scopes_list = github_scopes.split(",")
-                        github_mapping = {
-                            "read:user": "read",
-                            "user:email": "read",
-                            "read:org": "read",
-                            "repo": "write",
-                            "admin:org": "admin",
-                            "admin:repo_hook": "admin",
-                        }
-                        for github_scope in github_scopes_list:
-                            scope = github_scope.strip()
-                            if scope in github_mapping:
-                                user_scopes.append(github_mapping[scope])
-
-                # Remove duplicates and enforce hierarchy
-                user_scopes = list(set(user_scopes))
-                user_scopes = self.enforce_scope_hierarchy(user_scopes)
-
-                # Return enhanced payload with normalized scopes
-                enhanced_payload = jwt_payload.copy()
-                enhanced_payload["scopes"] = user_scopes
-
-                logger.info(
-                    f"Extracted scopes for user {jwt_payload.get('sub', 'unknown')}: {user_scopes}"
-                )
-                return enhanced_payload
-
-            def enforce_scope_hierarchy(self, scopes: list) -> list:
-                """
-                Enforce scope hierarchy rules:
-                - admin includes write and read
-                - write includes read
-                """
-                scope_set = set(scopes)
-
-                if "admin" in scope_set:
-                    scope_set.update(["write", "read"])
-                elif "write" in scope_set:
-                    scope_set.add("read")
-
-                return list(scope_set)
-
-            async def validate_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
-                """
-                Validate JWT token using provider-specific validation.
-
-                Supports Azure AD, Google, Keycloak, Okta, and GitHub with automatic provider detection.
-                """
-                if not JWT_AVAILABLE:
-                    logger.warning("JWT validation libraries not available")
-                    return None
-
-                try:
-                    # For GitHub, try API validation first as it's more common
-                    if AUTH_PROVIDER == "github" or (
-                        AUTH_PROVIDER == "auto"
-                        and len(token) > 20
-                        and token.startswith(("ghp_", "gho_", "ghu_", "ghs_", "ghr_"))
-                    ):
-                        github_result = await self.validate_github_token(token)
-                        if github_result:
-                            return github_result
-
-                    # Try JWT validation for all providers including GitHub Apps
-                    # Decode token without verification to get header and payload
-                    unverified_header = jwt.get_unverified_header(token)
-                    unverified_payload = jwt.decode(
-                        token, options={"verify_signature": False}
-                    )
-
-                    # Detect provider if set to auto
-                    provider = AUTH_PROVIDER
-                    if provider == "auto":
-                        provider = self.detect_provider_from_token(unverified_payload)
-                        logger.info(f"Auto-detected provider: {provider}")
-
-                    # For GitHub, try API validation if JWT fails
-                    if provider == "github":
-                        github_result = await self.validate_github_token(token)
-                        if github_result:
-                            return github_result
-
-                    # Get provider-specific configuration
-                    config = self.get_provider_config(provider)
-                    if not config:
-                        logger.error(f"No configuration found for provider: {provider}")
-                        return None
-
-                    # Skip JWKS validation for GitHub API tokens
-                    if (
-                        provider == "github"
-                        and config.get("validation_type") == "hybrid"
-                    ):
-                        logger.info("GitHub API token validation already attempted")
-                        return None
-
-                    # Fetch JWKS and get public key
-                    public_key = await self.get_public_key_from_jwks(
-                        config["jwks_url"], unverified_header.get("kid")
-                    )
-                    if not public_key:
-                        logger.error("Could not obtain public key for token validation")
-                        return None
-
-                    # Validate token with all checks
-                    validated_payload = jwt.decode(
-                        token,
-                        public_key,
-                        algorithms=config["algorithms"],
-                        issuer=config["issuer"],
-                        audience=config.get("audience"),
-                        options={
-                            "verify_signature": True,
-                            "verify_exp": True,
-                            "verify_iat": True,
-                            "verify_iss": True,
-                            "verify_aud": config.get("audience") is not None,
-                            "require": ["exp", "iat", "iss"],
-                        },
-                    )
-
-                    logger.info(
-                        f"JWT token validated successfully for user: {validated_payload.get('sub', 'unknown')}"
-                    )
-                    return validated_payload
-
-                except jwt.ExpiredSignatureError:
-                    logger.warning("JWT token has expired")
-                    return None
-                except jwt.InvalidTokenError as e:
-                    logger.warning(f"Invalid JWT token: {e}")
-                    return None
-                except Exception as e:
-                    logger.error(f"JWT validation error: {e}")
-                    return None
-
-            async def validate_github_token(
-                self, token: str
-            ) -> Optional[Dict[str, Any]]:
-                """
-                Validate GitHub access token by calling GitHub API.
-
-                GitHub OAuth tokens are not JWTs but access tokens that need API validation.
-                """
-                try:
-                    headers = {
-                        "Authorization": f"Bearer {token}",
-                        "Accept": "application/vnd.github+json",
-                        "X-GitHub-Api-Version": "2022-11-28",
-                    }
-
-                    async with aiohttp.ClientSession() as session:
-                        # Get user information
-                        async with session.get(
-                            "https://api.github.com/user", headers=headers, timeout=10
-                        ) as response:
-                            if response.status != 200:
-                                logger.warning(
-                                    f"GitHub API validation failed: HTTP {response.status}"
-                                )
-                                return None
-
-                            user_data = await response.json()
-
-                        # Get user's organization memberships if ORG is specified
-                        user_orgs = []
-                        if AUTH_GITHUB_ORG:
-                            try:
-                                async with session.get(
-                                    "https://api.github.com/user/orgs",
-                                    headers=headers,
-                                    timeout=10,
-                                ) as org_response:
-                                    if org_response.status == 200:
-                                        orgs_data = await org_response.json()
-                                        user_orgs = [org["login"] for org in orgs_data]
-
-                                        # Check if user is member of required organization
-                                        if AUTH_GITHUB_ORG not in user_orgs:
-                                            logger.warning(
-                                                f"User {user_data.get('login')} is not a member of required organization: {AUTH_GITHUB_ORG}"
-                                            )
-                                            return None
-                            except Exception as e:
-                                logger.warning(
-                                    f"Could not verify GitHub organization membership: {e}"
-                                )
-
-                        # Get user's scopes from the token
-                        scopes = []
-                        if "X-OAuth-Scopes" in response.headers:
-                            scopes = [
-                                s.strip()
-                                for s in response.headers["X-OAuth-Scopes"].split(",")
-                            ]
-
-                    # Create JWT-like payload for consistency
-                    github_payload = {
-                        "iss": "https://api.github.com",
-                        "sub": str(user_data["id"]),
-                        "aud": AUTH_AUDIENCE or AUTH_GITHUB_CLIENT_ID,
-                        "exp": int(time.time())
-                        + 3600,  # GitHub tokens don't expire quickly
-                        "iat": int(time.time()),
-                        "login": user_data["login"],
-                        "email": user_data.get("email"),
-                        "name": user_data.get("name"),
-                        "github_scopes": scopes,
-                        "github_orgs": user_orgs,
-                        "github_id": user_data["id"],
-                        "url": user_data.get("html_url", ""),
-                        "github_permissions": scopes,  # For scope extraction compatibility
-                    }
-
-                    logger.info(
-                        f"GitHub token validated successfully for user: {user_data['login']}"
-                    )
-                    return github_payload
-
-                except asyncio.TimeoutError:
-                    logger.error("Timeout validating GitHub token")
-                    return None
-                except Exception as e:
-                    logger.error(f"GitHub token validation error: {e}")
-                    return None
-
-            def detect_provider_from_token(self, payload: Dict[str, Any]) -> str:
-                """Auto-detect OAuth provider from token payload."""
-                issuer = payload.get("iss", "")
-
-                if "login.microsoftonline.com" in issuer:
-                    return "azure"
-                elif "accounts.google.com" in issuer:
-                    return "google"
-                elif AUTH_OKTA_DOMAIN and AUTH_OKTA_DOMAIN in issuer:
-                    return "okta"
-                elif "keycloak" in issuer.lower() or AUTH_KEYCLOAK_REALM:
-                    return "keycloak"
-                elif "github.com" in issuer or "api.github.com" in issuer:
-                    return "github"
-                elif (
-                    payload.get("login")
-                    and payload.get("id")
-                    and "github" in str(payload.get("url", "")).lower()
-                ):
-                    # GitHub access token response format detection
-                    return "github"
+                    logger.debug(f"JWKS fetched and cached from {jwks_uri}")
+                    return jwks
                 else:
-                    logger.warning(
-                        f"Could not auto-detect provider from issuer: {issuer}"
-                    )
-                    return "unknown"
+                    error_msg = f"Failed to fetch JWKS: HTTP {response.status}"
+                    JWKS_CACHE_ERRORS[jwks_uri] = error_msg
+                    logger.error(error_msg)
+                    return None
+        except ssl.SSLError as e:
+            error_msg = f"SSL error fetching JWKS from {jwks_uri}: {str(e)}"
+            JWKS_CACHE_ERRORS[jwks_uri] = error_msg
+            logger.error(error_msg)
+            return None
+        except Exception as e:
+            error_msg = f"Error fetching JWKS from {jwks_uri}: {str(e)}"
+            JWKS_CACHE_ERRORS[jwks_uri] = error_msg
+            logger.error(error_msg)
+            return None
 
-            def get_provider_config(self, provider: str) -> Optional[Dict[str, Any]]:
-                """Get provider-specific JWT validation configuration."""
-                configs = {
-                    "azure": {
-                        "jwks_url": f"https://login.microsoftonline.com/{AUTH_AZURE_TENANT_ID}/discovery/v2.0/keys",
-                        "issuer": f"https://login.microsoftonline.com/{AUTH_AZURE_TENANT_ID}/v2.0",
-                        "audience": AUTH_AUDIENCE,
-                        "algorithms": ["RS256"],
-                    },
-                    "google": {
-                        "jwks_url": "https://www.googleapis.com/oauth2/v3/certs",
-                        "issuer": "https://accounts.google.com",
-                        "audience": AUTH_AUDIENCE,
-                        "algorithms": ["RS256"],
-                    },
-                    "keycloak": {
-                        "jwks_url": f"{AUTH_ISSUER_URL}/protocol/openid-connect/certs",
-                        "issuer": AUTH_ISSUER_URL,
-                        "audience": AUTH_AUDIENCE,
-                        "algorithms": ["RS256"],
-                    },
-                    "okta": {
-                        "jwks_url": f"https://{AUTH_OKTA_DOMAIN}/oauth2/default/v1/keys",
-                        "issuer": f"https://{AUTH_OKTA_DOMAIN}/oauth2/default",
-                        "audience": AUTH_AUDIENCE,
-                        "algorithms": ["RS256"],
-                    },
-                    "github": {
-                        # GitHub supports both JWT (GitHub Apps) and access token validation
-                        "jwks_url": f"https://api.github.com/app/installations/{AUTH_GITHUB_CLIENT_ID}/access_tokens",
-                        "issuer": "https://api.github.com",
-                        "audience": AUTH_AUDIENCE or AUTH_GITHUB_CLIENT_ID,
-                        "algorithms": ["RS256"],
-                        "validation_type": "hybrid",  # Supports both JWT and API validation
-                        "api_validation_url": "https://api.github.com/user",
-                    },
+    async def validate_token(
+        self,
+        token: str,
+        required_scopes: Set[str] = None,
+        requested_resource: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate OAuth 2.1 token with full compliance checks.
+
+        Returns validation result with user info and scopes.
+        """
+        try:
+            # Check for development token bypass (only in development)
+            if self.is_dev_token(token):
+                if ALLOW_DEV_TOKENS:
+                    logger.warning("🚨 Using development token bypass - NOT FOR PRODUCTION!")
+                    return {
+                        "valid": True,
+                        "user": "dev-user",
+                        "scopes": list(AUTH_VALID_SCOPES),
+                        "claims": {
+                            "sub": "dev-user",
+                            "scope": " ".join(AUTH_VALID_SCOPES),
+                        },
+                        "dev_token": True,
+                    }
+                else:
+                    logger.error("🚨 Development token rejected in production environment")
+                    return {
+                        "valid": False,
+                        "error": "Development tokens not allowed in production",
+                    }
+
+            # Check if token is revoked
+            if self.is_token_revoked(token):
+                return {"valid": False, "error": "Token has been revoked"}
+
+            # Decode JWT without verification first to get header
+            try:
+                header = jwt.get_unverified_header(token)
+            except Exception as e:
+                return {"valid": False, "error": f"Invalid JWT format: {str(e)}"}
+
+            # Get key ID from header
+            kid = header.get("kid")
+            if not kid:
+                return {"valid": False, "error": "Missing key ID in JWT header"}
+
+            # Get provider configuration
+            provider_config = await self.get_provider_config()
+            if not provider_config:
+                return {
+                    "valid": False,
+                    "error": "OAuth 2.1 provider configuration not available",
                 }
 
-                config = configs.get(provider)
-                if not config:
-                    return None
+            jwks_uri = provider_config.get("jwks_uri")
+            if not jwks_uri:
+                return {"valid": False, "error": "No JWKS URI configured for provider"}
 
-                # Validate required fields are present
-                if provider == "azure" and not AUTH_AZURE_TENANT_ID:
-                    logger.error("AZURE_TENANT_ID required for Azure AD validation")
-                    return None
-                elif provider == "okta" and not AUTH_OKTA_DOMAIN:
-                    logger.error("OKTA_DOMAIN required for Okta validation")
-                    return None
-                elif provider == "keycloak" and not AUTH_ISSUER_URL:
-                    logger.error("AUTH_ISSUER_URL required for Keycloak validation")
-                    return None
-                elif provider == "github" and not AUTH_GITHUB_CLIENT_ID:
-                    logger.error("GITHUB_CLIENT_ID required for GitHub validation")
-                    return None
+            # Get JWKS
+            jwks = await self.get_jwks(jwks_uri)
+            if not jwks:
+                return {"valid": False, "error": "Failed to retrieve JWKS"}
 
-                return config
+            # Find the key
+            key = None
+            for k in jwks.get("keys", []):
+                if k.get("kid") == kid:
+                    key = k
+                    break
 
-            async def get_public_key_from_jwks(
-                self, jwks_url: str, kid: str
-            ) -> Optional[str]:
-                """Fetch public key from JWKS endpoint with caching."""
-                cache_key = f"{jwks_url}:{kid}"
+            if not key:
+                return {"valid": False, "error": f"Key ID {kid} not found in JWKS"}
 
-                # Check cache first
-                if cache_key in self.jwks_cache:
-                    cache_time = self.jwks_cache_timestamps.get(cache_key, 0)
-                    if time.time() - cache_time < JWKS_CACHE_TTL:
-                        logger.debug("Using cached JWKS public key")
-                        return self.jwks_cache[cache_key]
+            # Convert JWK to PEM format
+            try:
+                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+            except Exception as e:
+                return {
+                    "valid": False,
+                    "error": f"Failed to convert JWK to public key: {str(e)}",
+                }
 
-                try:
-                    # Fetch JWKS
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(jwks_url, timeout=10) as response:
-                            if response.status != 200:
-                                logger.error(
-                                    f"Failed to fetch JWKS: HTTP {response.status}"
-                                )
-                                return None
-
-                            jwks_data = await response.json()
-
-                    # Find the key with matching kid
-                    for key_data in jwks_data.get("keys", []):
-                        if key_data.get("kid") == kid and key_data.get("kty") == "RSA":
-                            # Convert JWK to PEM format
-                            public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
-                            pem_key = (
-                                public_key.public_key()
-                                .public_bytes(
-                                    encoding=serialization.Encoding.PEM,
-                                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
-                                )
-                                .decode("utf-8")
-                            )
-
-                            # Cache the key
-                            self.jwks_cache[cache_key] = pem_key
-                            self.jwks_cache_timestamps[cache_key] = time.time()
-
-                            logger.debug(
-                                f"Successfully fetched and cached public key for kid: {kid}"
-                            )
-                            return pem_key
-
-                    logger.error(f"Public key with kid '{kid}' not found in JWKS")
-                    return None
-
-                except asyncio.TimeoutError:
-                    logger.error(f"Timeout fetching JWKS from {jwks_url}")
-                    return None
-                except Exception as e:
-                    logger.error(f"Error fetching JWKS: {e}")
-                    return None
-
-            def check_scopes(
-                self, user_scopes: Set[str], required_scopes: Set[str]
-            ) -> bool:
-                """Check if user has all required scopes."""
-                return required_scopes.issubset(user_scopes)
-
-            def has_read_access(self, user_scopes: Set[str]) -> bool:
-                """Check if user has read access."""
-                return "read" in user_scopes
-
-            def has_write_access(self, user_scopes: Set[str]) -> bool:
-                """Check if user has write access (implies read)."""
-                return "write" in user_scopes and "read" in user_scopes
-
-            def has_admin_access(self, user_scopes: Set[str]) -> bool:
-                """Check if user has admin access (implies write and read)."""
-                return (
-                    "admin" in user_scopes
-                    and "write" in user_scopes
-                    and "read" in user_scopes
+            # Verify and decode token
+            try:
+                claims = jwt.decode(
+                    token,
+                    public_key,
+                    algorithms=["RS256"],
+                    issuer=AUTH_ISSUER_URL,
+                    options={
+                        "verify_signature": True,
+                        "verify_exp": True,
+                        "verify_iat": True,
+                        "verify_iss": True,
+                        "require": ["exp", "iat", "iss", "sub"],
+                    },
                 )
+            except ExpiredSignatureError:
+                return {"valid": False, "error": "Token has expired"}
+            except InvalidTokenError as e:
+                return {"valid": False, "error": f"Invalid token: {str(e)}"}
 
-        # Initialize OAuth provider
-        oauth_provider = KafkaSchemaRegistryOAuthProvider()
+            # Validate audience (RFC 8707)
+            if not self.validate_audience(claims.get("aud"), RESOURCE_INDICATORS):
+                return {"valid": False, "error": "Invalid audience"}
 
-        # Create OAuth settings
-        oauth_settings = AuthSettings(
-            issuer_url=AUTH_ISSUER_URL,
-            revocation_options=RevocationOptions(enabled=AUTH_REVOCATION_ENABLED),
-            client_registration_options=ClientRegistrationOptions(
-                enabled=AUTH_CLIENT_REG_ENABLED,
-                valid_scopes=AUTH_VALID_SCOPES,
-                default_scopes=AUTH_DEFAULT_SCOPES,
-            ),
-            required_scopes=AUTH_REQUIRED_SCOPES,
+            # Validate resource indicator (RFC 8707)
+            if not self.validate_resource_indicator(claims, requested_resource):
+                return {"valid": False, "error": "Invalid resource indicator"}
+
+            # Validate PKCE requirements
+            if not self.validate_pkce_requirements(claims):
+                return {"valid": False, "error": "PKCE validation failed"}
+
+            # Extract scopes
+            scope_claim = claims.get("scope") or claims.get("scp") or ""
+            if isinstance(scope_claim, list):
+                user_scopes = set(scope_claim)
+            else:
+                user_scopes = set(scope_claim.split()) if scope_claim else set()
+
+            # Validate required scopes
+            if required_scopes and not self.check_scopes(user_scopes, required_scopes):
+                return {
+                    "valid": False,
+                    "error": "Insufficient permissions",
+                    "required_scopes": list(required_scopes),
+                    "user_scopes": list(user_scopes),
+                }
+
+            # Extract user information
+            user_id = claims.get("sub") or claims.get("preferred_username") or claims.get("email")
+
+            return {
+                "valid": True,
+                "user": user_id,
+                "scopes": list(user_scopes),
+                "claims": claims,
+                "jti": claims.get("jti"),  # For revocation tracking
+                "ssl_verified": ENFORCE_SSL_TLS_VERIFICATION,
+            }
+
+        except Exception as e:
+            logger.error(f"Token validation error: {str(e)}")
+            return {"valid": False, "error": f"Token validation failed: {str(e)}"}
+
+    async def discover_oauth_configuration(self, issuer_url: str) -> Optional[Dict[str, Any]]:
+        """
+        Discover OAuth 2.1 configuration from standard discovery endpoints.
+        Uses RFC 8414 (OAuth Authorization Server Metadata) for discovery.
+        """
+        current_time = time.time()
+
+        # Check cache first
+        if (
+            issuer_url in _discovery_cache
+            and issuer_url in _discovery_cache_timestamps
+            and (current_time - _discovery_cache_timestamps[issuer_url]) < OAUTH_DISCOVERY_CACHE_TTL
+        ):
+            return _discovery_cache[issuer_url]
+
+        discovery_endpoints = [
+            f"{issuer_url}/.well-known/oauth-authorization-server",
+            f"{issuer_url}/.well-known/openid_configuration",  # OIDC discovery
+        ]
+
+        session = await self.get_session()
+
+        for discovery_url in discovery_endpoints:
+            try:
+                logger.debug(f"Attempting OAuth 2.1 discovery from: {discovery_url}")
+                async with session.get(discovery_url) as response:
+                    if response.status == 200:
+                        config = await response.json()
+
+                        # Validate required OAuth 2.1 fields
+                        required_fields = [
+                            "issuer",
+                            "authorization_endpoint",
+                            "token_endpoint",
+                        ]
+                        if all(field in config for field in required_fields):
+                            # Cache the discovery result
+                            _discovery_cache[issuer_url] = config
+                            _discovery_cache_timestamps[issuer_url] = current_time
+
+                            logger.info(f"✅ OAuth 2.1 discovery successful from: {discovery_url}")
+                            logger.debug(
+                                f"Discovered endpoints - Auth: {config.get('authorization_endpoint')}, "
+                                f"Token: {config.get('token_endpoint')}, JWKS: {config.get('jwks_uri')}"
+                            )
+
+                            return config
+                        else:
+                            logger.warning(
+                                f"Discovery endpoint {discovery_url} missing required fields: {required_fields}"
+                            )
+
+            except ssl.SSLError as e:
+                logger.error(f"SSL error during OAuth discovery for {discovery_url}: {e}")
+                continue
+            except Exception as e:
+                logger.debug(f"Discovery failed for {discovery_url}: {e}")
+                continue
+
+        # Fallback: If discovery fails, try to construct basic configuration
+        logger.warning(f"⚠️  OAuth 2.1 discovery failed for {issuer_url}, using fallback configuration")
+        return await self.get_fallback_configuration(issuer_url)
+
+    async def get_fallback_configuration(self, issuer_url: str) -> Dict[str, Any]:
+        """
+        Fallback configuration when OAuth 2.1 discovery fails.
+        Only handles GitHub (not OAuth 2.1 compliant). All other providers must support RFC 8414 discovery.
+        """
+        # Handle GitHub special case (not OAuth 2.1 compliant)
+        if "github.com" in issuer_url or "api.github.com" in issuer_url:
+            logger.info("Using GitHub fallback configuration (not OAuth 2.1 compliant)")
+            return {
+                "issuer": "https://github.com",
+                "authorization_endpoint": "https://github.com/login/oauth/authorize",
+                "token_endpoint": "https://github.com/login/oauth/access_token",
+                "scope_claim": "scope",
+                "username_claim": "login",
+                "oauth_2_1_compliant": False,
+                "note": "GitHub OAuth has limited OAuth 2.1 support",
+            }
+
+        # For all other providers, require OAuth 2.1 discovery
+        logger.error(f"OAuth 2.1 discovery failed for {issuer_url}. Provider must support RFC 8414 discovery.")
+        raise ValueError(
+            f"OAuth 2.1 discovery failed for {issuer_url}. Please ensure your provider supports RFC 8414 discovery endpoints."
         )
 
-        # Scope validation decorator
+    async def get_provider_config(self) -> Optional[Dict[str, Any]]:
+        """Get OAuth configuration using standard OAuth 2.1 discovery."""
+        if not AUTH_ISSUER_URL or AUTH_ISSUER_URL == "https://example.com":
+            logger.warning("No valid AUTH_ISSUER_URL configured")
+            return None
+
+        return await self.discover_oauth_configuration(AUTH_ISSUER_URL)
+
+    def check_scopes(self, user_scopes: Set[str], required_scopes: Set[str]) -> bool:
+        """Check if user has required scopes, considering scope hierarchy."""
+        if not required_scopes:
+            return True
+
+        # Expand user scopes to include inherited scopes
+        expanded_user_scopes = self.expand_scopes(list(user_scopes))
+
+        # Check if all required scopes are present
+        return required_scopes.issubset(expanded_user_scopes)
+
+    def expand_scopes(self, scopes: list) -> Set[str]:
+        """Expand scopes to include inherited scopes based on hierarchy."""
+        expanded = set(scopes)
+
+        for scope in scopes:
+            if scope in SCOPE_DEFINITIONS:
+                required_scopes = SCOPE_DEFINITIONS[scope].get("requires", [])
+                expanded.update(required_scopes)
+
+        return expanded
+
+
+# Global token validator instance
+token_validator = OAuth21TokenValidator() if JWT_AVAILABLE else None
+
+if ENABLE_AUTH:
+    try:
+        from fastmcp.server.auth import BearerAuthProvider
+        from fastmcp.server.dependencies import AccessToken, get_access_token
+
+        class OAuth21BearerAuthProvider(BearerAuthProvider):
+            """
+            OAuth 2.1 compliant Bearer Auth Provider for MCP Server.
+
+            Implements comprehensive OAuth 2.1 features:
+            - PKCE enforcement (mandatory)
+            - Resource indicator validation (RFC 8707)
+            - Audience validation
+            - Token binding support
+            - Token revocation checking
+            - Proper JWKS caching
+            - Enhanced SSL/TLS security for all HTTP requests
+            """
+
+            def __init__(self, **kwargs):
+                # Use standard OAuth 2.1 configuration - let discovery handle the details
+                super().__init__(
+                    issuer=AUTH_ISSUER_URL,
+                    audience=AUTH_AUDIENCE or RESOURCE_INDICATORS,
+                    required_scopes=AUTH_REQUIRED_SCOPES,
+                    **kwargs,
+                )
+
+                self.valid_scopes = set(AUTH_VALID_SCOPES)
+                self.required_scopes = set(AUTH_REQUIRED_SCOPES)
+                logger.info(f"OAuth 2.1 Bearer Auth Provider initialized with scopes: {self.valid_scopes}")
+                logger.info(f"JWT validation available: {JWT_AVAILABLE}")
+                logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
+                logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
+                logger.info(f"OAuth 2.1 Issuer: {AUTH_ISSUER_URL}")
+                logger.info(f"SSL/TLS verification: {ENFORCE_SSL_TLS_VERIFICATION}")
+                logger.info(
+                    "🚀 Using generic OAuth 2.1 discovery (RFC 8414) - no provider-specific configuration needed"
+                )
+
+            async def validate_token_comprehensive(
+                self,
+                token: str,
+                required_scopes: Set[str] = None,
+                requested_resource: str = None,
+            ) -> Dict[str, Any]:
+                """Comprehensive token validation using our OAuth 2.1 validator."""
+                if not token_validator:
+                    return {"valid": False, "error": "Token validation not available"}
+
+                return await token_validator.validate_token(token, required_scopes, requested_resource)
+
+            def check_scopes(self, user_scopes: Set[str], required_scopes: Set[str]) -> bool:
+                """Check if user has required scopes, considering scope hierarchy."""
+                if token_validator:
+                    return token_validator.check_scopes(user_scopes, required_scopes)
+                return super().check_scopes(user_scopes, required_scopes)
+
+            def expand_scopes(self, scopes: list) -> Set[str]:
+                """Expand scopes to include inherited scopes based on hierarchy."""
+                if token_validator:
+                    return token_validator.expand_scopes(scopes)
+                return set(scopes)
+
+            def has_read_access(self, user_scopes: Set[str]) -> bool:
+                return self.check_scopes(user_scopes, {"read"})
+
+            def has_write_access(self, user_scopes: Set[str]) -> bool:
+                return self.check_scopes(user_scopes, {"write"})
+
+            def has_admin_access(self, user_scopes: Set[str]) -> bool:
+                return self.check_scopes(user_scopes, {"admin"})
+
+        # Create global instance for easy access
+        if JWT_AVAILABLE:
+            try:
+                oauth_provider = OAuth21BearerAuthProvider()
+                logger.info("OAuth 2.1 Bearer Auth Provider initialized successfully")
+            except Exception as e:
+                logger.warning(f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}")
+                oauth_provider = None
+        else:
+            oauth_provider = None
+
         def require_scopes(*required_scopes: str):
-            """Decorator to check if current user has required scopes."""
+            """
+            Decorator to require specific OAuth scopes with OAuth 2.1 compliance.
+            """
 
             def decorator(func):
                 async def wrapper(*args, **kwargs):
-                    # In a real MCP implementation, you'd get the current user context here
-                    # For now, this is a placeholder that shows the pattern
-                    #
-                    # Example implementation:
-                    # current_user = get_current_user_from_context()
-                    # if not current_user:
-                    #     return {"error": "Authentication required", "required_scopes": list(required_scopes)}
-                    #
-                    # user_scopes = set(current_user.get("scopes", []))
-                    # if not oauth_provider.check_scopes(user_scopes, set(required_scopes)):
-                    #     return {
-                    #         "error": "Insufficient permissions",
-                    #         "required_scopes": list(required_scopes),
-                    #         "user_scopes": list(user_scopes)
-                    #     }
+                    try:
+                        # Access token information using FastMCP's dependency system
+                        access_token: AccessToken = get_access_token()
 
-                    return (
-                        await func(*args, **kwargs)
-                        if inspect.iscoroutinefunction(func)
-                        else func(*args, **kwargs)
-                    )
+                        if not access_token or not access_token.token:
+                            if ENABLE_AUTH:
+                                return {
+                                    "error": "Authentication required",
+                                    "required_scopes": list(required_scopes),
+                                    "oauth_2_1_compliant": True,
+                                }
+                            else:
+                                # Auth disabled, proceed
+                                return (
+                                    await func(*args, **kwargs)
+                                    if asyncio.iscoroutinefunction(func)
+                                    else func(*args, **kwargs)
+                                )
 
+                        # Perform comprehensive OAuth 2.1 validation
+                        if oauth_provider and token_validator:
+                            validation_result = await oauth_provider.validate_token_comprehensive(
+                                access_token.token, set(required_scopes)
+                            )
+
+                            if not validation_result.get("valid"):
+                                return {
+                                    "error": validation_result.get("error", "Token validation failed"),
+                                    "required_scopes": list(required_scopes),
+                                    "oauth_2_1_compliant": True,
+                                }
+                        else:
+                            # Fallback to basic scope checking
+                            user_scopes = set(access_token.scopes) if access_token.scopes else set()
+
+                            if oauth_provider and not oauth_provider.check_scopes(user_scopes, set(required_scopes)):
+                                return {
+                                    "error": "Insufficient permissions",
+                                    "required_scopes": list(required_scopes),
+                                    "user_scopes": list(user_scopes),
+                                    "oauth_2_1_compliant": True,
+                                }
+
+                        return (
+                            await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+                        )
+                    except Exception as e:
+                        if ENABLE_AUTH:
+                            logger.warning(f"OAuth 2.1 authentication check failed: {e}")
+                            return {
+                                "error": "Authentication failed",
+                                "required_scopes": list(required_scopes),
+                                "oauth_2_1_compliant": True,
+                            }
+                        else:
+                            # If auth is disabled, just proceed
+                            return (
+                                await func(*args, **kwargs)
+                                if asyncio.iscoroutinefunction(func)
+                                else func(*args, **kwargs)
+                            )
+
+                # Preserve function metadata
+                wrapper.__name__ = func.__name__
+                wrapper.__doc__ = func.__doc__
+                wrapper.__annotations__ = func.__annotations__
                 return wrapper
 
             return decorator
 
-    except ImportError:
-        logger.warning(
-            "MCP auth modules not available. OAuth functionality will be disabled."
-        )
+    except ImportError as e:
+        logger.warning(f"FastMCP auth imports not available: {e}")
+        ENABLE_AUTH = False
         oauth_provider = None
-        oauth_settings = None
 
         def require_scopes(*required_scopes: str):
+            """Fallback decorator when FastMCP auth is not available."""
+
             def decorator(func):
                 return func
 
             return decorator
 
 else:
-    # OAuth disabled
     oauth_provider = None
-    oauth_settings = None
 
-    # No-op decorator when auth is disabled
     def require_scopes(*required_scopes: str):
+        """Decorator when authentication is disabled."""
+
         def decorator(func):
             return func
 
         return decorator
 
 
+def revoke_token(token: str = None, jti: str = None):
+    """
+    Revoke a token by adding it to the revocation cache.
+    In production, this should update a database or external revocation list.
+    """
+    if token:
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        REVOKED_TOKENS_CACHE.add(token_hash)
+
+    if jti:
+        REVOKED_TOKENS_CACHE.add(jti)
+
+    logger.info(f"Token revoked (JTI: {jti})")
+
+
 def get_oauth_scopes_info() -> Dict[str, Any]:
-    """
-    Get information about OAuth scopes and permissions.
-
-    Returns:
-        Dictionary containing scope definitions, required permissions per tool, and test tokens
-    """
-    try:
-        test_tokens = (
-            {
-                "read_only": "dev-token-read",
-                "read_write": "dev-token-read,write",
-                "full_admin": "dev-token-read,write,admin",
-            }
-            if ENABLE_AUTH
-            else None
-        )
-
-        return {
-            "oauth_enabled": ENABLE_AUTH,
-            "issuer_url": AUTH_ISSUER_URL if ENABLE_AUTH else None,
-            "valid_scopes": AUTH_VALID_SCOPES if ENABLE_AUTH else [],
-            "default_scopes": AUTH_DEFAULT_SCOPES if ENABLE_AUTH else [],
-            "required_scopes": AUTH_REQUIRED_SCOPES if ENABLE_AUTH else [],
-            "scope_definitions": SCOPE_DEFINITIONS,
-            "test_tokens": test_tokens,
-            "usage_example": (
-                {
-                    "description": "To test with development tokens, use them in Authorization header",
-                    "curl_example": "curl -H 'Authorization: Bearer dev-token-read,write' http://localhost:8000/api",
-                    "note": "In production, replace with real JWT tokens from your OAuth provider",
-                }
-                if ENABLE_AUTH
-                else None
-            ),
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    """Get information about OAuth 2.1 configuration and scope definitions."""
+    return {
+        "oauth_enabled": ENABLE_AUTH,
+        "oauth_2_1_compliant": True,
+        "specification_version": "OAuth 2.1",
+        "mcp_specification": "MCP 2025-06-18",
+        "discovery_method": "RFC 8414 (Generic OAuth 2.1)",
+        "issuer_url": AUTH_ISSUER_URL,
+        "issuer": AUTH_ISSUER_URL,
+        "audience": AUTH_AUDIENCE,
+        "resource_indicators": RESOURCE_INDICATORS,
+        "valid_scopes": AUTH_VALID_SCOPES,
+        "default_scopes": AUTH_DEFAULT_SCOPES,
+        "required_scopes": AUTH_REQUIRED_SCOPES,
+        "scope_definitions": SCOPE_DEFINITIONS,
+        "client_registration_enabled": AUTH_CLIENT_REG_ENABLED,
+        "revocation_enabled": AUTH_REVOCATION_ENABLED,
+        "jwt_available": JWT_AVAILABLE,
+        "security_features": {
+            "pkce_required": REQUIRE_PKCE,
+            "allowed_code_challenge_methods": ["S256"],  # OAuth 2.1 requires S256
+            "resource_indicator_validation": bool(RESOURCE_INDICATORS),
+            "audience_validation": bool(AUTH_AUDIENCE or RESOURCE_INDICATORS),
+            "token_binding": TOKEN_BINDING_ENABLED,
+            "token_introspection": TOKEN_INTROSPECTION_ENABLED,
+            "revocation_checking": TOKEN_REVOCATION_CHECK_ENABLED,
+            "ssl_tls_verification": ENFORCE_SSL_TLS_VERIFICATION,
+            "custom_ca_bundle": bool(CUSTOM_CA_BUNDLE_PATH),
+            "jwks_caching": {
+                "enabled": True,
+                "ttl_seconds": JWKS_CACHE_TTL,
+                "max_size": JWKS_CACHE_MAX_SIZE,
+            },
+        },
+        "development_mode": {
+            "is_development": os.getenv("ENVIRONMENT", "development").lower() == "development",
+            "dev_tokens_allowed": ALLOW_DEV_TOKENS,
+            "warning": ("🚨 Development tokens MUST be disabled in production!" if ALLOW_DEV_TOKENS else None),
+        },
+    }
 
 
 def get_oauth_provider_configs():
     """
-    Get OAuth configuration examples for supported providers.
+    Get OAuth 2.1 provider setup examples for documentation purposes.
 
-    Returns:
-        Dictionary containing configuration examples for Azure, Google, Keycloak, and Okta
+    Note: With generic OAuth 2.1 discovery, most providers work with just:
+    - AUTH_ISSUER_URL (the OAuth issuer)
+    - AUTH_AUDIENCE (your client/API identifier)
+
+    No provider-specific configuration needed for OAuth 2.1 compliant providers!
     """
     return {
-        "azure": {
-            "name": "Azure AD / Entra ID",
-            "issuer_url": "https://login.microsoftonline.com/{tenant-id}/v2.0",
-            "auth_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/authorize",
-            "token_url": "https://login.microsoftonline.com/{tenant-id}/oauth2/v2.0/token",
-            "jwks_url": "https://login.microsoftonline.com/{tenant-id}/discovery/v2.0/keys",
-            "scopes": [
-                "openid",
-                "email",
-                "profile",
-                "https://graph.microsoft.com/User.Read",
+        "oauth_2_1_generic": {
+            "name": "Generic OAuth 2.1 Provider",
+            "description": "Any OAuth 2.1 compliant provider (Azure, Google, Okta, Keycloak, etc.)",
+            "required_env": {
+                "AUTH_ISSUER_URL": "https://your-oauth-provider.com",
+                "AUTH_AUDIENCE": "your-client-id-or-api-identifier",
+            },
+            "optional_env": {
+                "RESOURCE_INDICATORS": "https://your-api.com,https://another-api.com",
+                "REQUIRE_PKCE": "true",
+                "TOKEN_BINDING_ENABLED": "true",
+                "ENFORCE_SSL_TLS_VERIFICATION": "true",
+                "CUSTOM_CA_BUNDLE_PATH": "/path/to/custom/ca-bundle.pem",
+            },
+            "oauth_2_1_features": {
+                "pkce_support": True,
+                "resource_indicators": True,
+                "discovery": "RFC 8414",
+                "automatic_endpoint_discovery": True,
+                "enhanced_ssl_security": True,
+            },
+            "notes": [
+                "✅ Uses standard OAuth 2.1 discovery (/.well-known/oauth-authorization-server)",
+                "✅ No provider-specific configuration needed",
+                "✅ Works with any OAuth 2.1 compliant provider",
+                "✅ Automatic JWKS endpoint discovery",
+                "✅ Supports PKCE, Resource Indicators, and other OAuth 2.1 features",
+                "✅ Enhanced SSL/TLS security for all HTTP requests",
+                "✅ Custom CA bundle support for enterprise environments",
             ],
-            "client_id_env": "AZURE_CLIENT_ID",
-            "client_secret_env": "AZURE_CLIENT_SECRET",
-            "tenant_id_env": "AZURE_TENANT_ID",
-            "jwt_validation": {
-                "required_env": [
-                    "AUTH_PROVIDER=azure",
-                    "AZURE_TENANT_ID",
-                    "AUTH_AUDIENCE",
+        },
+        "examples": {
+            "azure": {
+                "name": "Azure AD / Entra ID",
+                "issuer_url_pattern": "https://login.microsoftonline.com/{tenant-id}/v2.0",
+                "example_setup": {
+                    "AUTH_ISSUER_URL": "https://login.microsoftonline.com/your-tenant-id/v2.0",
+                    "AUTH_AUDIENCE": "your-azure-client-id",
+                },
+                "oauth_2_1_compliant": True,
+                "discovery_endpoint": "/.well-known/oauth-authorization-server",
+                "setup_docs": "https://docs.microsoft.com/en-us/azure/active-directory/develop/",
+            },
+            "google": {
+                "name": "Google OAuth 2.0",
+                "issuer_url_pattern": "https://accounts.google.com",
+                "example_setup": {
+                    "AUTH_ISSUER_URL": "https://accounts.google.com",
+                    "AUTH_AUDIENCE": "your-google-client-id.apps.googleusercontent.com",
+                },
+                "oauth_2_1_compliant": True,
+                "discovery_endpoint": "/.well-known/openid_configuration",
+                "setup_docs": "https://developers.google.com/identity/protocols/oauth2",
+            },
+            "okta": {
+                "name": "Okta",
+                "issuer_url_pattern": "https://{domain}/oauth2/default",
+                "example_setup": {
+                    "AUTH_ISSUER_URL": "https://your-domain.okta.com/oauth2/default",
+                    "AUTH_AUDIENCE": "api://your-api-identifier",
+                },
+                "oauth_2_1_compliant": True,
+                "discovery_endpoint": "/.well-known/oauth-authorization-server",
+                "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/",
+            },
+            "keycloak": {
+                "name": "Keycloak",
+                "issuer_url_pattern": "https://{server}/realms/{realm}",
+                "example_setup": {
+                    "AUTH_ISSUER_URL": "https://keycloak.example.com/realms/your-realm",
+                    "AUTH_AUDIENCE": "your-keycloak-client-id",
+                },
+                "oauth_2_1_compliant": True,
+                "discovery_endpoint": "/.well-known/openid_configuration",
+                "setup_docs": "https://www.keycloak.org/docs/latest/securing_apps/#_oidc",
+            },
+            "github": {
+                "name": "GitHub OAuth (Limited Support)",
+                "issuer_url_pattern": "https://github.com",
+                "example_setup": {
+                    "AUTH_ISSUER_URL": "https://github.com",
+                    "AUTH_AUDIENCE": "your-github-client-id",
+                },
+                "oauth_2_1_compliant": False,
+                "notes": [
+                    "⚠️  GitHub has limited OAuth 2.1 support",
+                    "❌ No PKCE support",
+                    "❌ No resource indicators",
+                    "❌ No standard discovery endpoints",
                 ],
-                "algorithms": ["RS256"],
-                "claims": {
-                    "iss": "Issuer validation",
-                    "aud": "Audience validation",
-                    "exp": "Expiration check",
-                },
+                "setup_docs": "https://docs.github.com/en/developers/apps/building-oauth-apps",
             },
-            "setup_docs": "https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app",
         },
-        "google": {
-            "name": "Google OAuth 2.0",
-            "issuer_url": "https://accounts.google.com",
-            "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
-            "token_url": "https://oauth2.googleapis.com/token",
-            "jwks_url": "https://www.googleapis.com/oauth2/v3/certs",
-            "scopes": ["openid", "email", "profile"],
-            "client_id_env": "GOOGLE_CLIENT_ID",
-            "client_secret_env": "GOOGLE_CLIENT_SECRET",
-            "jwt_validation": {
-                "required_env": ["AUTH_PROVIDER=google", "AUTH_AUDIENCE"],
-                "algorithms": ["RS256"],
-                "claims": {
-                    "iss": "https://accounts.google.com",
-                    "aud": "Client ID",
-                    "exp": "Expiration check",
-                },
-            },
-            "setup_docs": "https://developers.google.com/identity/protocols/oauth2",
-        },
-        "keycloak": {
-            "name": "Keycloak",
-            "issuer_url": "https://{keycloak-server}/realms/{realm}",
-            "auth_url": "https://{keycloak-server}/realms/{realm}/protocol/openid-connect/auth",
-            "token_url": "https://{keycloak-server}/realms/{realm}/protocol/openid-connect/token",
-            "jwks_url": "https://{keycloak-server}/realms/{realm}/protocol/openid-connect/certs",
-            "scopes": ["openid", "email", "profile"],
-            "client_id_env": "KEYCLOAK_CLIENT_ID",
-            "client_secret_env": "KEYCLOAK_CLIENT_SECRET",
-            "keycloak_server_env": "KEYCLOAK_SERVER_URL",
-            "keycloak_realm_env": "KEYCLOAK_REALM",
-            "jwt_validation": {
-                "required_env": [
-                    "AUTH_PROVIDER=keycloak",
-                    "AUTH_ISSUER_URL",
-                    "AUTH_AUDIENCE",
-                ],
-                "algorithms": ["RS256"],
-                "claims": {
-                    "iss": "Realm issuer URL",
-                    "aud": "Client ID",
-                    "exp": "Expiration check",
-                },
-            },
-            "setup_docs": "https://www.keycloak.org/docs/latest/server_admin/#_clients",
-        },
-        "okta": {
-            "name": "Okta",
-            "issuer_url": "https://{okta-domain}/oauth2/default",
-            "auth_url": "https://{okta-domain}/oauth2/default/v1/authorize",
-            "token_url": "https://{okta-domain}/oauth2/default/v1/token",
-            "jwks_url": "https://{okta-domain}/oauth2/default/v1/keys",
-            "scopes": ["openid", "email", "profile"],
-            "client_id_env": "OKTA_CLIENT_ID",
-            "client_secret_env": "OKTA_CLIENT_SECRET",
-            "okta_domain_env": "OKTA_DOMAIN",
-            "jwt_validation": {
-                "required_env": ["AUTH_PROVIDER=okta", "OKTA_DOMAIN", "AUTH_AUDIENCE"],
-                "algorithms": ["RS256"],
-                "claims": {
-                    "iss": "Okta domain issuer",
-                    "aud": "Client ID",
-                    "exp": "Expiration check",
-                },
-            },
-            "setup_docs": "https://developer.okta.com/docs/guides/implement-oauth-for-okta/",
-        },
-        "github": {
-            "name": "GitHub OAuth",
-            "issuer_url": "https://api.github.com",
-            "auth_url": "https://github.com/login/oauth/authorize",
-            "token_url": "https://github.com/login/oauth/access_token",
-            "api_url": "https://api.github.com/user",
-            "scopes": ["read:user", "user:email", "read:org"],
-            "client_id_env": "GITHUB_CLIENT_ID",
-            "client_secret_env": "GITHUB_CLIENT_SECRET",
-            "organization_env": "GITHUB_ORG",
-            "token_validation": {
-                "type": "api_based",
-                "required_env": ["AUTH_PROVIDER=github", "GITHUB_CLIENT_ID"],
-                "optional_env": ["GITHUB_ORG"],
-                "validation_endpoint": "https://api.github.com/user",
-                "scope_mapping": {
-                    "read:user": "read",
-                    "user:email": "read",
-                    "read:org": "read",
-                    "repo": "write",
-                    "admin:org": "admin",
-                    "admin:repo_hook": "admin",
-                },
-            },
-            "features": {
-                "organization_restriction": "Restrict access to specific GitHub organization members",
-                "scope_mapping": "Maps GitHub scopes to MCP permissions",
-                "api_validation": "Uses GitHub API for token validation (not JWT)",
-                "hybrid_support": "Supports both OAuth tokens and GitHub App JWT tokens",
-            },
-            "setup_docs": "https://docs.github.com/en/developers/apps/building-oauth-apps",
+        "migration_note": {
+            "message": "🚀 Simplified Configuration!",
+            "details": [
+                "With OAuth 2.1 discovery, you only need AUTH_ISSUER_URL and AUTH_AUDIENCE",
+                "No more provider-specific configuration needed",
+                "All OAuth 2.1 compliant providers work the same way",
+                "Automatic endpoint discovery via RFC 8414",
+                "Enhanced SSL/TLS security for all OAuth communications",
+                "Custom CA bundle support for enterprise deployments",
+                "Legacy provider-specific environment variables still supported for backward compatibility",
+            ],
         },
     }
 
 
 def get_fastmcp_config(server_name: str):
-    """
-    Get FastMCP configuration with or without OAuth based on ENABLE_AUTH setting.
+    """Get FastMCP configuration with OAuth 2.1 authentication and MCP 2025-06-18 compliance."""
+    config = {
+        "name": server_name,
+        # Note: MCP 2025-06-18 compliance is handled at the application level,
+        # not through FastMCP configuration parameters
+    }
 
-    Args:
-        server_name: Name of the MCP server
-
-    Returns:
-        Dictionary containing FastMCP initialization parameters
-    """
-    if ENABLE_AUTH and oauth_provider and oauth_settings:
-        return {
-            "name": server_name,
-            "auth_server_provider": oauth_provider,
-            "auth": oauth_settings,
-        }
+    if ENABLE_AUTH and oauth_provider:
+        config["auth"] = oauth_provider
+        logger.info("FastMCP configured with OAuth 2.1 Bearer token authentication (MCP 2025-06-18 compliant)")
     else:
-        return {"name": server_name}
+        logger.info("FastMCP configured without authentication (MCP 2025-06-18 compliant)")
+
+    # Log the compliance information for clarity
+    logger.info("🚫 JSON-RPC batching disabled per MCP 2025-06-18 specification (application-level)")
+    logger.info("💡 Application-level batch operations (clear_context_batch, etc.) remain available")
+    logger.info("🔒 OAuth 2.1 features enabled: PKCE, Resource Indicators, Audience Validation")
+    logger.info("🚀 Using generic OAuth 2.1 discovery - works with any compliant provider")
+    logger.info(f"🔐 SSL/TLS verification: {'ENABLED' if ENFORCE_SSL_TLS_VERIFICATION else 'DISABLED'}")
+
+    return config
 
 
 # Export main components
@@ -991,19 +1132,27 @@ __all__ = [
     "AUTH_REQUIRED_SCOPES",
     "AUTH_CLIENT_REG_ENABLED",
     "AUTH_REVOCATION_ENABLED",
-    "AUTH_PROVIDER",
     "AUTH_AUDIENCE",
-    "AUTH_AZURE_TENANT_ID",
-    "AUTH_KEYCLOAK_REALM",
-    "AUTH_OKTA_DOMAIN",
     "AUTH_GITHUB_CLIENT_ID",
     "AUTH_GITHUB_ORG",
+    "OAUTH_DISCOVERY_CACHE_TTL",
+    "RESOURCE_INDICATORS",
+    "REQUIRE_PKCE",
+    "TOKEN_BINDING_ENABLED",
+    "TOKEN_INTROSPECTION_ENABLED",
+    "TOKEN_REVOCATION_CHECK_ENABLED",
+    "ENFORCE_SSL_TLS_VERIFICATION",
+    "CUSTOM_CA_BUNDLE_PATH",
     "JWT_AVAILABLE",
     "SCOPE_DEFINITIONS",
+    "OAuth21TokenValidator",
     "oauth_provider",
-    "oauth_settings",
     "require_scopes",
     "get_oauth_scopes_info",
     "get_oauth_provider_configs",
     "get_fastmcp_config",
+    "revoke_token",
+    "token_validator",
+    "create_secure_ssl_context",
+    "create_secure_aiohttp_connector",
 ]

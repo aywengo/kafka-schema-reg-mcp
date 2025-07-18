@@ -7,7 +7,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 Transform your schema management workflow with AI-powered automation:
 - **Natural Language Operations**: "Migrate schemas from dev to prod" or "Export all schemas in staging context"
 - **Multi-Environment Management**: Handle development, staging, and production registries simultaneously
-- **Production Safety**: Built-in readonly modes and granular permissions
+- **Production Safety**: Built-in viewonly modes and granular permissions
 - **Enterprise Features**: Schema contexts, batch operations, and comprehensive export capabilities
 
 ## ✨ Key Features
@@ -20,7 +20,7 @@ Transform your schema management workflow with AI-powered automation:
 
 ### **🏢 Enterprise Ready**
 - **Authentication & Authorization**: OAuth2 with role-based access control
-- **Production Safety**: Per-registry readonly modes and operational controls
+- **Production Safety**: Per-registry viewonly modes and operational controls
 - **Schema Migration**: Advanced tools for cross-registry and cross-context migration
 - **Comprehensive Export**: JSON, Avro IDL formats for backup and documentation
 
@@ -47,12 +47,12 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
         "-e", "SCHEMA_REGISTRY_URL",
         "-e", "SCHEMA_REGISTRY_USER", 
         "-e", "SCHEMA_REGISTRY_PASSWORD",
-        "-e", "READONLY",
+        "-e", "VIEWONLY",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-        "READONLY": "false"
+        "VIEWONLY": "false"
       }
     }
   }
@@ -70,19 +70,19 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
         "run", "-i", "--rm",
         "-e", "SCHEMA_REGISTRY_NAME_1",
         "-e", "SCHEMA_REGISTRY_URL_1",
-        "-e", "READONLY_1",
+        "-e", "VIEWONLY_1",
         "-e", "SCHEMA_REGISTRY_NAME_2", 
         "-e", "SCHEMA_REGISTRY_URL_2",
-        "-e", "READONLY_2",
+        "-e", "VIEWONLY_2",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_NAME_1": "development",
         "SCHEMA_REGISTRY_URL_1": "http://dev-registry:8081",
-        "READONLY_1": "false",
+        "VIEWONLY_1": "false",
         "SCHEMA_REGISTRY_NAME_2": "production",
         "SCHEMA_REGISTRY_URL_2": "http://prod-registry:8081", 
-        "READONLY_2": "true"
+        "VIEWONLY_2": "true"
       }
     }
   }
@@ -147,7 +147,7 @@ Once configured, you can use natural language with Claude:
 ## 🔐 Security & Production
 
 - **OAuth2 Authentication**: Role-based access with read/write/admin scopes
-- **Production Safety**: Readonly modes prevent accidental modifications
+- **Production Safety**: Viewonly modes prevent accidental modifications
 - **Secure Configuration**: Environment variable-based configuration
 - **Multi-Architecture**: AMD64 and ARM64 Docker images available
 

@@ -1,29 +1,59 @@
 #!/usr/bin/env python3
 """
-Migration Tools Module
+Migration Tools Module - Updated with Resource Linking
 
-Handles schema and context migration operations between registries.
-Provides schema migration, context migration, and migration status tracking.
+Handles schema and context migration operations between registries with structured tool output
+support per MCP 2025-06-18 specification including resource linking.
+
+Provides schema migration, context migration, and migration status tracking
+with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
-import asyncio
-import inspect
 import json
 import logging
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-import requests
-
-from task_management import TaskStatus, TaskType, get_operation_info, task_manager
+from resource_linking import add_links_to_response
+from schema_validation import (
+    create_error_response,
+    structured_output,
+)
+from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
+class IDPreservationError(Exception):
+    """Exception raised when ID preservation fails and requires user confirmation."""
+
+    def __init__(self, message: str, reason: str, original_error: str = None):
+        super().__init__(message)
+        self.reason = reason
+        self.original_error = original_error
+
+
+class MigrationConfirmationRequired(Exception):
+    """Exception raised when migration requires user confirmation to proceed."""
+
+    def __init__(self, message: str, confirmation_details: Dict[str, Any]):
+        super().__init__(message)
+        self.confirmation_details = confirmation_details
+
+
+def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[str] = None) -> str:
+    """Helper function to get registry name for linking."""
+    if registry_mode == "single":
+        return "default"
+    elif registry_name:
+        return registry_name
+    else:
+        return "unknown"
+
+
+@structured_output("migrate_schema", fallback_on_error=True)
 def migrate_schema_tool(
     subject: str,
     source_registry: str,
@@ -58,15 +88,16 @@ def migrate_schema_tool(
 
     Returns:
         Task information with task_id for monitoring progress (multi-registry mode)
-        or simple result (single-registry mode)
+        or simple result (single-registry mode) with structured validation and resource links
     """
     try:
         if registry_mode == "single":
-            return {
-                "error": "Schema migration between registries not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable cross-registry migration",
-            }
+            return create_error_response(
+                "Schema migration between registries not available in single-registry mode",
+                details={"suggestion": "Use multi-registry configuration to enable cross-registry migration"},
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
 
         # Multi-registry mode: use task queue
         # Create migration task
@@ -94,23 +125,237 @@ def migrate_schema_tool(
             if not source_client:
                 task.status = TaskStatus.FAILED
                 task.error = f"Source registry '{source_registry}' not found"
-                return {
-                    "error": f"Source registry '{source_registry}' not found",
-                    "registry_mode": "multi",
-                }
+                return create_error_response(
+                    f"Source registry '{source_registry}' not found",
+                    error_code="SOURCE_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
             if not target_client:
                 task.status = TaskStatus.FAILED
                 task.error = f"Target registry '{target_registry}' not found"
-                return {
-                    "error": f"Target registry '{target_registry}' not found",
-                    "registry_mode": "multi",
-                }
+                return create_error_response(
+                    f"Target registry '{target_registry}' not found",
+                    error_code="TARGET_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
 
             # Mark task as running
             task.status = TaskStatus.RUNNING
             task.started_at = datetime.now().isoformat()
 
             # Perform actual schema migration
+            try:
+                migration_result = _execute_schema_migration(
+                    subject=subject,
+                    source_client=source_client,
+                    target_client=target_client,
+                    source_context=source_context,
+                    target_context=target_context,
+                    versions=versions,
+                    migrate_all_versions=migrate_all_versions,
+                    preserve_ids=preserve_ids,
+                    dry_run=dry_run,
+                    force_without_id_preservation=False,  # User confirmation required by default
+                )
+            except MigrationConfirmationRequired as e:
+                # Handle confirmation required case
+                task.status = TaskStatus.FAILED
+                task.error = str(e)
+                migration_result = {
+                    "error": str(e),
+                    "error_type": "confirmation_required",
+                    "confirmation_details": e.confirmation_details,
+                    "user_prompt": (
+                        "Migration requires user confirmation due to ID preservation failure. "
+                        "Please confirm if you want to proceed without ID preservation."
+                    ),
+                    "action_required": "Call migrate_schema_tool again with preserve_ids=False to proceed without ID preservation, or resolve the permission issue first.",
+                }
+                task.completed_at = datetime.now().isoformat()
+
+                # Add structured output metadata
+                migration_result.update(
+                    {
+                        "migration_id": task.id,
+                        "subject": subject,
+                        "source_registry": source_registry,
+                        "target_registry": target_registry,
+                        "source_context": source_context,
+                        "target_context": target_context,
+                        "status": task.status.value,
+                        "dry_run": dry_run,
+                        "registry_mode": "multi",
+                        "mcp_protocol_version": "2025-06-18",
+                    }
+                )
+
+                # Add resource links
+                migration_result = add_links_to_response(
+                    migration_result,
+                    "migration",
+                    source_registry,
+                    migration_id=task.id,
+                    source_registry=source_registry,
+                    target_registry=target_registry,
+                )
+
+                return migration_result
+
+            # Update task with result
+            if "error" in migration_result:
+                task.status = TaskStatus.FAILED
+                task.error = migration_result["error"]
+            else:
+                task.status = TaskStatus.COMPLETED
+                task.progress = 100.0
+                task.result = migration_result
+
+            task.completed_at = datetime.now().isoformat()
+
+            # Add structured output metadata to result
+            migration_result.update(
+                {
+                    "migration_id": task.id,
+                    "subject": subject,
+                    "source_registry": source_registry,
+                    "target_registry": target_registry,
+                    "source_context": source_context,
+                    "target_context": target_context,
+                    "status": task.status.value,
+                    "dry_run": dry_run,
+                    "registry_mode": "multi",
+                    "mcp_protocol_version": "2025-06-18",
+                }
+            )
+
+            # Add resource links
+            migration_result = add_links_to_response(
+                migration_result,
+                "migration",
+                source_registry,
+                migration_id=task.id,
+                source_registry=source_registry,
+                target_registry=target_registry,
+            )
+
+            return migration_result
+
+        except MigrationConfirmationRequired:
+            # Re-raise confirmation required exceptions - don't convert them to generic errors
+            raise
+        except Exception as e:
+            return create_error_response(
+                f"Migration setup failed: {str(e)}",
+                error_code="MIGRATION_SETUP_FAILED",
+                registry_mode="multi",
+            )
+
+    except MigrationConfirmationRequired as e:
+        # Handle confirmation required at the outer level - just return confirmation response
+        return {
+            "error": str(e),
+            "error_type": "confirmation_required",
+            "confirmation_details": e.confirmation_details,
+            "user_prompt": (
+                "Migration requires user confirmation due to ID preservation failure. "
+                "Please confirm if you want to proceed without ID preservation."
+            ),
+            "action_required": "Call confirm_migration_without_ids_tool to proceed without ID preservation, or resolve the permission issue first.",
+        }
+    except Exception as e:
+        return create_error_response(str(e), error_code="MIGRATION_FAILED", registry_mode=registry_mode)
+
+
+@structured_output("confirm_migration_without_ids", fallback_on_error=True)
+def confirm_migration_without_ids_tool(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    registry_manager,
+    registry_mode: str,
+    dry_run: bool = False,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[List[int]] = None,
+    migrate_all_versions: bool = False,
+) -> Dict[str, Any]:
+    """
+    Confirm and proceed with schema migration without ID preservation.
+    Use this after receiving a confirmation_required error from migrate_schema_tool.
+
+    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
+    This operation runs asynchronously and returns a task_id immediately.
+    Use get_task_status(task_id) to monitor progress and get results.
+
+    Args:
+        subject: The subject name
+        source_registry: Source registry name
+        target_registry: Target registry name
+        dry_run: Preview migration without executing
+        source_context: Source context (default: ".")
+        target_context: Target context (default: ".")
+        versions: Optional list of specific versions to migrate
+        migrate_all_versions: Migrate all versions instead of just latest
+
+    Returns:
+        Task information with task_id for monitoring progress (multi-registry mode)
+        or simple result (single-registry mode) with structured validation and resource links
+    """
+    try:
+        if registry_mode == "single":
+            return create_error_response(
+                "Schema migration between registries not available in single-registry mode",
+                details={"suggestion": "Use multi-registry configuration to enable cross-registry migration"},
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
+
+        # Multi-registry mode: use task queue
+        # Create migration task
+        task = task_manager.create_task(
+            TaskType.MIGRATION,
+            metadata={
+                "operation": "confirm_migration_without_ids",
+                "subject": subject,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "source_context": source_context,
+                "target_context": target_context,
+                "migrate_all_versions": migrate_all_versions,
+                "preserve_ids": False,  # Explicitly disabled
+                "dry_run": dry_run,
+                "force_without_id_preservation": True,  # Force proceed without confirmation
+            },
+        )
+
+        # Implement schema migration without ID preservation
+        try:
+            # Check registry connections
+            source_client = registry_manager.get_registry(source_registry)
+            target_client = registry_manager.get_registry(target_registry)
+
+            if not source_client:
+                task.status = TaskStatus.FAILED
+                task.error = f"Source registry '{source_registry}' not found"
+                return create_error_response(
+                    f"Source registry '{source_registry}' not found",
+                    error_code="SOURCE_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+            if not target_client:
+                task.status = TaskStatus.FAILED
+                task.error = f"Target registry '{target_registry}' not found"
+                return create_error_response(
+                    f"Target registry '{target_registry}' not found",
+                    error_code="TARGET_REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            # Mark task as running
+            task.status = TaskStatus.RUNNING
+            task.started_at = datetime.now().isoformat()
+
+            # Perform actual schema migration (with force flag to skip confirmation)
             migration_result = _execute_schema_migration(
                 subject=subject,
                 source_client=source_client,
@@ -119,8 +364,9 @@ def migrate_schema_tool(
                 target_context=target_context,
                 versions=versions,
                 migrate_all_versions=migrate_all_versions,
-                preserve_ids=preserve_ids,
+                preserve_ids=False,  # Explicitly disabled
                 dry_run=dry_run,
+                force_without_id_preservation=True,  # Force proceed without confirmation
             )
 
             # Update task with result
@@ -134,7 +380,7 @@ def migrate_schema_tool(
 
             task.completed_at = datetime.now().isoformat()
 
-            # Add metadata to result
+            # Add structured output metadata to result
             migration_result.update(
                 {
                     "migration_id": task.id,
@@ -143,20 +389,36 @@ def migrate_schema_tool(
                     "target_registry": target_registry,
                     "source_context": source_context,
                     "target_context": target_context,
+                    "status": task.status.value,
+                    "dry_run": dry_run,
+                    "preserve_ids": False,
+                    "confirmed_without_id_preservation": True,
                     "registry_mode": "multi",
+                    "mcp_protocol_version": "2025-06-18",
                 }
+            )
+
+            # Add resource links
+            migration_result = add_links_to_response(
+                migration_result,
+                "migration",
+                source_registry,
+                migration_id=task.id,
+                source_registry=source_registry,
+                target_registry=target_registry,
             )
 
             return migration_result
 
         except Exception as e:
-            return {
-                "error": f"Migration setup failed: {str(e)}",
-                "registry_mode": "multi",
-            }
+            return create_error_response(
+                f"Migration setup failed: {str(e)}",
+                error_code="MIGRATION_SETUP_FAILED",
+                registry_mode="multi",
+            )
 
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(str(e), error_code="CONFIRMED_MIGRATION_FAILED", registry_mode=registry_mode)
 
 
 def _execute_schema_migration(
@@ -169,6 +431,7 @@ def _execute_schema_migration(
     migrate_all_versions: bool = False,
     preserve_ids: bool = True,
     dry_run: bool = False,
+    force_without_id_preservation: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute actual schema migration between registries with proper sparse version preservation.
@@ -183,19 +446,15 @@ def _execute_schema_migration(
         migrate_all_versions: Whether to migrate all versions
         preserve_ids: Whether to preserve schema IDs (requires IMPORT mode)
         dry_run: Whether to simulate without making changes
+        force_without_id_preservation: Whether to proceed without ID preservation when it fails
 
     Returns:
         Migration results with counts and status
     """
     try:
         logger.info(f"Starting schema migration for subject '{subject}'")
-        logger.info(
-            f"Source: {source_client.config.name}, Target: {target_client.config.name}"
-        )
+        logger.info(f"Source: {source_client.config.name}, Target: {target_client.config.name}")
         logger.info(f"Preserve IDs: {preserve_ids}, Dry run: {dry_run}")
-
-        # For source operations, use the subject as-is
-        source_subject = subject
 
         # For target operations, we may need to extract the bare subject name
         # if we're migrating to a different context
@@ -208,20 +467,18 @@ def _execute_schema_migration(
             if len(parts) >= 3:
                 # Extract just the subject name for target registration
                 target_subject_name = parts[2]
-                logger.info(
-                    f"Subject has context prefix. Full name: {subject}, bare name: {target_subject_name}"
-                )
+                logger.info(f"Subject has context prefix. Full name: {subject}, bare name: {target_subject_name}")
 
         # Get subject versions from source
         try:
             if source_context and source_context != ".":
-                source_versions_url = f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions"
-            else:
                 source_versions_url = (
-                    f"{source_client.config.url}/subjects/{subject}/versions"
+                    f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions"
                 )
+            else:
+                source_versions_url = f"{source_client.config.url}/subjects/{subject}/versions"
 
-            response = requests.get(
+            response = source_client.session.get(
                 source_versions_url,
                 auth=source_client.auth,
                 headers=source_client.headers,
@@ -266,9 +523,7 @@ def _execute_schema_migration(
             versions_to_migrate = available_versions
         else:
             # Migrate only latest version
-            versions_to_migrate = (
-                [max(available_versions)] if available_versions else []
-            )
+            versions_to_migrate = [max(available_versions)] if available_versions else []
 
         if not versions_to_migrate:
             return {
@@ -287,304 +542,323 @@ def _execute_schema_migration(
 
         logger.info(f"Versions to migrate: {sorted(versions_to_migrate)}")
 
-        # Check if target subject exists and delete it if preserve_ids is enabled
-        target_subject_exists = False
-        if preserve_ids and not dry_run:
-            try:
-                if target_context and target_context != ".":
-                    target_versions_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
-                else:
-                    target_versions_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
+        # Handle IMPORT mode for ID preservation
+        original_target_mode = None
+        id_preservation_error = None
 
-                target_versions_response = requests.get(
-                    target_versions_url,
+        if preserve_ids:
+            try:
+                # Get current target registry mode
+                mode_response = target_client.session.get(
+                    f"{target_client.config.url}/mode",
                     auth=target_client.auth,
                     headers=target_client.headers,
                     timeout=10,
                 )
-                if target_versions_response.status_code == 200:
-                    target_subject_exists = True
-                    logger.info(
-                        f"Subject '{target_subject_name}' exists in target registry. Will delete before migration."
-                    )
+                if mode_response.status_code == 200:
+                    original_target_mode = mode_response.json().get("mode", "READWRITE")
 
-                    # Delete the subject
-                    if target_context and target_context != ".":
-                        delete_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}"
-                    else:
-                        delete_url = (
-                            f"{target_client.config.url}/subjects/{target_subject_name}"
-                        )
-
-                    delete_response = requests.delete(
-                        delete_url,
-                        auth=target_client.auth,
-                        headers=target_client.headers,
-                        timeout=10,
-                    )
-                    if delete_response.status_code == 200:
+                    # Set target registry to IMPORT mode for ID preservation
+                    if original_target_mode != "IMPORT":
                         logger.info(
-                            f"Successfully deleted existing subject '{target_subject_name}' from target registry"
+                            f"Setting target registry to IMPORT mode for ID preservation "
+                            f"(was {original_target_mode})"
                         )
-                        target_subject_exists = False
-                    else:
-                        logger.warning(
-                            f"Failed to delete existing subject: {delete_response.status_code} - {delete_response.text}"
+                        import_response = target_client.session.put(
+                            f"{target_client.config.url}/mode",
+                            json={"mode": "IMPORT"},
+                            auth=target_client.auth,
+                            headers={
+                                **target_client.headers,
+                                "Content-Type": "application/vnd.schemaregistry.v1+json",
+                            },
+                            timeout=10,
                         )
+                        if import_response.status_code != 200:
+                            id_preservation_error = import_response.text
+                            logger.warning(f"Failed to set IMPORT mode: {import_response.text}.")
 
-            except Exception as e:
-                logger.warning(f"Error checking/deleting existing subject: {e}")
-
-        # Set target subject to IMPORT mode if preserving IDs and create placeholder schemas
-        if preserve_ids and not dry_run:
-            try:
-                if target_context and target_context != ".":
-                    mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
-                else:
-                    mode_url = f"{target_client.config.url}/mode/{target_subject_name}"
-
-                logger.info(
-                    f"Setting IMPORT mode on target subject '{target_subject_name}'"
-                )
-                mode_response = requests.put(
-                    mode_url,
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    json={"mode": "IMPORT"},
-                    timeout=10,
-                )
-
-                if mode_response.status_code in [200, 404]:
-                    logger.info("Successfully set target subject to IMPORT mode")
-
-                    # Create placeholder schemas for missing versions to preserve sparse version numbers
-                    min_version = min(versions_to_migrate)
-                    if min_version > 1:
-                        logger.info(
-                            f"Creating placeholder schemas for versions 1 to {min_version-1}"
-                        )
-                        for placeholder_version in range(1, min_version):
-                            try:
-                                placeholder_schema = {
-                                    "type": "record",
-                                    "name": "PlaceholderSchema",
-                                    "fields": [
-                                        {
-                                            "name": "placeholder_field",
-                                            "type": "string",
-                                            "default": "placeholder",
-                                        }
-                                    ],
+                            # Check if we should ask for user confirmation
+                            if not force_without_id_preservation:
+                                confirmation_details = {
+                                    "subject": subject,
+                                    "source_registry": source_client.config.name,
+                                    "target_registry": target_client.config.name,
+                                    "source_context": source_context,
+                                    "target_context": target_context,
+                                    "versions_to_migrate": versions_to_migrate,
+                                    "preserve_ids_requested": True,
+                                    "id_preservation_error": id_preservation_error,
+                                    "error_reason": "Permission denied to set IMPORT mode",
+                                    "options": {
+                                        "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                                        "cancel_migration": "Cancel the migration and resolve permissions first",
+                                    },
                                 }
 
-                                placeholder_payload = {
-                                    "schema": json.dumps(placeholder_schema),
-                                    "schemaType": "AVRO",
-                                    "id": placeholder_version,
-                                    "version": placeholder_version,
-                                }
-
-                                if target_context and target_context != ".":
-                                    placeholder_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
-                                else:
-                                    placeholder_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
-
-                                placeholder_response = requests.post(
-                                    placeholder_url,
-                                    auth=target_client.auth,
-                                    headers=target_client.headers,
-                                    json=placeholder_payload,
-                                    timeout=10,
+                                raise MigrationConfirmationRequired(
+                                    f"ID preservation failed for subject '{subject}'. "
+                                    f"Cannot set target registry to IMPORT mode due to insufficient permissions. "
+                                    f"Do you want to continue migration without ID preservation?",
+                                    confirmation_details,
                                 )
-
-                                if placeholder_response.status_code == 200:
-                                    logger.info(
-                                        f"Created placeholder schema for version {placeholder_version}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"Failed to create placeholder for version {placeholder_version}: {placeholder_response.status_code}"
-                                    )
-
-                            except Exception as e:
-                                logger.warning(
-                                    f"Error creating placeholder for version {placeholder_version}: {e}"
+                            else:
+                                logger.info(
+                                    "Proceeding without ID preservation as requested (force_without_id_preservation=True)"
                                 )
-
-                elif mode_response.status_code == 405:
-                    logger.warning(
-                        "IMPORT mode not supported by target registry, will proceed without ID preservation"
-                    )
-                    preserve_ids = False
+                                preserve_ids = False
+                        else:
+                            logger.info("✅ Target registry set to IMPORT mode")
+                    else:
+                        logger.info("✅ Target registry already in IMPORT mode")
                 else:
-                    logger.warning(
-                        f"Failed to set IMPORT mode: {mode_response.status_code} - {mode_response.text}"
+                    id_preservation_error = f"HTTP {mode_response.status_code}: {mode_response.text}"
+                    logger.warning(f"Could not get target registry mode: {mode_response.text}.")
+
+                    if not force_without_id_preservation:
+                        confirmation_details = {
+                            "subject": subject,
+                            "source_registry": source_client.config.name,
+                            "target_registry": target_client.config.name,
+                            "source_context": source_context,
+                            "target_context": target_context,
+                            "versions_to_migrate": versions_to_migrate,
+                            "preserve_ids_requested": True,
+                            "id_preservation_error": id_preservation_error,
+                            "error_reason": "Cannot access target registry mode",
+                            "options": {
+                                "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                                "cancel_migration": "Cancel the migration and check registry access",
+                            },
+                        }
+
+                        raise MigrationConfirmationRequired(
+                            f"ID preservation failed for subject '{subject}'. "
+                            f"Cannot access target registry mode. "
+                            f"Do you want to continue migration without ID preservation?",
+                            confirmation_details,
+                        )
+                    else:
+                        preserve_ids = False
+
+            except MigrationConfirmationRequired:
+                # Re-raise confirmation required exceptions
+                raise
+            except Exception as e:
+                id_preservation_error = str(e)
+                logger.warning(f"Error setting IMPORT mode: {str(e)}.")
+
+                if not force_without_id_preservation:
+                    confirmation_details = {
+                        "subject": subject,
+                        "source_registry": source_client.config.name,
+                        "target_registry": target_client.config.name,
+                        "source_context": source_context,
+                        "target_context": target_context,
+                        "versions_to_migrate": versions_to_migrate,
+                        "preserve_ids_requested": True,
+                        "id_preservation_error": str(e),
+                        "error_reason": "Unexpected error setting IMPORT mode",
+                        "options": {
+                            "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+                            "cancel_migration": "Cancel the migration and investigate the error",
+                        },
+                    }
+
+                    raise MigrationConfirmationRequired(
+                        f"ID preservation failed for subject '{subject}'. "
+                        f"Unexpected error: {str(e)}. "
+                        f"Do you want to continue migration without ID preservation?",
+                        confirmation_details,
                     )
+                else:
                     preserve_ids = False
 
-            except Exception as e:
-                logger.warning(f"Error setting IMPORT mode: {e}")
-                preserve_ids = False
-
+        # Continue with migration...
         # Migrate each version
         successful_count = 0
         failed_count = 0
         skipped_count = 0
         migration_details = []
 
-        for version in sorted(versions_to_migrate):
-            try:
-                logger.info(f"Processing version {version} of subject '{subject}'")
+        try:
+            for version in sorted(versions_to_migrate):
+                try:
+                    logger.info(f"Processing version {version} of subject '{subject}'")
 
-                # Get schema from source
-                if source_context and source_context != ".":
-                    source_schema_url = f"{source_client.config.url}/contexts/{source_context}/subjects/{subject}/versions/{version}"
-                else:
-                    source_schema_url = f"{source_client.config.url}/subjects/{subject}/versions/{version}"
+                    if dry_run:
+                        logger.info(f"[DRY RUN] Would migrate {subject} version {version}")
+                        successful_count += 1
+                        migration_details.append(
+                            {
+                                "version": version,
+                                "status": "simulated",
+                                "message": "Would migrate this version",
+                            }
+                        )
+                        continue
 
-                schema_response = requests.get(
-                    source_schema_url,
-                    auth=source_client.auth,
-                    headers=source_client.headers,
-                    timeout=10,
-                )
+                    # Get schema from source registry
+                    if source_context and source_context != ".":
+                        schema_url = (
+                            f"{source_client.config.url}/contexts/{source_context}/"
+                            f"subjects/{subject}/versions/{version}"
+                        )
+                    else:
+                        schema_url = f"{source_client.config.url}/subjects/{subject}/versions/{version}"
 
-                if schema_response.status_code != 200:
-                    failed_count += 1
-                    migration_details.append(
-                        {
-                            "version": version,
-                            "status": "failed",
-                            "error": f"Failed to get schema: HTTP {schema_response.status_code}",
-                        }
-                    )
-                    continue
-
-                schema_data = schema_response.json()
-
-                if dry_run:
-                    logger.info(f"[DRY RUN] Would migrate {subject} version {version}")
-                    successful_count += 1
-                    migration_details.append(
-                        {
-                            "version": version,
-                            "status": "simulated",
-                            "schema_id": schema_data.get("id"),
-                            "schema": schema_data.get("schema"),
-                            "message": "Would migrate this version",
-                        }
-                    )
-                    continue
-
-                # Prepare registration payload
-                register_payload = {
-                    "schema": schema_data.get("schema"),
-                    "schemaType": schema_data.get("schemaType", "AVRO"),
-                }
-
-                # Add references if present
-                if "references" in schema_data:
-                    register_payload["references"] = schema_data["references"]
-
-                # CRITICAL: Add ID and version if preserving IDs to maintain sparse version numbers
-                if preserve_ids and schema_data.get("id"):
-                    register_payload["id"] = schema_data.get("id")
-                    register_payload["version"] = (
-                        version  # CRITICAL: Include version to preserve sparse numbering
-                    )
-                    logger.info(
-                        f"Preserving schema ID {schema_data.get('id')} and version {version}"
-                    )
-                else:
-                    logger.info(
-                        f"Not preserving IDs - version {version} will be auto-assigned sequential number in target"
+                    schema_response = source_client.session.get(
+                        schema_url,
+                        auth=source_client.auth,
+                        headers=source_client.headers,
+                        timeout=10,
                     )
 
-                # Register schema in target
-                if target_context and target_context != ".":
-                    target_register_url = f"{target_client.config.url}/contexts/{target_context}/subjects/{target_subject_name}/versions"
-                else:
-                    target_register_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
+                    if schema_response.status_code != 200:
+                        raise Exception(f"Failed to get schema: HTTP {schema_response.status_code}")
 
-                logger.info(f"Registering schema version {version} in target registry")
-                register_response = requests.post(
-                    target_register_url,
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    json=register_payload,
-                    timeout=10,
-                )
+                    schema_data = schema_response.json()
+                    schema_definition = json.loads(schema_data["schema"])
 
-                if register_response.status_code in [200, 409]:  # 409 = already exists
-                    result = register_response.json()
-                    actual_version = result.get("version", version)
-                    logger.info(
-                        f"Successfully registered version {actual_version} with ID {result.get('id')}"
-                    )
-                    successful_count += 1
-                    migration_details.append(
-                        {
-                            "version": actual_version,
-                            "status": "migrated",
-                            "source_id": schema_data.get("id"),
-                            "target_id": result.get("id"),
-                            "preserved_version": preserve_ids
-                            and actual_version == version,
-                        }
-                    )
-                else:
-                    error_text = register_response.text
-                    logger.error(f"Error migrating version {version}: {error_text}")
-                    failed_count += 1
-                    migration_details.append(
-                        {
-                            "version": version,
-                            "status": "failed",
-                            "error": f"Registration failed: HTTP {register_response.status_code}: {error_text}",
-                        }
-                    )
+                    # Register schema in target registry
+                    if target_context and target_context != ".":
+                        target_url = (
+                            f"{target_client.config.url}/contexts/{target_context}/"
+                            f"subjects/{target_subject_name}/versions"
+                        )
+                    else:
+                        target_url = f"{target_client.config.url}/subjects/{target_subject_name}/versions"
 
-            except Exception as e:
-                logger.error(f"Error migrating version {version}: {e}")
-                failed_count += 1
-                migration_details.append(
-                    {
-                        "version": version,
-                        "status": "failed",
-                        "error": f"Version migration error: {str(e)}",
+                    payload = {
+                        "schema": json.dumps(schema_definition),
+                        "schemaType": schema_data.get("schemaType", "AVRO"),
                     }
-                )
 
-        # Restore original mode if we changed it (optional - many registries auto-restore)
-        if preserve_ids and not dry_run:
-            try:
-                if target_context and target_context != ".":
-                    mode_url = f"{target_client.config.url}/contexts/{target_context}/mode/{target_subject_name}"
-                else:
-                    mode_url = f"{target_client.config.url}/mode/{target_subject_name}"
+                    # Add references if they exist
+                    if "references" in schema_data and schema_data["references"]:
+                        payload["references"] = schema_data["references"]
 
-                logger.info("Restoring original subject mode")
-                restore_response = requests.put(
-                    mode_url,
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    json={"mode": "READWRITE"},
-                    timeout=10,
-                )
+                    # Try ID preservation first if requested
+                    target_id = None
+                    if preserve_ids and "id" in schema_data:
+                        # First attempt: try with ID preservation (and version preservation)
+                        payload_with_id = payload.copy()
+                        payload_with_id["id"] = schema_data["id"]
+                        # Also preserve version number in IMPORT mode
+                        payload_with_id["version"] = version
 
-                if restore_response.status_code == 200:
-                    logger.info("Restored original subject mode")
-                else:
-                    logger.warning(
-                        f"Failed to restore original mode: {restore_response.status_code}"
+                        target_response = target_client.session.post(
+                            target_url,
+                            json=payload_with_id,
+                            auth=target_client.auth,
+                            headers={
+                                **target_client.headers,
+                                "Content-Type": "application/vnd.schemaregistry.v1+json",
+                            },
+                            timeout=10,
+                        )
+
+                        if target_response.status_code in [
+                            200,
+                            409,
+                        ]:  # Success with ID preservation
+                            target_id = (
+                                target_response.json().get("id") if target_response.status_code == 200 else "existing"
+                            )
+                            successful_count += 1
+                            migration_details.append(
+                                {
+                                    "version": version,
+                                    "status": "migrated",
+                                    "source_id": schema_data.get("id"),
+                                    "target_id": target_id,
+                                    "preserved_version": True,
+                                }
+                            )
+                            continue
+                        elif target_response.status_code == 422 and "import mode" in target_response.text.lower():
+                            # Import mode required for ID preservation - fall back to normal registration
+                            logger.warning(
+                                f"ID preservation requires IMPORT mode for version {version}, "
+                                f"falling back to normal registration"
+                            )
+                        else:
+                            # Other error - try without ID preservation
+                            logger.warning(
+                                f"ID preservation failed for version {version}: {target_response.text}, trying without ID"
+                            )
+
+                    # Fallback: register without ID preservation
+                    target_response = target_client.session.post(
+                        target_url,
+                        json=payload,
+                        auth=target_client.auth,
+                        headers={
+                            **target_client.headers,
+                            "Content-Type": "application/vnd.schemaregistry.v1+json",
+                        },
+                        timeout=10,
                     )
 
-            except Exception as e:
-                logger.warning(f"Error restoring original mode: {e}")
+                    if target_response.status_code in [
+                        200,
+                        409,
+                    ]:  # 409 = already exists
+                        target_id = (
+                            target_response.json().get("id") if target_response.status_code == 200 else "existing"
+                        )
+                        successful_count += 1
+                        migration_details.append(
+                            {
+                                "version": version,
+                                "status": "migrated",
+                                "source_id": schema_data.get("id"),
+                                "target_id": target_id,
+                                "preserved_version": False,  # ID was not preserved
+                                "note": (
+                                    "ID preservation skipped (registry not in IMPORT mode)" if preserve_ids else None
+                                ),
+                            }
+                        )
+                    else:
+                        raise Exception(
+                            f"Failed to register schema: HTTP {target_response.status_code} - {target_response.text}"
+                        )
 
-        logger.info(
-            f"Migration completed for subject '{subject}'. Migrated {successful_count} versions"
-        )
+                except Exception as e:
+                    logger.error(f"Error migrating version {version}: {e}")
+                    failed_count += 1
+                    migration_details.append(
+                        {
+                            "version": version,
+                            "status": "failed",
+                            "error": f"Version migration error: {str(e)}",
+                        }
+                    )
+
+        finally:
+            # Restore original target registry mode
+            if original_target_mode and original_target_mode != "IMPORT":
+                try:
+                    logger.info(f"Restoring target registry to original mode: {original_target_mode}")
+                    restore_response = target_client.session.put(
+                        f"{target_client.config.url}/mode",
+                        json={"mode": original_target_mode},
+                        auth=target_client.auth,
+                        headers={
+                            **target_client.headers,
+                            "Content-Type": "application/vnd.schemaregistry.v1+json",
+                        },
+                        timeout=10,
+                    )
+                    if restore_response.status_code == 200:
+                        logger.info(f"✅ Target registry restored to {original_target_mode} mode")
+                    else:
+                        logger.warning(f"Failed to restore registry mode: {restore_response.text}")
+                except Exception as e:
+                    logger.warning(f"Error restoring registry mode: {str(e)}")
+
+        logger.info(f"Migration completed for subject '{subject}'. Migrated {successful_count} versions")
 
         return {
             "total_versions": len(available_versions),
@@ -594,18 +868,14 @@ def _execute_schema_migration(
             "skipped_migrations": skipped_count,
             "migration_details": migration_details,
             "dry_run": dry_run,
-            "subject_existed_in_target": target_subject_exists,
             "preserve_ids": preserve_ids,
             "message": f"Migrated {successful_count}/{len(versions_to_migrate)} versions successfully"
-            + (f" (dry run)" if dry_run else ""),
-            "debug_info": {
-                "available_versions": available_versions,
-                "requested_versions": versions,
-                "versions_to_migrate_list": versions_to_migrate,
-                "preserve_ids": preserve_ids,
-            },
+            + (" (dry run)" if dry_run else ""),
         }
 
+    except MigrationConfirmationRequired:
+        # Re-raise confirmation required exceptions - don't convert them to generic errors
+        raise
     except Exception as e:
         logger.error(f"Error in _execute_schema_migration: {e}")
         return {
@@ -618,21 +888,23 @@ def _execute_schema_migration(
         }
 
 
+@structured_output("list_migrations", fallback_on_error=True)
 def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
     """
     List all migration tasks and their status.
     Only available in multi-registry mode.
 
     Returns:
-        List of migration tasks with their status and progress
+        Dictionary containing migration tasks with their status and progress, including resource links
     """
     try:
         if registry_mode == "single":
-            return {
-                "error": "Migration tracking not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable migration tracking",
-            }
+            return create_error_response(
+                "Migration tracking not available in single-registry mode",
+                details={"suggestion": "Use multi-registry configuration to enable migration tracking"},
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
 
         # Get all migration-related tasks
         all_tasks = task_manager.list_tasks(task_type=TaskType.MIGRATION)
@@ -652,14 +924,25 @@ def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
             }
             migrations.append(migration_info)
 
-        # Return list format for API compatibility with tests
-        # Tests expect len(list_migrations()) to work
-        return migrations
+        # Convert to enhanced response format
+        result = {
+            "migrations": migrations,
+            "total_migrations": len(migrations),
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
+        }
+
+        # Add resource links
+        registry_name = _get_registry_name_for_linking(registry_mode)
+        result = add_links_to_response(result, "migrations_list", registry_name)
+
+        return result
 
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(str(e), error_code="MIGRATION_LIST_FAILED", registry_mode=registry_mode)
 
 
+@structured_output("get_migration_status", fallback_on_error=True)
 def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str, Any]:
     """
     Get detailed status of a specific migration.
@@ -669,56 +952,71 @@ def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str
         migration_id: The migration task ID to query
 
     Returns:
-        Detailed migration status and progress information
+        Detailed migration status and progress information with structured validation and resource links
     """
     try:
         if registry_mode == "single":
-            return {
-                "error": "Migration tracking not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable migration tracking",
-            }
+            return create_error_response(
+                "Migration tracking not available in single-registry mode",
+                details={"suggestion": "Use multi-registry configuration to enable migration tracking"},
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
 
         # Get the specific migration task
         task = task_manager.get_task(migration_id)
         if task is None:
-            return {"error": f"Migration '{migration_id}' not found"}
+            return create_error_response(
+                f"Migration '{migration_id}' not found",
+                error_code="MIGRATION_NOT_FOUND",
+                registry_mode=registry_mode,
+            )
 
         migration_status = {
             "migration_id": task.id,
-            "type": task.type.value,
             "status": task.status.value,
-            "created_at": task.created_at,
+            "progress": task.progress,
             "started_at": task.started_at,
             "completed_at": task.completed_at,
-            "progress": task.progress,
             "error": task.error,
             "result": task.result,
             "metadata": task.metadata or {},
-            "registry_mode": "multi",
+            "registry_mode": registry_mode,
+            "mcp_protocol_version": "2025-06-18",
         }
 
         # Add estimated time remaining if in progress
         if task.status == TaskStatus.RUNNING and task.progress > 0:
             elapsed = time.time() - (
-                datetime.fromisoformat(task.started_at).timestamp()
-                if task.started_at
-                else time.time()
+                datetime.fromisoformat(task.started_at).timestamp() if task.started_at else time.time()
             )
             if task.progress > 5:  # Only estimate if we have meaningful progress
                 estimated_total = elapsed / (task.progress / 100)
                 estimated_remaining = max(0, estimated_total - elapsed)
-                migration_status["estimated_remaining_seconds"] = round(
-                    estimated_remaining, 1
-                )
+                migration_status["estimated_remaining_seconds"] = round(estimated_remaining, 1)
+
+        # Add resource links - extract registry names from metadata
+        metadata = task.metadata or {}
+        source_registry = metadata.get("source_registry", "unknown")
+        target_registry = metadata.get("target_registry", "unknown")
+
+        migration_status = add_links_to_response(
+            migration_status,
+            "migration",
+            source_registry,
+            migration_id=migration_id,
+            source_registry=source_registry,
+            target_registry=target_registry,
+        )
 
         return migration_status
 
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(str(e), error_code="MIGRATION_STATUS_FAILED", registry_mode=registry_mode)
 
 
-async def migrate_context_tool(
+@structured_output("migrate_context", fallback_on_error=True)
+def migrate_context_tool(
     source_registry: str,
     target_registry: str,
     registry_manager,
@@ -744,30 +1042,33 @@ async def migrate_context_tool(
         migrate_all_versions: Migrate all versions or just latest
 
     Returns:
-        Docker command and instructions for running the external migration tool
+        Docker command and instructions for running the external migration tool with structured validation and resource links
     """
     try:
         if registry_mode == "single":
-            return {
-                "error": "Context migration between registries not available in single-registry mode",
-                "registry_mode": "single",
-                "suggestion": "Use multi-registry configuration to enable cross-registry migration",
-            }
+            return create_error_response(
+                "Context migration between registries not available in single-registry mode",
+                details={"suggestion": "Use multi-registry configuration to enable cross-registry migration"},
+                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
+                registry_mode="single",
+            )
 
         # Get registry configurations
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
         if not source_client:
-            return {
-                "error": f"Source registry '{source_registry}' not found",
-                "registry_mode": "multi",
-            }
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
         if not target_client:
-            return {
-                "error": f"Target registry '{target_registry}' not found",
-                "registry_mode": "multi",
-            }
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
 
         # Use default context if not specified
         context = context or "."
@@ -814,9 +1115,12 @@ async def migrate_context_tool(
 
         docker_command = " \\\n  ".join(docker_cmd_parts)
 
-        return {
+        result = {
             "message": "Context migration requires the external kafka-schema-reg-migrator tool",
-            "reason": "This MCP only supports single schema migration. For context migration, use the specialized external tool.",
+            "reason": (
+                "This MCP only supports single schema migration. "
+                "For context migration, use the specialized external tool."
+            ),
             "tool": "kafka-schema-reg-migrator",
             "documentation": "https://github.com/aywengo/kafka-schema-reg-migrator",
             "docker_hub": "https://hub.docker.com/r/aywengo/kafka-schema-reg-migrator",
@@ -856,11 +1160,34 @@ async def migrate_context_tool(
             "warnings": [
                 "⚠️  This will use an external Docker container for migration",
                 "⚠️  Ensure Docker is installed and running",
-                f"⚠️  {'This is a DRY RUN - no actual changes will be made' if dry_run else 'This will perform actual data migration'}",
+                (
+                    "⚠️  "
+                    + (
+                        "This is a DRY RUN - no actual changes will be made"
+                        if dry_run
+                        else "This will perform actual data migration"
+                    )
+                ),
                 "⚠️  Review the documentation for advanced configuration options",
             ],
+            "status": "completed",  # For schema compatibility
+            "source_registry": source_registry,
+            "target_registry": target_registry,
+            "dry_run": dry_run,
             "registry_mode": "multi",
+            "mcp_protocol_version": "2025-06-18",
         }
 
+        # Add resource links
+        result = add_links_to_response(
+            result,
+            "comparison",
+            source_registry,
+            source_registry=source_registry,
+            target_registry=target_registry,
+        )
+
+        return result
+
     except Exception as e:
-        return {"error": str(e), "registry_mode": registry_mode}
+        return create_error_response(str(e), error_code="CONTEXT_MIGRATION_FAILED", registry_mode=registry_mode)

@@ -1,12 +1,15 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v1.7.0 with **True MCP Implementation**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
+This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ Framework**, **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server is a **true Message Control Protocol (MCP) implementation** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** instead of REST API calls, now with advanced async operations for long-running tasks.
+The Kafka Schema Registry MCP Server uses the **modern FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**, integrating seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance, reliability, and authentication capabilities.
 
 ### **Key MCP Features:**
+- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with enhanced performance
+- ✅ **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0 support for 5 providers
 - ✅ **48 MCP Tools**: Complete schema operations via natural language  
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
@@ -339,12 +342,12 @@ Claude: I'll configure different compatibility levels for your environments.
 
 **Mode Management:**
 ```
-Human: "Switch the schema registry to READONLY mode during our maintenance window"
+Human: "Switch the schema registry to VIEWONLY mode during our maintenance window"
 
 Claude: I'll switch to read-only mode for your maintenance.
 
 [Uses update_mode MCP tool]
-✅ Global mode: Changed to READONLY
+✅ Global mode: Changed to VIEWONLY
 🚫 Schema registration temporarily disabled
 ⏰ Ready for maintenance operations
 ```

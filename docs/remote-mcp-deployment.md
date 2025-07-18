@@ -16,8 +16,10 @@ Remote MCP servers are third-party services that expand LLM capabilities by prov
 
 Our Kafka Schema Registry MCP Server is **production-ready** for remote deployment:
 
-- ✅ **FastMCP Transport Support**: SSE and Streamable HTTP transports
-- ✅ **Enterprise OAuth**: Azure AD, Google, Keycloak, Okta with JWT validation
+- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with MCP 2025-06-18 specification compliance
+- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 support
+- ✅ **Multi-Transport Support**: stdio, SSE, and Streamable HTTP transports via FastMCP
+- ✅ **Enterprise OAuth**: Azure AD, Google, Keycloak, Okta, GitHub with JWT validation
 - ✅ **Production Infrastructure**: Docker, Kubernetes, TLS/HTTPS
 - ✅ **48 MCP Tools**: Complete schema registry operations
 - ✅ **Multi-Registry Support**: Enterprise-grade functionality
@@ -79,6 +81,10 @@ Remote MCP servers require authentication. Choose your OAuth provider:
    export AZURE_CLIENT_ID="your-client-id"
    export AZURE_CLIENT_SECRET="your-client-secret"
    export AUTH_AUDIENCE="your-client-id"
+   
+   # SSL/TLS Security Configuration (v2.0.0+)
+   export ENFORCE_SSL_TLS_VERIFICATION="true"
+   export CUSTOM_CA_BUNDLE_PATH=""  # Optional: path to corporate CA bundle
    ```
 
 3. **Assign User Roles** (see [User Role Assignment Guide](user-role-assignment-guide.md)):
@@ -221,24 +227,26 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-### FastMCP Client (Python)
+### FastMCP Client (Python) - v2.0.0
 
 ```python
 from fastmcp import Client
 import asyncio
 
 async def main():
-    # Connect to remote MCP server
-    async with Client("https://mcp-schema-registry.your-domain.com/mcp") as client:
+    # Connect to remote MCP server using FastMCP 2.8.0+ client
+    client = Client("https://mcp-schema-registry.your-domain.com/mcp")
+    
+    async with client:
         # List available tools
         tools = await client.list_tools()
         print(f"Available tools: {len(tools)}")
         
-        # Call a tool
+        # Call a tool with enhanced error handling
         result = await client.call_tool("list_subjects", {
             "registry": "production"
         })
-        print(f"Subjects: {result.text}")
+        print(f"Subjects: {result}")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -344,16 +352,21 @@ curl http://localhost:8000/metrics
 ```bash
 # Development
 export ENABLE_AUTH="false"  # Development only!
+export ENFORCE_SSL_TLS_VERIFICATION="false"  # Development only - not recommended
 
-# Staging
+# Staging  
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
-export READONLY_1="false"  # Allow write operations
+export VIEWONLY_1="false"  # Allow write operations
+export ENFORCE_SSL_TLS_VERIFICATION="true"
+export CUSTOM_CA_BUNDLE_PATH=""
 
 # Production
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
-export READONLY_1="true"   # Read-only for safety
+export VIEWONLY_1="true"   # Read-only for safety
+export ENFORCE_SSL_TLS_VERIFICATION="true"
+export CUSTOM_CA_BUNDLE_PATH="/etc/ssl/certs/corporate-ca-bundle.pem"  # Optional
 ```
 
 ## 🚀 Submission to Anthropic

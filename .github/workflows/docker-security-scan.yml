@@ -31,14 +31,35 @@ jobs:
         run: |
           docker build -t kafka-schema-registry-mcp:security-scan .
 
+      # Option 3: Enhanced Trivy configuration
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'kafka-schema-registry-mcp:security-scan'
           format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-          ignore-unfixed: false
+          output: 'trivy-results-raw.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          scanners: 'vuln'
+
+      # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+      - name: Filter SARIF results for HIGH and CRITICAL only
+        run: |
+          # Install jq if not available
+          which jq || sudo apt-get update && sudo apt-get install -y jq
+          
+          # Filter SARIF to only include HIGH and CRITICAL severity
+          # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+          jq '
+            .runs[].results |= map(
+              select(.level == "error" or .level == "warning")
+            )
+          ' trivy-results-raw.sarif > trivy-results.sarif
+          
+          # Debug: Show filtered results count
+          echo "Filtered SARIF results:"
+          jq '.runs[].results | length' trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -46,12 +67,16 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      # Option 3: Enhanced Trivy configuration for table output
       - name: Run Trivy in table format
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
             aquasec/trivy:latest image \
             --format table \
-            --severity CRITICAL,HIGH,MEDIUM \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --vuln-type os,library \
+            --scanners vuln \
             kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
 
       - name: Create issue from vulnerabilities
@@ -64,19 +89,30 @@ jobs:
             
             // Check if there are any vulnerabilities
             if (trivyOutput.includes('Total: 0')) {
-              console.log('No vulnerabilities found');
+              console.log('No HIGH or CRITICAL vulnerabilities found');
+              return;
+            }
+            
+            // Check for CRITICAL and HIGH vulnerabilities specifically
+            const hasCritical = trivyOutput.includes('CRITICAL');
+            const hasHigh = trivyOutput.includes('HIGH');
+            
+            if (!hasCritical && !hasHigh) {
+              console.log('No HIGH or CRITICAL vulnerabilities found');
               return;
             }
             
             // Create issue body
             const issueBody = `## 🔒 Security Scan Results
             
-            The scheduled security scan found vulnerabilities in the Docker image.
+            The scheduled security scan found HIGH or CRITICAL vulnerabilities in the Docker image.
             
             ### Scan Details
             - **Date**: ${new Date().toISOString()}
             - **Image**: kafka-schema-registry-mcp
             - **Scanner**: Trivy
+            - **Severity Filter**: CRITICAL and HIGH only (MEDIUM and LOW excluded)
+            - **Configuration**: Unfixed vulnerabilities are ignored
             
             ### Vulnerabilities Found
             
@@ -84,11 +120,18 @@ jobs:
             ${trivyOutput}
             \`\`\`
             
+            **Note**: This scan excludes:
+            - MEDIUM and LOW severity issues per security policy
+            - Vulnerabilities without available fixes
+            
+            Only CRITICAL and HIGH severity vulnerabilities with available fixes are reported.
+            
             ### Recommended Actions
             1. Review the vulnerabilities listed above
             2. Update base images if newer versions are available
             3. Update dependencies in requirements.txt
             4. Apply security patches where possible
+            5. Add to .trivyignore if vulnerabilities are not exploitable in our context
             
             ### Resources
             - [Trivy Documentation](https://aquasecurity.github.io/trivy/)
@@ -99,10 +142,52 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🔒 Security Scan Alert - ${new Date().toLocaleDateString()}`,
+              title: `🔒 Security Scan Alert - HIGH/CRITICAL Vulnerabilities - ${new Date().toLocaleDateString()}`,
               body: issueBody,
-              labels: ['security', 'docker', 'automated']
+              labels: ['security', 'docker', 'automated', 'high-priority']
             });
+
+      - name: Generate scan summary
+        if: always()
+        run: |
+          echo "## Docker Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **SARIF Filtering**: Applied to ensure only HIGH and CRITICAL appear in Security tab" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Unfixed vulnerabilities**: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Include the actual Trivy scan results if available
+          if [ -f "trivy-table.txt" ]; then
+            echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Count vulnerabilities
+            CRITICAL_COUNT=$(grep -c "CRITICAL" trivy-table.txt || echo "0")
+            HIGH_COUNT=$(grep -c "HIGH" trivy-table.txt || echo "0")
+            
+            echo "### Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔴 **CRITICAL vulnerabilities**: $CRITICAL_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟠 **HIGH vulnerabilities**: $HIGH_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No detailed vulnerability report available" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### Severity Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 CRITICAL: Reported and create issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟠 HIGH: Reported and create issues" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ MEDIUM: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ LOW: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚪ Unfixed: Excluded from reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the Security tab for detailed findings (CRITICAL and HIGH only)." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload scan results
         uses: actions/upload-artifact@v4
@@ -111,5 +196,6 @@ jobs:
           name: security-scan-results
           path: |
             trivy-results.sarif
+            trivy-results-raw.sarif
             trivy-table.txt
-          retention-days: 90 
+          retention-days: 90

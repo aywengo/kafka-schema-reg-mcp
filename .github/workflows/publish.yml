@@ -45,7 +45,7 @@ jobs:
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server
-            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 48 tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration
+            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 70+ tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration. Use SLIM_MODE=true to reduce tools from 70+ to ~20.
             org.opencontainers.image.vendor=aywengo
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
@@ -92,13 +92,15 @@ jobs:
       - name: Wait for Docker Hub to sync image
         run: sleep 120
 
-      - name: Run Trivy vulnerability scanner with robust retry
-        run: |
-          for i in {1..5}; do
-            trivy image --timeout 10m --format sarif -o trivy-results.sarif aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} && break
-            echo "Trivy scan failed, retrying in 60s... ($i/5)"
-            sleep 60
-          done
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          timeout: '10m0s'
+        continue-on-error: true  # Don't fail the workflow if Trivy scan fails
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
@@ -107,14 +109,53 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Generate Trivy table report for published image
+        if: always()
+        run: |
+          echo "## Published Image Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ **Excluded**: MEDIUM and LOW severity issues" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 **Image**: aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 **Tools**: 70+ tools (full feature set) - Use SLIM_MODE=true to reduce to ~20 tools" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Generate table format scan for summary
+          docker run --rm aquasec/trivy:latest image \
+            --format table \
+            --severity CRITICAL,HIGH \
+            --timeout 10m \
+            aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} | tee trivy-table.txt || true
+            
+          if [ -f "trivy-results.sarif" ]; then
+            echo "- ✅ Security scan completed and uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ Security scan results not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: This published image follows the security policy of reporting only CRITICAL and HIGH severity vulnerabilities." >> $GITHUB_STEP_SUMMARY
+
       - name: Update Docker Hub description
+        id: dockerhub-description
         uses: peter-evans/dockerhub-description@v4
+        continue-on-error: true  # Don't fail the workflow if Docker Hub update fails
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: aywengo/kafka-schema-reg-mcp
-          short-description: "MCP Server for Kafka Schema Registry - 48 tools, OAuth integration (Azure/Google/Keycloak/Okta), Kubernetes ready"
+          short-description: "MCP Server for Kafka Schema Registry - 70+ tools, OAuth, multi-registry, Kubernetes ready"
           readme-filepath: ./dockerhub-readme.md
+          
+      - name: Docker Hub description update status
+        if: always()
+        run: |
+          if [ "${{ steps.dockerhub-description.outcome }}" == "success" ]; then
+            echo "✅ Docker Hub description updated successfully"
+          else
+            echo "⚠️ Docker Hub description update failed - this is non-critical"
+            echo "The Docker image was published successfully but the description update failed"
+            echo "This can happen due to Docker Hub API rate limits or temporary issues"
+          fi
 
   create-release:
     runs-on: ubuntu-latest
@@ -125,52 +166,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          # Convert tag (v2.0.2) to changelog format ([2.0.2])
+          VERSION=${GITHUB_REF_NAME#v}  # Remove 'v' prefix
+          CHANGELOG_SECTION="[$VERSION]"
+          
+          echo "Looking for changelog section: $CHANGELOG_SECTION"
+          
+          # Extract the section from CHANGELOG.md
+          awk '/^## \['"$VERSION"'\]/ { found=1; print; next }
+               /^## \[/ && found { found=0 }
+               found { print }' CHANGELOG.md > release_notes.md
+          
+          # Check if we found content
+          if [ ! -s release_notes.md ]; then
+            echo "Warning: No changelog section found for version $VERSION"
+            echo "## Release $GITHUB_REF_NAME" > release_notes.md
+            echo "" >> release_notes.md
+            echo "Please see [CHANGELOG.md](CHANGELOG.md) for detailed release notes." >> release_notes.md
+          else
+            # Add a header to the extracted content
+            {
+              echo "## Release $GITHUB_REF_NAME"
+              echo ""
+              cat release_notes.md
+              echo ""
+              echo "---"
+              echo ""
+              echo "For complete version history, see [CHANGELOG.md](CHANGELOG.md)."
+            } > temp_notes.md
+            mv temp_notes.md release_notes.md
+          fi
+          
+          # Set the output for the next step
+          echo "changelog_content<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: |
-            ## 🚀 Kafka Schema Registry MCP Server ${{ github.ref_name }} - OAuth Security Update
-            
-            **🛡️ OAuth Security Enhancement**: This release implements **mandatory PKCE support** and **OAuth 2.0 discovery endpoints** for seamless MCP client auto-configuration and enhanced security compliance.
-            
-            ### 🔐 What's New - OAuth Security Features
-            
-            #### **PKCE Mandatory (RFC 7636)**
-            - **Required per MCP specification**: All authorization flows must use PKCE with S256 code challenge method
-            - **Enhanced Security**: Prevents authorization code interception attacks
-            - **MCP Compliant**: Follows MCP authorization specification requirements
-            
-            #### **OAuth Discovery Endpoints (RFC 8414, RFC 8692, RFC 7517)**
-            - `/.well-known/oauth-authorization-server` - Authorization server metadata
-            - `/.well-known/oauth-protected-resource` - Protected resource metadata  
-            - `/.well-known/jwks.json` - JSON Web Key Set for token validation
-            - **MCP Extensions**: Server info, tool counts, and capability discovery
-            
-            #### **Multi-Provider Support**
-            - Azure AD, Google, Keycloak, Okta, GitHub OAuth integration
-            - Automatic provider-specific endpoint configuration
-            - Production-ready JWT validation
-            
-            ### 🧪 Testing OAuth Discovery
-            ```bash
-            # Test OAuth discovery endpoints
-            curl http://localhost:8000/.well-known/oauth-protected-resource
-            curl http://localhost:8000/.well-known/oauth-authorization-server
-            curl http://localhost:8000/.well-known/jwks.json
-            
-            # Start OAuth-secured server
-            export ENABLE_AUTH=true AUTH_PROVIDER=azure AZURE_TENANT_ID=your-tenant
-            python3 remote-mcp-server.py
-            ```
-            
-            ### 📦 Docker Image
-            ```bash
-            docker pull aywengo/kafka-schema-reg-mcp:${{ github.ref_name }}
-            docker pull aywengo/kafka-schema-reg-mcp:latest
-            ```
-            
-            **📖 Documentation**: [OAuth Discovery & PKCE Guide](README.md#-oauth-discovery-endpoints)
+          body: ${{ steps.changelog.outputs.changelog_content }}
           draft: false
-          prerelease: false 
+          prerelease: false

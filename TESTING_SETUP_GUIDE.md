@@ -114,17 +114,17 @@ For custom multi-registry testing with your own registries:
 # Registry 1: Development
 export SCHEMA_REGISTRY_NAME_1="development"
 export SCHEMA_REGISTRY_URL_1="http://localhost:38081"
-export READONLY_1="false"
+export VIEWONLY_1="false"
 
 # Registry 2: Staging  
 export SCHEMA_REGISTRY_NAME_2="staging"
 export SCHEMA_REGISTRY_URL_2="http://localhost:38082"
-export READONLY_2="false"
+export VIEWONLY_2="false"
 
 # Registry 3: Production (read-only)
 export SCHEMA_REGISTRY_NAME_3="production"
 export SCHEMA_REGISTRY_URL_3="http://localhost:38083"
-export READONLY_3="true"
+export VIEWONLY_3="true"
 
 # Run multi-registry tests
 ./run_multi_registry_tests.sh
@@ -221,7 +221,7 @@ echo $SCHEMA_REGISTRY_PASSWORD
 | `SCHEMA_REGISTRY_URL` | Primary Schema Registry URL | `http://localhost:38081` |
 | `SCHEMA_REGISTRY_USER` | Username for authentication | `""` |
 | `SCHEMA_REGISTRY_PASSWORD` | Password for authentication | `""` |
-| `READONLY` | Read-only mode | `"false"` |
+| `VIEWONLY` | View-only mode | `"false"` |
 
 ### Multi-Registry Configuration (Numbered)
 | Variable | Description | Default |
@@ -230,7 +230,7 @@ echo $SCHEMA_REGISTRY_PASSWORD
 | `SCHEMA_REGISTRY_URL_X` | URL for registry X (1-8) | None |
 | `SCHEMA_REGISTRY_USER_X` | User for registry X (1-8) | `""` |
 | `SCHEMA_REGISTRY_PASSWORD_X` | Password for registry X (1-8) | `""` |
-| `READONLY_X` | Read-only mode for registry X | `"false"` |
+| `VIEWONLY_X` | View-only mode for registry X | `"false"` |
 
 ## Port Configuration
 

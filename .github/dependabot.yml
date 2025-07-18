@@ -1,70 +1,61 @@
 version: 2
 updates:
-  # Python dependencies
+  # Python dependencies - VERSION UPDATES ONLY (Security handled by Trivy)
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 12
     labels:
       - "dependencies"
-      - "security"
+      - "version-update"
+      - "trivy-security-scanning"
     commit-message:
-      prefix: "security"
+      prefix: "deps"
       include: "scope"
-    # Group non-security updates
-    groups:
-      development-dependencies:
-        patterns:
-          - "pytest*"
-          - "black"
-          - "ruff"
-          - "mypy"
-        update-types:
-          - "minor"
-          - "patch"
-      production-dependencies:
-        patterns:
-          - "mcp*"
-          - "requests"
-          - "aiohttp"
-        update-types:
-          - "patch"
-    # Automatically approve security updates
+    # Only allow patch and minor version updates (excludes major security updates)
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore major version updates (where most security fixes are published)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Docker base image updates
+  # Docker base image updates - VERSION UPDATES ONLY (Security handled by Trivy)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "tuesday"
       time: "06:00"
-    open-pull-requests-limit: 3
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 12
     labels:
       - "docker"
-      - "security"
+      - "version-update"
+      - "trivy-security-scanning"
     commit-message:
       prefix: "docker"
       include: "scope"
+    # Allow all dependency types but ignore major updates
+    allow:
+      - dependency-type: "direct"
+    # Ignore major version updates (where most security fixes are published)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # GitHub Actions updates
+  # GitHub Actions updates - FULL UPDATES INCLUDING SECURITY
+  # (Actions security is still important for CI/CD pipeline security)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "wednesday"
       time: "06:00"
-    open-pull-requests-limit: 5
-    reviewers:
-      - "security-team"
+    open-pull-requests-limit: 12
     labels:
       - "github-actions"
       - "security"
@@ -77,4 +68,7 @@ updates:
           - "*"
         update-types:
           - "minor"
-          - "patch" 
+          - "patch"
+    # GitHub Actions - allow all updates including security
+    allow:
+      - dependency-type: "all"

@@ -2,7 +2,7 @@
 # Copy and customize this file for your Okta setup
 
 # 🔧 CUSTOMIZE THESE VALUES:
-# 1. Replace your-domain.okta.com with your Okta domain
+# 1. Replace YOUR_OKTA_DOMAIN with your Okta domain (e.g., dev-12345678.okta.com)
 # 2. Replace YOUR_OKTA_CLIENT_ID with your Okta application client ID
 # 3. Replace YOUR_OKTA_CLIENT_SECRET with your Okta application client secret
 # 4. Update your-k8s-domain.com with your ingress domain
@@ -13,16 +13,17 @@ replicaCount: 2
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "1.8.0"
+  tag: "2.0.0"
 
-# 🟧 Okta Authentication Configuration
+# 🟧 Okta Authentication Configuration (OAuth 2.1 Generic)
 auth:
   enabled: true
   oauth2:
-    issuerUrl: "https://your-domain.okta.com/oauth2/default"
-    validScopes: "openid,email,profile"
-    defaultScopes: "openid,email,profile"
-    requiredScopes: "openid,email"
+    issuerUrl: "https://YOUR_OKTA_DOMAIN/oauth2/default"
+    audience: "api://YOUR_API_IDENTIFIER"
+    validScopes: "read,write,admin"
+    defaultScopes: "read"
+    requiredScopes: "read"
     clientRegistrationEnabled: true
     revocationEnabled: true
   createSecret:
@@ -37,13 +38,13 @@ schemaRegistry:
     registries:
       - name: "development"
         url: "http://schema-registry-dev.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "staging"
         url: "http://schema-registry-staging.kafka.svc.cluster.local:8081"
-        readonly: false
+        viewonly: false
       - name: "production"
         url: "http://schema-registry-prod.kafka.svc.cluster.local:8081"
-        readonly: true
+        viewonly: true
 
 # Service configuration
 service:
@@ -90,7 +91,7 @@ autoscaling:
 
 # App configuration
 app:
-  readonly: false
+  viewonly: false
   logLevel: "INFO"
   port: 8080
 

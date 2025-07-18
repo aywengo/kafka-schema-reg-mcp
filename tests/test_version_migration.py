@@ -20,7 +20,7 @@ def test_test_version_migration():
     # PROD Schema Registry
     prod_url = "http://localhost:38082"
 
-    print(f"🧪 Starting version migration test...")
+    print("🧪 Starting version migration test...")
 
     try:
         # Check connectivity
@@ -99,22 +99,16 @@ def test_test_version_migration():
                             "id": version_data.get("id"),
                         }
                     )
-                    print(
-                        f"   ✅ Created {version_name}: version {version_data.get('version')}"
-                    )
+                    print(f"   ✅ Created {version_name}: version {version_data.get('version')}")
                 else:
                     print(f"   ✅ {version_name} already exists")
             else:
-                print(
-                    f"   ❌ Failed to create {version_name}: {create_response.status_code}"
-                )
+                print(f"   ❌ Failed to create {version_name}: {create_response.status_code}")
 
         # Get all versions from DEV
         print("\n🔍 Retrieving version information from DEV...")
 
-        versions_response = requests.get(
-            f"{dev_url}/subjects/{test_subject}-value/versions", timeout=5
-        )
+        versions_response = requests.get(f"{dev_url}/subjects/{test_subject}-value/versions", timeout=5)
         if versions_response.status_code == 200:
             all_versions = versions_response.json()
             print(f"   ✅ Found {len(all_versions)} versions: {all_versions}")
@@ -139,9 +133,7 @@ def test_test_version_migration():
                 )
 
                 if version_response.status_code != 200:
-                    migration_results["failed"].append(
-                        {"version": version, "reason": "Failed to retrieve from DEV"}
-                    )
+                    migration_results["failed"].append({"version": version, "reason": "Failed to retrieve from DEV"})
                     print(f"   ❌ Failed to retrieve version {version}")
                     continue
 
@@ -158,9 +150,7 @@ def test_test_version_migration():
                 )
 
                 if prod_version_check.status_code == 200:
-                    migration_results["skipped"].append(
-                        {"version": version, "reason": "Already exists in PROD"}
-                    )
+                    migration_results["skipped"].append({"version": version, "reason": "Already exists in PROD"})
                     print(f"   ⚠️  Version {version} already exists in PROD")
                     continue
 
@@ -186,12 +176,8 @@ def test_test_version_migration():
                     )
                     print(f"   ✅ Successfully migrated version {version}")
                 elif migrate_response.status_code in [403, 405]:
-                    migration_results["failed"].append(
-                        {"version": version, "reason": "PROD registry is read-only"}
-                    )
-                    print(
-                        f"   ⚠️  Version {version} migration blocked by read-only PROD"
-                    )
+                    migration_results["failed"].append({"version": version, "reason": "PROD registry is read-only"})
+                    print(f"   ⚠️  Version {version} migration blocked by read-only PROD")
                 else:
                     migration_results["failed"].append(
                         {
@@ -199,14 +185,10 @@ def test_test_version_migration():
                             "reason": f"HTTP {migrate_response.status_code}",
                         }
                     )
-                    print(
-                        f"   ❌ Version {version} migration failed: {migrate_response.status_code}"
-                    )
+                    print(f"   ❌ Version {version} migration failed: {migrate_response.status_code}")
 
             except Exception as e:
-                migration_results["failed"].append(
-                    {"version": version, "reason": str(e)}
-                )
+                migration_results["failed"].append({"version": version, "reason": str(e)})
                 print(f"   ❌ Version {version} migration error: {e}")
 
         # Test version-specific operations
@@ -225,9 +207,7 @@ def test_test_version_migration():
 
             if latest_resp.status_code == 200:
                 latest_data = latest_resp.json()
-                print(
-                    f"   ✅ Latest version {latest_version}: Schema ID {latest_data.get('id')}"
-                )
+                print(f"   ✅ Latest version {latest_version}: Schema ID {latest_data.get('id')}")
             else:
                 print(f"   ❌ Failed to get latest version: {latest_resp.status_code}")
 
@@ -239,9 +219,7 @@ def test_test_version_migration():
 
             if first_resp.status_code == 200:
                 first_data = first_resp.json()
-                print(
-                    f"   ✅ First version {first_version}: Schema ID {first_data.get('id')}"
-                )
+                print(f"   ✅ First version {first_version}: Schema ID {first_data.get('id')}")
             else:
                 print(f"   ❌ Failed to get first version: {first_resp.status_code}")
 
@@ -266,9 +244,7 @@ def test_test_version_migration():
                     # Test compatibility of next version against current
                     compat_resp = requests.post(
                         f"{dev_url}/compatibility/subjects/{test_subject}-value/versions/{current_version}",
-                        headers={
-                            "Content-Type": "application/vnd.schemaregistry.v1+json"
-                        },
+                        headers={"Content-Type": "application/vnd.schemaregistry.v1+json"},
                         json={"schema": current_schema},
                         timeout=5,
                     )
@@ -280,30 +256,24 @@ def test_test_version_migration():
                             f"   Version {next_version} → {current_version}: {'✅ Compatible' if is_compatible else '❌ Incompatible'}"
                         )
                     else:
-                        print(
-                            f"   Version {next_version} → {current_version}: ⚠️  Compatibility check failed"
-                        )
+                        print(f"   Version {next_version} → {current_version}: ⚠️  Compatibility check failed")
 
         # Summary
-        print(f"\n📊 Version Migration Summary:")
+        print("\n📊 Version Migration Summary:")
         print(f"   Total versions tested: {len(all_versions)}")
         print(f"   Successful migrations: {len(migration_results['successful'])}")
         print(f"   Failed migrations: {len(migration_results['failed'])}")
         print(f"   Skipped migrations: {len(migration_results['skipped'])}")
 
         # Calculate success rate
-        total_attempted = len(migration_results["successful"]) + len(
-            migration_results["failed"]
-        )
+        total_attempted = len(migration_results["successful"]) + len(migration_results["failed"])
         if total_attempted > 0:
-            success_rate = (
-                len(migration_results["successful"]) / total_attempted
-            ) * 100
+            success_rate = (len(migration_results["successful"]) / total_attempted) * 100
             print(f"   Migration success rate: {success_rate:.1f}%")
 
         # Show version lineage
         if created_versions:
-            print(f"\n📋 Version lineage created:")
+            print("\n📋 Version lineage created:")
             for version_info in created_versions:
                 print(
                     f"   • {version_info['name']}: v{version_info.get('version', 'unknown')} (ID: {version_info.get('id', 'unknown')})"

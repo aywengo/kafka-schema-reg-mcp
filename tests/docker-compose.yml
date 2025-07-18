@@ -152,6 +152,8 @@ services:
       - MCP_SERVER_NAME=kafka-schema-registry
       - MCP_SERVER_VERSION=1.0.0
       - PYTHONUNBUFFERED=1
+      # Allow localhost URLs for testing
+      - ALLOW_LOCALHOST=true
     networks:
       - kafka-test-network
     # Keep container running for MCP stdio communication

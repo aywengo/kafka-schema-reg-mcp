@@ -7,7 +7,7 @@
         "-e", "SCHEMA_REGISTRY_URL",
         "-e", "SCHEMA_REGISTRY_USER",
         "-e", "SCHEMA_REGISTRY_PASSWORD", 
-        "-e", "READONLY",
+        "-e", "VIEWONLY",
         "--network", "host",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
@@ -15,7 +15,7 @@
         "SCHEMA_REGISTRY_URL": "http://localhost:38081",
         "SCHEMA_REGISTRY_USER": "",
         "SCHEMA_REGISTRY_PASSWORD": "",
-        "READONLY": "false"
+        "VIEWONLY": "false"
       }
     }
   }

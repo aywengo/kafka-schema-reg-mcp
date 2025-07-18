@@ -61,17 +61,13 @@ env:
   MCP_PATH: "/mcp"
   TLS_ENABLED: "true"
   
-  # OAuth configuration
+  # OAuth 2.1 Configuration (Generic)
   ENABLE_AUTH: "true"
-  AUTH_PROVIDER: "azure"
-  AUTH_ISSUER_URL: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
-  AUTH_AUDIENCE: "${AZURE_CLIENT_ID}"
+  AUTH_ISSUER_URL: "${AUTH_ISSUER_URL}"
+  AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
   AUTH_VALID_SCOPES: "read,write,admin"
   AUTH_DEFAULT_SCOPES: "read"
   AUTH_REQUIRED_SCOPES: "read"
-  
-  # Azure AD specific
-  AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
   
   # JWT validation
   JWKS_CACHE_TTL: "3600"
@@ -81,13 +77,13 @@ env:
   SCHEMA_REGISTRY_URL_1: "https://prod-schema-registry.your-domain.com"
   SCHEMA_REGISTRY_USER_1: "${PROD_REGISTRY_USER}"
   SCHEMA_REGISTRY_PASSWORD_1: "${PROD_REGISTRY_PASSWORD}"
-  READONLY_1: "true"
+  VIEWONLY_1: "true"
   
   SCHEMA_REGISTRY_NAME_2: "staging"
   SCHEMA_REGISTRY_URL_2: "https://staging-schema-registry.your-domain.com"
   SCHEMA_REGISTRY_USER_2: "${STAGING_REGISTRY_USER}"
   SCHEMA_REGISTRY_PASSWORD_2: "${STAGING_REGISTRY_PASSWORD}"
-  READONLY_2: "false"
+  VIEWONLY_2: "false"
 
 # Service configuration
 service:

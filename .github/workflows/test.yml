@@ -72,15 +72,40 @@ jobs:
           # Test that the image can start and the Python module can be imported
           docker run --rm kafka-schema-registry-mcp:test python -c "import kafka_schema_registry_unified_mcp; print('MCP server module loaded successfully')"
 
+      # Option 3: Enhanced Trivy configuration
       - name: Security scan with Trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'kafka-schema-registry-mcp:test'
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: 'trivy-results-raw.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          vuln-type: 'os,library'
+          scanners: 'vuln'
           exit-code: '0'  # Don't fail the build on vulnerabilities
+
+      # Option 2: Filter SARIF results to ensure only HIGH and CRITICAL are reported
+      - name: Filter SARIF results for HIGH and CRITICAL only
+        run: |
+          if [ -f "trivy-results-raw.sarif" ]; then
+            # Install jq if not available
+            which jq || sudo apt-get update && sudo apt-get install -y jq
+            
+            # Filter SARIF to only include HIGH and CRITICAL severity
+            # SARIF uses levels: error=CRITICAL, warning=HIGH, note=MEDIUM, none=LOW
+            jq '
+              .runs[].results |= map(
+                select(.level == "error" or .level == "warning")
+              )
+            ' trivy-results-raw.sarif > trivy-results.sarif
+            
+            # Debug: Show filtered results count
+            echo "Filtered SARIF results:"
+            jq '.runs[].results | length' trivy-results.sarif
+          else
+            echo "⚠️ No Trivy SARIF results to filter"
+          fi
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v3
@@ -99,6 +124,8 @@ jobs:
             high_count=$(jq '[.runs[0].results[]? | select(.level=="warning")] | length' trivy-results.sarif 2>/dev/null || echo "0")
             echo "- Critical vulnerabilities: $critical_count" >> $GITHUB_STEP_SUMMARY
             echo "- High vulnerabilities: $high_count" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **SARIF Filtering**: Applied to ensure only HIGH and CRITICAL appear in Security tab" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ **Unfixed vulnerabilities**: Ignored to reduce noise" >> $GITHUB_STEP_SUMMARY
             
             if [ "$critical_count" -gt 0 ] || [ "$high_count" -gt 0 ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
@@ -120,6 +147,8 @@ jobs:
             --output /workspace/trivy-report.html \
             --severity CRITICAL,HIGH \
             --ignore-unfixed \
+            --vuln-type os,library \
+            --scanners vuln \
             kafka-schema-registry-mcp:test || true
 
       - name: Upload Trivy reports as artifacts
@@ -129,6 +158,7 @@ jobs:
           name: trivy-security-reports
           path: |
             trivy-results.sarif
+            trivy-results-raw.sarif
             trivy-report.html
           retention-days: 30
 
@@ -157,7 +187,7 @@ jobs:
           # Wait for services to be healthy
           echo "Waiting for services to be ready..."
           timeout 120s bash -c '
-            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
+            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && \
                   curl -sf http://localhost:38082/subjects >/dev/null 2>&1; do
               echo "Waiting for Schema Registry services..."
               sleep 5
@@ -218,8 +248,8 @@ jobs:
           # Wait for all services
           echo "Waiting for services to be ready..."
           timeout 120s bash -c '
-            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && 
-                  curl -sf http://localhost:38082/subjects >/dev/null 2>&1 && 
+            until curl -sf http://localhost:38081/subjects >/dev/null 2>&1 && \
+                  curl -sf http://localhost:38082/subjects >/dev/null 2>&1 && \
                   curl -sf http://localhost:38080/api/health >/dev/null 2>&1; do
               echo "Waiting for all services..."
               sleep 5
@@ -251,9 +281,9 @@ jobs:
           python -m pytest --cov=.. --cov-report=xml --cov-report=html -v
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
-          file: ./tests/coverage.xml
+          files: ./tests/coverage.xml
           flags: unittests
           name: codecov-umbrella
 
@@ -403,4 +433,4 @@ jobs:
             echo "✅ MCP container tests passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ MCP container tests failed" >> $GITHUB_STEP_SUMMARY
-          fi 
+          fi

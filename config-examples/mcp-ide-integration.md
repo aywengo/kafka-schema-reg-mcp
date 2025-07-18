@@ -45,7 +45,7 @@ Create or update `.vscode/settings.json`:
                 "run", "--rm", "-i",
                 "--network", "host",
                 "-e", "SCHEMA_REGISTRY_URL=http://localhost:8081",
-                "-e", "READONLY=false",
+                "-e", "VIEWONLY=false",
                 "aywengo/kafka-schema-reg-mcp:stable"
             ],
             "capabilities": [
@@ -80,13 +80,13 @@ For multiple Schema Registry instances:
                 "--network", "host",
                 "-e", "SCHEMA_REGISTRY_NAME_1=development",
                 "-e", "SCHEMA_REGISTRY_URL_1=http://localhost:8081",
-                "-e", "READONLY_1=false",
+                "-e", "VIEWONLY_1=false",
                 "-e", "SCHEMA_REGISTRY_NAME_2=staging", 
                 "-e", "SCHEMA_REGISTRY_URL_2=http://localhost:8082",
-                "-e", "READONLY_2=false",
+                "-e", "VIEWONLY_2=false",
                 "-e", "SCHEMA_REGISTRY_NAME_3=production",
                 "-e", "SCHEMA_REGISTRY_URL_3=http://localhost:8083",
-                "-e", "READONLY_3=true",
+                "-e", "VIEWONLY_3=true",
                 "aywengo/kafka-schema-reg-mcp:stable"
             ],
             "capabilities": [
@@ -123,7 +123,7 @@ Create `.cursor/mcp-config.json`:
                 "args": [],
                 "environment": {
                     "SCHEMA_REGISTRY_URL": "http://localhost:8081",
-                    "READONLY": "false"
+                    "VIEWONLY": "false"
                 },
                 "network": "host"
             },
@@ -185,7 +185,7 @@ Create `.idea/mcp-config.xml`:
             <arg>-e</arg>
             <arg>SCHEMA_REGISTRY_URL=http://localhost:8081</arg>
             <arg>-e</arg>
-            <arg>READONLY=false</arg>
+            <arg>VIEWONLY=false</arg>
             <arg>aywengo/kafka-schema-reg-mcp:stable</arg>
           </args>
         </transport>
@@ -213,20 +213,20 @@ Create a unified environment configuration file `.env.mcp`:
 SCHEMA_REGISTRY_URL=http://localhost:8081
 SCHEMA_REGISTRY_USER=
 SCHEMA_REGISTRY_PASSWORD=
-READONLY=false
+VIEWONLY=false
 
 # Multi-Registry Configuration
 SCHEMA_REGISTRY_NAME_1=development
 SCHEMA_REGISTRY_URL_1=http://localhost:8081
-READONLY_1=false
+VIEWONLY_1=false
 
 SCHEMA_REGISTRY_NAME_2=staging
 SCHEMA_REGISTRY_URL_2=http://localhost:8082
-READONLY_2=false
+VIEWONLY_2=false
 
 SCHEMA_REGISTRY_NAME_3=production
 SCHEMA_REGISTRY_URL_3=http://localhost:8083
-READONLY_3=true
+VIEWONLY_3=true
 
 # MCP Server Configuration
 MCP_SERVER_HOST=0.0.0.0

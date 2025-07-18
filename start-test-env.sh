@@ -147,6 +147,9 @@ start_mcp_server() {
         set +a  # disable automatic export
     fi
     
+    # Set ALLOW_LOCALHOST for testing environment
+    export ALLOW_LOCALHOST=true
+    
     # Start MCP server
     print_status "Running: mcp dev kafka_schema_registry_unified_mcp.py"
     mcp dev kafka_schema_registry_unified_mcp.py &

@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "kafka-schema-registry-v2-multi": {
+      "command": "docker",
+      "args": [
+        "run", 
+        "--rm", 
+        "-i",
+        "--network", "host",
+        "-e", "SCHEMA_REGISTRY_NAME_1",
+        "-e", "SCHEMA_REGISTRY_URL_1",
+        "-e", "SCHEMA_REGISTRY_USER_1",
+        "-e", "SCHEMA_REGISTRY_PASSWORD_1",
+        "-e", "VIEWONLY_1",
+        "-e", "SCHEMA_REGISTRY_NAME_2",
+        "-e", "SCHEMA_REGISTRY_URL_2",
+        "-e", "SCHEMA_REGISTRY_USER_2", 
+        "-e", "SCHEMA_REGISTRY_PASSWORD_2",
+        "-e", "VIEWONLY_2",
+        "aywengo/kafka-schema-reg-mcp:2.0.0"
+      ],
+      "env": {
+        "SCHEMA_REGISTRY_NAME_1": "development",
+        "SCHEMA_REGISTRY_URL_1": "http://localhost:38081",
+        "SCHEMA_REGISTRY_USER_1": "",
+        "SCHEMA_REGISTRY_PASSWORD_1": "",
+        "VIEWONLY_1": "false",
+        "SCHEMA_REGISTRY_NAME_2": "production",
+        "SCHEMA_REGISTRY_URL_2": "http://localhost:38082",
+        "SCHEMA_REGISTRY_USER_2": "",
+        "SCHEMA_REGISTRY_PASSWORD_2": "",
+        "VIEWONLY_2": "true"
+      }
+    }
+  }
+} 

@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**.
 
 ## 📂 Available Configurations
 
@@ -8,11 +8,19 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_config.json`** - Basic local Python configuration (unified)
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
-- **`claude_desktop_readonly_config.json`** - Read-only mode for production safety
+- **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
+- **`claude_desktop_slim_mode_config.json`** - SLIM_MODE enabled for reduced LLM overhead (~15 tools)
 
-### Modular Architecture Configurations (v1.8.1+)
-- **`claude_desktop_modular_config.json`** - Local Python modular architecture
-- **`claude_desktop_modular_docker_config.json`** - Docker modular architecture configuration
+### Version-Specific Configurations
+
+#### Current Stable (v1.8.3)
+- **`claude_desktop_stable_config.json`** - Current stable release (v1.8.3)
+- **`claude_desktop_docker_config.json`** - Latest Docker image (may be pre-release)
+
+#### FastMCP 2.8.0+ Configurations (v2.0.0)
+- **`claude_desktop_v2_config.json`** - FastMCP 2.8.0+ framework (v2.0.0)
+- **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth 2.1 generic discovery
+- **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
 
 ### Multi-Registry Configurations
 - **`claude_desktop_numbered_config.json`** - Local Python multi-registry setup
@@ -33,15 +41,65 @@ This directory contains example Claude Desktop configuration files for different
 - **`docker-compose.mcp.yml`** - Complete MCP development environment
 - **`setup-ide-mcp.sh`** - Automated setup script for all IDE integrations
 
+## 🏪 SLIM_MODE Configuration
+
+**SLIM_MODE** reduces the number of exposed tools from 70+ to ~20 essential tools, significantly improving LLM performance.
+
+### When to Use SLIM_MODE
+- 🚀 When experiencing slow LLM responses due to too many tools
+- 📦 For production environments focused on read-only operations
+- 💰 To reduce token usage and costs
+- 🎯 When you only need basic schema management capabilities
+
+### How to Enable SLIM_MODE
+
+#### Option 1: Use the Pre-configured File
+```bash
+# Use the ready-made SLIM_MODE configuration
+cp config-examples/claude_desktop_slim_mode_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+#### Option 2: Add to Existing Configuration
+Add `SLIM_MODE` to your existing configuration:
+```json
+"env": {
+  "SCHEMA_REGISTRY_URL": "http://localhost:38081",
+  "SLIM_MODE": "true"  // Add this line
+}
+```
+
+### Tools Available in SLIM_MODE
+- **Essential Read-Only**: `get_schema`, `list_subjects`, `list_contexts`, `check_compatibility`
+- **Basic Write**: `register_schema`, `create_context`
+- **Statistics**: `count_contexts`, `count_schemas`
+- **Configuration**: `get_global_config`, `get_mode`
+
+### Tools Hidden in SLIM_MODE
+- ❌ Migration tools (`migrate_schema`, `migrate_context`)
+- ❌ Batch operations (`clear_context_batch`)
+- ❌ Export/import tools
+- ❌ Interactive/elicitation tools
+- ❌ Workflow and task management
+- ❌ Delete operations
+
 ## 🚀 Quick Start
 
-### For Production (Recommended)
+### For Production (Recommended - Current Stable v1.8.3)
 ```bash
-# Copy stable configuration
+# Copy stable configuration (v1.8.3)
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
 cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+### For FastMCP 2.8.0+ Testing (v2.0.0)
+```bash
+# Copy v2.0.0 configuration for testing FastMCP 2.8.0+ features
+cp config-examples/claude_desktop_v2_config.json ~/.config/claude-desktop/config.json
+
+# Or for macOS
+cp config-examples/claude_desktop_v2_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
 ### For Multi-Registry Setup
@@ -141,15 +199,24 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Modular Architecture Development (v1.8.1+)
-**Recommended:** `claude_desktop_modular_config.json`
-- ✅ New modular architecture
-- ✅ Better code organization
-- ✅ Improved maintainability
-- ✅ Focused module responsibilities
+### Use Case: Current Production (Stable v1.8.3)
+**Recommended:** `claude_desktop_stable_config.json`
+- ✅ Battle-tested stable release
+- ✅ Proven in production environments
+- ✅ Full MCP functionality with 48 tools
+- ✅ Multi-registry and async operations support
+
+### Use Case: FastMCP 2.8.0+ Framework Testing (v2.0.0)
+**Recommended:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
+- ✅ Modern FastMCP 2.8.0+ framework
+- ✅ MCP 2025-06-18 specification compliance
+- ✅ Enhanced authentication with OAuth 2.0 support
+- ✅ Better performance and reliability
+- ✅ Improved client API and error handling
+- ⚠️ **Pre-release**: Use for testing only until promoted to stable
 
 ### Use Case: Production Safety
-**Recommended:** `claude_desktop_readonly_config.json`
+**Recommended:** `claude_desktop_viewonly_config.json`
 - ✅ Read-only mode enforced
 - ✅ Prevents accidental modifications
 - ✅ Safe production monitoring
@@ -173,15 +240,41 @@ cd tests
 
 1. **Copy** the configuration file that best matches your use case
 2. **Edit** the environment variables to match your infrastructure:
+
+### 🔒 SSL/TLS Security Configuration (v2.0.0+)
+
+All configurations now support enhanced SSL/TLS security features:
+
+```bash
+# Essential security settings (recommended for production)
+ENFORCE_SSL_TLS_VERIFICATION=true    # Enable SSL certificate verification (default: true)
+CUSTOM_CA_BUNDLE_PATH=""             # Path to custom CA bundle for enterprise environments
+
+# Example: Enterprise environment with custom CA
+ENFORCE_SSL_TLS_VERIFICATION=true
+CUSTOM_CA_BUNDLE_PATH=/etc/ssl/certs/corporate-ca-bundle.pem
+
+# Example: Development environment (not recommended for production)
+ENFORCE_SSL_TLS_VERIFICATION=false
+```
+
+**Security Features:**
+- 🔒 **Explicit SSL/TLS Certificate Verification** - All HTTP requests use secure sessions
+- 🏢 **Custom CA Bundle Support** - Load corporate/internal CA certificates
+- 🛡️ **Enhanced Error Handling** - Clear SSL-related error messages and logging
+- 📊 **Security Logging** - Comprehensive SSL configuration and event logging
+
+**📚 Complete SSL/TLS Documentation**: [`docs/SSL_TLS_SECURITY.md`](../docs/SSL_TLS_SECURITY.md)
    - Update `SCHEMA_REGISTRY_URL_X` with your registry endpoints
    - Set `SCHEMA_REGISTRY_USER_X` and `SCHEMA_REGISTRY_PASSWORD_X` for authentication
-   - Configure `READONLY_X` for production safety
+   - Configure `VIEWONLY_X` for production safety
 3. **Test** the configuration before deploying to Claude Desktop
 4. **Save** to your Claude Desktop configuration location
 5. **Restart** Claude Desktop
 
 ## 🔗 Related Documentation
 
+- **[v2.0.0 Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 2.8.0+ testing and migration
 - **[TEST_ENVIRONMENT_SUMMARY.md](../tests/TEST_ENVIRONMENT_SUMMARY.md)** - Complete testing and troubleshooting guide
 - **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Testing environment setup
 - **[tests/README.md](../tests/README.md)** - Testing infrastructure details
