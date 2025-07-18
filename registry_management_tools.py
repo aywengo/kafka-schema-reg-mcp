@@ -81,26 +81,26 @@ def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]
 
 
 @structured_output("get_registry_info", fallback_on_error=True)
-def get_registry_info_tool(registry_manager, registry_mode: str, registry_name: Optional[str] = None) -> Dict[str, Any]:
+def get_registry_info_tool(registry_manager, registry_mode: str, registry: Optional[str] = None) -> Dict[str, Any]:
     """
     Get detailed information about a specific registry with structured validation and resource links.
 
     Args:
         registry_manager: The registry manager instance
         registry_mode: Current registry mode (single/multi)
-        registry_name: Optional registry name
+        registry: Optional registry name
 
     Returns:
         Dictionary containing detailed registry information with structured validation and navigation links
     """
     try:
-        if registry_mode == "single" and not registry_name:
-            registry_name = registry_manager.get_default_registry()
+        if registry_mode == "single" and not registry:
+            registry = registry_manager.get_default_registry()
 
-        info = registry_manager.get_registry_info(registry_name)
+        info = registry_manager.get_registry_info(registry)
         if info is None:
             return create_error_response(
-                f"Registry '{registry_name}' not found",
+                f"Registry '{registry}' not found",
                 error_code="REGISTRY_NOT_FOUND",
                 registry_mode=registry_mode,
             )
@@ -111,13 +111,13 @@ def get_registry_info_tool(registry_manager, registry_mode: str, registry_name: 
 
         # Add additional metadata for better context
         info["_metadata"] = {
-            "queried_registry": registry_name,
-            "is_default": registry_name == registry_manager.get_default_registry(),
+            "queried_registry": registry,
+            "is_default": registry == registry_manager.get_default_registry(),
             "query_timestamp": __import__("datetime").datetime.now().isoformat(),
         }
 
         # Add resource links
-        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
+        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry)
         info = add_links_to_response(info, "registry", registry_name_for_linking)
 
         return info
@@ -127,7 +127,7 @@ def get_registry_info_tool(registry_manager, registry_mode: str, registry_name: 
 
 @structured_output("test_registry_connection", fallback_on_error=True)
 def test_registry_connection_tool(
-    registry_manager, registry_mode: str, registry_name: Optional[str] = None
+    registry_manager, registry_mode: str, registry: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Test connection to a specific registry with comprehensive information including metadata and resource links.
@@ -135,19 +135,19 @@ def test_registry_connection_tool(
     Args:
         registry_manager: The registry manager instance
         registry_mode: Current registry mode (single/multi)
-        registry_name: Optional registry name
+        registry: Optional registry name
 
     Returns:
         Dictionary containing connection test results with structured validation and navigation links
     """
     try:
-        if registry_mode == "single" and not registry_name:
-            registry_name = registry_manager.get_default_registry()
+        if registry_mode == "single" and not registry:
+            registry = registry_manager.get_default_registry()
 
-        client = registry_manager.get_registry(registry_name)
+        client = registry_manager.get_registry(registry)
         if client is None:
             return create_error_response(
-                f"Registry '{registry_name}' not found",
+                f"Registry '{registry}' not found",
                 error_code="REGISTRY_NOT_FOUND",
                 registry_mode=registry_mode,
             )
@@ -185,7 +185,7 @@ def test_registry_connection_tool(
         }
 
         # Add resource links
-        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry_name)
+        registry_name_for_linking = _get_registry_name_for_linking(registry_mode, registry)
         result = add_links_to_response(result, "registry", registry_name_for_linking)
 
         return result

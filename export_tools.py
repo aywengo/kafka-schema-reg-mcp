@@ -9,6 +9,7 @@ Provides schema, subject, context, and global export functionality
 with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
+import json
 from typing import Any, Dict, Optional, Union
 
 from resource_linking import add_links_to_response
@@ -85,6 +86,17 @@ def export_schema_tool(
                 result["version"] = version if version != "latest" else 1
             if "format" not in result:
                 result["format"] = format
+
+            # Ensure content field is present - this is required by the schema
+            if "content" not in result:
+                # Generate content from schema field
+                if "schema" in result:
+                    if format == "json":
+                        result["content"] = json.dumps(result["schema"], indent=2)
+                    else:
+                        result["content"] = str(result["schema"])
+                else:
+                    result["content"] = ""
 
             # Add resource links for dictionary results
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)

@@ -927,10 +927,10 @@ def generate_resource_templates(
 
     templates = {
         "registry_resources": {
-            "list_all_registries": f"registry://names",
-            "get_registry_info": f"registry://info",
-            "test_all_registries": f"registry://status",
-            "get_global_mode": f"registry://mode",
+            "list_all_registries": "registry://names",
+            "get_registry_info": "registry://info",
+            "test_all_registries": "registry://status",
+            "get_global_mode": "registry://mode",
             "list_subjects": f"registry://{registry_name}/subjects",
             "list_contexts": f"registry://{registry_name}/contexts",
             "get_global_config": f"registry://{registry_name}/config",
@@ -1001,26 +1001,24 @@ def list_registries():
 
 @mcp.tool()
 @require_scopes("read")
-def get_registry_info(registry_name: Optional[str] = None):
+def get_registry_info(registry: Optional[str] = None):
     """Get detailed information about a specific registry.
 
     NOTE: This tool is maintained for backward compatibility.
     Consider using the 'registry://info/{name}' resource instead for better performance.
     """
-    return get_registry_info_tool(registry_manager, REGISTRY_MODE, registry_name)
+    return get_registry_info_tool(registry_manager, REGISTRY_MODE, registry)
 
 
 @mcp.tool()
 @require_scopes("read")
-def test_registry_connection(registry_name: Optional[str] = None):
+def test_registry_connection(registry: Optional[str] = None):
     """Test connection to a specific registry.
 
     NOTE: This tool is maintained for backward compatibility.
     Consider using the 'registry://status/{name}' resource instead for better performance.
     """
-    return test_registry_connection_tool(
-        registry_manager, REGISTRY_MODE, registry_name, auth, headers, SCHEMA_REGISTRY_URL
-    )
+    return test_registry_connection_tool(registry_manager, REGISTRY_MODE, registry)
 
 
 @mcp.tool()
@@ -1031,7 +1029,7 @@ def test_all_registries():
     NOTE: This tool is maintained for backward compatibility.
     Consider using the 'registry://status' resource instead for better performance.
     """
-    return test_all_registries_tool(registry_manager, REGISTRY_MODE, auth, headers, SCHEMA_REGISTRY_URL)
+    return test_all_registries_tool(registry_manager, REGISTRY_MODE)
 
 
 @mcp.tool()
