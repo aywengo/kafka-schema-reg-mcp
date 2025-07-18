@@ -435,7 +435,6 @@ async def test_batch_cleanup():
             safe_tools = [
                 "count_schemas_by_subject",
                 "count_total_schemas",
-                "list_subjects",
             ]
             available_safe_tools = [tool for tool in safe_tools if tool in tool_names]
 

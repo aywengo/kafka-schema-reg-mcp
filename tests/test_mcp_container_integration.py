@@ -134,10 +134,7 @@ class TestMCPContainerIntegration:
         # Check for some expected tools
         tool_names = [tool["name"] for tool in tools]
         expected_tools = [
-            "list_subjects",
-            "get_schema",
             "register_schema",
-            "get_schema_versions",
             "compare_schemas",
         ]
 

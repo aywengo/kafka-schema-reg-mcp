@@ -60,7 +60,7 @@ async def test_multi_registry_mcp():
 
             print("\n📝 Testing prod registry operations...")
             try:
-                result = await client.call_tool("list_subjects", {"registry": "prod"})
+                result = await client.read_resource("registry://prod/subjects")
                 print(f"PROD subjects: {result}")
             except Exception as e:
                 print(f"⚠️ PROD registry test (expected if not running): {e}")

@@ -233,21 +233,21 @@ async def _test_single_registry_with_client(server_params):
             await session.initialize()
 
             # Test registry listing
-            result = await session.call_tool("list_registries", {})
-            if result.content and len(result.content) > 0:
-                registries = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://names")
+            if result.contents and len(result.contents) > 0:
+                registries = json.loads(result.contents[0].text)
                 print(f"✅ Single mode: Found {len(registries)} registry")
 
             # Test schema operations
-            result = await session.call_tool("list_subjects", {})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://default/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Found {len(subjects)} subjects in default registry")
 
             # Test contexts
-            result = await session.call_tool("list_contexts", {})
-            if result.content and len(result.content) > 0:
-                contexts = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://default/contexts")
+            if result.contents and len(result.contents) > 0:
+                contexts = json.loads(result.contents[0].text)
                 print(f"✅ Found {len(contexts)} contexts: {contexts}")
 
 
@@ -303,9 +303,9 @@ async def _test_multi_registry_with_client(server_params):
             await session.initialize()
 
             # Test registry listing
-            result = await session.call_tool("list_registries", {})
-            if result.content and len(result.content) > 0:
-                registries = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://names")
+            if result.contents and len(result.contents) > 0:
+                registries = json.loads(result.contents[0].text)
                 print(f"✅ Multi mode: Found {len(registries)} registries")
                 for registry in registries:
                     name = registry.get("name")
@@ -313,22 +313,22 @@ async def _test_multi_registry_with_client(server_params):
                     print(f"   • {name}: viewonly={viewonly}")
 
             # Test connection to all registries
-            result = await session.call_tool("test_all_registries", {})
-            if result.content and len(result.content) > 0:
-                test_results = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://status")
+            if result.contents and len(result.contents) > 0:
+                test_results = json.loads(result.contents[0].text)
                 connected = test_results.get("connected", 0)
                 total = test_results.get("total_registries", 0)
                 print(f"✅ Registry connections: {connected}/{total} successful")
 
             # Test schema operations with registry parameter
-            result = await session.call_tool("list_subjects", {"context": "development"})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://development/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Development context: {len(subjects)} subjects")
 
-            result = await session.call_tool("list_subjects", {"context": "staging"})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://staging/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 print(f"✅ Staging context: {len(subjects)} subjects")
 
 
@@ -502,9 +502,9 @@ async def _test_per_registry_viewonly_with_client(server_params):
                     print("❌ Production VIEWONLY mode not working correctly")
 
             # Test read operations in production (should work)
-            result = await session.call_tool("list_subjects", {"context": "production"})
-            if result.content and len(result.content) > 0:
-                subjects = json.loads(result.content[0].text)
+            result = await session.read_resource("registry://production/subjects")
+            if result.contents and len(result.contents) > 0:
+                subjects = json.loads(result.contents[0].text)
                 if isinstance(subjects, list):
                     print(f"✅ Production read operations working: {len(subjects)} subjects")
                 else:
@@ -560,29 +560,24 @@ async def test_numbered_integration():
                 tool_names = [tool.name for tool in tools]
                 print(f"📋 Available tools: {len(tool_names)}")
 
-                # Test basic operations
-                if "list_subjects" in tool_names:
-                    try:
-                        result = await client.call_tool("list_subjects", {})
-                        print("✅ list_subjects: Working")
-                    except Exception as e:
-                        print(f"⚠️  list_subjects: {e}")
+                # Test basic operations using resources
+                try:
+                    result = await client.read_resource("registry://default/subjects")
+                    print("✅ subjects resource: Working")
+                except Exception as e:
+                    print(f"⚠️  subjects resource: {e}")
 
                 # Test registry-specific operations if multi-registry
                 if "SCHEMA_REGISTRY_URL_1" in config["env"]:
                     registry_tools = [tool for tool in tool_names if "_1" in tool or "_2" in tool]
                     print(f"🏢 Multi-registry tools found: {len(registry_tools)}")
 
-                    # Test a registry-specific tool if available
-                    registry_list_tools = [
-                        tool for tool in tool_names if "list_subjects" in tool and ("_1" in tool or "_2" in tool)
-                    ]
-                    if registry_list_tools:
-                        try:
-                            result = await client.call_tool(registry_list_tools[0], {})
-                            print(f"✅ {registry_list_tools[0]}: Working")
-                        except Exception as e:
-                            print(f"⚠️  {registry_list_tools[0]}: {e}")
+                    # Test a registry-specific resource if available
+                    try:
+                        result = await client.read_resource("registry://development/subjects")
+                        print(f"✅ development registry subjects: Working")
+                    except Exception as e:
+                        print(f"⚠️  development registry subjects: {e}")
 
                 print(f"✅ {config['name']}: Integration test completed")
 

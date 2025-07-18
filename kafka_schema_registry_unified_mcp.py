@@ -135,6 +135,7 @@ from oauth_provider import (
 )
 from registry_management_tools import (
     get_registry_info_tool,
+    list_registries_tool,  # Still needed for resource handlers
     test_all_registries_tool,
     test_registry_connection_tool,
 )
@@ -650,6 +651,333 @@ if not SLIM_MODE:
         return await find_missing_schemas_tool(
             source_registry, target_registry, registry_manager, REGISTRY_MODE, context
         )
+
+
+# ===== RESOURCE DISCOVERY TOOLS =====
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_available_resources():
+    """List all available MCP resources and their usage patterns."""
+    resources = {
+        "registry_resources": {
+            "registry://names": {
+                "description": "List all configured registry names",
+                "replaces_tool": "list_registries",
+                "example": "registry://names",
+                "data_type": "registry_names_list"
+            },
+            "registry://info": {
+                "description": "Get global registry information",
+                "replaces_tool": "get_registry_info (global)",
+                "example": "registry://info",
+                "data_type": "registry_info"
+            },
+            "registry://status": {
+                "description": "Get status of all registries",
+                "replaces_tool": "test_all_registries",
+                "example": "registry://status",
+                "data_type": "connection_status"
+            },
+            "registry://mode": {
+                "description": "Get global registry mode information",
+                "replaces_tool": "get_mode (global)",
+                "example": "registry://mode",
+                "data_type": "mode_info"
+            },
+            "registry://{name}/subjects": {
+                "description": "List subjects for a specific registry",
+                "replaces_tool": "list_subjects",
+                "example": "registry://production/subjects",
+                "data_type": "subjects_list"
+            },
+            "registry://{name}/contexts": {
+                "description": "List contexts for a specific registry",
+                "replaces_tool": "list_contexts",
+                "example": "registry://production/contexts",
+                "data_type": "contexts_list"
+            },
+            "registry://{name}/config": {
+                "description": "Get global config for a specific registry",
+                "replaces_tool": "get_global_config",
+                "example": "registry://production/config",
+                "data_type": "config_info"
+            }
+        },
+        "schema_resources": {
+            "schema://{name}/{context}/{subject}": {
+                "description": "Get schema content for a specific subject",
+                "replaces_tool": "get_schema",
+                "example": "schema://production/users/user-events",
+                "data_type": "schema_content"
+            },
+            "schema://{name}/{subject}": {
+                "description": "Get schema content (default context)",
+                "replaces_tool": "get_schema",
+                "example": "schema://production/user-events",
+                "data_type": "schema_content"
+            },
+            "schema://{name}/{context}/{subject}/versions": {
+                "description": "Get schema versions for a specific subject",
+                "replaces_tool": "get_schema_versions",
+                "example": "schema://production/users/user-events/versions",
+                "data_type": "versions_list"
+            }
+        },
+        "subject_resources": {
+            "subject://{name}/{context}/{subject}/config": {
+                "description": "Get subject configuration",
+                "replaces_tool": "get_subject_config",
+                "example": "subject://production/users/user-events/config",
+                "data_type": "subject_config"
+            },
+            "subject://{name}/{context}/{subject}/mode": {
+                "description": "Get subject mode",
+                "replaces_tool": "get_subject_mode",
+                "example": "subject://production/users/user-events/mode",
+                "data_type": "subject_mode"
+            }
+        },
+        "usage_notes": {
+            "registry_name_mapping": {
+                "single_registry": "Use 'default' as registry name",
+                "multi_registry": "Use configured registry names from environment"
+            },
+            "migration_benefits": [
+                "Better performance through caching",
+                "Reduced token usage in LLM interactions",
+                "Real-time data updates",
+                "More predictable response format"
+            ],
+            "response_format": {
+                "tools": "result.content[0].text",
+                "resources": "result.contents[0].text"
+            }
+        }
+    }
+    
+    return {
+        "available_resources": resources,
+        "total_resources": sum(len(category) for category in [
+            resources["registry_resources"],
+            resources["schema_resources"], 
+            resources["subject_resources"]
+        ]),
+        "registry_mode": REGISTRY_MODE,
+        "mcp_protocol_version": MCP_PROTOCOL_VERSION
+    }
+
+
+@mcp.tool()
+@require_scopes("read")
+def suggest_resource_for_tool(tool_name: str):
+    """Suggest the appropriate resource to use instead of a removed tool."""
+    tool_to_resource_mapping = {
+        "list_subjects": {
+            "resource": "registry://{name}/subjects",
+            "example": "registry://production/subjects",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("list_subjects", {"context": "production"})
+
+# NEW (use resource)
+result = await client.read_resource("registry://production/subjects")
+data = json.loads(result.contents[0].text)'''
+        },
+        "list_registries": {
+            "resource": "registry://names",
+            "example": "registry://names",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("list_registries", {})
+
+# NEW (use resource)
+result = await client.read_resource("registry://names")
+data = json.loads(result.contents[0].text)'''
+        },
+        "list_contexts": {
+            "resource": "registry://{name}/contexts",
+            "example": "registry://production/contexts",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("list_contexts", {})
+
+# NEW (use resource)
+result = await client.read_resource("registry://production/contexts")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_schema": {
+            "resource": "schema://{name}/{context}/{subject}",
+            "example": "schema://production/users/user-events",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_schema", {
+    "subject": "user-events",
+    "context": "users"
+})
+
+# NEW (use resource)
+result = await client.read_resource("schema://production/users/user-events")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_schema_versions": {
+            "resource": "schema://{name}/{context}/{subject}/versions",
+            "example": "schema://production/users/user-events/versions",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_schema_versions", {
+    "subject": "user-events",
+    "context": "users"
+})
+
+# NEW (use resource)
+result = await client.read_resource("schema://production/users/user-events/versions")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_global_config": {
+            "resource": "registry://{name}/config",
+            "example": "registry://production/config",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_global_config", {})
+
+# NEW (use resource)
+result = await client.read_resource("registry://production/config")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_subject_config": {
+            "resource": "subject://{name}/{context}/{subject}/config",
+            "example": "subject://production/users/user-events/config",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_subject_config", {
+    "subject": "user-events",
+    "context": "users"
+})
+
+# NEW (use resource)
+result = await client.read_resource("subject://production/users/user-events/config")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_mode": {
+            "resource": "registry://mode",
+            "example": "registry://mode",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_mode", {})
+
+# NEW (use resource)
+result = await client.read_resource("registry://mode")
+data = json.loads(result.contents[0].text)'''
+        },
+        "get_subject_mode": {
+            "resource": "subject://{name}/{context}/{subject}/mode",
+            "example": "subject://production/users/user-events/mode",
+            "migration_code": '''# OLD (removed)
+result = await client.call_tool("get_subject_mode", {
+    "subject": "user-events",
+    "context": "users"
+})
+
+# NEW (use resource)
+result = await client.read_resource("subject://production/users/user-events/mode")
+data = json.loads(result.contents[0].text)'''
+        }
+    }
+    
+    if tool_name in tool_to_resource_mapping:
+        suggestion = tool_to_resource_mapping[tool_name]
+        return {
+            "tool_name": tool_name,
+            "status": "migrated_to_resource",
+            "suggested_resource": suggestion["resource"],
+            "example_uri": suggestion["example"],
+            "migration_code": suggestion["migration_code"],
+            "benefits": [
+                "Better performance through caching",
+                "Reduced token usage",
+                "Real-time data updates",
+                "More predictable response format"
+            ],
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        }
+    else:
+        return {
+            "tool_name": tool_name,
+            "status": "tool_still_available",
+            "message": f"Tool '{tool_name}' is still available as an MCP tool",
+            "suggestion": "Use list_available_resources() to see all available resources",
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": MCP_PROTOCOL_VERSION
+        }
+
+
+@mcp.tool()
+@require_scopes("read")
+def generate_resource_templates(registry_name: Optional[str] = None, context: Optional[str] = None, subject: Optional[str] = None):
+    """Generate resource URI templates for your specific configuration."""
+    
+    # Use default registry name if not provided
+    if not registry_name:
+        registry_name = "default" if REGISTRY_MODE == "single" else "production"
+    
+    # Use example context if not provided
+    if not context:
+        context = "production"
+    
+    # Use example subject if not provided
+    if not subject:
+        subject = "user-events"
+    
+    templates = {
+        "registry_resources": {
+            "list_all_registries": f"registry://names",
+            "get_registry_info": f"registry://info",
+            "test_all_registries": f"registry://status",
+            "get_global_mode": f"registry://mode",
+            "list_subjects": f"registry://{registry_name}/subjects",
+            "list_contexts": f"registry://{registry_name}/contexts",
+            "get_global_config": f"registry://{registry_name}/config"
+        },
+        "schema_resources": {
+            "get_schema_with_context": f"schema://{registry_name}/{context}/{subject}",
+            "get_schema_default_context": f"schema://{registry_name}/{subject}",
+            "get_schema_versions": f"schema://{registry_name}/{context}/{subject}/versions"
+        },
+        "subject_resources": {
+            "get_subject_config": f"subject://{registry_name}/{context}/{subject}/config",
+            "get_subject_mode": f"subject://{registry_name}/{context}/{subject}/mode"
+        },
+        "usage_examples": {
+            "python_async": f'''# Example: List subjects
+result = await client.read_resource("registry://{registry_name}/subjects")
+data = json.loads(result.contents[0].text)
+subjects = data.get("subjects", [])
+
+# Example: Get schema
+result = await client.read_resource("schema://{registry_name}/{context}/{subject}")
+data = json.loads(result.contents[0].text)
+schema = data.get("schema", {{}})''',
+            "error_handling": f'''# Example with error handling
+try:
+    result = await client.read_resource("registry://{registry_name}/subjects")
+    if result.contents and len(result.contents) > 0:
+        data = json.loads(result.contents[0].text)
+        subjects = data.get("subjects", [])
+        print(f"Found {{{{len(subjects)}}}} subjects")
+    else:
+        print("No data returned from resource")
+except Exception as e:
+    print(f"Error accessing resource: {{{{e}}}}")'''
+        },
+        "configuration": {
+            "registry_name": registry_name,
+            "context": context,
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE
+        }
+    }
+    
+    return {
+        "templates": templates,
+        "registry_mode": REGISTRY_MODE,
+        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        "note": "Replace {registry_name}, {context}, and {subject} with your actual values"
+    }
 
 
 # ===== SCHEMA MANAGEMENT TOOLS =====
@@ -2594,6 +2922,13 @@ def registry_names_resource():
                 "resource_uri": "registry://names",
                 "registry_mode": REGISTRY_MODE,
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "replaces_tool": "list_registries",
+                "migration_hint": "This resource replaces the list_registries tool for better performance",
+                "related_resources": [
+                    "registry://info - Get detailed registry information",
+                    "registry://status - Test registry connections",
+                    "registry://{name}/subjects - List subjects for specific registry"
+                ]
             },
         }
 
