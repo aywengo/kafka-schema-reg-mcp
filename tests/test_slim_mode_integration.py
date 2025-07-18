@@ -6,13 +6,11 @@ This test suite validates that SLIM_MODE correctly reduces the number of exposed
 from 53+ to ~15 essential tools, maintaining basic functionality while improving performance.
 """
 
-import asyncio
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Set
 
 import pytest
 

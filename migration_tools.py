@@ -15,8 +15,6 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
@@ -546,7 +544,6 @@ def _execute_schema_migration(
 
         # Handle IMPORT mode for ID preservation
         original_target_mode = None
-        id_preservation_failed = False
         id_preservation_error = None
 
         if preserve_ids:
@@ -578,7 +575,6 @@ def _execute_schema_migration(
                             timeout=10,
                         )
                         if import_response.status_code != 200:
-                            id_preservation_failed = True
                             id_preservation_error = import_response.text
                             logger.warning(f"Failed to set IMPORT mode: {import_response.text}.")
 
@@ -616,7 +612,6 @@ def _execute_schema_migration(
                     else:
                         logger.info("✅ Target registry already in IMPORT mode")
                 else:
-                    id_preservation_failed = True
                     id_preservation_error = f"HTTP {mode_response.status_code}: {mode_response.text}"
                     logger.warning(f"Could not get target registry mode: {mode_response.text}.")
 

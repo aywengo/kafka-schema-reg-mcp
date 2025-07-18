@@ -8,8 +8,7 @@ performance scenarios in the elicitation system.
 
 import asyncio
 import time
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -18,15 +17,12 @@ from elicitation import (
     ElicitationManager,
     ElicitationRequest,
     ElicitationResponse,
-    ElicitationType,
-    elicitation_manager,
     mock_elicit,
 )
 from elicitation_mcp_integration import (
     enhanced_elicit_with_fallback,
     handle_elicitation_response,
     real_mcp_elicit,
-    register_elicitation_handlers,
 )
 from interactive_tools import (
     _build_schema_from_elicitation,

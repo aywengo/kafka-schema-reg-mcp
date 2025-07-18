@@ -4,15 +4,11 @@ Unit tests for Smart Defaults functionality
 Tests pattern recognition, learning engine, and elicitation integration.
 """
 
-import asyncio
-import json
 import os
 import shutil
 import sys
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -21,12 +17,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elicitation import ElicitationField, ElicitationRequest, ElicitationType
 from smart_defaults import (
-    FieldSuggestion,
     LearningEngine,
     PatternAnalyzer,
-    SmartDefault,
     SmartDefaultsEngine,
-    get_smart_defaults_engine,
 )
 from smart_defaults_integration import (
     EnhancedElicitationField,

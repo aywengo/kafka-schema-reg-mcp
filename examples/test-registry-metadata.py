@@ -47,9 +47,7 @@ def test_direct_metadata_endpoints():
     # Test /v1/metadata/version endpoint
     print("\n📋 Testing /v1/metadata/version endpoint:")
     try:
-        response = requests.get(
-            f"{SCHEMA_REGISTRY_URL}/v1/metadata/version", timeout=10
-        )
+        response = requests.get(f"{SCHEMA_REGISTRY_URL}/v1/metadata/version", timeout=10)
         if response.status_code == 200:
             metadata_version = response.json()
             print(f"   ✅ Metadata Version: {json.dumps(metadata_version, indent=2)}")
@@ -73,34 +71,24 @@ def test_mcp_metadata_tools():
     # Test enhanced connection test tool
     print("\n📋 Testing test_registry_connection tool (now enhanced with metadata):")
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/test_registry_connection", json={}, timeout=10
-        )
+        response = requests.post(f"{MCP_SERVER_URL}/mcp/tools/test_registry_connection", json={}, timeout=10)
         if response.status_code == 200:
             connection_info = response.json()
-            print(
-                f"   ✅ Enhanced connection test: {json.dumps(connection_info, indent=2)}"
-            )
+            print(f"   ✅ Enhanced connection test: {json.dumps(connection_info, indent=2)}")
         else:
-            print(
-                f"   ❌ Failed to get enhanced connection test: HTTP {response.status_code}"
-            )
+            print(f"   ❌ Failed to get enhanced connection test: HTTP {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error getting enhanced connection test: {e}")
 
     # Test enhanced statistics tools
     print("\n📋 Testing count_schemas tool (now enhanced with metadata):")
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/count_schemas", json={}, timeout=10
-        )
+        response = requests.post(f"{MCP_SERVER_URL}/mcp/tools/count_schemas", json={}, timeout=10)
         if response.status_code == 200:
             stats_info = response.json()
             print(f"   ✅ Enhanced schema count: {json.dumps(stats_info, indent=2)}")
         else:
-            print(
-                f"   ❌ Failed to get enhanced schema count: HTTP {response.status_code}"
-            )
+            print(f"   ❌ Failed to get enhanced schema count: HTTP {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error getting enhanced schema count: {e}")
 
@@ -110,14 +98,10 @@ def test_enhanced_registry_info():
     print("\n🔧 Testing enhanced get_registry_info tool...")
 
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/get_registry_info", json={}, timeout=10
-        )
+        response = requests.post(f"{MCP_SERVER_URL}/mcp/tools/get_registry_info", json={}, timeout=10)
         if response.status_code == 200:
             registry_info = response.json()
-            print(
-                f"   ✅ Enhanced registry info: {json.dumps(registry_info, indent=2)}"
-            )
+            print(f"   ✅ Enhanced registry info: {json.dumps(registry_info, indent=2)}")
 
             # Highlight the new metadata fields
             if "version" in registry_info:
@@ -127,13 +111,9 @@ def test_enhanced_registry_info():
             if "kafka_cluster_id" in registry_info:
                 print(f"   📊 Kafka Cluster ID: {registry_info['kafka_cluster_id']}")
             if "schema_registry_cluster_id" in registry_info:
-                print(
-                    f"   📊 Schema Registry Cluster ID: {registry_info['schema_registry_cluster_id']}"
-                )
+                print(f"   📊 Schema Registry Cluster ID: {registry_info['schema_registry_cluster_id']}")
         else:
-            print(
-                f"   ❌ Failed to get enhanced registry info: HTTP {response.status_code}"
-            )
+            print(f"   ❌ Failed to get enhanced registry info: HTTP {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error getting enhanced registry info: {e}")
 
@@ -145,14 +125,10 @@ def test_enhanced_statistics():
     # Test enhanced registry statistics
     print("\n📋 Testing get_registry_statistics tool (now enhanced with metadata):")
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/get_registry_statistics", json={}, timeout=10
-        )
+        response = requests.post(f"{MCP_SERVER_URL}/mcp/tools/get_registry_statistics", json={}, timeout=10)
         if response.status_code == 200:
             stats_info = response.json()
-            print(
-                f"   ✅ Enhanced registry statistics: {json.dumps(stats_info, indent=2)}"
-            )
+            print(f"   ✅ Enhanced registry statistics: {json.dumps(stats_info, indent=2)}")
 
             # Highlight the new metadata fields
             if "version" in stats_info:
@@ -160,27 +136,19 @@ def test_enhanced_statistics():
             if "commit_id" in stats_info:
                 print(f"   📊 Commit ID: {stats_info['commit_id']}")
         else:
-            print(
-                f"   ❌ Failed to get enhanced registry statistics: HTTP {response.status_code}"
-            )
+            print(f"   ❌ Failed to get enhanced registry statistics: HTTP {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error getting enhanced registry statistics: {e}")
 
     # Test enhanced contexts count
     print("\n📋 Testing count_contexts tool (now enhanced with metadata):")
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/count_contexts", json={}, timeout=10
-        )
+        response = requests.post(f"{MCP_SERVER_URL}/mcp/tools/count_contexts", json={}, timeout=10)
         if response.status_code == 200:
             contexts_info = response.json()
-            print(
-                f"   ✅ Enhanced contexts count: {json.dumps(contexts_info, indent=2)}"
-            )
+            print(f"   ✅ Enhanced contexts count: {json.dumps(contexts_info, indent=2)}")
         else:
-            print(
-                f"   ❌ Failed to get enhanced contexts count: HTTP {response.status_code}"
-            )
+            print(f"   ❌ Failed to get enhanced contexts count: HTTP {response.status_code}")
     except Exception as e:
         print(f"   ❌ Error getting enhanced contexts count: {e}")
 
@@ -204,13 +172,9 @@ def main():
 
     print("\n✅ Metadata testing completed!")
     print("\n💡 Usage Examples:")
-    print(
-        "   - Use get_registry_info() for comprehensive registry information with metadata"
-    )
+    print("   - Use get_registry_info() for comprehensive registry information with metadata")
     print("   - Use test_registry_connection() for connection testing with metadata")
-    print(
-        "   - Use count_schemas(), count_contexts(), etc. for statistics with metadata"
-    )
+    print("   - Use count_schemas(), count_contexts(), etc. for statistics with metadata")
     print("   - Use get_registry_statistics() for comprehensive stats with metadata")
 
 

@@ -5,18 +5,14 @@ This module integrates the Smart Defaults Engine with the MCP elicitation system
 enhancing elicitation forms with intelligent suggestions based on patterns and history.
 """
 
-import asyncio
-import json
 import logging
 from dataclasses import dataclass
-from dataclasses import field as dataclass_field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from elicitation import (
     ElicitationField,
     ElicitationRequest,
     ElicitationResponse,
-    ElicitationType,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
     create_migration_preferences_elicitation,
@@ -26,7 +22,6 @@ from schema_registry_common import BaseRegistryManager
 from smart_defaults import (
     FieldSuggestion,
     SmartDefault,
-    SmartDefaultsEngine,
     get_smart_defaults_engine,
 )
 

@@ -52,7 +52,7 @@ def initialize_smart_defaults(registry_manager: Optional[BaseRegistryManager] = 
         enable_smart_defaults_globally(registry_manager)
 
         # Log configuration summary
-        logger.info(f"Smart Defaults initialized with settings:")
+        logger.info("Smart Defaults initialized with settings:")
         logger.info(f"  - Pattern Recognition: {'enabled' if config.enable_pattern_recognition else 'disabled'}")
         logger.info(f"  - Learning Engine: {'enabled' if config.enable_learning else 'disabled'}")
         logger.info(f"  - Field Suggestions: {'enabled' if config.enable_field_suggestions else 'disabled'}")

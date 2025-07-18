@@ -112,16 +112,19 @@ class VIEWONLYValidationTest:
                     except Exception as e:
                         print(f"   ⚠️ Could not read registry names resource: {e}")
                         # Fallback: assume the expected registries exist
-                        registries = {"registries": [{"name": "development"}, {"name": "production"}]}
+                        registries = {"registry_names": ["development", "production"]}
 
                     print(f"   📋 Found registries: {registries}")
 
-                    # Handle the structured response format
-                    if isinstance(registries, dict) and "registries" in registries:
+                    # Handle the structured response format from registry://names resource
+                    if isinstance(registries, dict) and "registry_names" in registries:
+                        registry_names = registries["registry_names"]
+                    elif isinstance(registries, dict) and "registries" in registries:
+                        # Legacy format support
                         registry_list = registries["registries"]
                         registry_names = [r.get("name") for r in registry_list if isinstance(r, dict)]
                     elif isinstance(registries, list):
-                        registry_names = [r.get("name") for r in registries if isinstance(r, dict)]
+                        registry_names = registries
                     else:
                         registry_names = []
 

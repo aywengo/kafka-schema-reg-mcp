@@ -4,11 +4,13 @@ Simple CLI client to interact with the MCP-LLama Bridge Service
 This demonstrates how to use the integrated LLama + Kafka Schema Registry MCP system
 """
 
+import argparse
 import asyncio
 import json
 import sys
+
 import httpx
-import argparse
+
 
 class MCPLlamaClient:
     def __init__(self, bridge_url: str = "http://localhost:8080"):
@@ -25,12 +27,7 @@ class MCPLlamaClient:
         """Send a chat message to LLama with optional MCP integration"""
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(
-                f"{self.bridge_url}/chat",
-                json={
-                    "message": message,
-                    "model": model,
-                    "use_mcp": use_mcp
-                }
+                f"{self.bridge_url}/chat", json={"message": message, "model": model, "use_mcp": use_mcp}
             )
             response.raise_for_status()
             return response.json()
@@ -46,11 +43,11 @@ class MCPLlamaClient:
             try:
                 user_input = input("\n🧑 You: ").strip()
 
-                if user_input.lower() in ['quit', 'exit', 'q']:
+                if user_input.lower() in ["quit", "exit", "q"]:
                     print("👋 Goodbye!")
                     break
 
-                if user_input.lower() == 'help':
+                if user_input.lower() == "help":
                     self.show_help()
                     continue
 
@@ -63,7 +60,7 @@ class MCPLlamaClient:
 
                 print(f"\r🤖 LLama: {response['response']}")
 
-                if response.get('used_tools'):
+                if response.get("used_tools"):
                     print(f"🔧 Used tools: {', '.join(response['used_tools'])}")
 
             except KeyboardInterrupt:
@@ -74,7 +71,8 @@ class MCPLlamaClient:
 
     def show_help(self):
         """Show help information"""
-        print("""
+        print(
+            """
 📚 Schema Registry Commands You Can Try:
 
 📋 Basic Operations:
@@ -104,19 +102,17 @@ class MCPLlamaClient:
   • "Update compatibility mode for subject Z"
 
 💡 You can ask in natural language - LLama will understand and use the appropriate tools!
-        """)
+        """
+        )
+
 
 async def main():
     parser = argparse.ArgumentParser(description="MCP-LLama Client")
-    parser.add_argument("--bridge-url", default="http://localhost:8080",
-                       help="Bridge service URL")
-    parser.add_argument("--model", default="llama3.2:3b",
-                       help="LLama model to use")
+    parser.add_argument("--bridge-url", default="http://localhost:8080", help="Bridge service URL")
+    parser.add_argument("--model", default="llama3.2:3b", help="LLama model to use")
     parser.add_argument("--message", help="Single message to send")
-    parser.add_argument("--no-mcp", action="store_true",
-                       help="Disable MCP tools")
-    parser.add_argument("--health", action="store_true",
-                       help="Check service health")
+    parser.add_argument("--no-mcp", action="store_true", help="Disable MCP tools")
+    parser.add_argument("--health", action="store_true", help="Check service health")
 
     args = parser.parse_args()
 
@@ -140,13 +136,9 @@ async def main():
         if args.message:
             # Single message mode
             print(f"🤖 Sending message to {args.model}...")
-            response = await client.chat(
-                args.message,
-                model=args.model,
-                use_mcp=not args.no_mcp
-            )
+            response = await client.chat(args.message, model=args.model, use_mcp=not args.no_mcp)
             print(f"\n🤖 Response: {response['response']}")
-            if response.get('used_tools'):
+            if response.get("used_tools"):
                 print(f"🔧 Used tools: {', '.join(response['used_tools'])}")
         else:
             # Interactive mode
@@ -159,6 +151,7 @@ async def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

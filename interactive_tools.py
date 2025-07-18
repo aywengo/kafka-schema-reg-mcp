@@ -25,17 +25,13 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from elicitation import elicitation_manager  # Import the global instance
 from elicitation import (
-    ElicitationManager,
     create_compatibility_resolution_elicitation,
     create_context_metadata_elicitation,
     create_export_preferences_elicitation,
     create_migrate_schema_elicitation,
     create_migration_preferences_elicitation,
-    create_schema_evolution_elicitation,
     create_schema_field_elicitation,
     elicit_with_fallback,
 )
@@ -192,7 +188,7 @@ async def register_schema_interactive(
                     # Workflow failed to start, provide compatibility error details
                     return {
                         "status": "compatibility_error",
-                        "message": f"Schema registration blocked due to breaking changes",
+                        "message": "Schema registration blocked due to breaking changes",
                         "is_compatible": False,
                         "compatibility_errors": compatibility_result.get("messages", []),
                         "suggestion": "Use the Schema Evolution Assistant workflow or modify your schema to maintain compatibility",

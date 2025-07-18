@@ -14,12 +14,11 @@ from core_registry_tools import (
     check_compatibility_tool,
     get_schema_tool,
     register_schema_tool,
-    update_global_config_tool,
     update_subject_config_tool,
 )
 from elicitation import ElicitationManager
 from multi_step_elicitation import MultiStepElicitationManager
-from schema_registry_common import BaseRegistryManager, RegistryClient
+from schema_registry_common import BaseRegistryManager
 from workflow_mcp_integration import _is_nullable_type, analyze_schema_changes
 
 logger = logging.getLogger(__name__)

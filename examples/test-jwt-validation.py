@@ -43,7 +43,7 @@ def setup_oauth21_config(issuer_url: str, audience: str):
 
 async def test_jwt_validation(issuer_url: str, audience: str, token: str):
     """Test JWT validation using OAuth 2.1 generic discovery."""
-    print(f"🚀 Testing OAuth 2.1 JWT Validation")
+    print("🚀 Testing OAuth 2.1 JWT Validation")
     print("=" * 60)
 
     try:
@@ -64,7 +64,7 @@ async def test_jwt_validation(issuer_url: str, audience: str, token: str):
         print(f"📝 Token (first 50 chars): {token[:50]}...")
         print(f"🌐 Issuer URL: {issuer_url}")
         print(f"👥 Audience: {audience}")
-        print(f"🔍 Discovery: Using OAuth 2.1 RFC 8414 discovery")
+        print("🔍 Discovery: Using OAuth 2.1 RFC 8414 discovery")
         print()
 
         # Validate the token
@@ -83,15 +83,9 @@ async def test_jwt_validation(issuer_url: str, audience: str, token: str):
             user_scopes = set(result.get("scopes", []))
             print()
             print("🔒 Access Level Check:")
-            print(
-                f"   Read Access: {'✅' if oauth_provider.has_read_access(user_scopes) else '❌'}"
-            )
-            print(
-                f"   Write Access: {'✅' if oauth_provider.has_write_access(user_scopes) else '❌'}"
-            )
-            print(
-                f"   Admin Access: {'✅' if oauth_provider.has_admin_access(user_scopes) else '❌'}"
-            )
+            print(f"   Read Access: {'✅' if oauth_provider.has_read_access(user_scopes) else '❌'}")
+            print(f"   Write Access: {'✅' if oauth_provider.has_write_access(user_scopes) else '❌'}")
+            print(f"   Admin Access: {'✅' if oauth_provider.has_admin_access(user_scopes) else '❌'}")
 
             return True
         else:
@@ -161,7 +155,7 @@ def print_oauth21_examples():
         print(f"\n{example['name']} - {example['description']}")
         print(f"   Issuer URL: {example['issuer_url']}")
         print(f"   Audience: {example['audience']}")
-        print(f"   Environment Variables:")
+        print("   Environment Variables:")
         print(f"     export AUTH_ISSUER_URL=\"{example['issuer_url']}\"")
         print(f"     export AUTH_AUDIENCE=\"{example['audience']}\"")
 

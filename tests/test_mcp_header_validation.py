@@ -15,12 +15,9 @@ Usage:
     python test_mcp_header_validation.py
 """
 
-import json
-import os
 import sys
 import unittest
 from pathlib import Path
-from typing import Any, Dict
 
 # Add project root to Python path for CI compatibility
 project_root = str(Path(__file__).parent.parent)
@@ -43,7 +40,7 @@ def test_mcp_header_validation_basic():
                 is_exempt_path,
             )
 
-            print(f"✅ MCP header validation components imported")
+            print("✅ MCP header validation components imported")
             print(f"   Protocol Version: {MCP_PROTOCOL_VERSION}")
             print(f"   Supported Versions: {SUPPORTED_MCP_VERSIONS}")
             print(f"   Exempt Paths: {EXEMPT_PATHS}")
@@ -150,7 +147,7 @@ def test_mcp_header_validation_basic():
         passed = sum(tests)
         total = len(tests)
 
-        print(f"\n📊 MCP Header Validation Test Results:")
+        print("\n📊 MCP Header Validation Test Results:")
         print(f"   Total Tests: {total}")
         print(f"   Passed: {passed}")
         print(f"   Failed: {total - passed}")

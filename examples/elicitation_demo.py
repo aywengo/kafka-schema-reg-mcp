@@ -20,12 +20,10 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Demo configuration
@@ -139,11 +137,9 @@ class ElicitationDemo:
             print(f"    Documentation: {response['documentation']}")
 
         # Build the complete schema from responses
-        complete_schema = await self._build_complete_schema(
-            incomplete_schema, simulated_responses
-        )
+        complete_schema = await self._build_complete_schema(incomplete_schema, simulated_responses)
 
-        print(f"\n✨ Complete schema built from elicitation:")
+        print("\n✨ Complete schema built from elicitation:")
         print(json.dumps(complete_schema, indent=2))
 
         return {
@@ -199,13 +195,10 @@ class ElicitationDemo:
             "source_registry": "staging",
             "target_registry": "production",
             "context": "user-service",
-            **{
-                k: v == "true" if v in ["true", "false"] else v
-                for k, v in simulated_preferences.items()
-            },
+            **{k: v == "true" if v in ["true", "false"] else v for k, v in simulated_preferences.items()},
         }
 
-        print(f"\n✨ Migration configured with elicited preferences:")
+        print("\n✨ Migration configured with elicited preferences:")
         print(json.dumps(migration_config, indent=2))
 
         return {
@@ -294,7 +287,7 @@ class ElicitationDemo:
             "metadata_source": "elicitation",
         }
 
-        print(f"\n✨ Context created with rich metadata:")
+        print("\n✨ Context created with rich metadata:")
         print(json.dumps(processed_metadata, indent=2))
 
         return {
@@ -319,9 +312,7 @@ class ElicitationDemo:
         print("\n🤔 Elicitation would ask for export preferences:")
         print(f"  Format: {export_preferences['format']} (json/yaml/avro_idl/csv)")
         print(f"  Include Metadata: {export_preferences['include_metadata']}")
-        print(
-            f"  Version Selection: {export_preferences['include_versions']} (latest/all/specific)"
-        )
+        print(f"  Version Selection: {export_preferences['include_versions']} (latest/all/specific)")
         print(f"  Compression: {export_preferences['compression']} (none/gzip/zip)")
 
         export_config = {
@@ -334,7 +325,7 @@ class ElicitationDemo:
             "export_timestamp": datetime.utcnow().isoformat(),
         }
 
-        print(f"\n✨ Export configured with preferences:")
+        print("\n✨ Export configured with preferences:")
         print(json.dumps(export_config, indent=2))
 
         return {
@@ -397,9 +388,7 @@ class ElicitationDemo:
             "demonstration": "complete",
         }
 
-    async def _build_complete_schema(
-        self, base_schema: Dict, field_responses: list
-    ) -> Dict:
+    async def _build_complete_schema(self, base_schema: Dict, field_responses: list) -> Dict:
         """Build complete Avro schema from elicitation responses."""
         schema = base_schema.copy()
         schema["fields"] = []
@@ -454,19 +443,19 @@ class ElicitationDemo:
         print(f"Success Rate: {(successful/total_demos)*100:.1f}%")
 
         if failed > 0:
-            print(f"\n❌ Failed Demos:")
+            print("\n❌ Failed Demos:")
             for result in self.demo_results:
                 if result["status"] == "failed":
                     print(f"  • {result['demo']}: {result['error']}")
 
-        print(f"\n📋 Key Takeaways:")
+        print("\n📋 Key Takeaways:")
         print("  • Elicitation enables interactive, guided workflows")
         print("  • Graceful fallbacks ensure compatibility with all MCP clients")
         print("  • 5 priority tools support interactive operation")
         print("  • Rich management API for monitoring and control")
         print("  • MCP 2025-06-18 compliant implementation")
 
-        print(f"\n🔗 Next Steps:")
+        print("\n🔗 Next Steps:")
         print("  • Try the interactive tools with a real MCP client")
         print("  • Implement custom elicitation UI in your client")
         print("  • Explore the management APIs for workflow automation")

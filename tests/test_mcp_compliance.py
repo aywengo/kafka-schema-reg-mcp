@@ -108,7 +108,7 @@ def run_basic_compliance_tests():
         total_tests = len(tests_passed)
         passed_tests = sum(tests_passed)
 
-        print(f"\n📊 MCP Compliance Test Results:")
+        print("\n📊 MCP Compliance Test Results:")
         print(f"   Total Tests: {total_tests}")
         print(f"   Passed: {passed_tests}")
         print(f"   Failed: {total_tests - passed_tests}")

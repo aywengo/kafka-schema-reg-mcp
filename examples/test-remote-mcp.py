@@ -52,9 +52,7 @@ class RemoteMCPTester:
 
         return headers
 
-    async def send_mcp_request(
-        self, method: str, params: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+    async def send_mcp_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Send a JSON-RPC request to the MCP server."""
         request_data = {"jsonrpc": "2.0", "id": 1, "method": method}
 
@@ -86,12 +84,8 @@ class RemoteMCPTester:
 
         try:
             # Test health endpoint if available
-            health_url = self.server_url.replace("/mcp", "/health").replace(
-                "/sse", "/health"
-            )
-            async with self.session.get(
-                health_url, timeout=aiohttp.ClientTimeout(total=10)
-            ) as response:
+            health_url = self.server_url.replace("/mcp", "/health").replace("/sse", "/health")
+            async with self.session.get(health_url, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 if response.status == 200:
                     print(f"✅ Health check passed: {response.status}")
                     return True
@@ -99,9 +93,7 @@ class RemoteMCPTester:
             pass  # Health endpoint might not exist
 
         # Test MCP endpoint with initialize
-        result = await self.send_mcp_request(
-            "initialize", {"protocolVersion": "2024-11-05", "capabilities": {}}
-        )
+        result = await self.send_mcp_request("initialize", {"protocolVersion": "2024-11-05", "capabilities": {}})
 
         if "error" in result:
             print(f"❌ Server connection failed: {result['error']['message']}")
@@ -119,9 +111,7 @@ class RemoteMCPTester:
             return True
 
         # Test getting OAuth scopes info
-        result = await self.send_mcp_request(
-            "tools/call", {"name": "get_oauth_scopes_info", "arguments": {}}
-        )
+        result = await self.send_mcp_request("tools/call", {"name": "get_oauth_scopes_info", "arguments": {}})
 
         if "error" in result:
             print(f"❌ OAuth authentication failed: {result['error']['message']}")
@@ -151,9 +141,7 @@ class RemoteMCPTester:
 
             # Show first few tools
             for i, tool in enumerate(tools[:5]):
-                print(
-                    f"   {i+1}. {tool['name']}: {tool.get('description', 'No description')}"
-                )
+                print(f"   {i+1}. {tool['name']}: {tool.get('description', 'No description')}")
 
             if len(tools) > 5:
                 print(f"   ... and {len(tools) - 5} more tools")
@@ -168,9 +156,7 @@ class RemoteMCPTester:
         print("⚙️ Testing simple tool call...")
 
         # Try to call list_registries (should work with read scope)
-        result = await self.send_mcp_request(
-            "tools/call", {"name": "list_registries", "arguments": {}}
-        )
+        result = await self.send_mcp_request("tools/call", {"name": "list_registries", "arguments": {}})
 
         if "error" in result:
             print(f"❌ Tool call failed: {result['error']['message']}")
@@ -207,9 +193,7 @@ class RemoteMCPTester:
 
             # Show first few resources
             for i, resource in enumerate(resources[:3]):
-                print(
-                    f"   {i+1}. {resource['uri']}: {resource.get('description', 'No description')}"
-                )
+                print(f"   {i+1}. {resource['uri']}: {resource.get('description', 'No description')}")
 
             return True
         else:

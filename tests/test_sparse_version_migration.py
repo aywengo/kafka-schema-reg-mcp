@@ -240,7 +240,7 @@ class SparseVersionMigrationTest:
             print(f"✓ Successfully created sparse version set: {sorted(final_versions)}")
             return final_versions
         else:
-            print(f"ℹ️  Schema Registry doesn't support individual version deletion")
+            print("ℹ️  Schema Registry doesn't support individual version deletion")
             print(f"   Using alternate approach: migrating subset of versions {expected_sparse}")
             # Return the sparse subset we want to migrate instead
             return expected_sparse
@@ -312,7 +312,7 @@ class SparseVersionMigrationTest:
         # Handle confirmation required for ID preservation
         if "error" in migration_result:
             if migration_result.get("error_type") == "confirmation_required":
-                print(f"⚠️  ID preservation failed, proceeding without ID preservation")
+                print("⚠️  ID preservation failed, proceeding without ID preservation")
                 # Import the confirmation tool
                 from migration_tools import confirm_migration_without_ids_tool
 

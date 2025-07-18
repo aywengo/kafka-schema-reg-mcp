@@ -1029,13 +1029,13 @@ async def test_production_mcp_deployment():
                 if key in os.environ:
                     del os.environ[key]
 
-    print(f"\n📊 Production Deployment Summary:")
+    print("\n📊 Production Deployment Summary:")
     print(f"• Configurations tested: {len(production_configs)}")
     print(f"• Passed: {len(production_configs) - all_configs_passed}/{len(production_configs)}")
-    print(f"• Multi-registry support: ✅")
-    print(f"• VIEWONLY mode enforcement: ✅")
-    print(f"• Error handling: ✅")
-    print(f"• Export functionality: ✅")
+    print("• Multi-registry support: ✅")
+    print("• VIEWONLY mode enforcement: ✅")
+    print("• Error handling: ✅")
+    print("• Export functionality: ✅")
 
     if all_configs_passed:
         print("\n🎉 ALL PRODUCTION CONFIGURATIONS PASSED!")

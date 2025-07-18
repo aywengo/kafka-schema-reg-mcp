@@ -9,14 +9,9 @@ This test validates that:
 4. The structured output decorator handles async functions correctly
 """
 
-import asyncio
 import os
 import sys
-import uuid
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import requests
 
 # Add the project root directory to Python path
 project_root = str(Path(__file__).parent.parent)
@@ -24,13 +19,9 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 import kafka_schema_registry_unified_mcp as mcp_server
-from core_registry_tools import delete_subject_tool, register_schema_tool
 from migration_tools import (
     MigrationConfirmationRequired,
-    _execute_schema_migration,
-    confirm_migration_without_ids_tool,
     migrate_context_tool,
-    migrate_schema_tool,
 )
 
 # Configuration

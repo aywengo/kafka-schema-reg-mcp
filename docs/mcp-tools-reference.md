@@ -752,12 +752,17 @@ Human: "Show me all available registries"
 Claude: I'll list all configured registries for you.
 
 [Uses registry://names resource]
-📋 Available Registries:
-   • production (default) ✅ Connected
-   • staging ✅ Connected  
-   • development ⚠️ Connection failed
-   • testing ✅ Connected
-   Total: 4 registries (3 connected, 1 failed)
+✅ Available registries: production, staging, development
+```
+
+**Advanced Example:**
+```
+Human: "Get detailed information about the production registry"
+
+Claude: I'll get the detailed information for the production registry.
+
+[Uses registry://info/production resource]
+✅ Registry info: Confluent Schema Registry v7.6.0, 45 subjects, BACKWARD compatibility
 ```
 
 **Registry Mode Information:**

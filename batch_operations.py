@@ -26,8 +26,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from schema_validation import create_error_response, structured_output
 from task_management import TaskStatus, TaskType, task_manager
 

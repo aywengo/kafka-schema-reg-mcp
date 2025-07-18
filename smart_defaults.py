@@ -5,7 +5,6 @@ This module implements a pattern recognition and suggestion system that learns
 from user behavior and organizational conventions to pre-populate elicitation forms.
 """
 
-import asyncio
 import json
 import logging
 import re
@@ -14,9 +13,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
-from schema_registry_common import BaseRegistryManager, RegistryConfig
+from schema_registry_common import BaseRegistryManager
 
 logger = logging.getLogger(__name__)
 
