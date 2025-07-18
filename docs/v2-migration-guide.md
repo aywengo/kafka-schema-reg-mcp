@@ -275,3 +275,210 @@ If v2.x works well for your use case:
 ---
 
 **Ready to upgrade to v2.0.2? The stable release brings significant improvements in performance, security, and user experience!** 🚀🔒✨
+
+## 📦 Tools to Resources Migration
+
+### **Breaking Change: Tools Migrated to Resources**
+
+Several tools have been migrated to MCP resources for better performance and caching:
+
+| **Old Tool** | **New Resource** | **Migration Required** |
+|-------------|------------------|----------------------|
+| `list_subjects` | `registry://{name}/subjects` | ✅ **YES** |
+| `list_registries` | `registry://names` | ✅ **YES** |
+| `list_contexts` | `registry://{name}/contexts` | ✅ **YES** |
+| `get_schema` | `schema://{name}/{context}/{subject}` | ✅ **YES** |
+| `get_schema_versions` | `schema://{name}/{context}/{subject}/versions` | ✅ **YES** |
+| `get_global_config` | `registry://{name}/config` | ✅ **YES** |
+| `get_subject_config` | `subject://{name}/{context}/{subject}/config` | ✅ **YES** |
+| `get_mode` | `registry://mode` | ✅ **YES** |
+| `get_subject_mode` | `subject://{name}/{context}/{subject}/mode` | ✅ **YES** |
+
+### **Migration Examples**
+
+#### **List Subjects Migration**
+```python
+# ❌ OLD WAY (No longer works)
+result = await client.call_tool("list_subjects", {"context": "production"})
+
+# ✅ NEW WAY (Use resources)
+result = await client.read_resource("registry://default/subjects")
+# or for specific registry:
+result = await client.read_resource("registry://production/subjects")
+```
+
+#### **List Registries Migration**
+```python
+# ❌ OLD WAY (No longer works)
+result = await client.call_tool("list_registries", {})
+
+# ✅ NEW WAY (Use resources)
+result = await client.read_resource("registry://names")
+```
+
+#### **Get Schema Migration**
+```python
+# ❌ OLD WAY (No longer works)
+result = await client.call_tool("get_schema", {
+    "subject": "user-events",
+    "context": "production"
+})
+
+# ✅ NEW WAY (Use resources)
+result = await client.read_resource("schema://default/production/user-events")
+# or for specific registry:
+result = await client.read_resource("schema://prod-registry/production/user-events")
+```
+
+### **Response Format Changes**
+
+Resources return data in a different format than tools:
+
+```python
+# Tool response (old)
+if result.content and len(result.content) > 0:
+    data = json.loads(result.content[0].text)
+
+# Resource response (new)
+if result.contents and len(result.contents) > 0:
+    data = json.loads(result.contents[0].text)
+```
+
+### **Benefits of Resources**
+
+- 🚀 **Better Performance**: Resources can be cached by MCP clients
+- 📊 **Structured Data**: More predictable data format
+- 🔄 **Real-time Updates**: Resources can be updated without tool calls
+- 💰 **Lower Token Usage**: Reduced overhead for LLM interactions
+
+### **Migration Checklist**
+
+- [ ] Update all `call_tool("list_subjects", ...)` to `read_resource("registry://.../subjects")`
+- [ ] Update all `call_tool("list_registries", ...)` to `read_resource("registry://names")`
+- [ ] Update all `call_tool("get_schema", ...)` to `read_resource("schema://...")`
+- [ ] Change response parsing from `result.content` to `result.contents`
+- [ ] Update error handling for resource-specific errors
+- [ ] Test all resource URIs with your registry configuration
+
+### **Resource URI Patterns**
+
+| **Pattern** | **Description** | **Example** |
+|------------|----------------|-------------|
+| `registry://names` | List all registries | `registry://names` |
+| `registry://info` | Global registry info | `registry://info` |
+| `registry://status` | All registry status | `registry://status` |
+| `registry://mode` | Global mode info | `registry://mode` |
+| `registry://{name}/subjects` | Registry subjects | `registry://prod/subjects` |
+| `registry://{name}/contexts` | Registry contexts | `registry://prod/contexts` |
+| `registry://{name}/config` | Registry config | `registry://prod/config` |
+| `schema://{name}/{context}/{subject}` | Schema content | `schema://prod/users/user-events` |
+| `subject://{name}/{context}/{subject}/config` | Subject config | `subject://prod/users/user-events/config` |
+
+### **Resource Discovery Tools**
+
+The MCP server now provides helpful tools to guide clients toward using resources:
+
+#### **1. `list_available_resources()`**
+Discover all available resources and their purposes:
+
+```python
+# Get comprehensive list of all resources
+result = await client.call_tool("list_available_resources", {})
+```
+
+**Claude Desktop Usage:**
+```
+Human: "What resources are available for getting schema information?"
+
+Claude: I'll show you all available resources for schema operations.
+
+[Uses list_available_resources MCP tool]
+📋 Available Resources:
+   Registry Resources (7):
+   • registry://names - List all registries (replaces list_registries)
+   • registry://info - Get registry info
+   • registry://{name}/subjects - List subjects (replaces list_subjects)
+   
+   Schema Resources (3):
+   • schema://{name}/{context}/{subject} - Get schema content
+   • schema://{name}/{context}/{subject}/versions - Get versions
+   
+   Subject Resources (2):
+   • subject://{name}/{context}/{subject}/config - Get config
+   • subject://{name}/{context}/{subject}/mode - Get mode
+```
+
+#### **2. `suggest_resource_for_tool(tool_name)`**
+Get specific migration suggestions for removed tools:
+
+```python
+# Get migration suggestion for a specific tool
+result = await client.call_tool("suggest_resource_for_tool", {"tool_name": "list_subjects"})
+```
+
+**Claude Desktop Usage:**
+```
+Human: "How do I replace the list_subjects tool with a resource?"
+
+Claude: I'll show you how to migrate from the list_subjects tool to resources.
+
+[Uses suggest_resource_for_tool MCP tool]
+🔄 Migration Suggestion for 'list_subjects':
+   Status: Migrated to resource
+   Use Resource: registry://{name}/subjects
+   Example: registry://production/subjects
+   
+   Migration Code:
+   # OLD (removed)
+   result = await client.call_tool("list_subjects", {"context": "production"})
+   
+   # NEW (use resource)
+   result = await client.read_resource("registry://production/subjects")
+   data = json.loads(result.contents[0].text)
+   
+   Benefits:
+   • Better performance through caching
+   • Reduced token usage
+   • Real-time data updates
+```
+
+#### **3. `generate_resource_templates()`**
+Generate resource URI templates for your specific configuration:
+
+```python
+# Generate templates for your environment
+result = await client.call_tool("generate_resource_templates", {
+    "registry_name": "production",
+    "context": "users", 
+    "subject": "user-events"
+})
+```
+
+**Claude Desktop Usage:**
+```
+Human: "Generate resource templates for my production environment"
+
+Claude: I'll generate resource URI templates for your production setup.
+
+[Uses generate_resource_templates MCP tool]
+🎯 Resource Templates for Production:
+   Registry Resources:
+   • List subjects: registry://production/subjects
+   • Get config: registry://production/config
+   • List contexts: registry://production/contexts
+   
+   Schema Resources:
+   • Get schema: schema://production/users/user-events
+   • Get versions: schema://production/users/user-events/versions
+   
+   Subject Resources:
+   • Get config: subject://production/users/user-events/config
+   • Get mode: subject://production/users/user-events/mode
+   
+   Usage Example:
+   result = await client.read_resource("registry://production/subjects")
+   data = json.loads(result.contents[0].text)
+   subjects = data.get("subjects", [])
+```
+
+### **Resource URI Patterns**

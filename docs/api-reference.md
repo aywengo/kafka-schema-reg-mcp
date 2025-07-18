@@ -1543,7 +1543,27 @@ curl http://localhost:38000/export/subjects?context=production
 
 ## 📊 MCP Tools and Resources Analysis
 
-This section provides a comprehensive analysis of all MCP tools and resources exposed by the Kafka Schema Registry MCP Server, including duplications and optimization opportunities.
+This section provides a comprehensive analysis of all MCP tools and resources exposed by the Kafka Schema Registry MCP Server.
+
+### Backward Compatibility Wrapper Tools
+These tools are maintained for backward compatibility with existing clients. They internally use efficient implementations but are exposed as tools to prevent "Tool not listed" errors. Consider migrating to the corresponding resources for better performance.
+
+| **Tool Name** | **SLIM_MODE** | **Scope** | **Recommended Resource** | **Description** |
+|---------------|---------------|-----------|--------------------------|-----------------|
+| `list_registries` | ✅ | read | `registry://names` | List all configured registries |
+| `get_registry_info` | ✅ | read | `registry://info/{name}` | Get registry information |
+| `test_registry_connection` | ✅ | read | `registry://status/{name}` | Test registry connection |
+| `test_all_registries` | ✅ | read | `registry://status` | Test all registry connections |
+| `list_subjects` | ✅ | read | `registry://{name}/subjects` | List all subjects |
+| `get_schema` | ✅ | read | `schema://{name}/{context}/{subject}` | Get schema content |
+| `get_schema_versions` | ✅ | read | `schema://{name}/{context}/{subject}/versions` | Get schema versions |
+| `get_global_config` | ✅ | read | `registry://{name}/config` | Get global configuration |
+| `get_mode` | ✅ | read | `registry://mode` | Get registry mode |
+| `list_contexts` | ✅ | read | `registry://{name}/contexts` | List all contexts |
+| `get_subject_config` | ✅ | read | `subject://{name}/{context}/{subject}/config` | Get subject configuration |
+| `get_subject_mode` | ✅ | read | `subject://{name}/{context}/{subject}/mode` | Get subject mode |
+
+### Core MCP Tools
 
 | **Category** | **Name** | **Type** | **SLIM_MODE** | **Scope** | **Description** |
 |--------------|----------|----------|---------------|-----------|-----------------|
@@ -1581,6 +1601,9 @@ This section provides a comprehensive analysis of all MCP tools and resources ex
 | **Interactive** | `register_schema_interactive` | Tool | ❌ | write | Interactive schema registration |
 | **Interactive** | `check_compatibility_interactive` | Tool | ❌ | read | Interactive compatibility check |
 | **Interactive** | `create_context_interactive` | Tool | ❌ | write | Interactive context creation |
+| **Resource Discovery** | `list_available_resources` | Tool | ✅ | read | List all available resources |
+| **Resource Discovery** | `suggest_resource_for_tool` | Tool | ✅ | read | Get resource migration suggestions |
+| **Resource Discovery** | `generate_resource_templates` | Tool | ✅ | read | Generate resource URI templates |
 | **Task Management** | `get_task_status` | Tool | ❌ | read | Get task status |
 | **Task Management** | `get_task_progress` | Tool | ❌ | read | Get task progress |
 | **Task Management** | `list_active_tasks` | Tool | ❌ | read | List active tasks |
@@ -1601,6 +1624,7 @@ This section provides a comprehensive analysis of all MCP tools and resources ex
 | **Utility** | `get_oauth_scopes_info_tool` | Tool | ❌ | read | Get OAuth scopes information |
 | **Utility** | `test_oauth_discovery_endpoints` | Tool | ❌ | read | Test OAuth discovery endpoints |
 | **Utility** | `get_operation_info_tool` | Tool | ❌ | read | Get operation metadata |
+| **Utility** | `check_viewonly_mode` | Tool | ❌ | read | Check if registry is in viewonly mode |
 | **RESOURCES** | `registry://status` | Resource | ✅ | read | Overall registry connection status |
 | **RESOURCES** | `registry://info` | Resource | ✅ | read | Detailed server configuration |
 | **RESOURCES** | `registry://mode` | Resource | ✅ | read | Registry mode detection |
