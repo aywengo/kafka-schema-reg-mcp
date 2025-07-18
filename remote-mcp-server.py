@@ -32,7 +32,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
@@ -535,7 +535,7 @@ async def health_check(request):
         # Test basic server functionality
         server_status = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "uptime_seconds": metrics.get_uptime(),
             "registry_mode": REGISTRY_MODE,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
@@ -635,7 +635,7 @@ async def health_check(request):
         return JSONResponse(
             {
                 "status": "unhealthy",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
@@ -693,7 +693,7 @@ async def readiness_check(request):
         return JSONResponse(
             {
                 "status": "ready",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "uptime_seconds": metrics.get_uptime(),
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,

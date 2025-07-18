@@ -14,7 +14,7 @@ import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
@@ -279,7 +279,7 @@ class AsyncTaskManager:
             id=task_id,
             type=task_type,
             status=TaskStatus.PENDING,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             metadata=metadata,
         )
 
@@ -297,7 +297,7 @@ class AsyncTaskManager:
 
         try:
             task.status = TaskStatus.RUNNING
-            task.started_at = datetime.now().isoformat()
+            task.started_at = datetime.now(timezone.utc).isoformat()
 
             # Create future for the task
             loop = asyncio.get_event_loop()
@@ -333,7 +333,7 @@ class AsyncTaskManager:
                 task.error = str(e)
 
         finally:
-            task.completed_at = datetime.now().isoformat()
+            task.completed_at = datetime.now(timezone.utc).isoformat()
             task._future = None
 
     def get_task(self, task_id: str) -> Optional[AsyncTask]:

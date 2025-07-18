@@ -60,6 +60,7 @@ import logging
 import os
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, Optional, Union
 
@@ -582,13 +583,11 @@ def ping():
     This tool implements the standard MCP ping/pong protocol for server health checking.
     MCP proxies and clients use this to verify that the server is alive and responding.
     """
-    from datetime import datetime
-
     return {
         "response": "pong",
         "server_name": "Kafka Schema Registry Unified MCP Server",
         "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "protocol_version": MCP_PROTOCOL_VERSION,
         "registry_mode": REGISTRY_MODE,
         "slim_mode": SLIM_MODE,
@@ -2498,8 +2497,6 @@ def _internal_get_mcp_compliance_status():
     This function can be called directly for testing purposes.
     """
     try:
-        from datetime import datetime
-
         # Check if header validation middleware is active
         header_validation_active = MIDDLEWARE_ENABLED
 
@@ -2511,7 +2508,7 @@ def _internal_get_mcp_compliance_status():
             "header_validation_enabled": header_validation_active,
             "jsonrpc_batching_disabled": True,
             "compliance_status": "COMPLIANT",
-            "last_verified": datetime.utcnow().isoformat(),
+            "last_verified": datetime.now(timezone.utc).isoformat(),
             "server_info": {
                 "name": "Kafka Schema Registry Unified MCP Server",
                 "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
@@ -2672,7 +2669,7 @@ def _internal_get_mcp_compliance_status():
             "compliance_verification": {
                 "fastmcp_version": "2.8.0+",
                 "mcp_specification": "2025-06-18",
-                "validation_date": datetime.utcnow().isoformat(),
+                "validation_date": datetime.now(timezone.utc).isoformat(),
                 "compliance_notes": [
                     (
                         f"MCP-Protocol-Version header validation "
@@ -2936,12 +2933,11 @@ if not SLIM_MODE:
             Dictionary with test results for each discovery endpoint
         """
         import json
-        from datetime import datetime
 
         import requests
 
         results: Dict[str, Any] = {
-            "test_time": datetime.utcnow().isoformat(),
+            "test_time": datetime.now(timezone.utc).isoformat(),
             "server_url": server_url,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,

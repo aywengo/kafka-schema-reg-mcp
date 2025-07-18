@@ -20,7 +20,7 @@ Use Cases:
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 from uuid import uuid4
@@ -98,8 +98,8 @@ class WorkflowState:
     step_history: List[str] = field(default_factory=list)
     responses: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # step_id -> response values
     metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self):
         """Initialize step_history with current_step_id if empty."""
@@ -109,7 +109,7 @@ class WorkflowState:
     def add_response(self, step_id: str, response_values: Dict[str, Any]):
         """Add a response for a step."""
         self.responses[step_id] = response_values
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def get_all_responses(self) -> Dict[str, Any]:
         """Get all responses flattened into a single dictionary."""
@@ -134,7 +134,7 @@ class WorkflowState:
             # Get previous step
             previous_step = self.step_history[-1]
             self.current_step_id = previous_step
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
             return previous_step
         return None
 
@@ -333,7 +333,7 @@ class MultiStepElicitationManager:
         return {
             "workflow_instance_id": workflow_instance_id,
             "workflow_name": state.metadata.get("workflow_name"),
-            "completed_at": datetime.utcnow().isoformat(),
+            "completed_at": datetime.now(timezone.utc).isoformat(),
             "steps_completed": len(state.step_history),
             "responses": state.get_all_responses(),
             "metadata": state.metadata,
@@ -362,7 +362,7 @@ class MultiStepElicitationManager:
         if workflow_instance_id in self.active_states:
             state = self.active_states[workflow_instance_id]
             state.metadata["aborted"] = True
-            state.metadata["aborted_at"] = datetime.utcnow().isoformat()
+            state.metadata["aborted_at"] = datetime.now(timezone.utc).isoformat()
             self.completed_workflows[workflow_instance_id] = state
             del self.active_states[workflow_instance_id]
             logger.info(f"Aborted workflow instance '{workflow_instance_id}'")

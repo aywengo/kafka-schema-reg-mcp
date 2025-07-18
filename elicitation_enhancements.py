@@ -16,7 +16,7 @@ Features:
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from elicitation import (
@@ -203,7 +203,7 @@ class EnhancedElicitationManager(ElicitationManager):
 
     async def submit_response(self, response: ElicitationResponse) -> bool:
         """Submit response with enhanced validation."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
         try:
             # Get the original request
@@ -229,7 +229,7 @@ class EnhancedElicitationManager(ElicitationManager):
             success = await super().submit_response(response)
 
             # Update performance stats
-            response_time = (datetime.utcnow() - start_time).total_seconds()
+            response_time = (datetime.now(timezone.utc) - start_time).total_seconds()
             self._update_performance_stats(response_time, success)
 
             return success
@@ -343,7 +343,7 @@ class EnhancedElicitationManager(ElicitationManager):
 
     async def cleanup_expired_requests(self, max_age_hours: int = 24) -> int:
         """Clean up old expired requests to prevent memory leaks."""
-        cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
         expired_count = 0
 
         expired_ids = []

@@ -594,6 +594,10 @@ def get_global_config_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Map Schema Registry API response to expected schema format
+            if "compatibilityLevel" in result:
+                result["compatibility"] = result.pop("compatibilityLevel")
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -618,6 +622,10 @@ def get_global_config_tool(
             response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Map Schema Registry API response to expected schema format
+            if "compatibilityLevel" in result:
+                result["compatibility"] = result.pop("compatibilityLevel")
 
             # Add structured output metadata
             result["registry"] = client.config.name
@@ -763,6 +771,10 @@ def get_subject_config_tool(
             response.raise_for_status()
             result = response.json()
 
+            # Map Schema Registry API response to expected schema format
+            if "compatibilityLevel" in result:
+                result["compatibility"] = result.pop("compatibilityLevel")
+
             # Add structured output metadata
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -787,6 +799,10 @@ def get_subject_config_tool(
             response = client.session.get(url, auth=client.auth, headers=client.headers)
             response.raise_for_status()
             result = response.json()
+
+            # Map Schema Registry API response to expected schema format
+            if "compatibilityLevel" in result:
+                result["compatibility"] = result.pop("compatibilityLevel")
 
             # Add structured output metadata
             result["registry"] = client.config.name

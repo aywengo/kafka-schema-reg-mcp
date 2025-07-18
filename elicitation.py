@@ -24,7 +24,7 @@ MCP 2025-06-18 Compliance:
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -78,7 +78,7 @@ class ElicitationRequest:
     timeout_seconds: int = 300  # 5 minutes default
     allow_multiple: bool = False
     context: Optional[Dict[str, Any]] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: Optional[datetime] = None
 
     def __post_init__(self):
@@ -119,7 +119,7 @@ class ElicitationRequest:
         """Check if the elicitation request has expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
 
 @dataclass
@@ -128,7 +128,7 @@ class ElicitationResponse:
 
     request_id: str
     values: Dict[str, Any]
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     complete: bool = True
     metadata: Optional[Dict[str, Any]] = None
 
@@ -197,8 +197,8 @@ class ElicitationManager:
         request = self.pending_requests[request_id]
         effective_timeout = timeout or request.timeout_seconds
 
-        start_time = datetime.utcnow()
-        while datetime.utcnow() - start_time < timedelta(seconds=effective_timeout):
+        start_time = datetime.now(timezone.utc)
+        while datetime.now(timezone.utc) - start_time < timedelta(seconds=effective_timeout):
             if request_id in self.responses:
                 return self.responses[request_id]
 
@@ -229,6 +229,37 @@ class ElicitationManager:
             logger.info(f"Cancelled elicitation request {request_id}")
             return True
         return False
+
+    async def elicit(self, request: ElicitationRequest) -> Optional[Dict[str, Any]]:
+        """
+        Perform elicitation with fallback support.
+
+        This method acts as a wrapper around the existing elicitation system,
+        providing a simple interface for bulk operations and other tools.
+
+        Args:
+            request: The elicitation request to process
+
+        Returns:
+            Dictionary containing the elicited values, or None if failed
+        """
+        try:
+            # Create and register the request
+            request_id = await self.create_request(request)
+
+            # Use the existing elicit_with_fallback function
+            response = await elicit_with_fallback(request)
+
+            if response and response.complete:
+                logger.info(f"Elicitation successful for request {request_id}")
+                return response.values
+            else:
+                logger.warning(f"Elicitation failed or incomplete for request {request_id}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error in elicitation: {str(e)}")
+            return None
 
     async def _handle_timeout(self, request_id: str, timeout_seconds: int):
         """Handle request timeout."""

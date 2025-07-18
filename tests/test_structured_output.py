@@ -100,7 +100,10 @@ class TestSchemaDefinitions(unittest.TestCase):
         all_schemas = get_all_schemas()
         for tool_name, schema in all_schemas.items():
             self.assertIsInstance(schema, dict, f"Schema for {tool_name} should be dict")
-            self.assertIn("type", schema, f"Schema for {tool_name} should have 'type'")
+            # Schema should have either 'type' or 'oneOf' (both are valid JSON Schema)
+            has_type = "type" in schema
+            has_oneOf = "oneOf" in schema
+            self.assertTrue(has_type or has_oneOf, f"Schema for {tool_name} should have 'type' or 'oneOf'")
 
 
 class TestSchemaValidation(unittest.TestCase):
@@ -509,7 +512,10 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
 
             if schema != {"type": "object", "additionalProperties": True}:
                 # More specific schemas should have proper structure
-                self.assertIn("type", schema, f"Schema for {tool_name} should have type")
+                # Schema should have either 'type' or 'oneOf' (both are valid JSON Schema)
+                has_type = "type" in schema
+                has_oneOf = "oneOf" in schema
+                self.assertTrue(has_type or has_oneOf, f"Schema for {tool_name} should have 'type' or 'oneOf'")
 
                 if "properties" in schema:
                     self.assertIsInstance(schema["properties"], dict)

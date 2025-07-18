@@ -10,7 +10,7 @@ import logging
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -225,7 +225,7 @@ class LearningEngine:
     def record_choice(self, operation: str, context: str, field: str, value: Any, accepted: bool = True):
         """Record a user's choice for future learning"""
         choice = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "operation": operation,
             "context": context,
             "field": field,
@@ -254,7 +254,7 @@ class LearningEngine:
             return None
 
         # Get recent choices (last 30 days)
-        cutoff = datetime.utcnow() - timedelta(days=30)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         recent_choices = [c for c in choices if datetime.fromisoformat(c["timestamp"]) > cutoff and c["accepted"]]
 
         if not recent_choices:
@@ -335,7 +335,7 @@ class SmartDefaultsEngine:
         # Check cache
         if cache_key in self._cache:
             cached_time, cached_defaults = self._cache[cache_key]
-            if datetime.utcnow() - cached_time < timedelta(seconds=self._cache_ttl):
+            if datetime.now(timezone.utc) - cached_time < timedelta(seconds=self._cache_ttl):
                 return cached_defaults
 
         # Generate defaults

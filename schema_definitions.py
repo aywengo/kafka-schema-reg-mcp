@@ -808,9 +808,24 @@ TOOL_OUTPUT_SCHEMAS = {
     "create_context": CONTEXT_OPERATION_SCHEMA,
     "delete_context": CONTEXT_OPERATION_SCHEMA,
     "delete_subject": {
-        "type": "array",
-        "items": {"type": "integer"},
-    },  # Returns list of deleted versions
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "subject": {"type": "string"},
+                    "deleted_versions": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                    },
+                    "permanent": {"type": "boolean"},
+                    "context": {"type": ["string", "null"]},
+                    **METADATA_FIELDS,
+                },
+                "required": ["subject", "deleted_versions"],
+            },
+            ERROR_RESPONSE_SCHEMA,  # Allow error responses
+        ],
+    },  # Returns object with deleted versions or error
     # Export Operations
     "export_schema": EXPORT_SCHEMA_SCHEMA,
     "export_subject": EXPORT_SUBJECT_SCHEMA,
@@ -841,8 +856,18 @@ TOOL_OUTPUT_SCHEMAS = {
     "clear_context_batch": BATCH_OPERATION_SCHEMA,
     "clear_multiple_contexts_batch": BATCH_OPERATION_SCHEMA,
     # Task Management
-    "get_task_status": TASK_STATUS_SCHEMA,
-    "get_task_progress": TASK_STATUS_SCHEMA,
+    "get_task_status": {
+        "oneOf": [
+            TASK_STATUS_SCHEMA,  # Normal task status response
+            ERROR_RESPONSE_SCHEMA,  # Error response when task not found
+        ],
+    },
+    "get_task_progress": {
+        "oneOf": [
+            TASK_STATUS_SCHEMA,  # Normal task progress response
+            ERROR_RESPONSE_SCHEMA,  # Error response when task not found
+        ],
+    },
     "list_active_tasks": TASK_LIST_SCHEMA,
     "cancel_task": SUCCESS_RESPONSE_SCHEMA,
     "list_statistics_tasks": TASK_LIST_SCHEMA,

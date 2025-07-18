@@ -12,7 +12,7 @@ with JSON Schema validation and type-safe responses.
 import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from schema_registry_common import get_default_client
@@ -352,7 +352,7 @@ async def _count_schemas_async(
                 "context": context,
                 "total_schemas": len(subjects),
                 "schemas": subjects,
-                "counted_at": datetime.now().isoformat(),
+                "counted_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Add metadata information
@@ -389,7 +389,7 @@ async def _count_schemas_async(
                 "total_schemas": total_schemas,
                 "schemas_by_context": all_schemas,
                 "contexts_analyzed": len(all_schemas),
-                "counted_at": datetime.now().isoformat(),
+                "counted_at": datetime.now(timezone.utc).isoformat(),
             }
 
             # Add metadata information

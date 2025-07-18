@@ -21,7 +21,7 @@ import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, cast
 
 # Import the original task management components
@@ -94,7 +94,7 @@ class EnhancedAsyncTaskManager:
             id=task_id,
             type=task_type,
             status=TaskStatus.PENDING,
-            created_at=datetime.now().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
             metadata=metadata,
             _context=context,
             _progress_token=self._extract_progress_token(context) if context else None,
@@ -149,7 +149,7 @@ class EnhancedAsyncTaskManager:
 
         try:
             task.status = TaskStatus.RUNNING
-            task.started_at = datetime.now().isoformat()
+            task.started_at = datetime.now(timezone.utc).isoformat()
 
             # Log task start
             if context:
@@ -217,7 +217,7 @@ class EnhancedAsyncTaskManager:
                     )
 
         finally:
-            task.completed_at = datetime.now().isoformat()
+            task.completed_at = datetime.now(timezone.utc).isoformat()
             task._future = None
 
     def _function_expects_context(self, func: Callable) -> bool:
