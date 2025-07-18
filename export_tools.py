@@ -10,7 +10,7 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 import json
-from typing import Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from resource_linking import add_links_to_response
 from schema_registry_common import export_context as common_export_context
@@ -22,6 +22,9 @@ from schema_validation import (
     create_error_response,
     structured_output,
 )
+
+if TYPE_CHECKING:
+    from fastmcp.server.context import Context
 
 
 def _get_registry_name_for_linking(registry_mode: str, client=None, registry: Optional[str] = None) -> str:
@@ -174,7 +177,7 @@ def export_subject_tool(
 
 
 @structured_output("export_context", fallback_on_error=True)
-def export_context_tool(
+async def export_context_tool(
     context: str,
     registry_manager,
     registry_mode: str,
@@ -182,6 +185,7 @@ def export_context_tool(
     include_metadata: bool = True,
     include_config: bool = True,
     include_versions: str = "all",
+    mcp_context: Optional["Context"] = None,
 ) -> Dict[str, Any]:
     """
     Export all subjects within a context.
@@ -192,11 +196,17 @@ def export_context_tool(
         include_metadata: Include export metadata
         include_config: Include configuration data
         include_versions: Which versions to include (all, latest)
+        mcp_context: MCP Context for progress reporting
 
     Returns:
         Dictionary containing context export data with structured validation and resource links
     """
     try:
+        # Initial setup (0-10%)
+        if mcp_context:
+            await mcp_context.info(f"Starting context export: {context}")
+            await mcp_context.report_progress(0.0, 100.0, "Initializing context export")
+
         if registry_mode == "single":
             # Single-registry mode: use common function
             client = get_default_client(registry_manager)
@@ -206,6 +216,10 @@ def export_context_tool(
                     error_code="REGISTRY_NOT_CONFIGURED",
                     registry_mode="single",
                 )
+
+            if mcp_context:
+                await mcp_context.report_progress(5.0, 100.0, "Using default registry client")
+
             result = common_export_context(client, context, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -213,6 +227,10 @@ def export_context_tool(
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "context", registry_name, context=context)
+
+            if mcp_context:
+                await mcp_context.info("Context export completed successfully")
+                await mcp_context.report_progress(100.0, 100.0, "Context export completed")
 
             return result
         else:
@@ -225,7 +243,14 @@ def export_context_tool(
                     registry_mode="multi",
                 )
 
-            # Get all subjects in context
+            if mcp_context:
+                await mcp_context.report_progress(10.0, 100.0, f"Registry client '{registry}' initialized")
+
+            # Get all subjects in context (10-25%)
+            if mcp_context:
+                await mcp_context.info(f"Fetching subjects from context: {context}")
+                await mcp_context.report_progress(15.0, 100.0, f"Fetching subjects from context '{context}'")
+
             subjects_list = client.get_subjects(context)
             if isinstance(subjects_list, dict) and "error" in subjects_list:
                 return create_error_response(
@@ -234,9 +259,23 @@ def export_context_tool(
                     registry_mode=registry_mode,
                 )
 
-            # Export each subject
+            if mcp_context:
+                await mcp_context.report_progress(25.0, 100.0, f"Found {len(subjects_list)} subjects in context")
+
+            # Export each subject (25-70%)
             subjects_data = []
-            for subject in subjects_list:
+            if mcp_context:
+                await mcp_context.info(f"Exporting {len(subjects_list)} subjects")
+                await mcp_context.report_progress(30.0, 100.0, f"Starting export of {len(subjects_list)} subjects")
+
+            for i, subject in enumerate(subjects_list):
+                # Report progress for subject export
+                if mcp_context and len(subjects_list) > 0:
+                    progress = 30.0 + (i / len(subjects_list)) * 40.0  # 30% to 70%
+                    await mcp_context.report_progress(
+                        progress, 100.0, f"Exporting subject {i+1}/{len(subjects_list)}: {subject}"
+                    )
+
                 subject_export = export_subject_tool(
                     subject,
                     registry_manager,
@@ -250,6 +289,13 @@ def export_context_tool(
                 if "error" not in subject_export:
                     subjects_data.append(subject_export)
 
+            if mcp_context:
+                await mcp_context.report_progress(70.0, 100.0, f"Exported {len(subjects_data)} subjects successfully")
+
+            # Build result structure (70-80%)
+            if mcp_context:
+                await mcp_context.report_progress(75.0, 100.0, "Building export result structure")
+
             result = {
                 "context": context,
                 "subjects": subjects_data,
@@ -259,7 +305,11 @@ def export_context_tool(
                 "mcp_protocol_version": "2025-06-18",
             }
 
+            # Add configuration data if requested (80-90%)
             if include_config:
+                if mcp_context:
+                    await mcp_context.report_progress(80.0, 100.0, "Fetching context configuration")
+
                 global_config = client.get_global_config(context)
                 if "error" not in global_config:
                     result["global_config"] = global_config
@@ -268,7 +318,17 @@ def export_context_tool(
                 if "error" not in global_mode:
                     result["global_mode"] = global_mode
 
+                if mcp_context:
+                    await mcp_context.report_progress(85.0, 100.0, "Context configuration added")
+            else:
+                if mcp_context:
+                    await mcp_context.report_progress(85.0, 100.0, "Skipping context configuration")
+
+            # Add metadata if requested (90-95%)
             if include_metadata:
+                if mcp_context:
+                    await mcp_context.report_progress(90.0, 100.0, "Adding export metadata")
+
                 from datetime import datetime
 
                 result["metadata"] = {
@@ -279,23 +339,33 @@ def export_context_tool(
                     "registry_mode": "multi",
                 }
 
-            # Add resource links
+            # Add resource links (95-100%)
+            if mcp_context:
+                await mcp_context.report_progress(95.0, 100.0, "Adding resource links")
+
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "context", registry_name, context=context)
 
+            if mcp_context:
+                await mcp_context.info("Context export completed successfully")
+                await mcp_context.report_progress(100.0, 100.0, "Context export completed")
+
             return result
     except Exception as e:
+        if mcp_context:
+            await mcp_context.error(f"Context export failed: {str(e)}")
         return create_error_response(str(e), error_code="CONTEXT_EXPORT_FAILED", registry_mode=registry_mode)
 
 
 @structured_output("export_global", fallback_on_error=True)
-def export_global_tool(
+async def export_global_tool(
     registry_manager,
     registry_mode: str,
     registry: Optional[str] = None,
     include_metadata: bool = True,
     include_config: bool = True,
     include_versions: str = "all",
+    mcp_context: Optional["Context"] = None,
 ) -> Dict[str, Any]:
     """
     Export all contexts and schemas from a registry.
@@ -305,11 +375,17 @@ def export_global_tool(
         include_metadata: Include export metadata
         include_config: Include configuration data
         include_versions: Which versions to include (all, latest)
+        mcp_context: MCP Context for progress reporting
 
     Returns:
         Dictionary containing global export data with structured validation and resource links
     """
     try:
+        # Initial setup (0-10%)
+        if mcp_context:
+            await mcp_context.info(f"Starting global export from registry: {registry or 'default'}")
+            await mcp_context.report_progress(0.0, 100.0, "Initializing global export")
+
         if registry_mode == "single":
             # Single-registry mode: use common function
             client = get_default_client(registry_manager)
@@ -319,6 +395,10 @@ def export_global_tool(
                     error_code="REGISTRY_NOT_CONFIGURED",
                     registry_mode="single",
                 )
+
+            if mcp_context:
+                await mcp_context.report_progress(5.0, 100.0, "Using default registry client")
+
             result = common_export_global(client, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -326,6 +406,10 @@ def export_global_tool(
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "registry", registry_name)
+
+            if mcp_context:
+                await mcp_context.info("Global export completed successfully")
+                await mcp_context.report_progress(100.0, 100.0, "Global export completed")
 
             return result
         else:
@@ -338,7 +422,14 @@ def export_global_tool(
                     registry_mode="multi",
                 )
 
-            # Get all contexts
+            if mcp_context:
+                await mcp_context.report_progress(10.0, 100.0, f"Registry client '{registry}' initialized")
+
+            # Get all contexts (10-20%)
+            if mcp_context:
+                await mcp_context.info(f"Fetching contexts from registry: {registry}")
+                await mcp_context.report_progress(15.0, 100.0, f"Fetching contexts from registry '{registry}'")
+
             contexts_list = client.get_contexts()
             if isinstance(contexts_list, dict) and "error" in contexts_list:
                 return create_error_response(
@@ -347,10 +438,24 @@ def export_global_tool(
                     registry_mode=registry_mode,
                 )
 
-            # Export each context
+            if mcp_context:
+                await mcp_context.report_progress(20.0, 100.0, f"Found {len(contexts_list)} contexts in registry")
+
+            # Export each context (20-70%)
             contexts_data = []
-            for context in contexts_list:
-                context_export = export_context_tool(
+            if mcp_context:
+                await mcp_context.info(f"Exporting {len(contexts_list)} contexts")
+                await mcp_context.report_progress(25.0, 100.0, f"Starting export of {len(contexts_list)} contexts")
+
+            for i, context in enumerate(contexts_list):
+                # Report progress for context export
+                if mcp_context and len(contexts_list) > 0:
+                    progress = 25.0 + (i / len(contexts_list)) * 40.0  # 25% to 65%
+                    await mcp_context.report_progress(
+                        progress, 100.0, f"Exporting context {i+1}/{len(contexts_list)}: {context}"
+                    )
+
+                context_export = await export_context_tool(
                     context,
                     registry_manager,
                     registry_mode,
@@ -358,12 +463,19 @@ def export_global_tool(
                     include_metadata,
                     include_config,
                     include_versions,
+                    None,  # Don't pass mcp_context to avoid nested progress reporting
                 )
                 if "error" not in context_export:
                     contexts_data.append(context_export)
 
-            # Export default context (no context specified)
-            default_export = export_context_tool(
+            if mcp_context:
+                await mcp_context.report_progress(65.0, 100.0, f"Exported {len(contexts_data)} contexts successfully")
+
+            # Export default context (65-70%)
+            if mcp_context:
+                await mcp_context.report_progress(68.0, 100.0, "Exporting default context")
+
+            default_export = await export_context_tool(
                 "",
                 registry_manager,
                 registry_mode,
@@ -371,7 +483,15 @@ def export_global_tool(
                 include_metadata,
                 include_config,
                 include_versions,
+                None,  # Don't pass mcp_context to avoid nested progress reporting
             )
+
+            if mcp_context:
+                await mcp_context.report_progress(70.0, 100.0, "Default context export completed")
+
+            # Build result structure (70-80%)
+            if mcp_context:
+                await mcp_context.report_progress(75.0, 100.0, "Building global export result structure")
 
             result = {
                 "contexts": contexts_data,
@@ -382,7 +502,11 @@ def export_global_tool(
                 "mcp_protocol_version": "2025-06-18",
             }
 
+            # Add configuration data if requested (80-90%)
             if include_config:
+                if mcp_context:
+                    await mcp_context.report_progress(80.0, 100.0, "Fetching global configuration")
+
                 global_config = client.get_global_config()
                 if "error" not in global_config:
                     result["global_config"] = global_config
@@ -391,7 +515,17 @@ def export_global_tool(
                 if "error" not in global_mode:
                     result["global_mode"] = global_mode
 
+                if mcp_context:
+                    await mcp_context.report_progress(85.0, 100.0, "Global configuration added")
+            else:
+                if mcp_context:
+                    await mcp_context.report_progress(85.0, 100.0, "Skipping global configuration")
+
+            # Add metadata if requested (90-95%)
             if include_metadata:
+                if mcp_context:
+                    await mcp_context.report_progress(90.0, 100.0, "Adding export metadata")
+
                 from datetime import datetime
 
                 result["metadata"] = {
@@ -404,10 +538,19 @@ def export_global_tool(
                     "total_subjects": sum(len(ctx.get("subjects", [])) for ctx in contexts_data),
                 }
 
-            # Add resource links
+            # Add resource links (95-100%)
+            if mcp_context:
+                await mcp_context.report_progress(95.0, 100.0, "Adding resource links")
+
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
             result = add_links_to_response(result, "registry", registry_name)
 
+            if mcp_context:
+                await mcp_context.info("Global export completed successfully")
+                await mcp_context.report_progress(100.0, 100.0, "Global export completed")
+
             return result
     except Exception as e:
+        if mcp_context:
+            await mcp_context.error(f"Global export failed: {str(e)}")
         return create_error_response(str(e), error_code="GLOBAL_EXPORT_FAILED", registry_mode=registry_mode)

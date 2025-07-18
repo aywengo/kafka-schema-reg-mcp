@@ -611,6 +611,8 @@ if not SLIM_MODE:
         target_registry: str,
         include_contexts: bool = True,
         include_configs: bool = True,
+        *,
+        context: Context,
     ):
         """Compare two Schema Registry instances and show differences."""
         return await compare_registries_tool(
@@ -620,6 +622,7 @@ if not SLIM_MODE:
             REGISTRY_MODE,
             include_contexts,
             include_configs,
+            context,
         )
 
     @mcp.tool()
@@ -1553,15 +1556,17 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("read")
-    def export_context(
+    async def export_context(
         context: str,
         registry: Optional[str] = None,
         include_metadata: bool = True,
         include_config: bool = True,
         include_versions: str = "all",
+        *,
+        mcp_context: Context,
     ):
         """Export all subjects within a context."""
-        return export_context_tool(
+        return await export_context_tool(
             context,
             registry_manager,
             REGISTRY_MODE,
@@ -1569,24 +1574,28 @@ if not SLIM_MODE:
             include_metadata,
             include_config,
             include_versions,
+            mcp_context,
         )
 
     @mcp.tool()
     @require_scopes("read")
-    def export_global(
+    async def export_global(
         registry: Optional[str] = None,
         include_metadata: bool = True,
         include_config: bool = True,
         include_versions: str = "all",
+        *,
+        mcp_context: Context,
     ):
         """Export all contexts and schemas from a registry."""
-        return export_global_tool(
+        return await export_global_tool(
             registry_manager,
             REGISTRY_MODE,
             registry,
             include_metadata,
             include_config,
             include_versions,
+            mcp_context,
         )
 
     @mcp.tool()
@@ -1598,6 +1607,9 @@ if not SLIM_MODE:
         include_versions: Optional[str] = None,
         format: Optional[str] = None,
         compression: Optional[str] = None,
+        # Backward compatibility parameters
+        output_format: Optional[str] = None,
+        schemas_per_file: Optional[str] = None,
     ):
         """
         Interactive global export with elicitation for export preferences.
@@ -1605,6 +1617,14 @@ if not SLIM_MODE:
         When export preferences are not specified, this tool will elicit
         the required configuration from the user.
         """
+        # Handle backward compatibility parameters
+        if output_format is not None and format is None:
+            format = output_format
+
+        # schemas_per_file is not currently used but accepted for compatibility
+        if schemas_per_file is not None:
+            logger.warning(f"schemas_per_file parameter is not currently supported, ignoring value: {schemas_per_file}")
+
         return await export_global_interactive_impl(
             registry=registry,
             include_metadata=include_metadata,

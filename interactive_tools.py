@@ -582,13 +582,14 @@ async def export_global_interactive(
                 compression = compression or "none"
 
         # Now proceed with the actual global export
-        result = export_global_tool(
+        result = await export_global_tool(
             registry_manager=registry_manager,
             registry_mode=registry_mode,
             registry=registry,
             include_metadata=include_metadata,
             include_config=include_config,
             include_versions=include_versions,
+            mcp_context=None,  # Don't pass MCP context to avoid nested progress reporting
         )
 
         # Add elicitation and format metadata to successful result

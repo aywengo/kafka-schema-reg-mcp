@@ -30,6 +30,7 @@ async def compare_registries_tool(
     registry_mode: str,
     include_contexts: bool = True,
     include_configs: bool = True,
+    context: Optional["Context"] = None,
 ) -> Dict[str, Any]:
     """
     Compare two Schema Registry instances and show differences.
@@ -40,6 +41,7 @@ async def compare_registries_tool(
         target_registry: Target registry name
         include_contexts: Include context comparison
         include_configs: Include configuration comparison
+        context: MCP Context for progress reporting
 
     Returns:
         Comparison results with structured validation and resource links, or error if in single-registry mode
@@ -53,6 +55,11 @@ async def compare_registries_tool(
         )
 
     try:
+        # Initial setup (0-10%)
+        if context:
+            await context.info(f"Starting registry comparison: {source_registry} vs {target_registry}")
+            await context.report_progress(0.0, 100.0, "Initializing registry comparison")
+
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
@@ -69,6 +76,9 @@ async def compare_registries_tool(
                 registry_mode=registry_mode,
             )
 
+        if context:
+            await context.report_progress(10.0, 100.0, "Registry clients initialized")
+
         comparison: Dict[str, Any] = {
             "source_registry": source_registry,
             "target_registry": target_registry,
@@ -78,9 +88,28 @@ async def compare_registries_tool(
             "mcp_protocol_version": "2025-06-18",
         }
 
-        # Compare subjects
+        # Compare subjects (10-30%)
+        if context:
+            await context.info(f"Fetching subjects from source registry: {source_registry}")
+            await context.report_progress(15.0, 100.0, f"Fetching subjects from {source_registry}")
+
         source_subjects = set(source_client.get_subjects() or [])
+
+        if context:
+            await context.report_progress(20.0, 100.0, f"Found {len(source_subjects)} subjects in source registry")
+
+        if context:
+            await context.info(f"Fetching subjects from target registry: {target_registry}")
+            await context.report_progress(25.0, 100.0, f"Fetching subjects from {target_registry}")
+
         target_subjects = set(target_client.get_subjects() or [])
+
+        if context:
+            await context.report_progress(30.0, 100.0, f"Found {len(target_subjects)} subjects in target registry")
+
+        # Build subject comparison (30-35%)
+        if context:
+            await context.report_progress(30.0, 100.0, "Building subject comparison")
 
         comparison["differences"]["subjects"] = {
             "only_in_source": list(source_subjects - target_subjects),
@@ -91,32 +120,63 @@ async def compare_registries_tool(
             "common_count": len(source_subjects & target_subjects),
         }
 
-        # Compare schemas for common subjects
-        schema_differences = []
-        for subject in source_subjects & target_subjects:
-            source_versions = source_client.get_schema_versions(subject) or []
-            target_versions = target_client.get_schema_versions(subject) or []
+        if context:
+            await context.report_progress(35.0, 100.0, "Subject comparison completed")
 
-            if source_versions != target_versions:
-                schema_differences.append(
-                    {
-                        "subject": subject,
-                        "source_versions": source_versions,
-                        "target_versions": target_versions,
-                        "source_version_count": (len(source_versions) if isinstance(source_versions, list) else 0),
-                        "target_version_count": (len(target_versions) if isinstance(target_versions, list) else 0),
-                    }
-                )
+        # Compare schemas for common subjects (35-55%)
+        common_subjects = source_subjects & target_subjects
+        schema_differences = []
+
+        if context:
+            await context.info(f"Comparing schemas for {len(common_subjects)} common subjects")
+            await context.report_progress(40.0, 100.0, f"Comparing schemas for {len(common_subjects)} common subjects")
+
+        if common_subjects:
+            for i, subject in enumerate(common_subjects):
+                # Report progress for schema comparison
+                if context and len(common_subjects) > 0:
+                    progress = 40.0 + (i / len(common_subjects)) * 15.0  # 40% to 55%
+                    await context.report_progress(progress, 100.0, f"Comparing schema versions for {subject}")
+
+                source_versions = source_client.get_schema_versions(subject) or []
+                target_versions = target_client.get_schema_versions(subject) or []
+
+                if source_versions != target_versions:
+                    schema_differences.append(
+                        {
+                            "subject": subject,
+                            "source_versions": source_versions,
+                            "target_versions": target_versions,
+                            "source_version_count": (len(source_versions) if isinstance(source_versions, list) else 0),
+                            "target_version_count": (len(target_versions) if isinstance(target_versions, list) else 0),
+                        }
+                    )
+
+        if context:
+            await context.report_progress(
+                55.0, 100.0, f"Found {len(schema_differences)} subjects with schema differences"
+            )
 
         comparison["differences"]["schemas"] = {
             "subjects_with_differences": schema_differences,
             "subjects_with_differences_count": len(schema_differences),
         }
 
-        # Compare contexts if requested
+        # Compare contexts if requested (55-70%)
         if include_contexts:
+            if context:
+                await context.info("Comparing contexts between registries")
+                await context.report_progress(60.0, 100.0, "Fetching contexts from source registry")
+
             source_contexts = set(source_client.get_contexts() or [])
+
+            if context:
+                await context.report_progress(65.0, 100.0, f"Found {len(source_contexts)} contexts in source registry")
+
             target_contexts = set(target_client.get_contexts() or [])
+
+            if context:
+                await context.report_progress(70.0, 100.0, f"Found {len(target_contexts)} contexts in target registry")
 
             comparison["differences"]["contexts"] = {
                 "only_in_source": list(source_contexts - target_contexts),
@@ -126,15 +186,25 @@ async def compare_registries_tool(
                 "target_total": len(target_contexts),
                 "common_count": len(source_contexts & target_contexts),
             }
+        else:
+            if context:
+                await context.report_progress(70.0, 100.0, "Skipping context comparison")
 
-        # Compare configurations if requested
+        # Compare configurations if requested (70-85%)
         if include_configs:
+            if context:
+                await context.info("Comparing global configurations")
+                await context.report_progress(75.0, 100.0, "Fetching global configurations")
+
             source_config = source_client.get_global_config()
             target_config = target_client.get_global_config()
 
             # Remove registry-specific fields for comparison
             source_config_clean = {k: v for k, v in source_config.items() if k not in ["registry", "error"]}
             target_config_clean = {k: v for k, v in target_config.items() if k not in ["registry", "error"]}
+
+            if context:
+                await context.report_progress(80.0, 100.0, "Analyzing configuration differences")
 
             comparison["differences"]["global_config"] = {
                 "source": source_config,
@@ -150,7 +220,16 @@ async def compare_registries_tool(
                 },
             }
 
-        # Add summary statistics
+            if context:
+                await context.report_progress(85.0, 100.0, "Configuration comparison completed")
+        else:
+            if context:
+                await context.report_progress(85.0, 100.0, "Skipping configuration comparison")
+
+        # Add summary statistics (85-95%)
+        if context:
+            await context.report_progress(90.0, 100.0, "Building comparison summary")
+
         comparison["summary"] = {
             "subjects_only_in_source": len(comparison["differences"]["subjects"]["only_in_source"]),
             "subjects_only_in_target": len(comparison["differences"]["subjects"]["only_in_target"]),
@@ -163,7 +242,10 @@ async def compare_registries_tool(
             ),
         }
 
-        # Add resource links
+        # Add resource links (95-100%)
+        if context:
+            await context.report_progress(95.0, 100.0, "Adding resource links")
+
         comparison = add_links_to_response(
             comparison,
             "comparison",
@@ -172,9 +254,15 @@ async def compare_registries_tool(
             target_registry=target_registry,
         )
 
+        if context:
+            await context.info("Registry comparison completed successfully")
+            await context.report_progress(100.0, 100.0, "Registry comparison completed")
+
         return comparison
 
     except Exception as e:
+        if context:
+            await context.error(f"Registry comparison failed: {str(e)}")
         return create_error_response(str(e), error_code="REGISTRY_COMPARISON_FAILED", registry_mode=registry_mode)
 
 
@@ -214,7 +302,8 @@ async def compare_contexts_across_registries_tool(
         # Initial setup (0-10%)
         if context:
             await context.info(
-                f"Starting context comparison: {source_registry}/{source_context} vs {target_registry}/{target_context or source_context}"
+                f"Starting context comparison: {source_registry}/{source_context} vs "
+                f"{target_registry}/{target_context or source_context}"
             )
             await context.report_progress(0.0, 100.0, "Initializing context comparison")
 
