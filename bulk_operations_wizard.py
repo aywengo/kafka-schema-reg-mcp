@@ -670,6 +670,107 @@ class BulkOperationsWizard:
 
         return options
 
+    async def _elicit_migration_source_target(self) -> Dict[str, Any]:
+        """Elicit source and target registry/context information for migration"""
+        request = ElicitationRequest(
+            id=f"migration_source_target_{datetime.now().timestamp()}",
+            type=ElicitationType.FORM,
+            title="Configure Migration Source and Target",
+            description="Specify the source and target registries and contexts for the migration",
+            fields=[
+                ElicitationField(
+                    name="source_registry",
+                    type="text",
+                    description="Source registry name or URL",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="source_context",
+                    type="text",
+                    description="Source context name (leave empty for default)",
+                    required=False,
+                    default=".",
+                ),
+                ElicitationField(
+                    name="target_registry",
+                    type="text",
+                    description="Target registry name or URL",
+                    required=True,
+                ),
+                ElicitationField(
+                    name="target_context",
+                    type="text",
+                    description="Target context name (leave empty for default)",
+                    required=False,
+                    default=".",
+                ),
+            ],
+        )
+
+        return await self.elicitation.elicit(request)  # type: ignore
+
+    async def _elicit_migration_options(self) -> Dict[str, Any]:
+        """Elicit migration options and settings"""
+        request = ElicitationRequest(
+            id=f"migration_options_{datetime.now().timestamp()}",
+            type=ElicitationType.FORM,
+            title="Configure Migration Options",
+            description="Set migration behavior and safety options",
+            fields=[
+                ElicitationField(
+                    name="dry_run",
+                    type="boolean",
+                    description="Perform a dry run without making actual changes",
+                    required=True,
+                    default=True,
+                ),
+                ElicitationField(
+                    name="preserve_ids",
+                    type="boolean",
+                    description="Preserve schema IDs during migration",
+                    required=True,
+                    default=True,
+                ),
+                ElicitationField(
+                    name="migrate_all_versions",
+                    type="boolean",
+                    description="Migrate all versions of each schema",
+                    required=True,
+                    default=False,
+                ),
+                ElicitationField(
+                    name="create_backup",
+                    type="boolean",
+                    description="Create backup before migration",
+                    required=True,
+                    default=True,
+                ),
+                ElicitationField(
+                    name="rollback_on_error",
+                    type="boolean",
+                    description="Automatically rollback on error",
+                    required=True,
+                    default=True,
+                ),
+                ElicitationField(
+                    name="batch_size",
+                    type="number",
+                    description="Number of schemas to migrate in each batch",
+                    required=True,
+                    default=10,
+                ),
+                ElicitationField(
+                    name="delay_between_batches",
+                    type="number",
+                    description="Delay in seconds between batches",
+                    required=True,
+                    default=1.0,
+                ),
+            ],
+        )
+
+        return await self.elicitation.elicit(request)  # type: ignore
+
 
 # Export the wizard class
 __all__ = ["BulkOperationsWizard", "BulkOperationType", "BulkOperationConfig"]

@@ -244,20 +244,98 @@ class WorkflowMCPTools:
         @self.mcp.tool(description="Start the Schema Migration Wizard workflow for guided schema migration")
         async def guided_schema_migration() -> str:
             """Convenience method to start Schema Migration workflow."""
-            result = await start_workflow("schema_migration_wizard")
-            return str(result)
+            workflow_id = "schema_migration_wizard"
+
+            try:
+                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+
+                if request:
+                    return json.dumps(
+                        {
+                            "status": "started",
+                            "workflow_id": workflow_id,
+                            "workflow_name": "Schema Migration Wizard",
+                            "request_id": request.id,
+                            "first_step": request.title,
+                            "description": request.description,
+                            "message": (
+                                "Schema Migration Wizard started. This workflow will guide you through:\n"
+                                "1. Source and target registry selection\n"
+                                "2. Schema selection and validation\n"
+                                "3. Migration planning and execution\n"
+                                "4. Verification and rollback procedures"
+                            ),
+                        }
+                    )
+                else:
+                    return json.dumps({"error": "Failed to start Schema Migration workflow"})
+            except Exception as e:
+                logger.error(f"Error starting Schema Migration workflow: {str(e)}")
+                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
 
         @self.mcp.tool(description="Start the Context Reorganization workflow for reorganizing schemas across contexts")
         async def guided_context_reorganization() -> str:
             """Convenience method to start Context Reorganization workflow."""
-            result = await start_workflow("context_reorganization")
-            return str(result)
+            workflow_id = "context_reorganization"
+
+            try:
+                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+
+                if request:
+                    return json.dumps(
+                        {
+                            "status": "started",
+                            "workflow_id": workflow_id,
+                            "workflow_name": "Context Reorganization",
+                            "request_id": request.id,
+                            "first_step": request.title,
+                            "description": request.description,
+                            "message": (
+                                "Context Reorganization workflow started. This workflow will guide you through:\n"
+                                "1. Current context analysis\n"
+                                "2. Target context design\n"
+                                "3. Schema migration planning\n"
+                                "4. Context restructuring execution"
+                            ),
+                        }
+                    )
+                else:
+                    return json.dumps({"error": "Failed to start Context Reorganization workflow"})
+            except Exception as e:
+                logger.error(f"Error starting Context Reorganization workflow: {str(e)}")
+                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
 
         @self.mcp.tool(description="Start the Disaster Recovery Setup workflow for configuring DR strategies")
         async def guided_disaster_recovery() -> str:
             """Convenience method to start Disaster Recovery workflow."""
-            result = await start_workflow("disaster_recovery_setup")
-            return str(result)
+            workflow_id = "disaster_recovery_setup"
+
+            try:
+                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+
+                if request:
+                    return json.dumps(
+                        {
+                            "status": "started",
+                            "workflow_id": workflow_id,
+                            "workflow_name": "Disaster Recovery Setup",
+                            "request_id": request.id,
+                            "first_step": request.title,
+                            "description": request.description,
+                            "message": (
+                                "Disaster Recovery Setup workflow started. This workflow will guide you through:\n"
+                                "1. Current infrastructure assessment\n"
+                                "2. Backup strategy configuration\n"
+                                "3. Recovery procedures planning\n"
+                                "4. Testing and validation setup"
+                            ),
+                        }
+                    )
+                else:
+                    return json.dumps({"error": "Failed to start Disaster Recovery workflow"})
+            except Exception as e:
+                logger.error(f"Error starting Disaster Recovery workflow: {str(e)}")
+                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
 
 
 def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
