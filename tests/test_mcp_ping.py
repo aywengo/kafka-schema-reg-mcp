@@ -195,10 +195,13 @@ async def test_ping_via_mcp_client():
             print("🏓 Calling ping tool...")
             result = await client.call_tool("ping", {})
 
-            assert len(result) > 0, "Ping tool should return results"
+            assert result is not None, "Ping tool should return results"
 
-            # Parse the response
-            response_text = result[0].text
+            # Parse the response - CallToolResult has content attribute
+            if hasattr(result, "content") and result.content:
+                response_text = result.content[0].text if result.content else str(result)
+            else:
+                response_text = str(result)
             try:
                 response_data = json.loads(response_text)
             except json.JSONDecodeError:

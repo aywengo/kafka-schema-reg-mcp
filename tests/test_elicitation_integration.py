@@ -5,10 +5,15 @@ Integration tests for the elicitation system with MCP
 
 import asyncio
 import logging
+import os
+import sys
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elicitation import (
     ElicitationField,

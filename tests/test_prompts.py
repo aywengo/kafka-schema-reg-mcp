@@ -11,15 +11,16 @@ This module comprehensively tests:
 """
 
 import asyncio
+import os
 import re
-
-# Import the unified MCP server and prompts
 import sys
 import uuid
 
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pytest
 
-sys.path.append("..")
 # Import the underlying tool functions for testing
 from core_registry_tools import (
     get_global_config_tool,

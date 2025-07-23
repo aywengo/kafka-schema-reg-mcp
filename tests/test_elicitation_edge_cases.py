@@ -7,10 +7,15 @@ performance scenarios in the elicitation system.
 """
 
 import asyncio
+import os
+import sys
 import time
 from unittest.mock import Mock, patch
 
 import pytest
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from elicitation import (
     ElicitationField,

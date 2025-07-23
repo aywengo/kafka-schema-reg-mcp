@@ -2,10 +2,15 @@
 Tests for Bulk Operations Wizard
 """
 
+import os
+import sys
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+
+# Add project root to Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bulk_operations_wizard import BulkOperationPreview, BulkOperationsWizard, BulkOperationType
 
