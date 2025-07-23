@@ -1,0 +1,167 @@
+# Kafka Cluster Helm Values
+# Configuration for Strimzi Kafka Cluster
+
+# Kafka cluster configuration
+kafka:
+  # Cluster name
+  name: kafka-mcp
+  
+  # Kafka version
+  version: "3.6.0"
+  
+  # Number of Kafka replicas
+  replicas: 1
+  
+  # Listeners configuration
+  listeners:
+    - name: plain
+      port: 9092
+      type: internal
+      tls: false
+    - name: external
+      port: 9094
+      type: nodeport
+      tls: false
+      configuration:
+        brokers:
+          - broker: 0
+            nodePort: 39092
+  
+  # Kafka configuration
+  config:
+    # Replica factors (set to 1 for single-node development)
+    offsets.topic.replication.factor: 1
+    transaction.state.log.replication.factor: 1
+    transaction.state.log.min.isr: 1
+    default.replication.factor: 1
+    min.insync.replicas: 1
+    
+    # Protocol and compatibility
+    inter.broker.protocol.version: "3.6"
+    log.message.format.version: "3.6"
+    
+    # Topic management
+    auto.create.topics.enable: "true"
+    delete.topic.enable: "true"
+    
+    # Log settings for development
+    log.retention.hours: 168  # 7 days
+    log.segment.bytes: 1073741824  # 1GB
+    log.retention.check.interval.ms: 300000  # 5 minutes
+    
+    # Performance settings for development
+    num.network.threads: 3
+    num.io.threads: 8
+    socket.send.buffer.bytes: 102400
+    socket.receive.buffer.bytes: 102400
+    socket.request.max.bytes: 104857600
+    
+  # JVM options
+  jvmOptions:
+    -Xms: "512m"
+    -Xmx: "1g"
+    
+  # Resource limits
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 250m
+    limits:
+      memory: 2Gi
+      cpu: 1000m
+      
+  # Storage configuration
+  storage:
+    type: jbod
+    volumes:
+    - id: 0
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
+      class: standard  # Use default storage class
+      
+  # Metrics configuration
+  metrics:
+    enabled: true
+
+# ZooKeeper configuration
+zookeeper:
+  # Number of ZooKeeper replicas
+  replicas: 1
+  
+  # Resource limits
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+      
+  # Storage configuration
+  storage:
+    type: persistent-claim
+    size: 5Gi
+    deleteClaim: false
+    class: standard
+    
+  # Metrics configuration
+  metrics:
+    enabled: true
+
+# Entity Operator configuration
+entityOperator:
+  # Topic Operator
+  topicOperator:
+    enabled: true
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 50m
+      limits:
+        memory: 256Mi
+        cpu: 200m
+        
+  # User Operator
+  userOperator:
+    enabled: true
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 50m
+      limits:
+        memory: 256Mi
+        cpu: 200m
+
+# Kafka Exporter configuration
+kafkaExporter:
+  enabled: true
+  topicRegex: ".*"
+  groupRegex: ".*"
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 10m
+    limits:
+      memory: 128Mi
+      cpu: 100m
+
+# Labels to be applied to all resources
+labels: {}
+
+# Annotations to be applied to all resources
+annotations: {}
+
+# Node selector for pod placement
+nodeSelector: {}
+
+# Tolerations for pod scheduling
+tolerations: []
+
+# Affinity rules for pod scheduling
+affinity: {}
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  maxUnavailable: 1 

@@ -1,0 +1,179 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ include "kafka-cluster.kafkaName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-cluster.labels" . | nindent 4 }}
+    version: {{ .Values.kafka.version | quote }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  kafka:
+    version: {{ .Values.kafka.version }}
+    replicas: {{ .Values.kafka.replicas }}
+    
+    listeners:
+      {{- toYaml .Values.kafka.listeners | nindent 6 }}
+    
+    config:
+      {{- range $key, $value := .Values.kafka.config }}
+      {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      
+    {{- if .Values.kafka.jvmOptions }}
+    jvmOptions:
+      {{- toYaml .Values.kafka.jvmOptions | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.resources }}
+    resources:
+      {{- toYaml .Values.kafka.resources | nindent 6 }}
+    {{- end }}
+        
+    storage:
+      {{- toYaml .Values.kafka.storage | nindent 6 }}
+      
+    {{- if .Values.kafka.metrics.enabled }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: {{ include "kafka-cluster.metricsConfigMapName" . }}
+          key: kafka-metrics-config.yml
+    {{- end }}
+    
+    {{- with .Values.nodeSelector }}
+    template:
+      pod:
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.tolerations }}
+    template:
+      pod:
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.affinity }}
+    template:
+      pod:
+        affinity:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+          
+  zookeeper:
+    replicas: {{ .Values.zookeeper.replicas }}
+    
+    {{- if .Values.zookeeper.resources }}
+    resources:
+      {{- toYaml .Values.zookeeper.resources | nindent 6 }}
+    {{- end }}
+        
+    storage:
+      {{- toYaml .Values.zookeeper.storage | nindent 6 }}
+      
+    {{- if .Values.zookeeper.metrics.enabled }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: {{ include "kafka-cluster.metricsConfigMapName" . }}
+          key: zookeeper-metrics-config.yml
+    {{- end }}
+    
+    {{- with .Values.nodeSelector }}
+    template:
+      pod:
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.tolerations }}
+    template:
+      pod:
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.affinity }}
+    template:
+      pod:
+        affinity:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+          
+  entityOperator:
+    {{- if .Values.entityOperator.topicOperator.enabled }}
+    topicOperator:
+      {{- if .Values.entityOperator.topicOperator.resources }}
+      resources:
+        {{- toYaml .Values.entityOperator.topicOperator.resources | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    
+    {{- if .Values.entityOperator.userOperator.enabled }}
+    userOperator:
+      {{- if .Values.entityOperator.userOperator.resources }}
+      resources:
+        {{- toYaml .Values.entityOperator.userOperator.resources | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    
+    {{- with .Values.nodeSelector }}
+    template:
+      pod:
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.tolerations }}
+    template:
+      pod:
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.affinity }}
+    template:
+      pod:
+        affinity:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+          
+  {{- if .Values.kafkaExporter.enabled }}
+  # Kafka Exporter for metrics
+  kafkaExporter:
+    topicRegex: {{ .Values.kafkaExporter.topicRegex | quote }}
+    groupRegex: {{ .Values.kafkaExporter.groupRegex | quote }}
+    
+    {{- if .Values.kafkaExporter.resources }}
+    resources:
+      {{- toYaml .Values.kafkaExporter.resources | nindent 6 }}
+    {{- end }}
+    
+    {{- with .Values.nodeSelector }}
+    template:
+      pod:
+        nodeSelector:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.tolerations }}
+    template:
+      pod:
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+    
+    {{- with .Values.affinity }}
+    template:
+      pod:
+        affinity:
+          {{- toYaml . | nindent 10 }}
+    {{- end }}
+  {{- end }} 

@@ -1,0 +1,23 @@
+# Temporary files generated during deployment
+*.tmp
+*.log
+
+# Kubernetes temporary manifests
+temp-*.yaml
+
+# Local configuration overrides
+local-config/
+
+# Kind cluster state files
+.kind-*
+
+# kubectl temporary files
+.kubectl-*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db 

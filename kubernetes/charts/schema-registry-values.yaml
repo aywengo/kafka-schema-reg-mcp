@@ -1,0 +1,278 @@
+# Bitnami Schema Registry Helm Values
+# Configuration for Confluent Schema Registry
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Image configuration
+image:
+  registry: docker.io
+  repository: bitnami/schema-registry
+  tag: 7.5.0-debian-11-r0
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  debug: false
+
+# Schema Registry configuration
+auth:
+  # Authentication configuration (disabled for development)
+  clientAuthentication: "none"
+  interBrokerAuthentication: "none"
+
+# Kafka connection configuration
+kafka:
+  # Connect to our Strimzi Kafka cluster
+  brokers: "kafka-mcp-kafka-bootstrap.kafka-system.svc.cluster.local:9092"
+  
+# Schema Registry specific configuration
+configuration: |
+  # Kafka store settings
+  kafkastore.bootstrap.servers=kafka-mcp-kafka-bootstrap.kafka-system.svc.cluster.local:9092
+  kafkastore.topic=_schemas
+  kafkastore.topic.replication.factor=1
+  
+  # Schema Registry settings
+  listeners=http://0.0.0.0:8081
+  host.name=0.0.0.0
+  
+  # Enable deletion (useful for development)
+  schema.registry.delete.subject.enabled=true
+  schema.registry.delete.version.enabled=true
+  
+  # Compatibility settings
+  schema.compatibility.level=BACKWARD
+  
+  # Security settings (disabled for development)
+  schema.registry.inter.instance.protocol=http
+  
+  # Resource name strategy
+  schema.registry.resource.extension.class=io.confluent.kafka.schemaregistry.security.SchemaRegistrySecurityResourceExtension
+
+# External access configuration
+externalAccess:
+  enabled: true
+  service:
+    type: NodePort
+    ports:
+      client: 38081
+    nodePorts:
+      client: 38081
+    annotations: {}
+    sessionAffinity: None
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    client: 8081
+  nodePorts:
+    client: ""
+  clusterIP: ""
+  loadBalancerIP: ""
+  loadBalancerSourceRanges: []
+  annotations: {}
+  sessionAffinity: None
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Pod security context
+podSecurityContext:
+  enabled: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+  fsGroup: 1001
+
+# Container security context
+containerSecurityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsUser: 1001
+  runAsGroup: 1001
+  runAsNonRoot: true
+
+# Health checks
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /subjects
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /subjects
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+# Startup probe
+startupProbe:
+  enabled: false
+  httpGet:
+    path: /subjects
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+
+# Custom liveness and readiness probes
+customLivenessProbe: {}
+customReadinessProbe: {}
+customStartupProbe: {}
+
+# Replica count
+replicaCount: 1
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+
+# Pod management policy
+podManagementPolicy: Parallel
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Pod affinity preset
+podAffinityPreset: ""
+
+# Pod anti-affinity preset
+podAntiAffinityPreset: soft
+
+# Node affinity preset
+nodeAffinityPreset:
+  type: ""
+  key: ""
+  values: []
+
+# Affinity rules
+affinity: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Topology spread constraints
+topologySpreadConstraints: []
+
+# Priority class name
+priorityClassName: ""
+
+# Scheduler name
+schedulerName: ""
+
+# Termination grace period
+terminationGracePeriodSeconds: ""
+
+# Lifecycle hooks
+lifecycleHooks: {}
+
+# Extra environment variables
+extraEnvVars: []
+
+# Extra environment variables from config maps or secrets
+extraEnvVarsCM: ""
+extraEnvVarsSecret: ""
+
+# Extra volumes
+extraVolumes: []
+
+# Extra volume mounts
+extraVolumeMounts: []
+
+# Pod disruption budget
+podDisruptionBudget:
+  create: false
+  minAvailable: 1
+  maxUnavailable: ""
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPU: 80
+  targetMemory: 80
+
+# Service account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: true
+
+# RBAC configuration
+rbac:
+  create: false
+  rules: []
+
+# Network policy
+networkPolicy:
+  enabled: false
+  allowExternal: true
+  explicitNamespacesSelector: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  pathType: ImplementationSpecific
+  apiVersion: ""
+  hostname: schema-registry.local
+  ingressClassName: ""
+  path: /
+  annotations: {}
+  tls: false
+  selfSigned: false
+  extraHosts: []
+  extraPaths: []
+  extraTls: []
+  secrets: []
+  extraRules: []
+
+# Persistence (not needed for development)
+persistence:
+  enabled: false
+
+# Init containers
+initContainers: []
+
+# Sidecar containers
+sidecars: []
+
+# Metrics configuration
+metrics:
+  enabled: false
+  
+# Volume permissions
+volumePermissions:
+  enabled: false 

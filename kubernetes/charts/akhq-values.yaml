@@ -1,0 +1,140 @@
+# AKHQ Helm Values
+# Configuration for AKHQ (Apache Kafka HQ) web interface
+
+# Image configuration
+image:
+  repository: tchiotludo/akhq
+  tag: "0.25.1"
+  pullPolicy: IfNotPresent
+
+# AKHQ Configuration
+configuration: |
+  akhq:
+    connections:
+      kafka-mcp:
+        properties:
+          bootstrap.servers: "kafka-mcp-kafka-bootstrap.kafka-system.svc.cluster.local:9092"
+        schema-registry:
+          url: "http://schema-registry.kafka-system.svc.cluster.local:8081"
+        connect:
+          - name: "connect"
+            url: ""
+        ksqldb:
+          - name: "ksqldb"
+            url: ""
+    
+    # Security configuration (disabled for development)
+    security:
+      default-group: admin
+      
+    # Server configuration
+    server:
+      access-log:
+        enabled: true
+        name: org.akhq.log.access
+
+# Service configuration
+service:
+  type: NodePort
+  port: 8080
+  nodePort: 38080
+  annotations: {}
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# Security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Replica count
+replicaCount: 1
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Extra environment variables
+extraEnv: []
+
+# Extra volumes
+extraVolumes: []
+
+# Extra volume mounts
+extraVolumeMounts: []
+
+# Ingress configuration (disabled for local development)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: akhq.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Network policy
+networkPolicy:
+  enabled: false
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1 

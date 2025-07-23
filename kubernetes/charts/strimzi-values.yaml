@@ -1,0 +1,47 @@
+# Strimzi Kafka Operator Helm Values
+# This configures the Strimzi operator for managing Kafka clusters
+
+# Image configuration - let chart use defaults
+# image:
+#   registry: quay.io
+#   repository: strimzi/operator
+#   tag: latest
+#   pullPolicy: IfNotPresent
+
+# Operator configuration
+watchNamespaces: []  # Watch all namespaces
+
+# Resource limits for the operator
+resources:
+  limits:
+    memory: 384Mi
+    cpu: 1000m
+  requests:
+    memory: 384Mi
+    cpu: 200m
+
+# Logging configuration
+logLevel: INFO
+
+# Generate network policies
+generateNetworkPolicy: false
+
+# Labels to be applied to all resources
+labels: {}
+
+# Node selector for operator pod placement
+nodeSelector: {}
+
+# Tolerations for operator pod scheduling
+tolerations: []
+
+# Affinity rules for operator pod scheduling
+affinity: {}
+
+# Let the chart handle serviceAccount with defaults
+# serviceAccount:
+#   create: true
+#   annotations: {}
+
+# Environment variables
+env: [] 

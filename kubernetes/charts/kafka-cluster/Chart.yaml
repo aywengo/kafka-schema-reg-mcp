@@ -1,0 +1,24 @@
+apiVersion: v2
+name: kafka-cluster
+description: A Helm chart for Strimzi Kafka Cluster
+type: application
+version: 0.1.0
+appVersion: "3.6.0"
+
+keywords:
+  - kafka
+  - strimzi
+  - streaming
+  - event-streaming
+
+maintainers:
+  - name: aywengo
+    email: support@aywengo.com
+
+sources:
+  - https://github.com/aywengo/kafka-schema-reg-mcp
+
+dependencies: []
+
+annotations:
+  category: Database 

@@ -1,0 +1,67 @@
+{{- if or .Values.kafka.metrics.enabled .Values.zookeeper.metrics.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka-cluster.metricsConfigMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-cluster.labels" . | nindent 4 }}
+    app: strimzi
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{- if .Values.kafka.metrics.enabled }}
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+    # Special cases and very specific rules
+    - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+), partition=(.*)><>Value
+      name: kafka_server_$1_$2
+      type: GAUGE
+      labels:
+       clientId: "$3"
+       topic: "$4"
+       partition: "$5"
+    # Generic Kafka server metrics
+    - pattern: kafka.server<type=(.+), name=(.+)><>Value
+      name: kafka_server_$1_$2
+      type: GAUGE
+    # Kafka network metrics
+    - pattern: kafka.network<type=(.+), name=(.+)><>Value
+      name: kafka_network_$1_$2
+      type: GAUGE
+    # Kafka log metrics
+    - pattern: kafka.log<type=(.+), name=(.+)><>Value
+      name: kafka_log_$1_$2
+      type: GAUGE
+    # JVM and other generic metrics
+    - pattern: ".*"
+  {{- end }}
+  {{- if .Values.zookeeper.metrics.enabled }}
+  zookeeper-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+    # ZooKeeper metrics
+    - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+)><>(\\w+)"
+      name: "zookeeper_$2"
+      type: GAUGE
+      labels:
+        replicaId: "$1"
+    # ZooKeeper server metrics
+    - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+)><>(\\w+)"
+      name: "zookeeper_$3"
+      type: GAUGE
+      labels:
+        replicaId: "$2"
+    # Generic ZooKeeper metrics
+    - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=(\\w+)><>(\\w+)"
+      name: "zookeeper_$3_$4"
+      type: GAUGE
+      labels:
+        replicaId: "$2"
+    # Fallback for other ZooKeeper metrics
+    - pattern: ".*"
+  {{- end }}
+{{- end }} 
