@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Schema migration source and target elicitation methods to BulkOperationsWizard
+- Schema by ID tools to get_schema_by_id and get_subjects_by_schema_id
 
 ### Fixed
 - bulk_schema_migration

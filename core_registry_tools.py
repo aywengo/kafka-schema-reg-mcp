@@ -1591,3 +1591,201 @@ async def delete_subject_tool(
             return result
     except Exception as e:
         return create_error_response(str(e), error_code="SUBJECT_DELETE_FAILED", registry_mode=registry_mode)
+
+
+@structured_output("get_schema_by_id", fallback_on_error=True)
+def get_schema_by_id_tool(
+    schema_id: int,
+    registry_manager,
+    registry_mode: str,
+    registry: Optional[str] = None,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, Any]:
+    """
+    Get a schema by its globally unique ID.
+
+    Args:
+        schema_id: The globally unique schema ID
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Dictionary containing schema information with structured validation and resource links
+    """
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            # Use the Schema Registry API endpoint for getting schema by ID
+            url = f"{client.config.url}/schemas/ids/{schema_id}"
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
+            response.raise_for_status()
+            result = response.json()
+
+            # Parse the schema string if it's returned as a string
+            if isinstance(result.get("schema"), str):
+                try:
+                    result["schema"] = json.loads(result["schema"])
+                except (json.JSONDecodeError, TypeError):
+                    # Keep as string if not valid JSON
+                    pass
+
+            # Add schema ID to the result
+            result["id"] = schema_id
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result,
+                "schema_by_id",
+                registry_name,
+                schema_id=schema_id,
+            )
+
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            # Use the Schema Registry API endpoint for getting schema by ID
+            url = f"{client.config.url}/schemas/ids/{schema_id}"
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
+            response.raise_for_status()
+            result = response.json()
+
+            # Parse the schema string if it's returned as a string
+            if isinstance(result.get("schema"), str):
+                try:
+                    result["schema"] = json.loads(result["schema"])
+                except (json.JSONDecodeError, TypeError):
+                    # Keep as string if not valid JSON
+                    pass
+
+            # Add schema ID to the result
+            result["id"] = schema_id
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+
+            # Add resource links
+            result = add_links_to_response(
+                result,
+                "schema_by_id",
+                client.config.name,
+                schema_id=schema_id,
+            )
+
+            return result
+    except Exception as e:
+        return create_error_response(str(e), error_code="SCHEMA_ID_LOOKUP_FAILED", registry_mode=registry_mode)
+
+
+@structured_output("get_subjects_by_schema_id", fallback_on_error=True)
+def get_subjects_by_schema_id_tool(
+    schema_id: int,
+    registry_manager,
+    registry_mode: str,
+    registry: Optional[str] = None,
+    auth=None,
+    headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, Any]:
+    """
+    Get subjects associated with a schema ID.
+
+    Args:
+        schema_id: The globally unique schema ID
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Dictionary containing list of subjects and versions associated with the schema ID
+    """
+    try:
+        if registry_mode == "single":
+            # Single-registry mode: use secure session approach
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            # Use the Schema Registry API endpoint for getting subject-versions by ID
+            url = f"{client.config.url}/schemas/ids/{schema_id}/versions"
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
+            response.raise_for_status()
+            subject_versions = response.json()
+
+            result = {
+                "schema_id": schema_id,
+                "subject_versions": subject_versions,
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18",
+            }
+
+            # Add resource links
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result,
+                "schema_subjects",
+                registry_name,
+                schema_id=schema_id,
+            )
+
+            return result
+        else:
+            # Multi-registry mode: use client approach
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            # Use the Schema Registry API endpoint for getting subject-versions by ID
+            url = f"{client.config.url}/schemas/ids/{schema_id}/versions"
+
+            response = client.session.get(url, auth=client.auth, headers=client.headers)
+            response.raise_for_status()
+            subject_versions = response.json()
+
+            result = {
+                "schema_id": schema_id,
+                "subject_versions": subject_versions,
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18",
+            }
+
+            # Add resource links
+            result = add_links_to_response(
+                result,
+                "schema_subjects",
+                client.config.name,
+                schema_id=schema_id,
+            )
+
+            return result
+    except Exception as e:
+        return create_error_response(str(e), error_code="SCHEMA_SUBJECTS_LOOKUP_FAILED", registry_mode=registry_mode)

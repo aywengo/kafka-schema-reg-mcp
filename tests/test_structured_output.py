@@ -523,6 +523,68 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
                 if "required" in schema:
                     self.assertIsInstance(schema["required"], list)
 
+    def test_get_schema_accepts_both_string_and_object_schema(self):
+        """Test that get_schema schema validation accepts both string and object schema formats."""
+        from schema_definitions import GET_SCHEMA_SCHEMA
+        from schema_validation import validate_response
+
+        # Test with schema as string (actual API response format)
+        response_with_string_schema = {
+            "subject": "test-subject",
+            "version": 1,
+            "id": 12345,
+            "schema": '{"type": "record", "name": "Test", "fields": [{"name": "field1", "type": "string"}]}',
+            "schemaType": "AVRO",
+        }
+
+        result = validate_response(response_with_string_schema, GET_SCHEMA_SCHEMA, "get_schema")
+        self.assertTrue(result.is_valid, f"Schema validation failed with string schema: {result.errors}")
+
+        # Test with schema as object (after JSON parsing)
+        response_with_object_schema = {
+            "subject": "test-subject",
+            "version": 1,
+            "id": 12345,
+            "schema": {"type": "record", "name": "Test", "fields": [{"name": "field1", "type": "string"}]},
+            "schemaType": "AVRO",
+        }
+
+        result = validate_response(response_with_object_schema, GET_SCHEMA_SCHEMA, "get_schema")
+        self.assertTrue(result.is_valid, f"Schema validation failed with object schema: {result.errors}")
+
+    def test_schema_by_id_tools_have_valid_schemas(self):
+        """Test that the new schema by ID tools have valid schema definitions."""
+        from schema_definitions import GET_SCHEMA_BY_ID_SCHEMA, GET_SUBJECTS_BY_SCHEMA_ID_SCHEMA
+        from schema_validation import validate_response
+
+        # Test get_schema_by_id response format
+        schema_by_id_response = {
+            "id": 12345,
+            "schema": '{"type": "record", "name": "Test", "fields": [{"name": "field1", "type": "string"}]}',
+            "schemaType": "AVRO",
+            "registry_mode": "single",
+            "mcp_protocol_version": "2025-06-18",
+        }
+
+        result = validate_response(schema_by_id_response, GET_SCHEMA_BY_ID_SCHEMA, "get_schema_by_id")
+        self.assertTrue(result.is_valid, f"Schema validation failed for get_schema_by_id: {result.errors}")
+
+        # Test get_subjects_by_schema_id response format
+        subjects_by_id_response = {
+            "schema_id": 12345,
+            "subject_versions": [
+                {"subject": "test-subject", "version": 1},
+                {"subject": "another-subject", "version": 2},
+            ],
+            "registry_mode": "single",
+            "mcp_protocol_version": "2025-06-18",
+        }
+
+        result = validate_response(
+            subjects_by_id_response, GET_SUBJECTS_BY_SCHEMA_ID_SCHEMA, "get_subjects_by_schema_id"
+        )
+        self.assertTrue(result.is_valid, f"Schema validation failed for get_subjects_by_schema_id: {result.errors}")
+
 
 def run_comprehensive_tests():
     """Run all tests and provide a summary report."""

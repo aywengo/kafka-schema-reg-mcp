@@ -106,8 +106,11 @@ GET_SCHEMA_SCHEMA = {
         "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
         "id": {"type": "integer", "minimum": 1, "description": "Unique schema ID"},
         "schema": {
-            "type": "object",
-            "description": "The schema definition as JSON object",
+            "oneOf": [
+                {"type": "string", "description": "The schema definition as JSON string"},
+                {"type": "object", "description": "The schema definition as JSON object"},
+            ],
+            "description": "The schema definition as JSON string or object",
         },
         "schemaType": {
             "type": "string",
@@ -483,7 +486,12 @@ EXPORT_SUBJECT_SCHEMA = {
                 "properties": {
                     "version": {"type": "integer", "minimum": 1},
                     "id": {"type": "integer", "minimum": 1},
-                    "schema": {"type": "object"},
+                    "schema": {
+                        "oneOf": [
+                            {"type": "string", "description": "The schema definition as JSON string"},
+                            {"type": "object", "description": "The schema definition as JSON object"},
+                        ]
+                    },
                     "schemaType": {"type": "string"},
                 },
                 "required": ["version", "id", "schema"],
@@ -778,6 +786,83 @@ ELICITATION_STATUS_SCHEMA = {
     "additionalProperties": True,
 }
 
+# Schema by ID response
+GET_SCHEMA_BY_ID_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "integer", "minimum": 1, "description": "Unique schema ID"},
+        "schema": {
+            "oneOf": [
+                {"type": "string", "description": "The schema definition as JSON string"},
+                {"type": "object", "description": "The schema definition as JSON object"},
+            ],
+            "description": "The schema definition as JSON string or object",
+        },
+        "schemaType": {
+            "type": "string",
+            "enum": ["AVRO", "JSON", "PROTOBUF"],
+            "description": "Type of schema",
+        },
+        "references": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "subject": {"type": "string"},
+                    "version": {"type": "integer", "minimum": 1},
+                },
+                "required": ["name", "subject", "version"],
+            },
+            "description": "Schema references to other schemas",
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry name (multi-registry mode)",
+        },
+        "_links": {
+            "type": "object",
+            "description": "Navigation links to related resources",
+            "additionalProperties": True,
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["id", "schema"],
+    "additionalProperties": True,
+}
+
+# Subjects by schema ID response
+GET_SUBJECTS_BY_SCHEMA_ID_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "schema_id": {"type": "integer", "minimum": 1, "description": "The schema ID"},
+        "subject_versions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "subject": {"type": "string", "description": "Subject name"},
+                    "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
+                },
+                "required": ["subject", "version"],
+            },
+            "description": "List of subject-version pairs using this schema ID",
+        },
+        "registry": {
+            "type": "string",
+            "description": "Registry name (multi-registry mode)",
+        },
+        "_links": {
+            "type": "object",
+            "description": "Navigation links to related resources",
+            "additionalProperties": True,
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["schema_id", "subject_versions"],
+    "additionalProperties": True,
+}
+
 # ===== SCHEMA REGISTRY =====
 
 # Master registry mapping tool names to their output schemas
@@ -786,6 +871,8 @@ TOOL_OUTPUT_SCHEMAS = {
     "register_schema": REGISTER_SCHEMA_SCHEMA,
     "get_schema": GET_SCHEMA_SCHEMA,
     "get_schema_versions": GET_SCHEMA_VERSIONS_SCHEMA,
+    "get_schema_by_id": GET_SCHEMA_BY_ID_SCHEMA,
+    "get_subjects_by_schema_id": GET_SUBJECTS_BY_SCHEMA_ID_SCHEMA,
     "check_compatibility": CHECK_COMPATIBILITY_SCHEMA,
     "list_subjects": LIST_SUBJECTS_SCHEMA,
     # Registry Management

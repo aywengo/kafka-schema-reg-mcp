@@ -92,10 +92,12 @@ from core_registry_tools import (
     delete_subject_tool,
     get_global_config_tool,
     get_mode_tool,
+    get_schema_by_id_tool,
     get_schema_tool,
     get_schema_versions_tool,
     get_subject_config_tool,
     get_subject_mode_tool,
+    get_subjects_by_schema_id_tool,
     list_contexts_tool,
     register_schema_tool,
     update_global_config_tool,
@@ -1096,6 +1098,58 @@ def get_schema_versions(
         registry_manager,
         REGISTRY_MODE,
         context,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_schema_by_id(
+    schema_id: int,
+    registry: Optional[str] = None,
+):
+    """Get a schema by its globally unique ID.
+
+    Args:
+        schema_id: The globally unique schema ID
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Schema information including content, type, and metadata
+    """
+    return get_schema_by_id_tool(
+        schema_id,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_subjects_by_schema_id(
+    schema_id: int,
+    registry: Optional[str] = None,
+):
+    """Get subjects and versions associated with a schema ID.
+
+    Args:
+        schema_id: The globally unique schema ID
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        List of subject-version pairs that use this schema ID
+    """
+    return get_subjects_by_schema_id_tool(
+        schema_id,
+        registry_manager,
+        REGISTRY_MODE,
         registry,
         auth,
         headers,
