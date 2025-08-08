@@ -67,8 +67,12 @@ def count_contexts_tool(registry_manager, registry_mode: str, registry: Optional
             "mcp_protocol_version": "2025-06-18",
         }
 
-        # Add metadata information
-        result.update(metadata)
+        # Add metadata information, but preserve the scope field
+        metadata_copy = metadata.copy()
+        if "scope" in metadata_copy:
+            # Preserve the simple string scope, but add server scope info separately
+            metadata_copy["server_scope"] = metadata_copy.pop("scope")
+        result.update(metadata_copy)
 
         return result
     except Exception as e:
@@ -126,8 +130,12 @@ def count_schemas_tool(
             "mcp_protocol_version": "2025-06-18",
         }
 
-        # Add metadata information
-        result.update(metadata)
+        # Add metadata information, but preserve the scope field
+        metadata_copy = metadata.copy()
+        if "scope" in metadata_copy:
+            # Preserve the simple string scope, but add server scope info separately
+            metadata_copy["server_scope"] = metadata_copy.pop("scope")
+        result.update(metadata_copy)
 
         return result
     except Exception as e:
@@ -191,8 +199,12 @@ def count_schema_versions_tool(
             "mcp_protocol_version": "2025-06-18",
         }
 
-        # Add metadata information
-        result.update(metadata)
+        # Add metadata information, but preserve the scope field
+        metadata_copy = metadata.copy()
+        if "scope" in metadata_copy:
+            # Preserve the simple string scope, but add server scope info separately
+            metadata_copy["server_scope"] = metadata_copy.pop("scope")
+        result.update(metadata_copy)
 
         return result
     except Exception as e:
@@ -350,13 +362,19 @@ async def _count_schemas_async(
             result = {
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
                 "context": context,
+                "count": len(subjects),  # Use 'count' to match schema
+                "scope": "schemas",     # Add scope field as string
                 "total_schemas": len(subjects),
                 "schemas": subjects,
                 "counted_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            # Add metadata information
-            result.update(metadata)
+            # Add metadata information, but preserve the scope field
+            metadata_copy = metadata.copy()
+            if "scope" in metadata_copy:
+                # Preserve the simple string scope, but add server scope info separately
+                metadata_copy["server_scope"] = metadata_copy.pop("scope")
+            result.update(metadata_copy)
             return result
         else:
             # All contexts - parallel execution
@@ -386,14 +404,20 @@ async def _count_schemas_async(
 
             result = {
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
+                "count": total_schemas,  # Use 'count' to match schema
+                "scope": "schemas",      # Add scope field as string
                 "total_schemas": total_schemas,
                 "schemas_by_context": all_schemas,
                 "contexts_analyzed": len(all_schemas),
                 "counted_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            # Add metadata information
-            result.update(metadata)
+            # Add metadata information, but preserve the scope field
+            metadata_copy = metadata.copy()
+            if "scope" in metadata_copy:
+                # Preserve the simple string scope, but add server scope info separately
+                metadata_copy["server_scope"] = metadata_copy.pop("scope")
+            result.update(metadata_copy)
             return result
     except Exception as e:
         return {"error": str(e)}
