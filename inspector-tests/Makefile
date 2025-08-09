@@ -46,7 +46,7 @@ inspector-stable:
 	npx @mcpjam/inspector --config ./config/inspector-config-stable.json
 
 inspector-multi:
-	npx @mcpjam/inspector --config ./config/inspector-config-multi-registry.json
+	npx @mcpjam/inspector --config ./config/inspector-config-multi.json
 
 env-up:
 	cd ../tests && ./start_test_environment.sh multi
