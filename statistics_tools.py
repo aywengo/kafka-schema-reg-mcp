@@ -363,7 +363,7 @@ async def _count_schemas_async(
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
                 "context": context,
                 "count": len(subjects),  # Use 'count' to match schema
-                "scope": "schemas",     # Add scope field as string
+                "scope": "schemas",  # Add scope field as string
                 "total_schemas": len(subjects),
                 "schemas": subjects,
                 "counted_at": datetime.now(timezone.utc).isoformat(),
@@ -405,7 +405,7 @@ async def _count_schemas_async(
             result = {
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
                 "count": total_schemas,  # Use 'count' to match schema
-                "scope": "schemas",      # Add scope field as string
+                "scope": "schemas",  # Add scope field as string
                 "total_schemas": total_schemas,
                 "schemas_by_context": all_schemas,
                 "contexts_analyzed": len(all_schemas),
