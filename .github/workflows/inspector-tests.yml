@@ -47,7 +47,6 @@ jobs:
         timeout 60 bash -c 'until curl -f http://localhost:38082 > /dev/null 2>&1; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:38081 > /dev/null 2>&1; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:38082 > /dev/null 2>&1; do sleep 2; done'
-        timeout 60 bash -c 'until curl -f http://localhost:8093 > /dev/null 2>&1; do sleep 2; done'
     
     - name: Install Inspector dependencies
       run: |
