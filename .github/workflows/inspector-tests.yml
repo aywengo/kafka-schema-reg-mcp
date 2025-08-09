@@ -1,0 +1,144 @@
+name: MCP Inspector Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_version:
+        description: 'Docker image version to test'
+        required: false
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - v1
+          - v2
+          - v2.1
+
+jobs:
+  inspector-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test_type: [single, multi]
+        docker_version: ["${{ inputs.docker_version || 'stable' }}"]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    
+    - name: Set up Docker Compose
+      run: |
+        docker --version
+        docker-compose --version
+    
+    - name: Start test environment
+      run: |
+        cd tests
+        ./start_test_environment.sh multi
+        
+        # Wait for services to be ready
+        echo "Waiting for Schema Registry services..."
+        timeout 60 bash -c 'until curl -f http://localhost:38081 > /dev/null 2>&1; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:38082 > /dev/null 2>&1; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:38081 > /dev/null 2>&1; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:38082 > /dev/null 2>&1; do sleep 2; done'
+    
+    - name: Install Inspector dependencies
+      run: |
+        cd inspector-tests
+        npm install
+    
+    - name: Run Inspector tests
+      env:
+        DOCKER_VERSION: ${{ matrix.docker_version }}
+        SKIP_ENV_SETUP: true
+        CLEANUP_AFTER: false
+      run: |
+        cd inspector-tests
+        ./run-inspector-tests.sh ${{ matrix.test_type }}
+    
+    - name: Upload Inspector logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: inspector-logs-${{ matrix.test_type }}-${{ matrix.docker_version }}
+        path: |
+          inspector-tests/*.log
+          tests/logs/
+    
+    - name: Clean up test environment
+      if: always()
+      run: |
+        cd tests
+        ./stop_test_environment.sh clean
+
+  test-released-versions:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        docker_version: [stable, latest, v1, v2, v2.1]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    
+    - name: Start minimal Schema Registry
+      run: |
+        docker run -d --name schema-registry \
+          -p 8081:8081 \
+          -e SCHEMA_REGISTRY_HOST_NAME=schema-registry \
+          -e SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL=dummy \
+          confluentinc/cp-schema-registry:latest
+        
+        # Wait for it to be ready
+        timeout 60 bash -c 'until curl -f http://localhost:8081 > /dev/null 2>&1; do sleep 2; done'
+    
+    - name: Test Docker image availability
+      run: |
+        docker pull aywengo/kafka-schema-reg-mcp:${{ matrix.docker_version }}
+    
+    - name: Run basic Inspector test
+      run: |
+        cd inspector-tests
+        npm install
+        
+        # Create temporary config for this version
+        cat > config/temp-config.json << EOF
+        {
+          "mcpServers": {
+            "kafka-schema-reg-${{ matrix.docker_version }}": {
+              "command": "docker",
+              "args": [
+                "run",
+                "--rm",
+                "-i",
+                "--network", "host",
+                "-e", "SCHEMA_REGISTRY_URL",
+                "aywengo/kafka-schema-reg-mcp:${{ matrix.docker_version }}"
+              ],
+              "env": {
+                "SCHEMA_REGISTRY_URL": "http://localhost:8081"
+              }
+            }
+          }
+        }
+        EOF
+        
+        # Run inspector
+        npx @mcpjam/inspector --config ./config/temp-config.json
+    
+    - name: Clean up
+      if: always()
+      run: |
+        docker stop schema-registry || true
+        docker rm schema-registry || true

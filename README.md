@@ -417,6 +417,21 @@ cd tests/
 python tests/test_docker_mcp.py
 ```
 
+### MCP Inspector Tests (UI-driven)
+```bash
+# From repository root
+cd inspector-tests
+
+# Single registry (DEV)
+./run-inspector-tests.sh stable
+
+# Multi-registry (DEV + PROD)
+./run-inspector-tests.sh multi
+
+# Test a specific Docker tag
+DOCKER_VERSION=latest ./run-inspector-tests.sh stable
+```
+
 > **📖 Testing guide**: [TESTING_SETUP_GUIDE.md](TESTING_SETUP_GUIDE.md)
 
 ## 🚀 Deployment
