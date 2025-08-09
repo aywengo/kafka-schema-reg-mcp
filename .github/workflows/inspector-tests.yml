@@ -1,13 +1,6 @@
 name: MCP Inspector Tests
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    # Run daily at 2 AM UTC to test against latest Docker images
-    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       docker_version:
@@ -17,9 +10,9 @@ on:
         type: choice
         options:
           - stable
-          - latest
-          - v1.4.0
-          - v1.3.0
+          - v1
+          - v2
+          - v2.1
 
 jobs:
   inspector-tests:

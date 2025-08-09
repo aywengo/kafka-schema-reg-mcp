@@ -135,7 +135,7 @@ DEBUG=* ./run-inspector-tests.sh
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 8081, 8091-8093 are free
+1. **Port conflicts**: Ensure ports 8081, 38091-38093 are free
 2. **Docker not running**: Start Docker Desktop/daemon
 3. **Node version**: Requires Node.js 22.7.5+
 
@@ -146,7 +146,7 @@ DEBUG=* ./run-inspector-tests.sh
 docker logs -f $(docker ps -q -f "ancestor=aywengo/kafka-schema-reg-mcp:stable")
 
 # View Schema Registry logs
-docker-compose -f ../tests/docker-compose.multi.yml logs -f
+docker-compose -f ../tests/docker-compose.yml logs -f
 ```
 
 ## Writing Custom Tests

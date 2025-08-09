@@ -13,7 +13,7 @@
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
-        "SCHEMA_REGISTRY_URL": "http://host.docker.internal:8081",
+        "SCHEMA_REGISTRY_URL": "http://host.docker.internal:38081",
         "SCHEMA_REGISTRY_USER": "",
         "SCHEMA_REGISTRY_PASSWORD": "",
         "READONLY": "false"

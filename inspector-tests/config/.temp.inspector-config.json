@@ -16,29 +16,19 @@
         "-e", "SCHEMA_REGISTRY_USER_2",
         "-e", "SCHEMA_REGISTRY_PASSWORD_2",
         "-e", "READONLY_2",
-        "-e", "SCHEMA_REGISTRY_NAME_3",
-        "-e", "SCHEMA_REGISTRY_URL_3",
-        "-e", "SCHEMA_REGISTRY_USER_3",
-        "-e", "SCHEMA_REGISTRY_PASSWORD_3",
-        "-e", "READONLY_3",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
       "env": {
         "SCHEMA_REGISTRY_NAME_1": "development",
-        "SCHEMA_REGISTRY_URL_1": "http://host.docker.internal:8091",
+        "SCHEMA_REGISTRY_URL_1": "http://host.docker.internal:38081",
         "SCHEMA_REGISTRY_USER_1": "",
         "SCHEMA_REGISTRY_PASSWORD_1": "",
         "READONLY_1": "false",
-        "SCHEMA_REGISTRY_NAME_2": "staging",
-        "SCHEMA_REGISTRY_URL_2": "http://host.docker.internal:8092",
+        "SCHEMA_REGISTRY_NAME_2": "production",
+        "SCHEMA_REGISTRY_URL_2": "http://host.docker.internal:38082",
         "SCHEMA_REGISTRY_USER_2": "",
         "SCHEMA_REGISTRY_PASSWORD_2": "",
-        "READONLY_2": "false",
-        "SCHEMA_REGISTRY_NAME_3": "production",
-        "SCHEMA_REGISTRY_URL_3": "http://host.docker.internal:8093",
-        "SCHEMA_REGISTRY_USER_3": "",
-        "SCHEMA_REGISTRY_PASSWORD_3": "",
-        "READONLY_3": "true"
+        "READONLY_2": "false"
       }
     }
   }

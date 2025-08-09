@@ -3,7 +3,7 @@
 # Script to run MCP Inspector tests for Kafka Schema Registry MCP Server
 # Tests against released Docker images
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -53,6 +53,7 @@ check_schema_registry() {
 
 # Function to start test environment
 start_test_environment() {
+    local mode=${1:-multi}  # multi | single
     if [ "$SKIP_ENV_SETUP" = "true" ]; then
         print_warning "Skipping environment setup (SKIP_ENV_SETUP=true)"
         return 0
@@ -62,13 +63,18 @@ start_test_environment() {
     cd "$PROJECT_ROOT/tests"
     
     if [ -f "./start_test_environment.sh" ]; then
-        ./start_test_environment.sh multi
-        
-        # Wait for all registries to be ready
-        check_schema_registry 8081
-        check_schema_registry 8091
-        check_schema_registry 8092
-        check_schema_registry 8093
+        if [[ "$mode" == "single" || "$mode" == "dev" ]]; then
+            ./start_test_environment.sh dev
+            # Wait for DEV registry only
+            check_schema_registry 38081
+        else
+            ./start_test_environment.sh multi
+            # Wait for registries defined in tests/docker-compose.yml
+            # DEV registry
+            check_schema_registry 38081
+            # PROD registry
+            check_schema_registry 38082
+        fi
     else
         print_error "Test environment setup script not found!"
         exit 1
@@ -100,22 +106,132 @@ run_inspector_tests() {
     
     cd "$SCRIPT_DIR"
     
+    # Create a temp config file and ensure readable permissions
+    local temp_config
+    temp_config="$SCRIPT_DIR/config/.temp.inspector-config.json"
+    trap 'rm -f "$temp_config"' EXIT
+
     # Update config file to use the specified Docker version
-    local temp_config="/tmp/inspector-config-temp.json"
     sed "s/:stable/:$DOCKER_VERSION/g" "$config_file" > "$temp_config"
-    
-    # Run the inspector
-    npx @mcpjam/inspector --config "$temp_config"
-    
-    # Clean up temp file
-    rm -f "$temp_config"
+    chmod 644 "$temp_config"
+
+    print_status "Generated temp config: $temp_config"
+
+    # Validate jq availability
+    if ! command -v jq >/dev/null 2>&1; then
+        print_error "jq is required to parse Inspector config. Please install jq."
+        exit 1
+    fi
+
+    # Extract server config (first entry)
+    local server_key
+    server_key=$(jq -r '.mcpServers | keys[0]' "$temp_config")
+    if [ -z "$server_key" ] || [ "$server_key" = "null" ]; then
+        print_error "Invalid Inspector config: no mcpServers entry found"
+        exit 1
+    fi
+
+    local server_command
+    server_command=$(jq -r ".mcpServers[\"$server_key\"].command" "$temp_config")
+    if [ -z "$server_command" ] || [ "$server_command" = "null" ]; then
+        print_error "Invalid Inspector config: missing command"
+        exit 1
+    fi
+
+    # Build args array from JSON
+    local -a raw_args
+    while IFS=$'\n' read -r line; do
+        raw_args+=("$line")
+    done < <(jq -r ".mcpServers[\"$server_key\"].args[]" "$temp_config")
+
+    # Guard: args must contain at least the image as the last token
+    local raw_len=${#raw_args[@]}
+    if [ "$raw_len" -lt 1 ]; then
+        print_error "Invalid Inspector config: args array is empty"
+        exit 1
+    fi
+
+    # Separate image (last arg) from options
+    local image_arg_idx=$((raw_len - 1))
+    local image_arg="${raw_args[$image_arg_idx]}"
+
+    # Filter out any placeholder env (-e KEY) from raw args before the image
+    local -a base_opts
+    local idx=0
+    local limit=$image_arg_idx
+    while [ $idx -lt $limit ]; do
+        if [ "${raw_args[$idx]}" = "-e" ]; then
+            # skip "-e" and following key token
+            idx=$((idx + 2))
+            continue
+        fi
+        base_opts+=("${raw_args[$idx]}")
+        idx=$((idx + 1))
+    done
+
+    # Ensure we connect to the compose network so the container can reach registries by service name
+    local -a docker_network_opts
+    local has_network=false
+    for opt in "${base_opts[@]}"; do
+        if [ "$opt" = "--network" ]; then
+            has_network=true
+            break
+        fi
+    done
+    if [ "$has_network" = false ]; then
+        docker_network_opts=("--network" "kafka-test-network")
+    fi
+
+    # Build env pairs (-e KEY=VALUE) and map URLs to compose service names
+    local -a env_pairs
+    local env_len
+    env_len=$(jq -r ".mcpServers[\"$server_key\"].env | length" "$temp_config")
+    if [ "$env_len" != "0" ]; then
+        while IFS=$'\t' read -r key value; do
+            local final_value="$value"
+            case "$key" in
+                SCHEMA_REGISTRY_URL|SCHEMA_REGISTRY_URL_1)
+                    final_value="http://schema-registry-dev:8081"
+                    ;;
+                SCHEMA_REGISTRY_URL_2)
+                    final_value="http://schema-registry-prod:8082"
+                    ;;
+            esac
+            env_pairs+=("-e" "${key}=${final_value}")
+        done < <(jq -r ".mcpServers[\"$server_key\"].env | to_entries[] | [.key, (.value|tostring)] | @tsv" "$temp_config")
+    fi
+
+    # Compose final args: options + network + env pairs + image
+    local -a final_args
+    final_args=("${base_opts[@]}" "${docker_network_opts[@]}" "${env_pairs[@]}" "$image_arg")
+
+    print_status "Launching Inspector with server: $server_command ${final_args[*]}"
+    npx @mcpjam/inspector "$server_command" "${final_args[@]}"
 }
 
 # Main execution
 main() {
     print_status "Starting MCP Inspector tests for Kafka Schema Registry MCP"
     print_status "Docker version: $DOCKER_VERSION"
-    
+
+    # Desired config name (maps to config/inspector-config-<name>.json)
+    local selected_name="${1:-stable}"
+    local config_path="$SCRIPT_DIR/config/inspector-config-${selected_name}.json"
+
+    # Validate config exists
+    if [ ! -f "$config_path" ]; then
+        print_error "Config file not found: $config_path"
+        print_warning "Available configs:"
+        ls -1 "$SCRIPT_DIR/config" | sed 's/^/  - /'
+        exit 1
+    fi
+
+    # Decide environment mode based on name
+    local env_mode="single"
+    if echo "$selected_name" | grep -qi "multi"; then
+        env_mode="multi"
+    fi
+
     # Change to inspector-tests directory
     cd "$SCRIPT_DIR"
     
@@ -125,36 +241,12 @@ main() {
         npm install
     fi
     
-    # Start test environment
-    start_test_environment
-    
-    # Run tests based on arguments
-    if [ $# -eq 0 ]; then
-        # Run all tests
-        print_status "Running all Inspector tests..."
-        run_inspector_tests "config/inspector-config-stable.json" "Single Registry"
-        run_inspector_tests "config/inspector-config-multi-registry.json" "Multi Registry"
-    else
-        # Run specific test
-        case "$1" in
-            "single")
-                run_inspector_tests "config/inspector-config-stable.json" "Single Registry"
-                ;;
-            "multi")
-                run_inspector_tests "config/inspector-config-multi-registry.json" "Multi Registry"
-                ;;
-            "latest")
-                DOCKER_VERSION="latest"
-                run_inspector_tests "config/inspector-config-stable.json" "Latest Single Registry"
-                ;;
-            *)
-                print_error "Unknown test type: $1"
-                echo "Usage: $0 [single|multi|latest]"
-                exit 1
-                ;;
-        esac
-    fi
-    
+    # Start test environment based on mode
+    start_test_environment "$env_mode"
+
+    # Run the selected test
+    run_inspector_tests "$config_path" "$selected_name"
+
     # Stop test environment
     stop_test_environment
     
