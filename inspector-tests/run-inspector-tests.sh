@@ -109,8 +109,8 @@ run_inspector_tests() {
     # Create a temp config file and ensure readable permissions
     local temp_config
     temp_config="$SCRIPT_DIR/config/.temp.inspector-config.json"
-    trap 'rm -f "$temp_config"' EXIT
 
+    trap 'rm -f "$temp_config"' EXIT
     # Update config file to use the specified Docker version
     sed "s/:stable/:$DOCKER_VERSION/g" "$config_file" > "$temp_config"
     chmod 644 "$temp_config"
