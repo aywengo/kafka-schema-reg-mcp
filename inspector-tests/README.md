@@ -22,20 +22,17 @@ The MCP Inspector is a powerful testing and debugging tool for MCP servers. We u
 ### Test All Configurations
 
 ```bash
-# Run all tests with automatic environment setup
-./run-inspector-tests.sh
-
-# Test specific configuration
-./run-inspector-tests.sh single  # Single registry mode
-./run-inspector-tests.sh multi   # Multi-registry mode
-./run-inspector-tests.sh latest  # Test with :latest tag
+# Run a specific configuration (auto environment setup)
+./run-inspector-tests.sh stable  # Single registry (DEV)
+./run-inspector-tests.sh latest  # Single registry with :latest tag
+./run-inspector-tests.sh multi   # Multi-registry (DEV+PROD)
 ```
 
 ### Test Specific Docker Version
 
 ```bash
 # Test a specific Docker version
-DOCKER_VERSION=v1.4.0 ./run-inspector-tests.sh
+DOCKER_VERSION=v1.4.0 ./run-inspector-tests.sh stable
 
 # Test latest version
 DOCKER_VERSION=latest ./run-inspector-tests.sh multi
@@ -48,11 +45,8 @@ DOCKER_VERSION=latest ./run-inspector-tests.sh multi
 cd ../tests
 ./start_test_environment.sh multi
 
-# Launch Inspector with a specific config
+# Launch Inspector UI and manually connect
 cd ../inspector-tests
-npx @mcpjam/inspector --config ./config/inspector-config-stable.json
-
-# Or launch Inspector and manually connect
 npx @mcpjam/inspector
 ```
 
@@ -61,8 +55,8 @@ npx @mcpjam/inspector
 ### `config/inspector-config-stable.json`
 Single registry configuration using the `:stable` Docker tag.
 
-### `config/inspector-config-multi-registry.json`
-Multi-registry configuration with DEV, STAGING, and PROD registries.
+### `config/inspector-config-multi.json`
+Multi-registry configuration with DEV and PROD registries.
 
 ### `config/inspector-config-latest.json`
 Similar to stable but uses the `:latest` Docker tag.
@@ -135,7 +129,7 @@ DEBUG=* ./run-inspector-tests.sh
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 8081, 38091-38093 are free
+1. **Port conflicts**: Ensure ports 38081 and 38082 are free
 2. **Docker not running**: Start Docker Desktop/daemon
 3. **Node version**: Requires Node.js 22.7.5+
 
