@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test-type: [single, multi]
-        docker-version: ['${{ inputs.docker_version || 'stable' }}']
+        test_type: [single, multi]
+        docker_version: ["${{ inputs.docker_version || 'stable' }}"]
     
     steps:
     - name: Checkout repository
@@ -55,18 +55,18 @@ jobs:
     
     - name: Run Inspector tests
       env:
-        DOCKER_VERSION: ${{ matrix.docker-version }}
+        DOCKER_VERSION: ${{ matrix.docker_version }}
         SKIP_ENV_SETUP: true
         CLEANUP_AFTER: false
       run: |
         cd inspector-tests
-        ./run-inspector-tests.sh ${{ matrix.test-type }}
+        ./run-inspector-tests.sh ${{ matrix.test_type }}
     
     - name: Upload Inspector logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: inspector-logs-${{ matrix.test-type }}-${{ matrix.docker-version }}
+        name: inspector-logs-${{ matrix.test_type }}-${{ matrix.docker_version }}
         path: |
           inspector-tests/*.log
           tests/logs/
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        docker-version: [stable, latest, v1.4.0, v1.3.0]
+        docker_version: [stable, latest, v1, v2, v2.1]
     
     steps:
     - name: Checkout repository
@@ -105,7 +105,7 @@ jobs:
     
     - name: Test Docker image availability
       run: |
-        docker pull aywengo/kafka-schema-reg-mcp:${{ matrix.docker-version }}
+        docker pull aywengo/kafka-schema-reg-mcp:${{ matrix.docker_version }}
     
     - name: Run basic Inspector test
       run: |
@@ -116,7 +116,7 @@ jobs:
         cat > config/temp-config.json << EOF
         {
           "mcpServers": {
-            "kafka-schema-reg-${{ matrix.docker-version }}": {
+            "kafka-schema-reg-${{ matrix.docker_version }}": {
               "command": "docker",
               "args": [
                 "run",
@@ -124,7 +124,7 @@ jobs:
                 "-i",
                 "--network", "host",
                 "-e", "SCHEMA_REGISTRY_URL",
-                "aywengo/kafka-schema-reg-mcp:${{ matrix.docker-version }}"
+                "aywengo/kafka-schema-reg-mcp:${{ matrix.docker_version }}"
               ],
               "env": {
                 "SCHEMA_REGISTRY_URL": "http://localhost:8081"
