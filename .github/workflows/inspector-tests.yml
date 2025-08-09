@@ -45,7 +45,7 @@ jobs:
         echo "Waiting for Schema Registry services..."
         timeout 60 bash -c 'until curl -f http://localhost:38081 > /dev/null 2>&1; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:38082 > /dev/null 2>&1; do sleep 2; done'
-        timeout 60 bash -c 'until curl -f http://localhost:8091 > /dev/null 2>&1; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:38081 > /dev/null 2>&1; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:8092 > /dev/null 2>&1; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:8093 > /dev/null 2>&1; do sleep 2; done'
     
