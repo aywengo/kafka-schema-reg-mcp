@@ -1,0 +1,20 @@
+{
+  "name": "kafka-schema-reg-mcp-inspector-tests",
+  "version": "1.0.0",
+  "description": "MCP Inspector tests for Kafka Schema Registry MCP Server",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:stable && npm run test:latest && npm run test:multi",
+    "test:stable": "npx @mcpjam/inspector --config ./config/inspector-config-stable.json",
+    "test:latest": "npx @mcpjam/inspector --config ./config/inspector-config-latest.json",
+    "test:multi": "npx @mcpjam/inspector --config ./config/inspector-config-multi-registry.json",
+    "test:local": "npx @mcpjam/inspector",
+    "inspector": "npx @mcpjam/inspector"
+  },
+  "devDependencies": {
+    "@mcpjam/inspector": "latest"
+  },
+  "engines": {
+    "node": ">=22.7.5"
+  }
+}
