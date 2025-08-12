@@ -5,6 +5,15 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2025-08-12
+
+### Added
+- MCP Inspector tests
+
+### Fixes
+- `get_schema_by_id` and `get_subjects_by_schema_id` tools were not returning the correct response
+- export_schema_tool was not returning the correct response
+
 ## [2.1.1] - 2025-08-06
 
 ### Added
