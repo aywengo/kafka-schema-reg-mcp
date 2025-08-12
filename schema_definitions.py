@@ -266,6 +266,30 @@ REGISTRY_INFO_SCHEMA = {
     "additionalProperties": True,
 }
 
+# Default registry lookup response
+GET_DEFAULT_REGISTRY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "default_registry": {
+            "type": ["string", "null"],
+            "description": "Name of the current default registry",
+        },
+        "info": {
+            "type": ["object", "null"],
+            "description": "Detailed information about the default registry (when available)",
+            "additionalProperties": True,
+        },
+        "available_registries": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of configured registries (multi-registry mode)",
+        },
+        **METADATA_FIELDS,
+    },
+    "required": ["default_registry"],
+    "additionalProperties": True,
+}
+
 # List registries response
 LIST_REGISTRIES_SCHEMA = {
     "type": "object",
@@ -967,7 +991,12 @@ TOOL_OUTPUT_SCHEMAS = {
     "submit_elicitation_response": SUCCESS_RESPONSE_SCHEMA,
     # Utility Tools
     "set_default_registry": SUCCESS_RESPONSE_SCHEMA,
-    "get_default_registry": REGISTRY_INFO_SCHEMA,
+    "get_default_registry": {
+        "oneOf": [
+            GET_DEFAULT_REGISTRY_SCHEMA,
+            ERROR_RESPONSE_SCHEMA,
+        ]
+    },
     "check_viewonly_mode": {
         "type": "object",
         "properties": {"viewonly": {"type": "boolean"}},
