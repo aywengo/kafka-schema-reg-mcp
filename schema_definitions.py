@@ -485,7 +485,7 @@ EXPORT_SUBJECT_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "version": {"type": "integer", "minimum": 1},
-                    "id": {"type": "integer", "minimum": 1},
+                    "id": {"type": "integer", "minimum": 0},
                     "schema": {
                         "oneOf": [
                             {"type": "string", "description": "The schema definition as JSON string"},
