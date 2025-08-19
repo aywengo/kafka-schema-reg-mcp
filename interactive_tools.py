@@ -161,8 +161,11 @@ async def register_schema_interactive(
 
                 # Use the provided multi_step_manager or create a new one as fallback
                 if multi_step_manager is None:
-                    logger.warning("No multi_step_manager provided, creating a new one (workflows may not be available)")
+                    logger.warning(
+                        "No multi_step_manager provided, creating a new one (workflows may not be available)"
+                    )
                     from multi_step_elicitation import MultiStepElicitationManager
+
                     multi_step_manager = MultiStepElicitationManager(elicitation_manager)
 
                 # Start the evolution workflow
