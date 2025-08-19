@@ -53,6 +53,7 @@ async def register_schema_interactive(
     auth=None,
     headers=None,
     schema_registry_url=None,
+    multi_step_manager=None,
 ) -> Dict[str, Any]:
     """
     Interactive schema registration with elicitation for missing field definitions.
@@ -156,11 +157,13 @@ async def register_schema_interactive(
                 logger.info(f"Breaking changes detected for '{subject}', triggering Schema Evolution Assistant")
 
                 # Import schema evolution helpers
-                from multi_step_elicitation import MultiStepElicitationManager
                 from schema_evolution_helpers import evolve_schema_with_workflow
 
-                # Get the multi-step manager (should be available in the context)
-                multi_step_manager = MultiStepElicitationManager(elicitation_manager)
+                # Use the provided multi_step_manager or create a new one as fallback
+                if multi_step_manager is None:
+                    logger.warning("No multi_step_manager provided, creating a new one (workflows may not be available)")
+                    from multi_step_elicitation import MultiStepElicitationManager
+                    multi_step_manager = MultiStepElicitationManager(elicitation_manager)
 
                 # Start the evolution workflow
                 evolution_result = await evolve_schema_with_workflow(

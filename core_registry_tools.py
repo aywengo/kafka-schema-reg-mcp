@@ -10,12 +10,15 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
 import json
+import logging
 from typing import Any, Dict, Optional
 
 import aiohttp
 
 from resource_linking import add_links_to_response
 from schema_registry_common import check_viewonly_mode as _check_viewonly_mode
+
+logger = logging.getLogger(__name__)
 from schema_validation import (
     create_error_response,
     create_success_response,
@@ -505,8 +508,15 @@ def check_compatibility_tool(
             result = response.json()
 
             # Add structured output metadata and normalize field names
-            if "is_compatible" not in result and "isCompatible" in result:
-                result["is_compatible"] = result.pop("isCompatible")
+            if "is_compatible" not in result:
+                if "isCompatible" in result:
+                    result["is_compatible"] = result.pop("isCompatible")
+                elif "compatible" in result:
+                    result["is_compatible"] = result.pop("compatible")
+                else:
+                    # Fallback: set default value if no compatibility field is found
+                    logger.warning(f"No compatibility field found in response: {result.keys()}")
+                    result["is_compatible"] = False
 
             result["registry_mode"] = "single"
             result["mcp_protocol_version"] = "2025-06-18"
@@ -533,8 +543,15 @@ def check_compatibility_tool(
             result = response.json()
 
             # Add structured output metadata and normalize field names
-            if "is_compatible" not in result and "isCompatible" in result:
-                result["is_compatible"] = result.pop("isCompatible")
+            if "is_compatible" not in result:
+                if "isCompatible" in result:
+                    result["is_compatible"] = result.pop("isCompatible")
+                elif "compatible" in result:
+                    result["is_compatible"] = result.pop("compatible")
+                else:
+                    # Fallback: set default value if no compatibility field is found
+                    logger.warning(f"No compatibility field found in response: {result.keys()}")
+                    result["is_compatible"] = False
 
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"

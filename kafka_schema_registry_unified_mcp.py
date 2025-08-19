@@ -1322,6 +1322,7 @@ if not SLIM_MODE:
             auth=auth,
             headers=headers,
             schema_registry_url=SCHEMA_REGISTRY_URL,
+            multi_step_manager=multi_step_manager,
         )
 
 
