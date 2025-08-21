@@ -8,6 +8,8 @@
 [![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/aywengo/kafka-schema-reg-mcp/graphs/commit-activity)
 [![MCP Specification](https://img.shields.io/badge/MCP-2025--06--18-brightgreen.svg)](https://modelcontextprotocol.io)
 
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/aywengo/kafka-schema-reg-mcp)](https://archestra.ai/mcp-catalog/aywengo__kafka-schema-reg-mcp)
+
 # Kafka Schema Registry MCP Server
 
 A comprehensive **Message Control Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features advanced schema context support, multi-registry management, and comprehensive schema export capabilities.
