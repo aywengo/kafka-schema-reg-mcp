@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Schema Evolution Assistant workflow
 - Schema Evolution Assistant workflow tools
-- Schema Evolution Assistant workflow tools to the MCP server
+- `schmea_import_interactive` method
 
 
 ## [2.1.2] - 2025-08-12
