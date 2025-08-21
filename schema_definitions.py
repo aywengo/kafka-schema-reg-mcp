@@ -75,69 +75,79 @@ SUCCESS_RESPONSE_SCHEMA = {
 
 # Schema registration response
 REGISTER_SCHEMA_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "id": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Unique schema ID assigned by registry",
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Unique schema ID assigned by registry",
+                },
+                "subject": {"type": "string", "description": "Subject name for the schema"},
+                "version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Version number of the registered schema",
+                },
+                "registry": {
+                    "type": "string",
+                    "description": "Registry name (multi-registry mode)",
+                },
+                **METADATA_FIELDS,
+            },
+            "required": ["id"],
+            "additionalProperties": True,
         },
-        "subject": {"type": "string", "description": "Subject name for the schema"},
-        "version": {
-            "type": "integer",
-            "minimum": 1,
-            "description": "Version number of the registered schema",
-        },
-        "registry": {
-            "type": "string",
-            "description": "Registry name (multi-registry mode)",
-        },
-        **METADATA_FIELDS,
-    },
-    "required": ["id"],
-    "additionalProperties": True,
+        ERROR_RESPONSE_SCHEMA,  # Allow error responses
+    ],
 }
 
 # Get schema response
 GET_SCHEMA_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "subject": {"type": "string", "description": "Subject name"},
-        "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
-        "id": {"type": "integer", "minimum": 1, "description": "Unique schema ID"},
-        "schema": {
-            "oneOf": [
-                {"type": "string", "description": "The schema definition as JSON string"},
-                {"type": "object", "description": "The schema definition as JSON object"},
-            ],
-            "description": "The schema definition as JSON string or object",
-        },
-        "schemaType": {
-            "type": "string",
-            "enum": ["AVRO", "JSON", "PROTOBUF"],
-            "description": "Type of schema",
-        },
-        "references": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "subject": {"type": "string"},
-                    "version": {"type": "integer", "minimum": 1},
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {
+                "subject": {"type": "string", "description": "Subject name"},
+                "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
+                "id": {"type": "integer", "minimum": 1, "description": "Unique schema ID"},
+                "schema": {
+                    "oneOf": [
+                        {"type": "string", "description": "The schema definition as JSON string"},
+                        {"type": "object", "description": "The schema definition as JSON object"},
+                    ],
+                    "description": "The schema definition as JSON string or object",
                 },
-                "required": ["name", "subject", "version"],
+                "schemaType": {
+                    "type": "string",
+                    "enum": ["AVRO", "JSON", "PROTOBUF"],
+                    "description": "Type of schema",
+                },
+                "references": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "subject": {"type": "string"},
+                            "version": {"type": "integer", "minimum": 1},
+                        },
+                        "required": ["name", "subject", "version"],
+                    },
+                    "description": "Schema references to other schemas",
+                },
+                "registry": {
+                    "type": "string",
+                    "description": "Registry name (multi-registry mode)",
+                },
+                **METADATA_FIELDS,
             },
-            "description": "Schema references to other schemas",
+            "required": ["subject", "version", "id", "schema"],
+            "additionalProperties": True,
         },
-        "registry": {
-            "type": "string",
-            "description": "Registry name (multi-registry mode)",
-        },
-        **METADATA_FIELDS,
-    },
-    "required": ["subject", "version", "id", "schema"],
-    "additionalProperties": True,
+        ERROR_RESPONSE_SCHEMA,  # Allow error responses
+    ],
 }
 
 # Schema versions list response
