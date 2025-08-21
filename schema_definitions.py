@@ -418,21 +418,26 @@ CONFIG_SCHEMA = {
 
 # Mode response (global and subject)
 MODE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "mode": {
-            "type": "string",
-            "enum": ["IMPORT", "READONLY", "READWRITE"],
-            "description": "Current mode",
+    "oneOf": [
+        {
+            "type": "object",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["IMPORT", "READONLY", "READWRITE"],
+                    "description": "Current mode",
+                },
+                "registry": {
+                    "type": "string",
+                    "description": "Registry name (multi-registry mode)",
+                },
+                **METADATA_FIELDS,
+            },
+            "required": ["mode"],
+            "additionalProperties": True,
         },
-        "registry": {
-            "type": "string",
-            "description": "Registry name (multi-registry mode)",
-        },
-        **METADATA_FIELDS,
-    },
-    "required": ["mode"],
-    "additionalProperties": True,
+        ERROR_RESPONSE_SCHEMA,  # Allow error responses
+    ],
 }
 
 # ===== CONTEXT SCHEMAS =====
