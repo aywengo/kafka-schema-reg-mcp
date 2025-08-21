@@ -872,34 +872,39 @@ GET_SCHEMA_BY_ID_SCHEMA = {
 
 # Subjects by schema ID response
 GET_SUBJECTS_BY_SCHEMA_ID_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "schema_id": {"type": "integer", "minimum": 1, "description": "The schema ID"},
-        "subject_versions": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "subject": {"type": "string", "description": "Subject name"},
-                    "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
-                },
-                "required": ["subject", "version"],
-            },
-            "description": "List of subject-version pairs using this schema ID",
-        },
-        "registry": {
-            "type": "string",
-            "description": "Registry name (multi-registry mode)",
-        },
-        "_links": {
+    "oneOf": [
+        {
             "type": "object",
-            "description": "Navigation links to related resources",
+            "properties": {
+                "schema_id": {"type": "integer", "minimum": 1, "description": "The schema ID"},
+                "subject_versions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "subject": {"type": "string", "description": "Subject name"},
+                            "version": {"type": "integer", "minimum": 1, "description": "Schema version"},
+                        },
+                        "required": ["subject", "version"],
+                    },
+                    "description": "List of subject-version pairs using this schema ID",
+                },
+                "registry": {
+                    "type": "string",
+                    "description": "Registry name (multi-registry mode)",
+                },
+                "_links": {
+                    "type": "object",
+                    "description": "Navigation links to related resources",
+                    "additionalProperties": True,
+                },
+                **METADATA_FIELDS,
+            },
+            "required": ["schema_id", "subject_versions"],
             "additionalProperties": True,
         },
-        **METADATA_FIELDS,
-    },
-    "required": ["schema_id", "subject_versions"],
-    "additionalProperties": True,
+        ERROR_RESPONSE_SCHEMA,  # Allow error responses
+    ],
 }
 
 # ===== SCHEMA REGISTRY =====

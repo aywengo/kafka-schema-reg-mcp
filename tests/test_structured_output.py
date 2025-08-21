@@ -60,13 +60,35 @@ class TestSchemaDefinitions(unittest.TestCase):
         """Test getting schema for a known tool."""
         schema = get_tool_schema("get_schema")
         self.assertIsInstance(schema, dict)
-        self.assertIn("type", schema)
-        self.assertEqual(schema["type"], "object")
-        self.assertIn("properties", schema)
 
-        # Check required fields
-        self.assertIn("required", schema)
-        required_fields = schema["required"]
+        # Schema can be either direct object type or oneOf pattern
+        if "oneOf" in schema:
+            # New oneOf pattern with success/error responses
+            self.assertIsInstance(schema["oneOf"], list)
+            self.assertGreater(len(schema["oneOf"]), 0)
+
+            # Find the success response schema (should have required fields)
+            success_schema = None
+            for option in schema["oneOf"]:
+                if option.get("type") == "object" and "required" in option:
+                    required_fields = option["required"]
+                    if all(field in required_fields for field in ["subject", "version", "id", "schema"]):
+                        success_schema = option
+                        break
+
+            self.assertIsNotNone(success_schema, "Could not find success response schema in oneOf")
+            self.assertEqual(success_schema["type"], "object")
+            self.assertIn("properties", success_schema)
+            required_fields = success_schema["required"]
+        else:
+            # Old direct object format
+            self.assertIn("type", schema)
+            self.assertEqual(schema["type"], "object")
+            self.assertIn("properties", schema)
+            self.assertIn("required", schema)
+            required_fields = schema["required"]
+
+        # Check required fields are present (works for both formats)
         self.assertIn("subject", required_fields)
         self.assertIn("version", required_fields)
         self.assertIn("id", required_fields)
