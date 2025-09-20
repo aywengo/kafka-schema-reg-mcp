@@ -12,7 +12,7 @@
 
 # Kafka Schema Registry MCP Server
 
-A comprehensive **Message Control Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features advanced schema context support, multi-registry management, and comprehensive schema export capabilities.
+A comprehensive **Model Context Protocol (MCP) server** that provides Claude Desktop and other MCP clients with tools for Kafka Schema Registry operations. Features advanced schema context support, multi-registry management, and comprehensive schema export capabilities.
 
 <table width="100%">
 <tr>
@@ -23,7 +23,7 @@ A comprehensive **Message Control Protocol (MCP) server** that provides Claude D
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over stdio.
+> **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
 **Latest Version:** [v2.0.7](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
