@@ -86,12 +86,12 @@ from comparison_tools import (
 )
 from core_registry_tools import list_subjects_tool  # Still needed for resource handlers
 from core_registry_tools import (
+    add_subject_alias_tool,
     check_compatibility_tool,
     create_context_tool,
     delete_context_tool,
-    delete_subject_tool,
-    add_subject_alias_tool,
     delete_subject_alias_tool,
+    delete_subject_tool,
     get_global_config_tool,
     get_mode_tool,
     get_schema_by_id_tool,

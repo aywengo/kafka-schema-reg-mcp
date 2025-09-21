@@ -975,9 +975,15 @@ def add_subject_alias_tool(
                 )
 
             url = client.build_context_url(f"/config/{alias}", context)
-            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers)
+            response = client.session.put(
+                url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers
+            )
             response.raise_for_status()
-            result = response.json() if response.headers.get("Content-Type", "").startswith("application/json") else {"status": "ok"}
+            result = (
+                response.json()
+                if response.headers.get("Content-Type", "").startswith("application/json")
+                else {"status": "ok"}
+            )
 
             # Add metadata and links
             result.setdefault("alias", alias)
@@ -1004,9 +1010,15 @@ def add_subject_alias_tool(
                 )
 
             url = client.build_context_url(f"/config/{alias}", context)
-            response = client.session.put(url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers)
+            response = client.session.put(
+                url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers
+            )
             response.raise_for_status()
-            result = response.json() if response.headers.get("Content-Type", "").startswith("application/json") else {"status": "ok"}
+            result = (
+                response.json()
+                if response.headers.get("Content-Type", "").startswith("application/json")
+                else {"status": "ok"}
+            )
 
             # Add metadata and links
             result.setdefault("alias", alias)

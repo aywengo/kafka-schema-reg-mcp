@@ -9,7 +9,6 @@ import platform
 import subprocess
 from typing import Optional
 
-
 IMAGE_CANDIDATES = [
     "kafka-schema-registry-mcp:test",  # Preferred, matches build logs
     "kafka-schema-reg-mcp:test",  # Backward compatibility
@@ -19,9 +18,7 @@ IMAGE_CANDIDATES = [
 def docker_image_exists(image_name: str) -> bool:
     """Return True if the given Docker image exists locally."""
     try:
-        result = subprocess.run(
-            ["docker", "images", "-q", image_name], capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True, timeout=10)
         return result.returncode == 0 and bool(result.stdout.strip())
     except Exception:
         return False

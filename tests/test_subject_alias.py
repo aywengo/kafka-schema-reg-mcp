@@ -5,7 +5,6 @@ import httpx
 import pytest
 import pytest_asyncio
 
-
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:38000")
 
 
@@ -125,4 +124,3 @@ async def test_delete_subject_alias(client: httpx.AsyncClient):
     # Config for alias should be gone or 404
     cfg_check = await client.get(f"{MCP_SERVER_URL}/config/{alias_subject}")
     assert cfg_check.status_code in [404, 200]  # accept 200 in registries that return inherited config
-
