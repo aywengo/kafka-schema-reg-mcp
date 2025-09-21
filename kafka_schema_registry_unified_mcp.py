@@ -91,6 +91,7 @@ from core_registry_tools import (
     delete_context_tool,
     delete_subject_tool,
     add_subject_alias_tool,
+    delete_subject_alias_tool,
     get_global_config_tool,
     get_mode_tool,
     get_schema_by_id_tool,
@@ -1443,6 +1444,25 @@ if not SLIM_MODE:
         return add_subject_alias_tool(
             alias,
             existing_subject,
+            registry_manager,
+            REGISTRY_MODE,
+            context,
+            registry,
+            auth,
+            standard_headers,
+            SCHEMA_REGISTRY_URL,
+        )
+
+    @mcp.tool()
+    @require_scopes("write")
+    def delete_subject_alias(
+        alias: str,
+        context: Optional[str] = None,
+        registry: Optional[str] = None,
+    ):
+        """Delete a subject alias (not available in SLIM/VIEWONLY)."""
+        return delete_subject_alias_tool(
+            alias,
             registry_manager,
             REGISTRY_MODE,
             context,

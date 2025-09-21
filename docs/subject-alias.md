@@ -46,3 +46,42 @@ Notes:
 - If your registry version does not return JSON for alias PUT, the tool returns `{ "status": "ok" }` plus metadata.
 - In VIEWONLY mode, the tool returns a structured error indicating modifications are blocked.
 
+### Delete Subject Alias (delete_subject_alias)
+
+Remove an existing subject alias.
+
+- Availability: Not available in SLIM_MODE or VIEWONLY mode
+- Scope: Requires write scope
+
+Registry API semantics:
+
+```bash
+curl -X DELETE \
+  -u "USER:PASS" \
+  -H "Content-Type: application/json" \
+  "https://<schema-registry-host>/config/<alias>"
+```
+
+MCP Tool:
+
+```json
+{
+  "tool": "delete_subject_alias",
+  "params": {
+    "alias": "<alias>",
+    "context": ".",
+    "registry": "dev"
+  }
+}
+```
+
+Response (example):
+
+```json
+{
+  "alias": "orders-latest",
+  "deleted": true,
+  "registry_mode": "multi"
+}
+```
+

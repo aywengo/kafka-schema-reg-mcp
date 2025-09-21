@@ -929,6 +929,22 @@ TOOL_OUTPUT_SCHEMAS = {
     "update_global_config": CONFIG_SCHEMA,
     "get_subject_config": CONFIG_SCHEMA,
     "update_subject_config": CONFIG_SCHEMA,
+    "delete_subject_alias": {
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "alias": {"type": "string", "description": "Alias subject name"},
+                    "deleted": {"type": "boolean", "description": "Whether alias was deleted"},
+                    "registry": {"type": "string", "description": "Registry name (multi-registry mode)"},
+                    **METADATA_FIELDS,
+                },
+                "required": ["alias", "deleted"],
+                "additionalProperties": True,
+            },
+            ERROR_RESPONSE_SCHEMA,
+        ],
+    },
     "add_subject_alias": {
         "oneOf": [
             {

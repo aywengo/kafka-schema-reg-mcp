@@ -784,6 +784,12 @@ curl -X PUT http://localhost:38000/config/user-value?context=staging \
 - Params: `alias`, `existing_subject`, optional `context`, `registry`
 - See: [Subject Aliasing](./subject-alias.md)
 
+### Delete Subject Alias (MCP Tool)
+
+- Tool: `delete_subject_alias` (not in SLIM_MODE, blocked in VIEWONLY)
+- Params: `alias`, optional `context`, `registry`
+- See: [Subject Aliasing](./subject-alias.md)
+
 ### Delete Subject Configuration
 
 #### DELETE `/config/{subject}`
