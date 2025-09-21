@@ -103,8 +103,7 @@ async def test_delete_subject_alias(client: httpx.AsyncClient):
             "params": {"alias": alias_subject, "existing_subject": base_subject},
         },
     )
-    if tool_resp.status_code not in (200, 404):
-        assert tool_resp.status_code == 200
+    assert tool_resp.status_code in (200, 404)
 
     # Delete alias via tool (fallback to DELETE /config/{alias} if needed)
     del_resp = await client.post(
