@@ -7,7 +7,6 @@
 [![Docker Image Size](https://img.shields.io/docker/image-size/aywengo/kafka-schema-reg-mcp/stable)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/aywengo/kafka-schema-reg-mcp/graphs/commit-activity)
 [![MCP Specification](https://img.shields.io/badge/MCP-2025--06--18-brightgreen.svg)](https://modelcontextprotocol.io)
-
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/aywengo/kafka-schema-reg-mcp)](https://archestra.ai/mcp-catalog/aywengo__kafka-schema-reg-mcp)
 
 # Kafka Schema Registry MCP Server
