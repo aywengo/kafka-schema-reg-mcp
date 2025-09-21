@@ -49,7 +49,7 @@ Comprehensive reference for all 70+ MCP tools and 7 MCP resources:
 - **Schema Management Tools** (4): register, retrieve, versions, compatibility
 - **Context Management Tools** (3): list, create, delete contexts
 - **Subject Management Tools** (2): list, delete subjects  
-- **Configuration Management Tools** (4): global and subject-specific settings
+- **Configuration Management Tools** (5): global, subject-specific, and subject aliasing
 - **Mode Management Tools** (4): operational mode control
 - **Export Tools** (4): comprehensive schema export capabilities
 - **Multi-Registry Tools** (6): cross-registry operations

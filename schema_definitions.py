@@ -929,6 +929,22 @@ TOOL_OUTPUT_SCHEMAS = {
     "update_global_config": CONFIG_SCHEMA,
     "get_subject_config": CONFIG_SCHEMA,
     "update_subject_config": CONFIG_SCHEMA,
+    "add_subject_alias": {
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "alias": {"type": "string", "description": "New alias subject name"},
+                    "target": {"type": "string", "description": "Existing subject target"},
+                    "registry": {"type": "string", "description": "Registry name (multi-registry mode)"},
+                    **METADATA_FIELDS,
+                },
+                "required": ["alias", "target"],
+                "additionalProperties": True,
+            },
+            ERROR_RESPONSE_SCHEMA,
+        ],
+    },
     # Mode Management
     "get_mode": MODE_SCHEMA,
     "update_mode": MODE_SCHEMA,
