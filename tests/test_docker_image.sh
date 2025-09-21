@@ -8,7 +8,16 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-IMAGE_NAME="${1:-kafka-schema-reg-mcp:test}"
+IMAGE_NAME="${1:-kafka-schema-registry-mcp:test}"
+
+# Fallback to legacy tag if preferred image is not present
+if ! docker images -q "$IMAGE_NAME" >/dev/null 2>&1 || [ -z "$(docker images -q "$IMAGE_NAME")" ]; then
+    LEGACY_IMAGE="kafka-schema-reg-mcp:test"
+    if [ -n "$(docker images -q "$LEGACY_IMAGE")" ]; then
+        echo -e "${BLUE}Using legacy image tag: ${LEGACY_IMAGE}${NC}"
+        IMAGE_NAME="$LEGACY_IMAGE"
+    fi
+fi
 
 echo -e "${BLUE}Testing MCP Server Docker Image: ${IMAGE_NAME}${NC}"
 echo "=================================="
@@ -45,7 +54,7 @@ run_test "MCP SDK Installation" \
 
 # Test 3: MCP server import (most important - no Pydantic warnings)
 run_test "MCP Server Import (No Pydantic Warnings)" \
-"docker run --rm ${IMAGE_NAME} python -c 'import kafka_schema_registry_mcp; print(\"✅ MCP server imports successfully\"); print(\"✅ No Pydantic warnings - field name conflicts resolved\")'"
+"docker run --rm ${IMAGE_NAME} python -c 'import kafka_schema_registry_unified_mcp as m; print("✅ MCP server imports successfully"); print("✅ No Pydantic warnings - field name conflicts resolved")'"
 
 # Test 4: Python syntax validation
 run_test "Python Syntax Validation" \
@@ -57,11 +66,11 @@ run_test "All Dependencies Available" \
 
 # Test 6: Environment variable handling
 run_test "Environment Variable Handling" \
-"docker run --rm -e SCHEMA_REGISTRY_URL=http://test:8081 -e SCHEMA_REGISTRY_USER=testuser ${IMAGE_NAME} python -c \"import os; url=os.getenv('SCHEMA_REGISTRY_URL', 'not set'); user=os.getenv('SCHEMA_REGISTRY_USER', 'not set'); print(f'SCHEMA_REGISTRY_URL: {url}'); print(f'SCHEMA_REGISTRY_USER: {user}'); import kafka_schema_registry_mcp; print('✅ Environment variables handled correctly')\""
+"docker run --rm -e SCHEMA_REGISTRY_URL=http://test:8081 -e SCHEMA_REGISTRY_USER=testuser ${IMAGE_NAME} python -c \"import os; url=os.getenv('SCHEMA_REGISTRY_URL', 'not set'); user=os.getenv('SCHEMA_REGISTRY_USER', 'not set'); print(f'SCHEMA_REGISTRY_URL: {url}'); print(f'SCHEMA_REGISTRY_USER: {user}'); import kafka_schema_registry_unified_mcp; print('✅ Environment variables handled correctly')\""
 
 # Test 7: MCP tools registration
 run_test "MCP Tools Registration" \
-"docker run --rm ${IMAGE_NAME} python -c \"from kafka_schema_registry_mcp import mcp; count=len([t for t in dir(mcp) if not t.startswith('_')]); print(f'✅ {count} MCP tools/resources registered')\""
+"docker run --rm ${IMAGE_NAME} python -c \"from kafka_schema_registry_unified_mcp import mcp; count=len([t for t in dir(mcp) if not t.startswith('_')]); print(f'✅ {count} MCP tools/resources registered')\""
 
 # Test 8: Non-root user security
 run_test "Non-root User Security" \

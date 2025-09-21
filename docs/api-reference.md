@@ -152,11 +152,6 @@ Delete an existing schema context.
 }
 ```
 
-**Example:**
-```bash
-curl -X DELETE http://localhost:38000/contexts/development
-```
-
 **Error Responses:**
 - `404`: Context not found
 - `500`: Context contains schemas (some registries may not support deletion)
@@ -782,6 +777,18 @@ curl -X PUT http://localhost:38000/config/user-value?context=staging \
   -H "Content-Type: application/json" \
   -d '{"compatibility": "FULL"}'
 ```
+
+### Add Subject Alias (MCP Tool)
+
+- Tool: `add_subject_alias` (not in SLIM_MODE, blocked in VIEWONLY)
+- Params: `alias`, `existing_subject`, optional `context`, `registry`
+- See: [Subject Aliasing](./subject-alias.md)
+
+### Delete Subject Alias (MCP Tool)
+
+- Tool: `delete_subject_alias` (not in SLIM_MODE, blocked in VIEWONLY)
+- Params: `alias`, optional `context`, `registry`
+- See: [Subject Aliasing](./subject-alias.md)
 
 ### Delete Subject Configuration
 

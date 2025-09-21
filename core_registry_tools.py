@@ -933,6 +933,196 @@ def update_subject_config_tool(
         )
 
 
+@structured_output("add_subject_alias", fallback_on_error=True)
+def add_subject_alias_tool(
+    alias: str,
+    existing_subject: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, Any]:
+    """
+    Create a subject alias that points to an existing subject.
+
+    Args:
+        alias: The new subject alias to create
+        existing_subject: The existing subject to alias to
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Result from registry with structured validation and resource links
+    """
+    # Block in VIEWONLY mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
+
+    try:
+        payload = {"alias": existing_subject}
+
+        if registry_mode == "single":
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            url = client.build_context_url(f"/config/{alias}", context)
+            response = client.session.put(
+                url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers
+            )
+            response.raise_for_status()
+            result = (
+                response.json()
+                if response.headers.get("Content-Type", "").startswith("application/json")
+                else {"status": "ok"}
+            )
+
+            # Add metadata and links
+            result.setdefault("alias", alias)
+            result.setdefault("target", existing_subject)
+            result["registry_mode"] = "single"
+            result["mcp_protocol_version"] = "2025-06-18"
+
+            registry_name = _get_registry_name(registry_mode, registry)
+            result = add_links_to_response(
+                result,
+                "config",
+                registry_name,
+                subject=alias,
+                context=context,
+            )
+            return result
+        else:
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            url = client.build_context_url(f"/config/{alias}", context)
+            response = client.session.put(
+                url, data=json.dumps(payload), auth=client.auth, headers=client.standard_headers
+            )
+            response.raise_for_status()
+            result = (
+                response.json()
+                if response.headers.get("Content-Type", "").startswith("application/json")
+                else {"status": "ok"}
+            )
+
+            # Add metadata and links
+            result.setdefault("alias", alias)
+            result.setdefault("target", existing_subject)
+            result["registry"] = client.config.name
+            result["registry_mode"] = "multi"
+            result["mcp_protocol_version"] = "2025-06-18"
+
+            result = add_links_to_response(
+                result,
+                "config",
+                client.config.name,
+                subject=alias,
+                context=context,
+            )
+            return result
+    except Exception as e:
+        return create_error_response(str(e), error_code="SUBJECT_ALIAS_FAILED", registry_mode=registry_mode)
+
+
+@structured_output("delete_subject_alias", fallback_on_error=True)
+def delete_subject_alias_tool(
+    alias: str,
+    registry_manager,
+    registry_mode: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    auth=None,
+    standard_headers=None,
+    schema_registry_url: str = "",
+) -> Dict[str, Any]:
+    """
+    Delete a subject alias.
+
+    Args:
+        alias: The alias subject to delete
+        context: Optional schema context
+        registry: Optional registry name (ignored in single-registry mode)
+
+    Returns:
+        Result with structured validation and resource links
+    """
+    # Block in VIEWONLY mode
+    viewonly_check = _check_viewonly_mode(registry_manager, registry)
+    if viewonly_check:
+        return validate_registry_response(viewonly_check, registry_mode)
+
+    try:
+        if registry_mode == "single":
+            client = registry_manager.get_default_registry()
+            if client is None:
+                return create_error_response(
+                    "No default registry configured",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="single",
+                )
+
+            url = client.build_context_url(f"/config/{alias}", context)
+            response = client.session.delete(url, auth=client.auth, headers=client.standard_headers)
+
+            # Some registries may return 200/204/404 depending on alias behavior
+            if response.status_code not in (200, 204, 404):
+                response.raise_for_status()
+
+            result: Dict[str, Any] = {
+                "alias": alias,
+                "deleted": response.status_code in (200, 204),
+                "registry_mode": "single",
+                "mcp_protocol_version": "2025-06-18",
+            }
+
+            registry_name = _get_registry_name(registry_mode, registry)
+            # Link to subjects list/config root
+            result = add_links_to_response(result, "config", registry_name, subject=alias, context=context)
+            return result
+        else:
+            client = registry_manager.get_registry(registry)
+            if client is None:
+                return create_error_response(
+                    f"Registry '{registry}' not found",
+                    error_code="REGISTRY_NOT_FOUND",
+                    registry_mode="multi",
+                )
+
+            url = client.build_context_url(f"/config/{alias}", context)
+            response = client.session.delete(url, auth=client.auth, headers=client.standard_headers)
+
+            if response.status_code not in (200, 204, 404):
+                response.raise_for_status()
+
+            result = {
+                "alias": alias,
+                "deleted": response.status_code in (200, 204),
+                "registry": client.config.name,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-06-18",
+            }
+
+            result = add_links_to_response(result, "config", client.config.name, subject=alias, context=context)
+            return result
+    except Exception as e:
+        return create_error_response(str(e), error_code="SUBJECT_ALIAS_DELETE_FAILED", registry_mode=registry_mode)
+
+
 # ===== MODE MANAGEMENT TOOLS =====
 
 

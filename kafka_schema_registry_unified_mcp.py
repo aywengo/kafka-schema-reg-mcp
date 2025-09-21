@@ -86,9 +86,11 @@ from comparison_tools import (
 )
 from core_registry_tools import list_subjects_tool  # Still needed for resource handlers
 from core_registry_tools import (
+    add_subject_alias_tool,
     check_compatibility_tool,
     create_context_tool,
     delete_context_tool,
+    delete_subject_alias_tool,
     delete_subject_tool,
     get_global_config_tool,
     get_mode_tool,
@@ -1417,6 +1419,50 @@ if not SLIM_MODE:
         return update_subject_config_tool(
             subject,
             compatibility,
+            registry_manager,
+            REGISTRY_MODE,
+            context,
+            registry,
+            auth,
+            standard_headers,
+            SCHEMA_REGISTRY_URL,
+        )
+
+
+# Add subject alias tool (Hidden in SLIM_MODE)
+if not SLIM_MODE:
+
+    @mcp.tool()
+    @require_scopes("write")
+    def add_subject_alias(
+        alias: str,
+        existing_subject: str,
+        context: Optional[str] = None,
+        registry: Optional[str] = None,
+    ):
+        """Create a subject alias to an existing subject (not available in SLIM/VIEWONLY)."""
+        return add_subject_alias_tool(
+            alias,
+            existing_subject,
+            registry_manager,
+            REGISTRY_MODE,
+            context,
+            registry,
+            auth,
+            standard_headers,
+            SCHEMA_REGISTRY_URL,
+        )
+
+    @mcp.tool()
+    @require_scopes("write")
+    def delete_subject_alias(
+        alias: str,
+        context: Optional[str] = None,
+        registry: Optional[str] = None,
+    ):
+        """Delete a subject alias (not available in SLIM/VIEWONLY)."""
+        return delete_subject_alias_tool(
+            alias,
             registry_manager,
             REGISTRY_MODE,
             context,

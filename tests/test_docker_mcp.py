@@ -5,11 +5,43 @@ Test the MCP server running in Docker container
 
 import asyncio
 import os
+import platform
 import subprocess
+from typing import Optional
+
+IMAGE_CANDIDATES = [
+    "kafka-schema-registry-mcp:test",  # Preferred, matches build logs
+    "kafka-schema-reg-mcp:test",  # Backward compatibility
+]
 
 
-async def test_docker_mcp_server():
-    """Test the MCP server running in Docker."""
+def docker_image_exists(image_name: str) -> bool:
+    """Return True if the given Docker image exists locally."""
+    try:
+        result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True, timeout=10)
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except Exception:
+        return False
+
+
+def get_available_image_name() -> Optional[str]:
+    """Return the first available image name from candidates, or None if none found."""
+    for candidate in IMAGE_CANDIDATES:
+        if docker_image_exists(candidate):
+            print(f"✅ Docker image '{candidate}' found")
+            return candidate
+    print("❌ No matching Docker image found. Tried:", ", ".join(IMAGE_CANDIDATES))
+    print("   Please build the Docker image first:")
+    print("   docker build -t kafka-schema-registry-mcp:test .")
+    return None
+
+
+async def test_docker_mcp_server(image_name: str) -> bool:
+    """Test the MCP server running in Docker.
+
+    Args:
+        image_name: The Docker image tag to run
+    """
 
     print("🐳 Testing MCP server in Docker container...")
 
@@ -30,21 +62,29 @@ async def test_docker_mcp_server():
         print("📦 Starting MCP server in Docker container...")
 
         # Start Docker container in background
-        # Note: Using the available MCP server in the test image
+        # Use host networking on Linux; use host.docker.internal on macOS/Windows
+        system_name = platform.system()
         docker_cmd = [
             "docker",
             "run",
             "-d",
             "--name",
             container_name,
-            "--network",
-            "host",
-            "-e",
-            "SCHEMA_REGISTRY_URL=http://localhost:38081",
-            "kafka-schema-reg-mcp:test",
+        ]
+
+        if system_name == "Linux":
+            docker_cmd += ["--network", "host", "-e", "SCHEMA_REGISTRY_URL=http://localhost:38081"]
+        else:
+            docker_cmd += [
+                "-e",
+                "SCHEMA_REGISTRY_URL=http://host.docker.internal:38081",
+            ]
+
+        docker_cmd += [
+            image_name,
             "python",
             "-c",
-            "import kafka_schema_registry_mcp; print('MCP server test mode'); import time; time.sleep(60)",
+            "import kafka_schema_registry_unified_mcp as m; print('MCP server test mode'); import time; time.sleep(60)",
         ]
 
         # Start the container
@@ -85,7 +125,7 @@ async def test_docker_mcp_server():
             logs = logs_result.stdout
             error_logs = logs_result.stderr
 
-            if logs and ("MCP server test mode" in logs or "kafka_schema_registry_mcp" in logs):
+            if logs and ("MCP server test mode" in logs or "kafka_schema_registry_unified_mcp" in logs):
                 print("✅ Container successfully imported MCP module")
                 print(f"   Container output: {logs.strip()}")
             elif logs:
@@ -159,30 +199,14 @@ async def test_docker_mcp_server():
             print(f"⚠️ Cleanup failed: {cleanup_e}")
 
 
-async def test_docker_image_exists():
-    """Test if the Docker image exists before running the test."""
+async def test_docker_image_exists() -> Optional[str]:
+    """Return the available Docker image name, or None if not found."""
     print("🔍 Checking if Docker image exists...")
-
     try:
-        result = subprocess.run(
-            ["docker", "images", "-q", "kafka-schema-reg-mcp:test"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-
-        if result.returncode == 0 and result.stdout.strip():
-            print("✅ Docker image 'kafka-schema-reg-mcp:test' found")
-            return True
-        else:
-            print("❌ Docker image 'kafka-schema-reg-mcp:test' not found")
-            print("   Please build the Docker image first:")
-            print("   docker build -t kafka-schema-reg-mcp:test .")
-            return False
-
+        return get_available_image_name()
     except Exception as e:
         print(f"❌ Error checking Docker image: {e}")
-        return False
+        return None
 
 
 async def main():
@@ -191,12 +215,13 @@ async def main():
     print("=" * 50)
 
     # Check if Docker image exists first
-    if not await test_docker_image_exists():
+    available_image = await test_docker_image_exists()
+    if not available_image:
         print("\n❌ Skipping Docker test - image not available")
         return 1
 
     # Run the Docker test
-    success = await test_docker_mcp_server()
+    success = await test_docker_mcp_server(available_image)
 
     if success:
         print("\n✅ Docker MCP test passed!")

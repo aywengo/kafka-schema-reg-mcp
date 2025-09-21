@@ -397,6 +397,7 @@ run_essential_integration_tests() {
         "test_remote_mcp_metrics.py:Remote MCP server metrics and monitoring"
         "test_elicitation.py:Elicitation framework core functionality"
         "test_multi_step_elicitation.py:Multi-step elicitation workflows (Issue #73 - essential functionality)"
+        "test_subject_alias.py:Subject alias MCP tool integration"
     )
     
     run_test_list "${tests[@]}"
