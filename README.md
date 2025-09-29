@@ -1,6 +1,6 @@
 [![MseeP.ai Security Assessment Badge](https://mseep.ai/badge.svg)](https://mseep.ai/app/aywengo-kafka-schema-reg-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/aywengo/kafka-schema-reg-mcp)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/releases)
 [![GitHub Issues](https://img.shields.io/github/issues/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
@@ -24,7 +24,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 
 > **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v2.0.7](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.1.3](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -50,10 +50,10 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Recommended: Run with SLIM_MODE for optimal performance (~9 tools)
+# Recommended: Run with SLIM_MODE for optimal performance (reduced essential tool set)
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
 
-# OR run with full feature set (57+ tools) for administrators/SRE
+# OR run with full feature set for administrators/SRE
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 ```
 
@@ -101,18 +101,18 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:latest
 
 # Specific version
-docker pull aywengo/kafka-schema-reg-mcp:2.0.7
+docker pull aywengo/kafka-schema-reg-mcp:2.1.3
 ```
 
 #### Running with SLIM_MODE
 To reduce LLM overhead, run with SLIM_MODE enabled:
 ```bash
-# Run with ~9 essential tools instead of 57+
+# Run with a reduced essential tool set
 docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
 ```
 
 > **💡 SLIM_MODE Benefits:**
-> - Reduces tool count from 53+ to ~15 essential tools
+> - Reduces tool count to an essential subset
 > - Significantly faster LLM response times
 > - Lower token usage and reduced costs
 > - Ideal for production read-only operations
@@ -171,7 +171,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 ### SLIM_MODE Configuration (Performance Optimization)
 
-**SLIM_MODE** reduces the number of exposed MCP tools from 57+ to ~9 essential tools, significantly reducing LLM overhead and improving response times.
+**SLIM_MODE** reduces the number of exposed MCP tools to an essential subset, significantly reducing LLM overhead and improving response times.
 
 > **💡 Recommendation:** SLIM_MODE is **recommended for most use cases** as it provides all essential schema management capabilities with optimal performance.
 
@@ -194,6 +194,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 #### Enable SLIM_MODE
 ```bash
 export SLIM_MODE="true"  # Reduces tools from 57+ to ~9
+# Enables reduced essential tool set
 ```
 
 #### Tools Available in SLIM_MODE
@@ -226,7 +227,7 @@ export SLIM_MODE="true"  # Reduces tools from 57+ to ~9
 - Configuration update tools
 - Delete operations
 
-> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access all 57+ tools.
+> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access the full tool set.
 
 ## 📊 MCP Tools and Resources
 
@@ -264,6 +265,8 @@ These tools are maintained for backward compatibility with existing clients. The
 | **Subject Management** | `delete_subject` | Tool | ❌ | admin | Delete subject and versions |
 | **Configuration** | `update_global_config` | Tool | ❌ | admin | Update global configuration |
 | **Configuration** | `update_subject_config` | Tool | ❌ | admin | Update subject configuration |
+| **Configuration** | `add_subject_alias` | Tool | ❌ | write | Create alias subject pointing to an existing subject |
+| **Configuration** | `delete_subject_alias` | Tool | ❌ | write | Remove an alias subject |
 | **Mode Management** | `update_mode` | Tool | ❌ | admin | Update registry mode |
 | **Mode Management** | `update_subject_mode` | Tool | ❌ | admin | Update subject mode |
 | **Statistics** | `count_contexts` | Tool | ✅ | read | Count contexts |
@@ -390,6 +393,7 @@ export AUTH_AUDIENCE="your-client-id"
 | Guide | Description |
 |-------|-------------|
 | **[API Reference](docs/api-reference.md)** | Complete tool documentation with examples |
+| **[Subject Aliasing](docs/subject-alias.md)** | How to add and remove subject aliases |
 | **[Use Cases](docs/use-cases.md)** | Real-world scenarios and implementation patterns |
 | **[Deployment Guide](docs/deployment.md)** | Docker, Kubernetes, cloud platforms, CI/CD |
 | **[IDE Integration](docs/ide-integration.md)** | VS Code, Claude Code, Cursor setup |
@@ -474,7 +478,12 @@ python kafka_schema_registry_unified_mcp.py
 
 ## 🆕 What's New
 
-### v2.0.x (Latest)
+### v2.1.x (Latest)
+- **🧭 Subject Aliasing** - New tools `add_subject_alias` and `delete_subject_alias`
+- **🛠️ Fixes** - Evolution assistant and import interactive fixes
+- **📦 Enhancements** - Continued MCP tool refinements and testing improvements
+
+### v2.0.x
 - **🔒 Security Fixes** - Resolved credential exposure in logging
 - **🤖 Interactive Schema Migration** - Smart migration with user preference elicitation
 - **💾 Automatic Backups** - Pre-migration backup creation

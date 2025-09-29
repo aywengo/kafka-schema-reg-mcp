@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v2.0.2 documentation! This folder contains comprehensive guides and references for the **FastMCP 2.8.0+ Framework** with **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v2.1.3 documentation! This folder contains comprehensive guides and references for the **FastMCP 2.8.0+ Framework** with **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
@@ -13,6 +13,7 @@ This project uses the **modern FastMCP 2.8.0+ framework** for full **MCP 2025-06
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.1 support for any provider
 - ✅ **Interactive Operations**: Smart migration with user preference elicitation (v2.0.2+)
 - ✅ **Advanced Security**: Credential protection and secure logging (v2.0.2+)
+- ✅ **Subject Aliasing (NEW in v2.1.x)**: `add_subject_alias` and `delete_subject_alias` tools
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Context-Aware Operations**: All tools support schema contexts
@@ -89,7 +90,18 @@ Migration guide for upgrading between major versions:
 
 ---
 
-## 🎉 What's New in v2.0.2 (Latest)
+## 🎉 What's New in v2.1.x (Latest)
+
+### **🧭 Subject Aliasing**
+- New tools for managing subject aliases: `add_subject_alias`, `delete_subject_alias`
+- Not available in SLIM_MODE or VIEWONLY mode
+- Requires write scope in OAuth-enabled environments
+
+### **Fixes and Enhancements**
+- Improvements to Schema Evolution Assistant workflow
+- Interactive import fixes and robustness
+
+## 🎉 What's New in v2.0.2
 
 ### **🔒 Security Enhancements**
 - **SSL/TLS Security Enhancement (Issue #24)**: Explicit SSL certificate verification for all HTTP requests
@@ -278,7 +290,7 @@ When contributing to the MCP implementation documentation:
 2. **MCP Tools Reference**: Include comprehensive tool examples and usage patterns
 3. **Deployment**: Provide MCP-specific configuration and troubleshooting
 4. **Claude Desktop Integration**: Document best practices for AI-assisted workflows
-5. **Version Updates**: Keep version references current (latest: v2.0.2)
+5. **Version Updates**: Keep version references current (latest: v2.1.3)
 
 ---
 
