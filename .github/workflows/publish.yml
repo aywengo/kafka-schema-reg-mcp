@@ -137,7 +137,7 @@ jobs:
 
       - name: Update Docker Hub description
         id: dockerhub-description
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         continue-on-error: true  # Don't fail the workflow if Docker Hub update fails
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
