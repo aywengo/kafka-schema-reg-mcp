@@ -1,5 +1,5 @@
 # Use a more recent base image with latest security patches
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.14-slim-bookworm AS builder
 
 # Build arguments for metadata and multi-platform support
 ARG BUILDPLATFORM
@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Production stage with minimal attack surface
-FROM python:3.13-slim-bookworm AS production
+FROM python:3.14-slim-bookworm AS production
 
 # Build arguments for metadata and multi-platform support
 ARG BUILDPLATFORM
@@ -81,7 +81,7 @@ WORKDIR /app
 RUN chown -R mcp:mcp /app
 
 # Copy Python packages from builder stage
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy core application modules with proper ownership
