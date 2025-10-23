@@ -83,7 +83,7 @@ def register_schema_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -194,7 +194,7 @@ def get_schema_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -301,7 +301,7 @@ def get_schema_versions_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -406,7 +406,7 @@ def list_subjects_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -493,7 +493,7 @@ def check_compatibility_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -597,7 +597,7 @@ def get_global_config_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -689,7 +689,7 @@ def update_global_config_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -774,7 +774,7 @@ def get_subject_config_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -872,7 +872,7 @@ def update_subject_config_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -966,7 +966,7 @@ def add_subject_alias_tool(
         payload = {"alias": existing_subject}
 
         if registry_mode == "single":
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1068,7 +1068,7 @@ def delete_subject_alias_tool(
 
     try:
         if registry_mode == "single":
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1149,7 +1149,7 @@ def get_mode_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1233,7 +1233,7 @@ def update_mode_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1318,7 +1318,7 @@ def get_subject_mode_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1408,7 +1408,7 @@ def update_subject_mode_tool(
 
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1492,7 +1492,7 @@ def list_contexts_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1572,7 +1572,7 @@ def create_context_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1647,7 +1647,7 @@ def delete_context_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1726,7 +1726,7 @@ async def delete_subject_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1823,7 +1823,7 @@ def get_schema_by_id_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
@@ -1928,7 +1928,7 @@ def get_subjects_by_schema_id_tool(
     try:
         if registry_mode == "single":
             # Single-registry mode: use secure session approach
-            client = registry_manager.get_default_registry()
+            client = registry_manager.get_registry()
             if client is None:
                 return create_error_response(
                     "No default registry configured",
