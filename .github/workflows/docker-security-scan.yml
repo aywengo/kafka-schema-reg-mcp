@@ -190,7 +190,7 @@ jobs:
           echo "Check the Security tab for detailed findings (CRITICAL and HIGH only)." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload scan results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: security-scan-results
