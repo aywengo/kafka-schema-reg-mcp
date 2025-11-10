@@ -1,7 +1,7 @@
 fastapi==0.120.4
 uvicorn[standard]==0.38.0
 httpx==0.28.1
-pydantic==2.12.3
+pydantic==2.12.4
 python-multipart==0.0.20
 aiofiles==23.2.1
 python-json-logger==2.0.7
