@@ -12,6 +12,7 @@ dependencies = [
     "aiofiles>=23.2.1,<25.0.0",
     "httpx>=0.25.2",
     "fastmcp>=2.10.1",
+    "mcp>=1.23.0",  # CVE-2025-66416: DNS rebinding protection
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
     "aiohttp>=3.12.13",
