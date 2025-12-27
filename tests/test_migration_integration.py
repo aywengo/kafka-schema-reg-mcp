@@ -36,12 +36,13 @@ logger = logging.getLogger(__name__)
 # Mock Progress class for direct function calls in tests (not through FastMCP injection)
 class MockProgress:
     """Mock Progress for direct function calls in tests"""
+
     async def set_total(self, total: int) -> None:
         pass
-    
+
     async def set_message(self, message: str) -> None:
         pass
-    
+
     async def increment(self, amount: int = 1) -> None:
         pass
 
@@ -229,7 +230,9 @@ async def test_migration_progress_reporting(test_env):
         assert result.get("successful_migrations", 0) >= 0, "Migration should report results"
 
         # Verify result structure includes migration details
-        assert "total_versions" in result or "successful_migrations" in result, "Result should include migration details"
+        assert (
+            "total_versions" in result or "successful_migrations" in result
+        ), "Result should include migration details"
 
         logger.info("✅ Migration progress reporting test passed")
 

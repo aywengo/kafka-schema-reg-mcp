@@ -1756,7 +1756,7 @@ if not SLIM_MODE:
         progress: Progress = Progress(),
     ):
         """Migrate a schema from one registry to another.
-        
+
         Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
         """
         return await migrate_schema_tool(
@@ -1774,7 +1774,6 @@ if not SLIM_MODE:
             progress=progress,
         )
 
-
     @mcp.tool(task=True)
     @require_scopes("admin")
     async def migrate_context(
@@ -1788,7 +1787,7 @@ if not SLIM_MODE:
         progress: Progress = Progress(),
     ):
         """Guide for migrating an entire context using Docker-based tools.
-        
+
         Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
         """
         return await migrate_context_tool(
@@ -1895,9 +1894,7 @@ if not SLIM_MODE:
     try:
         # Create wizard instance (using None for batch_operations for now)
         # Note: task_manager removed - wizard now uses FastMCP Progress directly
-        bulk_wizard = BulkOperationsWizard(
-            registry_manager, elicitation_manager, None  # batch_operations placeholder
-        )
+        bulk_wizard = BulkOperationsWizard(registry_manager, elicitation_manager, None)  # batch_operations placeholder
 
         # Register bulk operations tools
         bulk_tools = create_bulk_operations_tools(bulk_wizard)
@@ -2050,7 +2047,9 @@ async def count_schemas(context: Optional[str] = None, registry: Optional[str] =
     # Use background task version for better performance when counting across multiple contexts
     if not SLIM_MODE and context is None:
         # Multiple contexts - use optimized async version with background tasks
-        return await count_schemas_task_queue_tool(registry_manager, REGISTRY_MODE, context, registry, progress=progress)
+        return await count_schemas_task_queue_tool(
+            registry_manager, REGISTRY_MODE, context, registry, progress=progress
+        )
     else:
         # Single context or SLIM_MODE - use direct version
         return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
@@ -2068,7 +2067,9 @@ if not SLIM_MODE:
 
     @mcp.tool(task=True)
     @require_scopes("read")
-    async def get_registry_statistics(registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()):
+    async def get_registry_statistics(
+        registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()
+    ):
         """Get comprehensive statistics about a registry."""
         # Always use background task version for better performance due to complexity
         return await get_registry_statistics_task_queue_tool(

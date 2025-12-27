@@ -71,7 +71,7 @@ class BulkOperationsWizard:
     ):
         """
         Initialize the bulk operations wizard.
-        
+
         Args:
             registry_manager: Registry manager instance
             elicitation_manager: Elicitation manager for interactive prompts
@@ -164,7 +164,9 @@ class BulkOperationsWizard:
             return {"status": "cancelled", "reason": "User cancelled operation"}
 
         # Step 6: Execute operation
-        return await self._execute_bulk_operation(BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview, progress=None)
+        return await self._execute_bulk_operation(
+            BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview, progress=None
+        )
 
     async def _handle_bulk_migration(self) -> Dict[str, Any]:
         """Handle bulk migration operations"""
@@ -247,7 +249,11 @@ class BulkOperationsWizard:
 
         # Step 6: Execute configuration
         return await self._execute_bulk_operation(
-            BulkOperationType.CONFIGURATION, targets, {"config_type": config_type, **config_params}, preview, progress=None
+            BulkOperationType.CONFIGURATION,
+            targets,
+            {"config_type": config_type, **config_params},
+            preview,
+            progress=None,
         )
 
     async def _elicit_schema_selection(

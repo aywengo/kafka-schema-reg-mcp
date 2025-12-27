@@ -343,7 +343,7 @@ async def _count_schemas_async(
     Async version of count_schemas_tool with better performance.
     Uses parallel API calls when counting multiple contexts.
     Includes registry metadata information.
-    
+
     Uses FastMCP Progress dependency for progress reporting.
     """
     try:
@@ -413,7 +413,9 @@ async def _count_schemas_async(
                             all_schemas[ctx] = subjects
                             total_schemas += len(subjects)
                         await progress.increment()
-                        await progress.set_message(f"Processed context '{ctx}' ({len(subjects) if not isinstance(subjects, dict) else 0} schemas)")
+                        await progress.set_message(
+                            f"Processed context '{ctx}' ({len(subjects) if not isinstance(subjects, dict) else 0} schemas)"
+                        )
                     except Exception as e:
                         all_schemas[ctx] = {"error": str(e)}
                         await progress.increment()

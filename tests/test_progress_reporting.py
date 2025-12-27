@@ -38,7 +38,7 @@ class TestProgressReporting:
         from fastmcp.dependencies import Progress
 
         progress = Progress()
-        
+
         # Mock the async methods
         progress.set_total = AsyncMock()
         progress.set_message = AsyncMock()
@@ -52,7 +52,7 @@ class TestProgressReporting:
         from fastmcp.dependencies import Progress
 
         progress = Progress()
-        
+
         # Mock the async methods
         progress.set_total = AsyncMock()
         progress.set_message = AsyncMock()
@@ -74,10 +74,12 @@ class TestProgressReporting:
         mock_registry_manager = MagicMock()
         mock_source_client = MagicMock()
         mock_target_client = MagicMock()
-        mock_registry_manager.get_registry = MagicMock(side_effect=lambda name: {
-            "dev": mock_source_client,
-            "prod": mock_target_client,
-        }.get(name))
+        mock_registry_manager.get_registry = MagicMock(
+            side_effect=lambda name: {
+                "dev": mock_source_client,
+                "prod": mock_target_client,
+            }.get(name)
+        )
 
         # Mock client configs
         mock_source_client.config = MagicMock()
@@ -198,10 +200,12 @@ class TestProgressReporting:
         mock_registry_manager = MagicMock()
         mock_source_client = MagicMock()
         mock_target_client = MagicMock()
-        mock_registry_manager.get_registry = MagicMock(side_effect=lambda name: {
-            "dev": mock_source_client,
-            "prod": mock_target_client,
-        }.get(name))
+        mock_registry_manager.get_registry = MagicMock(
+            side_effect=lambda name: {
+                "dev": mock_source_client,
+                "prod": mock_target_client,
+            }.get(name)
+        )
 
         mock_source_client.config = MagicMock()
         mock_source_client.config.name = "dev"
@@ -267,4 +271,3 @@ class TestProgressReporting:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

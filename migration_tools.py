@@ -280,7 +280,9 @@ async def confirm_migration_without_ids_tool(
             )
 
         await _safe_progress_call(progress, "set_total", 100)
-        await _safe_progress_call(progress, "set_message", f"Starting migration without ID preservation for '{subject}'")
+        await _safe_progress_call(
+            progress, "set_message", f"Starting migration without ID preservation for '{subject}'"
+        )
 
         # Check registry connections
         source_client = registry_manager.get_registry(source_registry)
@@ -366,14 +368,14 @@ async def _execute_schema_migration_async(
 ) -> Dict[str, Any]:
     """
     Async wrapper for schema migration with progress reporting.
-    
+
     This function wraps the synchronous _execute_schema_migration function
     and adds progress reporting using FastMCP Progress dependency.
     """
     import asyncio
-    
+
     await _safe_progress_call(progress, "set_message", "Preparing schema migration")
-    
+
     # Run the synchronous migration in a thread pool to avoid blocking
     loop = asyncio.get_event_loop()
     migration_result = await loop.run_in_executor(
@@ -390,10 +392,12 @@ async def _execute_schema_migration_async(
         dry_run,
         force_without_id_preservation,
     )
-    
+
     # Update progress based on result
     if "error" in migration_result:
-        await _safe_progress_call(progress, "set_message", f"Migration failed: {migration_result.get('error', 'Unknown error')}")
+        await _safe_progress_call(
+            progress, "set_message", f"Migration failed: {migration_result.get('error', 'Unknown error')}"
+        )
     else:
         successful = migration_result.get("successful_migrations", 0)
         total = migration_result.get("versions_to_migrate", 0)
@@ -402,7 +406,7 @@ async def _execute_schema_migration_async(
             await _safe_progress_call(progress, "set_message", f"Migrated {successful}/{total} versions successfully")
         else:
             await _safe_progress_call(progress, "set_message", "Migration completed")
-    
+
     return migration_result
 
 
@@ -871,8 +875,6 @@ def _execute_schema_migration(
             "skipped_migrations": 0,
             "dry_run": dry_run,
         }
-
-
 
 
 @structured_output("migrate_context", fallback_on_error=True)

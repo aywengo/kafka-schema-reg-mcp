@@ -29,13 +29,13 @@ logger = logging.getLogger(__name__)
 def mock_progress():
     """Mock FastMCP Progress dependency for testing"""
     from unittest.mock import AsyncMock, MagicMock
-    
+
     mock_progress = MagicMock()
     mock_progress.set_total = AsyncMock()
     mock_progress.set_message = AsyncMock()
-    
+
     # Patch Progress to return our mock
-    with patch('fastmcp.dependencies.Progress', return_value=mock_progress):
+    with patch("fastmcp.dependencies.Progress", return_value=mock_progress):
         yield mock_progress
 
 
