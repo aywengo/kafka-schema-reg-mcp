@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
 from fastmcp.dependencies import Progress
+
 from schema_validation import create_error_response, structured_output
 
 # Configure logging

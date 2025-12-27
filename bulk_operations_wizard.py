@@ -14,9 +14,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
-
 from fastmcp.dependencies import Progress
+
+from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
 
 # from batch_operations import BatchOperations  # Not needed for now
 

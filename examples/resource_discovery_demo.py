@@ -28,9 +28,9 @@ async def demo_resource_discovery():
 
     # Import the MCP tools functions directly for demo
     from kafka_schema_registry_unified_mcp import (
+        generate_resource_templates,
         list_available_resources,
         suggest_resource_for_tool,
-        generate_resource_templates,
     )
 
     # Demo 1: List all available resources
