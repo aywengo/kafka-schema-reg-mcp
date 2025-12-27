@@ -177,7 +177,7 @@ class IDPreservationTest:
             print(f"   ❌ Error creating test schema: {e}")
             return False
 
-    def test_migration_without_id_preservation(self):
+    async def test_migration_without_id_preservation(self):
         """Test migration without ID preservation."""
         print("\n🧪 Testing migration without ID preservation...")
 
@@ -203,7 +203,7 @@ class IDPreservationTest:
         print(f"   📋 Source schema ID: {source_id}")
 
         # Migrate schema without ID preservation
-        migration_result = migrate_schema_tool(
+        migration_result = await migrate_schema_tool(
             subject=subject_name,
             source_registry="dev",
             target_registry="prod",
@@ -254,7 +254,7 @@ class IDPreservationTest:
 
         return True
 
-    def test_migration_with_id_preservation(self):
+    async def test_migration_with_id_preservation(self):
         """Test migration with ID preservation."""
         print("\n🧪 Testing migration with ID preservation...")
 
@@ -291,7 +291,7 @@ class IDPreservationTest:
 
         try:
             # Migrate schema with ID preservation
-            migration_result = migrate_schema_tool(
+            migration_result = await migrate_schema_tool(
                 subject=subject_name,
                 source_registry="dev",
                 target_registry="prod",
@@ -349,40 +349,36 @@ class IDPreservationTest:
             print("   💡 This might be expected in some Schema Registry configurations")
             return True  # Don't fail the entire test suite
 
-    def cleanup(self):
+    async def cleanup(self):
         """Clean up test subjects."""
         print("\n🧹 Cleaning up test subjects...")
 
         for subject in self.test_subjects:
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="dev",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="dev",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"   ✅ Cleaned up {subject} from dev")
             except Exception as e:
                 print(f"   ⚠️ Could not clean up {subject} from dev: {e}")
 
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="prod",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="prod",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"   ✅ Cleaned up {subject} from prod")
             except Exception as e:
                 print(f"   ⚠️ Could not clean up {subject} from prod: {e}")
 
-    def run_tests(self):
+    async def run_tests(self):
         """Run all ID preservation tests."""
         print("🧪 Starting ID Preservation Migration Tests")
         print("=" * 50)
@@ -395,8 +391,8 @@ class IDPreservationTest:
                 return False
 
             # Run tests
-            success1 = self.test_migration_without_id_preservation()
-            success2 = self.test_migration_with_id_preservation()
+            success1 = await self.test_migration_without_id_preservation()
+            success2 = await self.test_migration_with_id_preservation()
 
             if success1 and success2:
                 print("\n✅ All ID preservation tests completed successfully!")
@@ -412,7 +408,7 @@ class IDPreservationTest:
             traceback.print_exc()
             return False
         finally:
-            self.cleanup()
+            await self.cleanup()
 
 
 def test_registry_connectivity():
@@ -457,7 +453,7 @@ def main():
 
         # Run the test
         test = IDPreservationTest()
-        success = test.run_tests()
+        success = asyncio.run(test.run_tests())
 
         if success:
             print("\n🎉 ID Preservation Migration Test completed successfully!")

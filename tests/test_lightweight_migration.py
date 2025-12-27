@@ -41,8 +41,6 @@ atexit.register(cleanup_executor)
 @pytest.fixture(scope="function")
 async def test_env():
     """Fixture to set up test environment"""
-    global _executor
-
     dev_url = "http://localhost:38081"
     prod_url = "http://localhost:38082"
 
