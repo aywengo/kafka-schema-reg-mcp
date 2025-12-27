@@ -167,6 +167,17 @@ async def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
+        # Get all subjects in the context FIRST to determine total progress steps
+        # This ensures set_total() is called before any increment() calls
+        subjects = registry_client.get_subjects(context)
+        if isinstance(subjects, dict) and "error" in subjects:
+            subjects = []
+        subjects_found = len(subjects)
+
+        # Set total progress steps BEFORE any increments
+        # Steps: 1 (registry connected) + 1 (fetch) + subjects_found + 1 (finalize) = 3 + subjects_found
+        await progress.set_total(3 + subjects_found)
+
         await increment_progress("Registry client connected")
 
         # Check viewonly mode
@@ -187,16 +198,6 @@ async def _execute_clear_context_batch(
             }
 
         await increment_progress("Fetching subjects from context")
-
-        # Get all subjects in the context
-        subjects = registry_client.get_subjects(context)
-        if isinstance(subjects, dict) and "error" in subjects:
-            subjects = []
-        subjects_found = len(subjects)
-
-        # Set total progress steps: initialization (1 step) + fetch (1 step) + subjects + finalization (1 step)
-        # Total = 1 (registry connected) + 1 (fetch) + subjects_found + 1 (finalize) = 3 + subjects_found
-        await progress.set_total(3 + subjects_found)
 
         if subjects_found == 0:
             await increment_progress("Context is already empty")
