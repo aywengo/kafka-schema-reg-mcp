@@ -362,7 +362,7 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
             status_code=400,
             content={
                 "error": "Missing MCP-Protocol-Version header",
-                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-06-18 spec",
+                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-11-25 spec",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
                 "example": "MCP-Protocol-Version: 2025-11-25",
             },

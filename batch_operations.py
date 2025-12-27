@@ -128,19 +128,27 @@ async def _execute_clear_context_batch(
     errors = []
 
     try:
-        await progress.set_total(100)  # Set total to 100 for percentage-based progress
+        # Set total based on number of discrete steps
+        # Steps: 1) initialization, 2) fetch subjects, 3) delete subjects (per subject), 4) finalize
+        # We'll set total after we know how many subjects we have
 
-        async def update_progress(progress_value: float, message: str = ""):
-            # Convert percentage to steps (assuming 100 total steps)
-            await progress.set_message(message if message else f"Progress: {progress_value:.1f}%")
+        async def update_progress(message: str = ""):
+            """Update progress message and increment counter."""
+            await progress.set_message(message if message else "Processing...")
             if message:
-                logger.info(f"Clear Context Progress {progress_value:.1f}%: {message}")
+                logger.info(f"Clear Context Progress: {message}")
+
+        async def increment_progress(message: str = ""):
+            """Increment progress counter and update message."""
+            await progress.increment()
+            await progress.set_message(message if message else "Processing...")
+            if message:
+                logger.info(f"Clear Context Progress: {message}")
 
         # Get registry client (registry is already resolved, never None here)
         registry_client = registry_manager.get_registry(registry)
 
         await update_progress(
-            5.0,
             f"Starting cleanup of context '{context}' in registry '{registry}' (individual requests)",
         )
 
@@ -159,7 +167,7 @@ async def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        await update_progress(10.0, "Registry client connected")
+        await increment_progress("Registry client connected")
 
         # Check viewonly mode
         viewonly_check = registry_manager.is_viewonly(registry)
@@ -178,7 +186,7 @@ async def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        await update_progress(20.0, "Fetching subjects from context")
+        await increment_progress("Fetching subjects from context")
 
         # Get all subjects in the context
         subjects = registry_client.get_subjects(context)
@@ -186,8 +194,12 @@ async def _execute_clear_context_batch(
             subjects = []
         subjects_found = len(subjects)
 
+        # Set total progress steps: initialization (1 step) + fetch (1 step) + subjects + finalization (1 step)
+        # Total = 1 (registry connected) + 1 (fetch) + subjects_found + 1 (finalize) = 3 + subjects_found
+        await progress.set_total(3 + subjects_found)
+
         if subjects_found == 0:
-            await update_progress(100.0, "Context is already empty")
+            await increment_progress("Context is already empty")
             return {
                 "subjects_found": 0,
                 "subjects_deleted": 0,
@@ -202,13 +214,14 @@ async def _execute_clear_context_batch(
             }
 
         await update_progress(
-            30.0,
             f"Found {subjects_found} subjects to {'delete' if not dry_run else 'analyze'} (using individual requests)",
         )
 
         if dry_run:
-            await update_progress(
-                100.0,
+            # Skip all subject deletions for dry run - increment for each skipped subject
+            for _ in range(subjects_found):
+                await progress.increment()
+            await increment_progress(
                 f"DRY RUN: Would delete {subjects_found} subjects using individual requests",
             )
             return {
@@ -225,7 +238,6 @@ async def _execute_clear_context_batch(
             }
 
         await update_progress(
-            40.0,
             f"Starting deletion of {subjects_found} subjects using parallel individual requests",
         )
 
@@ -244,14 +256,12 @@ async def _execute_clear_context_batch(
                 except Exception as e:
                     errors.append(str(e))
 
-                # Update progress for deletions (40% to 85%)
-                deletion_progress = 40.0 + ((i + 1) / total_futures) * 45.0
-                await update_progress(
-                    deletion_progress,
+                # Increment progress after each deletion completes
+                await increment_progress(
                     f"Deleted {subjects_deleted} of {subjects_found} subjects (individual requests)",
                 )
 
-        await update_progress(90.0, "Computing cleanup results")
+        await update_progress("Computing cleanup results")
 
         # Calculate metrics
         duration = time.time() - start_time
@@ -261,10 +271,9 @@ async def _execute_clear_context_batch(
         # Delete context if requested (not supported by Schema Registry API)
         if delete_context_after and subjects_deleted == subjects_found:
             context_deleted = False  # Context deletion not supported by API
-            await update_progress(95.0, "Context deletion not supported by API")
+            await update_progress("Context deletion not supported by API")
 
-        await update_progress(
-            100.0,
+        await increment_progress(
             f"Cleanup completed - deleted {subjects_deleted} subjects using individual requests",
         )
 
@@ -406,18 +415,26 @@ async def _execute_clear_multiple_contexts_batch(
     errors = []
 
     try:
-        await progress.set_total(len(contexts))  # Set total to number of contexts
+        # Set total to number of contexts (one increment per context)
+        await progress.set_total(len(contexts))
 
-        async def update_progress(progress_value: float, message: str = ""):
-            await progress.set_message(message if message else f"Progress: {progress_value:.1f}%")
+        async def update_progress(message: str = ""):
+            """Update progress message."""
+            await progress.set_message(message if message else "Processing...")
             if message:
-                logger.info(f"Multi-Context Clear Progress {progress_value:.1f}%: {message}")
+                logger.info(f"Multi-Context Clear Progress: {message}")
+
+        async def increment_progress(message: str = ""):
+            """Increment progress counter and update message."""
+            await progress.increment()
+            await progress.set_message(message if message else "Processing...")
+            if message:
+                logger.info(f"Multi-Context Clear Progress: {message}")
 
         # Get registry client (registry is already resolved, never None here)
         registry_client = registry_manager.get_registry(registry)
 
         await update_progress(
-            3.0,
             f"Starting cleanup of {len(contexts)} contexts in registry '{registry}' (individual requests)",
         )
         if not registry_client:
@@ -435,7 +452,7 @@ async def _execute_clear_multiple_contexts_batch(
                 "batching_method": "application_level",
             }
 
-        await update_progress(8.0, "Registry client connected")
+        await update_progress("Registry client connected")
 
         # Check viewonly mode
         viewonly_check = registry_manager.is_viewonly(registry)
@@ -454,7 +471,7 @@ async def _execute_clear_multiple_contexts_batch(
                 "batching_method": "application_level",
             }
 
-        await update_progress(15.0, "Starting context processing with individual requests")
+        await update_progress("Starting context processing with individual requests")
 
         # Process each context using individual requests
         total_contexts = len(contexts)
@@ -466,15 +483,15 @@ async def _execute_clear_multiple_contexts_batch(
                     subjects = []
                 total_subjects_found += len(subjects)
 
-                context_progress_start = 15.0 + ((i - 1) / total_contexts) * 70.0
-                context_progress_end = 15.0 + (i / total_contexts) * 70.0
-
                 await update_progress(
-                    context_progress_start,
                     f"Processing context {i}/{total_contexts}: '{context}' ({len(subjects)} subjects, individual requests)",
                 )
 
                 if dry_run:
+                    # Increment progress even for dry run
+                    await increment_progress(
+                        f"DRY RUN: Would process context '{context}' ({len(subjects)} subjects)",
+                    )
                     continue
 
                 # Delete subjects in parallel using individual requests
@@ -503,15 +520,17 @@ async def _execute_clear_multiple_contexts_batch(
                 if delete_contexts_after:
                     pass  # Context deletion not supported
 
-                await update_progress(
-                    context_progress_end,
+                # Increment progress after completing each context
+                await increment_progress(
                     f"Completed context '{context}' - deleted {context_deleted_count} subjects using individual requests",
                 )
 
             except Exception as e:
                 errors.append(f"Error processing context '{context}': {str(e)}")
+                # Increment progress even on error to keep counter accurate
+                await increment_progress(f"Error processing context '{context}': {str(e)}")
 
-        await update_progress(90.0, "Computing final results")
+        await update_progress("Computing final results")
 
         duration = time.time() - start_time
         success_rate = (total_subjects_deleted / total_subjects_found * 100) if total_subjects_found > 0 else 100.0
@@ -523,7 +542,7 @@ async def _execute_clear_multiple_contexts_batch(
             else f"Successfully cleared {len(contexts)} contexts - deleted {total_subjects_deleted}/{total_subjects_found} subjects using individual requests"
         )
 
-        await update_progress(100.0, message)
+        await update_progress(message)
 
         return {
             "contexts_processed": len(contexts),

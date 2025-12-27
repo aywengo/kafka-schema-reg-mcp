@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(scope="session", autouse=True)
 def mock_progress():
     """Mock FastMCP Progress dependency for testing"""
-    from unittest.mock import AsyncMock, MagicMock
+    from unittest.mock import AsyncMock
 
     mock_progress = MagicMock()
     mock_progress.set_total = AsyncMock()

@@ -478,12 +478,13 @@ class BulkOperationsWizard:
             for batch_num, i in enumerate(range(0, total_items, batch_size), 1):
                 batch = items[i : i + batch_size]
 
-                # Update progress
+                # Update progress message and increment progress
                 await _safe_progress_call(
                     active_progress,
                     "set_message",
                     f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)",
                 )
+                await _safe_progress_call(active_progress, "increment", len(batch))
 
                 # Process batch
                 batch_result = await self._process_batch(operation_type, batch, params)
