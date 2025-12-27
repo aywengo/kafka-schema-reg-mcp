@@ -360,7 +360,7 @@ class ElicitationDemo:
                     "expired": False,
                 },
             ],
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         print("📊 Current elicitation status:")

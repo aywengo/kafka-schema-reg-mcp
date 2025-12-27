@@ -67,6 +67,7 @@ from typing import Any, Dict, Optional, Union
 # Third-party imports
 from dotenv import load_dotenv
 from fastmcp import FastMCP
+from fastmcp.dependencies import Progress
 from fastmcp.server.context import Context
 
 # Local imports
@@ -127,8 +128,6 @@ from interactive_tools import export_global_interactive as export_global_interac
 from interactive_tools import migrate_context_interactive as migrate_context_interactive_impl
 from interactive_tools import register_schema_interactive as register_schema_interactive_impl
 from migration_tools import (
-    get_migration_status_tool,
-    list_migrations_tool,
     migrate_context_tool,
     migrate_schema_tool,
 )
@@ -165,7 +164,6 @@ from statistics_tools import (
     count_schemas_tool,
     get_registry_statistics_task_queue_tool,
 )
-from task_management import task_manager
 from workflow_mcp_integration import (
     handle_workflow_elicitation_response,
     register_workflow_tools,
@@ -285,8 +283,8 @@ except ImportError:
     pass  # requests not available
 
 # MCP 2025-06-18 Protocol Version Support
-MCP_PROTOCOL_VERSION = "2025-06-18"
-SUPPORTED_MCP_VERSIONS = ["2025-06-18"]
+MCP_PROTOCOL_VERSION = "2025-11-25"
+SUPPORTED_MCP_VERSIONS = ["2025-11-25"]
 
 # Paths that are exempt from MCP-Protocol-Version header validation
 EXEMPT_PATHS = [
@@ -364,9 +362,9 @@ async def validate_mcp_protocol_version_middleware(request, call_next):
             status_code=400,
             content={
                 "error": "Missing MCP-Protocol-Version header",
-                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-06-18 spec",
+                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-11-25 spec",
                 "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "example": "MCP-Protocol-Version: 2025-06-18",
+                "example": "MCP-Protocol-Version: 2025-11-25",
             },
             headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION},
         )
@@ -1743,9 +1741,9 @@ if not SLIM_MODE:
 
 if not SLIM_MODE:
 
-    @mcp.tool()
+    @mcp.tool(task=True)
     @require_scopes("admin")
-    def migrate_schema(
+    async def migrate_schema(
         subject: str,
         source_registry: str,
         target_registry: str,
@@ -1755,9 +1753,13 @@ if not SLIM_MODE:
         target_context: str = ".",
         versions: Optional[list] = None,
         migrate_all_versions: bool = False,
+        progress: Progress = Progress(),
     ):
-        """Migrate a schema from one registry to another."""
-        return migrate_schema_tool(
+        """Migrate a schema from one registry to another.
+
+        Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+        """
+        return await migrate_schema_tool(
             subject=subject,
             source_registry=source_registry,
             target_registry=target_registry,
@@ -1769,21 +1771,10 @@ if not SLIM_MODE:
             target_context=target_context,
             versions=versions,
             migrate_all_versions=migrate_all_versions,
+            progress=progress,
         )
 
-    @mcp.tool()
-    @require_scopes("read")
-    def list_migrations():
-        """List all migration tasks and their status."""
-        return list_migrations_tool(REGISTRY_MODE)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_migration_status(migration_id: str):
-        """Get detailed status of a specific migration."""
-        return get_migration_status_tool(migration_id, REGISTRY_MODE)
-
-    @mcp.tool()
+    @mcp.tool(task=True)
     @require_scopes("admin")
     async def migrate_context(
         source_registry: str,
@@ -1793,9 +1784,13 @@ if not SLIM_MODE:
         preserve_ids: bool = True,
         dry_run: bool = True,
         migrate_all_versions: bool = True,
+        progress: Progress = Progress(),
     ):
-        """Guide for migrating an entire context using Docker-based tools."""
-        return migrate_context_tool(
+        """Guide for migrating an entire context using Docker-based tools.
+
+        Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+        """
+        return await migrate_context_tool(
             source_registry,
             target_registry,
             registry_manager,
@@ -1805,6 +1800,7 @@ if not SLIM_MODE:
             preserve_ids,
             dry_run,
             migrate_all_versions,
+            progress=progress,
         )
 
     @mcp.tool()
@@ -1842,46 +1838,52 @@ if not SLIM_MODE:
 
 if not SLIM_MODE:
 
-    @mcp.tool()
+    @mcp.tool(task=True)
     @require_scopes("admin")
-    def clear_context_batch(
+    async def clear_context_batch(
         context: str,
         registry: Optional[str] = None,
         delete_context_after: bool = True,
         dry_run: bool = True,
+        progress: Progress = Progress(),
     ):
         """Clear all subjects in a context using application-level batch operations.
 
-        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-06-18 compliance.
+        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
+        Uses FastMCP background tasks API (SEP-1686) for async execution.
         """
-        return clear_context_batch_tool(
+        return await clear_context_batch_tool(
             context,
             registry_manager,
             REGISTRY_MODE,
             registry,
             delete_context_after,
             dry_run,
+            progress=progress,
         )
 
-    @mcp.tool()
+    @mcp.tool(task=True)
     @require_scopes("admin")
-    def clear_multiple_contexts_batch(
+    async def clear_multiple_contexts_batch(
         contexts: list,
         registry: Optional[str] = None,
         delete_contexts_after: bool = True,
         dry_run: bool = True,
+        progress: Progress = Progress(),
     ):
         """Clear multiple contexts in a registry using application-level batch operations.
 
-        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-06-18 compliance.
+        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
+        Uses FastMCP background tasks API (SEP-1686) for async execution.
         """
-        return clear_multiple_contexts_batch_tool(
+        return await clear_multiple_contexts_batch_tool(
             contexts,
             registry_manager,
             REGISTRY_MODE,
             registry,
             delete_contexts_after,
             dry_run,
+            progress=progress,
         )
 
 
@@ -1891,9 +1893,8 @@ if not SLIM_MODE:
     # Initialize bulk operations wizard
     try:
         # Create wizard instance (using None for batch_operations for now)
-        bulk_wizard = BulkOperationsWizard(
-            registry_manager, elicitation_manager, task_manager, None  # batch_operations placeholder
-        )
+        # Note: task_manager removed - wizard now uses FastMCP Progress directly
+        bulk_wizard = BulkOperationsWizard(registry_manager, elicitation_manager, None)  # batch_operations placeholder
 
         # Register bulk operations tools
         bulk_tools = create_bulk_operations_tools(bulk_wizard)
@@ -2039,14 +2040,16 @@ def count_contexts(registry: Optional[str] = None):
     return count_contexts_tool(registry_manager, REGISTRY_MODE, registry)
 
 
-@mcp.tool()
+@mcp.tool(task=True)
 @require_scopes("read")
-def count_schemas(context: Optional[str] = None, registry: Optional[str] = None):
+async def count_schemas(context: Optional[str] = None, registry: Optional[str] = None, progress: Progress = Progress()):
     """Count the number of schemas in a context or registry."""
-    # Use task queue version for better performance when counting across multiple contexts
+    # Use background task version for better performance when counting across multiple contexts
     if not SLIM_MODE and context is None:
-        # Multiple contexts - use optimized async version
-        return count_schemas_task_queue_tool(registry_manager, REGISTRY_MODE, context, registry)
+        # Multiple contexts - use optimized async version with background tasks
+        return await count_schemas_task_queue_tool(
+            registry_manager, REGISTRY_MODE, context, registry, progress=progress
+        )
     else:
         # Single context or SLIM_MODE - use direct version
         return count_schemas_tool(registry_manager, REGISTRY_MODE, context, registry)
@@ -2062,13 +2065,15 @@ def count_schema_versions(subject: str, context: Optional[str] = None, registry:
 # Heavy statistics tool (Hidden in SLIM_MODE)
 if not SLIM_MODE:
 
-    @mcp.tool()
+    @mcp.tool(task=True)
     @require_scopes("read")
-    def get_registry_statistics(registry: Optional[str] = None, include_context_details: bool = True):
+    async def get_registry_statistics(
+        registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()
+    ):
         """Get comprehensive statistics about a registry."""
-        # Always use task queue version for better performance due to complexity
-        return get_registry_statistics_task_queue_tool(
-            registry_manager, REGISTRY_MODE, registry, include_context_details
+        # Always use background task version for better performance due to complexity
+        return await get_registry_statistics_task_queue_tool(
+            registry_manager, REGISTRY_MODE, registry, include_context_details, progress=progress
         )
 
 
@@ -2345,267 +2350,9 @@ if not SLIM_MODE:
     # to avoid duplicate registrations
 
 
-# ===== TASK MANAGEMENT TOOLS (Hidden in SLIM_MODE) =====
-
-if not SLIM_MODE:
-
-    @structured_output("get_task_status", fallback_on_error=True)
-    def get_task_status_tool(task_id: str):
-        """Get the status and progress of an async task with structured validation."""
-        try:
-            task = task_manager.get_task(task_id)
-            if task is None:
-                return create_error_response(
-                    f"Task '{task_id}' not found",
-                    error_code="TASK_NOT_FOUND",
-                    registry_mode=REGISTRY_MODE,
-                )
-
-            task_dict = task.to_dict()
-            # Transform the result to match the expected schema
-            result = {
-                "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
-                "status": task_dict["status"],
-                "progress": task_dict["progress"],
-                "started_at": task_dict["started_at"],
-                "completed_at": task_dict["completed_at"],
-                "error": task_dict["error"],
-                "result": task_dict["result"],
-                "metadata": task_dict["metadata"],
-                # Add structured output metadata
-                "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            }
-
-            return result
-        except Exception as e:
-            return create_error_response(str(e), error_code="TASK_STATUS_FAILED", registry_mode=REGISTRY_MODE)
-
-    @structured_output("get_task_progress", fallback_on_error=True)
-    def get_task_progress_tool(task_id: str):
-        """Get the progress of an async task (alias for get_task_status) with structured validation."""
-        task_status = get_task_status_tool(task_id)
-        if "error" in task_status:
-            return task_status
-
-        # Transform to progress-focused response
-        result = {
-            "task_id": task_id,
-            "status": task_status["status"],
-            "progress_percent": task_status["progress"],
-            "started_at": task_status["started_at"],
-            "completed_at": task_status["completed_at"],
-            "error": task_status["error"],
-            "result": task_status["result"],
-            "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-        }
-
-        return result
-
-    @structured_output("list_active_tasks", fallback_on_error=True)
-    def list_active_tasks_tool():
-        """List all active tasks in the system with structured validation."""
-        try:
-            tasks = task_manager.list_tasks()
-
-            # Transform each task to match the expected schema
-            transformed_tasks = []
-            for task in tasks:
-                task_dict = task.to_dict()
-                transformed_task = {
-                    "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
-                    "status": task_dict["status"],
-                    "progress": task_dict["progress"],
-                    "started_at": task_dict["started_at"],
-                    "completed_at": task_dict["completed_at"],
-                    "error": task_dict["error"],
-                    "result": task_dict["result"],
-                    "metadata": task_dict["metadata"],
-                }
-                transformed_tasks.append(transformed_task)
-
-            result = {
-                "tasks": transformed_tasks,  # Use "tasks" field name to match schema
-                "total_tasks": len(tasks),
-                "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
-                "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            }
-
-            return result
-        except Exception as e:
-            return create_error_response(str(e), error_code="TASK_LIST_FAILED", registry_mode=REGISTRY_MODE)
-
-    @structured_output("cancel_task", fallback_on_error=True)
-    async def cancel_task_tool(task_id: str):
-        """Cancel a running task with structured validation."""
-        try:
-            cancelled = await task_manager.cancel_task(task_id)
-            if cancelled:
-                return create_success_response(
-                    f"Task '{task_id}' cancelled successfully",
-                    data={"task_id": task_id, "cancelled": True},
-                    registry_mode=REGISTRY_MODE,
-                )
-            else:
-                return create_error_response(
-                    f"Could not cancel task '{task_id}' (may already be completed)",
-                    error_code="TASK_CANCEL_FAILED",
-                    registry_mode=REGISTRY_MODE,
-                )
-        except Exception as e:
-            return create_error_response(str(e), error_code="TASK_CANCEL_ERROR", registry_mode=REGISTRY_MODE)
-
-    @structured_output("list_statistics_tasks", fallback_on_error=True)
-    def list_statistics_tasks_tool():
-        """List all statistics-related tasks with structured validation."""
-        try:
-            from task_management import TaskType
-
-            tasks = task_manager.list_tasks(task_type=TaskType.STATISTICS)
-
-            # Transform each task to match the expected schema
-            transformed_tasks = []
-            for task in tasks:
-                task_dict = task.to_dict()
-                transformed_task = {
-                    "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
-                    "status": task_dict["status"],
-                    "progress": task_dict["progress"],
-                    "started_at": task_dict["started_at"],
-                    "completed_at": task_dict["completed_at"],
-                    "error": task_dict["error"],
-                    "result": task_dict["result"],
-                    "metadata": task_dict["metadata"],
-                }
-                transformed_tasks.append(transformed_task)
-
-            result = {
-                "tasks": transformed_tasks,  # Use "tasks" field name to match schema
-                "total_tasks": len(tasks),
-                "active_tasks": len([t for t in tasks if t.status.value in ["pending", "running"]]),
-                "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-            }
-
-            return result
-        except Exception as e:
-            return create_error_response(
-                str(e),
-                error_code="STATISTICS_TASK_LIST_FAILED",
-                registry_mode=REGISTRY_MODE,
-            )
-
-    @structured_output("get_statistics_task_progress", fallback_on_error=True)
-    def get_statistics_task_progress_tool(task_id: str):
-        """Get detailed progress for a statistics task with structured validation."""
-        try:
-            task = task_manager.get_task(task_id)
-            if task is None:
-                return create_error_response(
-                    f"Task '{task_id}' not found",
-                    error_code="TASK_NOT_FOUND",
-                    registry_mode=REGISTRY_MODE,
-                )
-
-            task_dict = task.to_dict()
-
-            # Transform the result to match the expected schema
-            result = {
-                "task_id": task_dict["id"],  # Map "id" to "task_id" as expected by schema
-                "status": task_dict["status"],
-                "progress": task_dict["progress"],
-                "started_at": task_dict["started_at"],
-                "completed_at": task_dict["completed_at"],
-                "error": task_dict["error"],
-                "result": task_dict["result"],
-                "metadata": task_dict["metadata"],
-            }
-
-            # Add statistics-specific progress information
-            if task.metadata and task.metadata.get("operation") in [
-                "count_schemas",
-                "get_registry_statistics",
-            ]:
-                operation = task.metadata.get("operation")
-                progress_stage = "Initializing"
-
-                if result["status"] == "running":
-                    progress = result["progress"]
-                    if operation == "get_registry_statistics":
-                        if progress < 20:
-                            progress_stage = "Getting contexts list"
-                        elif progress < 50:
-                            progress_stage = "Analyzing contexts in parallel"
-                        elif progress < 90:
-                            progress_stage = "Counting schemas and versions"
-                        elif progress < 100:
-                            progress_stage = "Finalizing statistics"
-                        else:
-                            progress_stage = "Complete"
-                    elif operation == "count_schemas":
-                        if progress < 50:
-                            progress_stage = "Getting schema lists"
-                        elif progress < 100:
-                            progress_stage = "Counting schemas across contexts"
-                        else:
-                            progress_stage = "Complete"
-                elif result["status"] == "completed":
-                    progress_stage = "Complete"
-                elif result["status"] == "failed":
-                    progress_stage = "Failed"
-
-                result["progress_stage"] = progress_stage
-
-            # Add structured output metadata
-            result["registry_mode"] = REGISTRY_MODE
-            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
-
-            return result
-        except Exception as e:
-            return create_error_response(
-                str(e),
-                error_code="STATISTICS_TASK_PROGRESS_FAILED",
-                registry_mode=REGISTRY_MODE,
-            )
-
-    # MCP tool wrappers that call the structured tool functions
-    @mcp.tool()
-    @require_scopes("read")
-    def get_task_status(task_id: str):
-        """Get the status and progress of an async task."""
-        return get_task_status_tool(task_id)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_task_progress(task_id: str):
-        """Get the progress of an async task (alias for get_task_status)."""
-        return get_task_progress_tool(task_id)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def list_active_tasks():
-        """List all active tasks in the system."""
-        return list_active_tasks_tool()
-
-    @mcp.tool()
-    @require_scopes("admin")
-    async def cancel_task(task_id: str):
-        """Cancel a running task."""
-        return await cancel_task_tool(task_id)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def list_statistics_tasks():
-        """List all statistics-related tasks."""
-        return list_statistics_tasks_tool()
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_statistics_task_progress(task_id: str):
-        """Get detailed progress for a statistics task."""
-        return get_statistics_task_progress_tool(task_id)
+# ===== TASK MANAGEMENT TOOLS REMOVED =====
+# These tools have been removed as FastMCP handles task status via Docket.
+# Use FastMCP's built-in task tracking instead.
 
 
 # ===== MCP COMPLIANCE AND UTILITY TOOLS =====

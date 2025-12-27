@@ -5,6 +5,168 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-01-02
+
+### 🚀 MCP Protocol 2025-11-25 Compliance & FastMCP Background Tasks API
+
+This release upgrades the server to comply with **MCP protocol version 2025-11-25** and migrates all long-running operations to use **FastMCP's native background tasks API (SEP-1686)**. This provides better performance, standardized progress tracking, and full protocol compliance.
+
+#### Added
+
+##### FastMCP Background Tasks Integration (SEP-1686)
+- **Native Background Tasks**: All long-running operations now use FastMCP's built-in background tasks API
+  - `count_schemas`: Uses background tasks for multi-context counting
+  - `get_registry_statistics`: Background task execution with progress tracking
+  - `clear_context_batch`: Background task with real-time progress updates
+  - `clear_multiple_contexts_batch`: Background task for bulk cleanup operations
+  - `migrate_schema`: Background task for schema migration
+  - `migrate_context`: Background task for context migration
+- **Progress Reporting**: Native FastMCP `Progress` dependency for standardized progress tracking
+  - Real-time progress updates via `progress.set_message()` and `progress.increment()`
+  - Automatic progress tracking through FastMCP's Docket backend
+  - Client-side progress monitoring through standard MCP task protocol
+- **Task Management**: FastMCP's Docket handles all task lifecycle management
+  - Automatic task ID generation and tracking
+  - Built-in task status monitoring
+  - Distributed task execution support (Redis backend available)
+
+##### MCP Protocol 2025-11-25 Compliance
+- **Protocol Version Update**: Upgraded from MCP 2025-06-18 to **2025-11-25**
+  - Full compliance with latest MCP specification
+  - Enhanced background tasks protocol support
+  - Improved progress reporting capabilities
+
+#### Changed
+
+##### FastMCP Framework Upgrade
+- **FastMCP Version**: Upgraded from `>=2.10.1` to `>=2.14.0`
+  - Background tasks API support (SEP-1686)
+  - Enhanced progress tracking capabilities
+  - Improved Docket integration for distributed task execution
+- **Dependency Updates**: Updated `pyproject.toml` and `requirements.txt` with new FastMCP version
+
+##### Statistics Tools Refactoring
+- **`count_schemas_task_queue_tool`**: Refactored to use FastMCP background tasks
+  - Removed custom `task_manager` dependency
+  - Uses `Progress` dependency for progress reporting
+  - Async function with `task=True` decorator
+- **`get_registry_statistics_task_queue_tool`**: Migrated to FastMCP background tasks
+  - Native progress tracking via FastMCP `Progress`
+  - Improved progress messages and stage reporting
+  - Better error handling with FastMCP's task system
+
+##### Batch Operations Refactoring
+- **`clear_context_batch_tool`**: Migrated to FastMCP background tasks
+  - Uses `Progress` dependency instead of custom task manager
+  - Real-time progress updates during cleanup operations
+  - Protocol version updated to 2025-11-25
+- **`clear_multiple_contexts_batch_tool`**: Refactored for FastMCP background tasks
+  - Native progress tracking for multi-context operations
+  - Enhanced progress messages per context
+  - Improved error handling
+
+##### Migration Tools Refactoring
+- **`migrate_schema_tool`**: Updated to use FastMCP background tasks
+  - Background task execution with progress tracking
+  - Native FastMCP progress reporting
+- **`migrate_context_tool`**: Migrated to FastMCP background tasks
+  - Async execution with progress updates
+  - Standardized progress tracking
+
+##### Tool Registration Updates
+- **Background Task Decorators**: All long-running tools now use `@mcp.tool(task=True)`
+  - `count_schemas`: Optional background task support
+  - `get_registry_statistics`: Background task execution
+  - `clear_context_batch`: Background task execution
+  - `clear_multiple_contexts_batch`: Background task execution
+  - `migrate_schema`: Background task execution
+  - `migrate_context`: Background task execution
+
+#### Removed
+
+##### Custom Task Management System
+- **Task Management Tools Removed**: Custom task management tools removed in favor of FastMCP's native system
+  - `get_task_status`: Removed (FastMCP handles via Docket)
+  - `get_task_progress`: Removed (FastMCP handles via Docket)
+  - `list_active_tasks`: Removed (FastMCP handles via Docket)
+  - `cancel_task`: Removed (FastMCP handles via Docket)
+  - `list_statistics_tasks`: Removed (FastMCP handles via Docket)
+  - `get_statistics_task_progress`: Removed (FastMCP handles via Docket)
+- **Migration Status Tools**: Removed custom migration tracking
+  - `list_migrations`: Removed (use FastMCP task tracking)
+  - `get_migration_status`: Removed (use FastMCP task tracking)
+- **Task Manager Dependency**: Removed `task_manager` import and usage
+  - All operations now use FastMCP's native task system
+  - Bulk operations wizard updated to work without custom task manager
+
+#### Improved
+
+##### Performance & Scalability
+- **Distributed Task Execution**: FastMCP's Docket backend supports Redis for distributed execution
+  - Horizontal scaling with multiple workers
+  - Persistent task queue (Redis backend)
+  - Fast task pickup latency (single-digit milliseconds)
+- **Progress Tracking**: Standardized progress reporting across all operations
+  - Consistent progress API via FastMCP `Progress` dependency
+  - Real-time progress updates to MCP clients
+  - Better visibility into long-running operations
+
+##### Code Quality
+- **Reduced Code Complexity**: Removed ~1,000+ lines of custom task management code
+  - Simplified codebase by leveraging FastMCP's built-in capabilities
+  - Better maintainability with standardized task handling
+  - Reduced custom code to maintain
+
+##### Developer Experience
+- **Standardized API**: All background tasks use the same FastMCP API
+  - Consistent `Progress` dependency usage
+  - Uniform `task=True` decorator pattern
+  - Clear separation between sync and async operations
+
+#### Technical Details
+
+##### Background Tasks Configuration
+- **Task Execution Modes**: FastMCP supports three execution modes
+  - `optional`: Supports both sync and background execution (default)
+  - `required`: Requires background execution
+  - `forbidden`: No background task support
+- **Progress API**: Standardized progress reporting
+  ```python
+  from fastmcp.dependencies import Progress
+  
+  async def my_task(progress: Progress = Progress()):
+      await progress.set_total(100)
+      await progress.set_message("Starting operation")
+      await progress.increment()
+  ```
+
+##### Migration from Custom Task System
+- **Task Status**: Use FastMCP's built-in task tracking instead of custom tools
+- **Progress Monitoring**: Progress is automatically tracked via FastMCP's protocol
+- **Task Cancellation**: Handled by FastMCP's Docket system
+
+##### Backward Compatibility
+- **Tool APIs**: All tool signatures remain backward compatible
+- **Response Formats**: Response structures maintained for compatibility
+- **Configuration**: Environment variables and settings unchanged
+- **⚠️ Task Management Tools**: Custom task management tools removed (breaking change for clients using them)
+
+#### Migration Guide
+
+##### For Clients Using Custom Task Management Tools
+1. **Task Status**: Use FastMCP's native task status tracking instead of `get_task_status()`
+2. **Progress Monitoring**: Progress is automatically available through MCP's task protocol
+3. **Task Cancellation**: Use FastMCP's standard task cancellation mechanisms
+
+##### For Long-Running Operations
+- All operations now automatically support background execution when clients request it
+- Progress tracking is standardized and available through FastMCP's `Progress` API
+- Task IDs are managed automatically by FastMCP's Docket backend
+
+#### Dependencies
+- **FastMCP**: Upgraded to `>=2.14.0` (from `>=2.10.1`)
+- **MCP Protocol**: Updated to version `2025-11-25` (from `2025-06-18`)
+
 ## [2.1.5] - 2025-12-23
 ### Fixed
 - CVEs addressed: CVE-2025-66416

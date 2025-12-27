@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 """
-Statistics Tools Module - Updated with Structured Output
+Statistics Tools Module - Updated with Structured Output and FastMCP Background Tasks
 
 Handles counting and statistics operations for Schema Registry with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-11-25 specification.
 
 Provides counting for contexts, schemas, versions, and comprehensive registry statistics
 with JSON Schema validation and type-safe responses.
+
+Uses FastMCP background tasks API (SEP-1686) for long-running operations.
 """
 
 import asyncio
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+
+from fastmcp.dependencies import Progress
 
 from schema_registry_common import get_default_client
 from schema_validation import (
     create_error_response,
     structured_output,
 )
-from task_management import TaskType, task_manager
 
 
 @structured_output("count_contexts", fallback_on_error=True)
@@ -64,7 +66,7 @@ def count_contexts_tool(registry_manager, registry_mode: str, registry: Optional
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add metadata information, but preserve the scope field
@@ -127,7 +129,7 @@ def count_schemas_tool(
             "schemas": subjects,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add metadata information, but preserve the scope field
@@ -196,7 +198,7 @@ def count_schema_versions_tool(
             "versions": versions,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add metadata information, but preserve the scope field
@@ -317,7 +319,7 @@ def get_registry_statistics_tool(
             "contexts": context_stats if include_context_details else None,
             "generated_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add metadata information
@@ -336,11 +338,14 @@ async def _count_schemas_async(
     registry_mode: str,
     context: Optional[str] = None,
     registry: Optional[str] = None,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """
     Async version of count_schemas_tool with better performance.
     Uses parallel API calls when counting multiple contexts.
     Includes registry metadata information.
+
+    Uses FastMCP Progress dependency for progress reporting.
     """
     try:
         if registry_mode == "single":
@@ -355,9 +360,13 @@ async def _count_schemas_async(
 
         if context:
             # Single context - direct call
+            await progress.set_message(f"Counting schemas in context '{context}'")
             subjects = client.get_subjects(context)
             if isinstance(subjects, dict) and "error" in subjects:
                 return subjects
+
+            await progress.set_total(1)
+            await progress.increment()
 
             result = {
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
@@ -378,9 +387,14 @@ async def _count_schemas_async(
             return result
         else:
             # All contexts - parallel execution
+            await progress.set_message("Getting contexts list")
             contexts = client.get_contexts()
             if isinstance(contexts, dict) and "error" in contexts:
                 return contexts
+
+            total_contexts = len(contexts) + 1  # +1 for default context
+            await progress.set_total(total_contexts)
+            await progress.set_message(f"Counting schemas across {total_contexts} contexts")
 
             total_schemas = 0
             all_schemas = {}
@@ -399,8 +413,13 @@ async def _count_schemas_async(
                         if not isinstance(subjects, dict):
                             all_schemas[ctx] = subjects
                             total_schemas += len(subjects)
+                        await progress.increment()
+                        await progress.set_message(
+                            f"Processed context '{ctx}' ({len(subjects) if not isinstance(subjects, dict) else 0} schemas)"
+                        )
                     except Exception as e:
                         all_schemas[ctx] = {"error": str(e)}
+                        await progress.increment()
 
             result = {
                 "registry": (client.config.name if hasattr(client.config, "name") else "default"),
@@ -424,76 +443,30 @@ async def _count_schemas_async(
 
 
 @structured_output("count_schemas_task_queue", fallback_on_error=True)
-def count_schemas_task_queue_tool(
+async def count_schemas_task_queue_tool(
     registry_manager,
     registry_mode: str,
     context: Optional[str] = None,
     registry: Optional[str] = None,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """
-    Task queue version of count_schemas for better performance on large registries.
-    Returns task_id immediately for async execution.
+    Background task version of count_schemas for better performance on large registries.
+    Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
 
     Returns:
-        Task information with task_id for monitoring progress with structured validation
+        Schema count results with structured validation
     """
     try:
-        # Create async task
-        task = task_manager.create_task(
-            TaskType.STATISTICS,
-            metadata={
-                "operation": "count_schemas",
-                "context": context,
-                "registry": registry,
-            },
+        return await _count_schemas_async(
+            registry_manager=registry_manager,
+            registry_mode=registry_mode,
+            context=context,
+            registry=registry,
+            progress=progress,
         )
-
-        # Start async execution
-        try:
-            asyncio.create_task(
-                task_manager.execute_task(
-                    task,
-                    _count_schemas_async,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    context=context,
-                    registry=registry,
-                )
-            )
-        except RuntimeError:
-            # No running event loop, use thread pool
-            def run_task():
-                asyncio.run(
-                    task_manager.execute_task(
-                        task,
-                        _count_schemas_async,
-                        registry_manager=registry_manager,
-                        registry_mode=registry_mode,
-                        context=context,
-                        registry=registry,
-                    )
-                )
-
-            thread = threading.Thread(target=run_task)
-            thread.start()
-
-        return {
-            "message": "Schema counting started as async task",
-            "task_id": task.id,
-            "task": task.to_dict(),
-            "operation_info": {
-                "operation": "count_schemas",
-                "expected_duration": "medium",
-                "async_pattern": "task_queue",
-                "guidance": "Long-running operation. Returns task_id immediately. Use get_task_status() to monitor progress.",
-                "registry_mode": registry_mode,
-            },
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
     except Exception as e:
-        return create_error_response(str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode)
+        return create_error_response(str(e), error_code="SCHEMA_COUNT_FAILED", registry_mode=registry_mode)
 
 
 async def _get_registry_statistics_async(
@@ -501,10 +474,11 @@ async def _get_registry_statistics_async(
     registry_mode: str,
     registry: Optional[str] = None,
     include_context_details: bool = True,
-    task_id: Optional[str] = None,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """
     Async version of get_registry_statistics_tool with parallel execution.
+    Uses FastMCP Progress dependency for progress reporting.
     """
     try:
         if registry_mode == "single":
@@ -514,17 +488,15 @@ async def _get_registry_statistics_async(
             if client is None:
                 return {"error": f"Registry '{registry}' not found"}
 
-        # Update progress
-        if task_id:
-            task_manager.update_progress(task_id, 10.0)
-
         # Get all contexts
+        await progress.set_message("Getting contexts list")
         contexts = client.get_contexts()
         if isinstance(contexts, dict) and "error" in contexts:
             return contexts
 
-        if task_id:
-            task_manager.update_progress(task_id, 20.0)
+        total_contexts = len(contexts) + 1  # +1 for default context
+        await progress.set_total(total_contexts)
+        await progress.set_message(f"Analyzing {total_contexts} contexts")
 
         total_schemas = 0
         total_versions = 0
@@ -568,17 +540,14 @@ async def _get_registry_statistics_async(
 
                     # Update progress
                     completed += 1
-                    if task_id:
-                        # Progress from 20% to 90% based on context completion
-                        progress = 20.0 + (completed / total_contexts) * 70.0
-                        task_manager.update_progress(task_id, progress)
+                    await progress.increment()
+                    await progress.set_message(f"Analyzed {completed}/{total_contexts} contexts")
 
                 except Exception as e:
                     if include_context_details:
                         context_stats.append({"context": context, "error": str(e)})
 
-        if task_id:
-            task_manager.update_progress(task_id, 95.0)
+        await progress.set_message("Finalizing statistics")
 
         # Get registry metadata
         metadata = client.get_server_metadata()
@@ -596,8 +565,7 @@ async def _get_registry_statistics_async(
         # Add metadata information
         result.update(metadata)
 
-        if task_id:
-            task_manager.update_progress(task_id, 100.0)
+        await progress.set_message("Statistics complete")
 
         return result
 
@@ -641,75 +609,27 @@ def _analyze_context_parallel(client, context: Optional[str], registry: Optional
 
 
 @structured_output("get_registry_statistics_task_queue", fallback_on_error=True)
-def get_registry_statistics_task_queue_tool(
+async def get_registry_statistics_task_queue_tool(
     registry_manager,
     registry_mode: str,
     registry: Optional[str] = None,
     include_context_details: bool = True,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """
-    Task queue version of get_registry_statistics for better performance.
-    Returns task_id immediately for async execution with progress tracking.
+    Background task version of get_registry_statistics for better performance.
+    Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
 
     Returns:
-        Task information with task_id for monitoring progress with structured validation
+        Registry statistics with structured validation
     """
     try:
-        # Create async task
-        task = task_manager.create_task(
-            TaskType.STATISTICS,
-            metadata={
-                "operation": "get_registry_statistics",
-                "registry": registry,
-                "include_context_details": include_context_details,
-            },
+        return await _get_registry_statistics_async(
+            registry_manager=registry_manager,
+            registry_mode=registry_mode,
+            registry=registry,
+            include_context_details=include_context_details,
+            progress=progress,
         )
-
-        # Start async execution
-        try:
-            asyncio.create_task(
-                task_manager.execute_task(
-                    task,
-                    _get_registry_statistics_async,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    registry=registry,
-                    include_context_details=include_context_details,
-                    task_id=task.id,
-                )
-            )
-        except RuntimeError:
-            # No running event loop, use thread pool
-            def run_task():
-                asyncio.run(
-                    task_manager.execute_task(
-                        task,
-                        _get_registry_statistics_async,
-                        registry_manager=registry_manager,
-                        registry_mode=registry_mode,
-                        registry=registry,
-                        include_context_details=include_context_details,
-                        task_id=task.id,
-                    )
-                )
-
-            thread = threading.Thread(target=run_task)
-            thread.start()
-
-        return {
-            "message": "Registry statistics analysis started as async task",
-            "task_id": task.id,
-            "task": task.to_dict(),
-            "operation_info": {
-                "operation": "get_registry_statistics",
-                "expected_duration": "long",
-                "async_pattern": "task_queue",
-                "guidance": "Long-running operation. Returns task_id immediately. Use get_task_status() to monitor progress.",
-                "registry_mode": registry_mode,
-            },
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
     except Exception as e:
-        return create_error_response(str(e), error_code="TASK_CREATION_FAILED", registry_mode=registry_mode)
+        return create_error_response(str(e), error_code="REGISTRY_STATISTICS_FAILED", registry_mode=registry_mode)

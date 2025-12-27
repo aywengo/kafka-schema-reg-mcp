@@ -30,7 +30,7 @@ from core_registry_tools import (
     get_schema_versions_tool,
     register_schema_tool,
 )
-from migration_tools import get_migration_status_tool, migrate_schema_tool
+from migration_tools import migrate_schema_tool
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"
@@ -284,7 +284,7 @@ class SparseVersionMigrationTest:
             print("✓ Version count correctly preserved in target")
         return True
 
-    def test_sparse_version_migration(self):
+    async def test_sparse_version_migration(self):
         """Test that sparse version numbers are preserved during migration."""
         print("\n=== Testing Sparse Version Migration ===")
 
@@ -298,7 +298,7 @@ class SparseVersionMigrationTest:
 
         # Migrate the schema with specific versions
         print(f"\n--- Migrating sparse schema {subject} ---")
-        migration_result = migrate_schema_tool(
+        migration_result = await migrate_schema_tool(
             subject=subject,
             source_registry="dev",
             target_registry="prod",
@@ -317,7 +317,7 @@ class SparseVersionMigrationTest:
                 from migration_tools import confirm_migration_without_ids_tool
 
                 # Retry migration without ID preservation
-                migration_result = confirm_migration_without_ids_tool(
+                migration_result = await confirm_migration_without_ids_tool(
                     subject=subject,
                     source_registry="dev",
                     target_registry="prod",
@@ -339,9 +339,8 @@ class SparseVersionMigrationTest:
             print(f"✓ Migration started with task ID: {migration_result['migration_id']}")
 
             # Check task status
-            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
-            if status and "error" not in status:
-                print(f"✓ Migration task status: {status.get('status', 'unknown')}")
+            # Note: FastMCP 2.14.0+ handles task tracking internally via Docket
+            print(f"✓ Migration started (task tracking handled by FastMCP)")
 
         print("✓ Migration completed")
 
@@ -353,30 +352,26 @@ class SparseVersionMigrationTest:
         print("✅ Sparse version migration test passed!")
         return True
 
-    def cleanup_test_subjects(self):
+    async def cleanup_test_subjects(self):
         """Clean up test subjects from both registries."""
         print("\n=== Cleaning Up Test Subjects ===")
 
         for subject in self.test_subjects:
-            # Clean up from dev registry using asyncio.run properly
+            # Clean up from dev registry
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="dev",
-                        permanent=False,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="dev",
+                    permanent=False,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="dev",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="dev",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"✓ Cleaned up {subject} from dev")
             except Exception as e:
@@ -384,29 +379,25 @@ class SparseVersionMigrationTest:
 
             # Clean up from prod registry
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="prod",
-                        permanent=False,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="prod",
+                    permanent=False,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="prod",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="prod",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"✓ Cleaned up {subject} from prod")
             except Exception as e:
                 print(f"Warning: Failed to delete {subject} from prod: {e}")
 
-    def run_all_tests(self):
+    async def run_all_tests(self):
         """Run all sparse version migration tests."""
         print("🧪 Starting Sparse Version Migration Tests")
         print("=" * 50)
@@ -418,7 +409,7 @@ class SparseVersionMigrationTest:
             self.setup_test_environment()
 
             # Test execution
-            self.test_sparse_version_migration()
+            await self.test_sparse_version_migration()
 
             print("\n✅ All tests passed!")
             return True
@@ -437,7 +428,7 @@ class SparseVersionMigrationTest:
             return False
         finally:
             try:
-                self.cleanup_test_subjects()
+                await self.cleanup_test_subjects()
             except Exception as cleanup_error:
                 print(f"Warning: Cleanup failed: {cleanup_error}")
 
@@ -477,14 +468,29 @@ def test_registry_connectivity():
     """Test that both registries are accessible before running tests"""
     print("🔍 Testing registry connectivity...")
 
-    dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
-    prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+    try:
+        dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
+        if dev_response.status_code != 200:
+            raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        raise Exception(
+            f"DEV registry not accessible at http://localhost:38081\n"
+            f"Error: {e}\n"
+            f"💡 To start test registries, run:\n"
+            f"   cd tests && docker-compose up -d schema-registry-dev schema-registry-prod"
+        )
 
-    if dev_response.status_code != 200:
-        raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
-
-    if prod_response.status_code != 200:
-        raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+    try:
+        prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+        if prod_response.status_code != 200:
+            raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        raise Exception(
+            f"PROD registry not accessible at http://localhost:38082\n"
+            f"Error: {e}\n"
+            f"💡 To start test registries, run:\n"
+            f"   cd tests && docker-compose up -d schema-registry-dev schema-registry-prod"
+        )
 
     print("✅ Both registries accessible")
 
@@ -503,7 +509,7 @@ def main():
 
         # Run the test
         test = SparseVersionMigrationTest()
-        success = test.run_all_tests()
+        success = asyncio.run(test.run_all_tests())
 
         if success:
             print("\n🎉 Sparse Version Migration Test completed successfully!")

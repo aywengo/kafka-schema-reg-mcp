@@ -297,7 +297,7 @@ class TestResourceLinkingIntegration(unittest.TestCase):
             },
             "subject": "user-events",
             "registry_mode": "multi",
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add resource links

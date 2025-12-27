@@ -14,12 +14,28 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
+from fastmcp.dependencies import Progress
+
 from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
-from task_management import AsyncTaskManager
 
 # from batch_operations import BatchOperations  # Not needed for now
 
 logger = logging.getLogger(__name__)
+
+
+async def _safe_progress_call(progress: Optional[Progress], method: str, *args, **kwargs) -> None:
+    """Safely call Progress methods, handling None or validation errors gracefully."""
+    if progress is None:
+        return
+    try:
+        method_func = getattr(progress, method)
+        if asyncio.iscoroutinefunction(method_func):
+            await method_func(*args, **kwargs)
+        else:
+            method_func(*args, **kwargs)
+    except Exception:
+        # Progress validation failed (not injected) or other error - continue without progress reporting
+        pass
 
 
 class BulkOperationType(Enum):
@@ -65,13 +81,22 @@ class BulkOperationsWizard:
         self,
         registry_manager,
         elicitation_manager: ElicitationManager,
-        task_manager: AsyncTaskManager,
         batch_operations,
+        progress: Optional["Progress"] = None,
     ):
+        """
+        Initialize the bulk operations wizard.
+
+        Args:
+            registry_manager: Registry manager instance
+            elicitation_manager: Elicitation manager for interactive prompts
+            batch_operations: Batch operations handler (optional)
+            progress: FastMCP Progress dependency for progress reporting (optional, will be created if needed)
+        """
         self.registry = registry_manager
         self.elicitation = elicitation_manager
-        self.task_manager = task_manager
         self.batch_ops = batch_operations
+        self._progress = progress
         self._operation_handlers = self._register_handlers()
 
     def _register_handlers(self) -> Dict[BulkOperationType, Callable]:
@@ -154,7 +179,9 @@ class BulkOperationsWizard:
             return {"status": "cancelled", "reason": "User cancelled operation"}
 
         # Step 6: Execute operation
-        return await self._execute_bulk_operation(BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview)
+        return await self._execute_bulk_operation(
+            BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview, progress=self._progress
+        )
 
     async def _handle_bulk_migration(self) -> Dict[str, Any]:
         """Handle bulk migration operations"""
@@ -180,7 +207,11 @@ class BulkOperationsWizard:
 
         # Step 6: Execute migration
         return await self._execute_bulk_operation(
-            BulkOperationType.MIGRATION, schemas, {**source_target, **migration_options}, preview
+            BulkOperationType.MIGRATION,
+            schemas,
+            {**source_target, **migration_options},
+            preview,
+            progress=self._progress,
         )
 
     async def _handle_bulk_cleanup(self) -> Dict[str, Any]:
@@ -212,7 +243,11 @@ class BulkOperationsWizard:
 
         # Step 7: Execute cleanup
         return await self._execute_bulk_operation(
-            BulkOperationType.CLEANUP, items, {"cleanup_type": cleanup_type, **cleanup_options}, preview
+            BulkOperationType.CLEANUP,
+            items,
+            {"cleanup_type": cleanup_type, **cleanup_options},
+            preview,
+            progress=self._progress,
         )
 
     async def _handle_bulk_configuration(self) -> Dict[str, Any]:
@@ -237,7 +272,11 @@ class BulkOperationsWizard:
 
         # Step 6: Execute configuration
         return await self._execute_bulk_operation(
-            BulkOperationType.CONFIGURATION, targets, {"config_type": config_type, **config_params}, preview
+            BulkOperationType.CONFIGURATION,
+            targets,
+            {"config_type": config_type, **config_params},
+            preview,
+            progress=self._progress,
         )
 
     async def _elicit_schema_selection(
@@ -407,58 +446,72 @@ class BulkOperationsWizard:
         await self.elicitation.show_info("Detailed Preview", json.dumps(details, indent=2))  # type: ignore
 
     async def _execute_bulk_operation(
-        self, operation_type: BulkOperationType, items: List[Any], params: Dict[str, Any], preview: BulkOperationPreview
+        self,
+        operation_type: BulkOperationType,
+        items: List[Any],
+        params: Dict[str, Any],
+        preview: BulkOperationPreview,
+        progress: Optional[Progress] = None,
     ) -> Dict[str, Any]:
         """Execute the bulk operation"""
-        # Create task for tracking
-        task_id = await self.task_manager.create_task(  # type: ignore
-            name=f"Bulk {operation_type.value}",
-            total_items=len(items),
-            metadata={"operation_type": operation_type.value, "parameters": params, "preview": preview.__dict__},
-        )
+        # Use provided progress or fallback to instance progress
+        active_progress = progress if progress is not None else self._progress
+
+        # Initialize results list before try block for exception handling
+        results: List[Dict[str, Any]] = []
+        total_items = len(items)
 
         try:
+            # Initialize progress tracking
+            await _safe_progress_call(active_progress, "set_total", total_items)
+            await _safe_progress_call(active_progress, "set_message", f"Starting bulk {operation_type.value} operation")
+
             # Create backup if required
             if params.get("create_backup", True):
+                await _safe_progress_call(active_progress, "set_message", "Creating backup...")
                 await self._create_backup(items, operation_type)
 
             # Execute operation in batches
             batch_size = params.get("batch_size", 10)
-            results = []
+            total_batches = (total_items + batch_size - 1) // batch_size
 
-            for i in range(0, len(items), batch_size):
+            for batch_num, i in enumerate(range(0, total_items, batch_size), 1):
                 batch = items[i : i + batch_size]
 
-                # Update progress
-                await self.task_manager.update_progress(  # type: ignore
-                    task_id, processed=i, message=f"Processing batch {i//batch_size + 1}"
+                # Update progress message and increment progress
+                await _safe_progress_call(
+                    active_progress,
+                    "set_message",
+                    f"Processing batch {batch_num}/{total_batches} ({len(batch)} items)",
                 )
+                # Increment progress once per item in batch (increment() takes no arguments)
+                for _ in range(len(batch)):
+                    await _safe_progress_call(active_progress, "increment")
 
                 # Process batch
                 batch_result = await self._process_batch(operation_type, batch, params)
                 results.append(batch_result)
 
                 # Delay between batches
-                if i + batch_size < len(items):
+                if i + batch_size < total_items:
                     await asyncio.sleep(params.get("delay_between_batches", 1.0))
 
-            # Complete task
-            await self.task_manager.complete_task(  # type: ignore
-                task_id, result={"status": "success", "total_processed": len(items), "batch_results": results}
-            )
+            # Complete operation
+            await _safe_progress_call(active_progress, "set_message", "Operation completed successfully")
 
-            return {"status": "success", "task_id": task_id, "processed": len(items), "results": results}
+            return {"status": "success", "processed": total_items, "results": results}
 
         except Exception as e:
             logger.error(f"Bulk operation failed: {e}")
 
             # Handle rollback if required
             if params.get("rollback_on_error", True):
+                await _safe_progress_call(active_progress, "set_message", "Rolling back operation...")
                 await self._rollback_operation(operation_type, items, params)
 
-            await self.task_manager.fail_task(task_id, error=str(e))  # type: ignore
+            await _safe_progress_call(active_progress, "set_message", f"Operation failed: {str(e)}")
 
-            return {"status": "failed", "task_id": task_id, "error": str(e)}
+            return {"status": "failed", "error": str(e), "processed": len(results)}
 
     async def _create_backup(self, items: List[Any], operation_type: BulkOperationType) -> str:
         """Create backup before bulk operation"""

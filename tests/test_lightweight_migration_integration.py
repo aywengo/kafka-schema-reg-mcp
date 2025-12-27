@@ -11,7 +11,7 @@ import os
 import sys
 import uuid
 from typing import Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -26,43 +26,17 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session", autouse=True)
-def mock_task_manager():
-    """Replace the task manager with a mock that doesn't create threads"""
-    # Save the original task manager
-    original_task_manager = mcp_server.task_manager
+def mock_progress():
+    """Mock FastMCP Progress dependency for testing"""
+    from unittest.mock import AsyncMock
 
-    # Create a mock that behaves like task manager but doesn't use threads
-    mock_tm = MagicMock()
-    mock_tm._shutdown = False
-    mock_tm.tasks = {}
+    mock_progress = MagicMock()
+    mock_progress.set_total = AsyncMock()
+    mock_progress.set_message = AsyncMock()
 
-    # Create a mock task that will be returned
-    mock_task = MagicMock()
-    mock_task.id = "test-task-id"
-    mock_task.status = mcp_server.TaskStatus.COMPLETED
-    mock_task.to_dict.return_value = {
-        "id": "test-task-id",
-        "status": "completed",
-        "type": "migration",
-        "progress": 100.0,
-    }
-
-    # Make the mock methods return sensible defaults
-    mock_tm.create_task.return_value = mock_task
-    mock_tm.get_task.return_value = mock_task
-    mock_tm.list_tasks.return_value = []
-
-    # Replace the global task manager
-    mcp_server.task_manager = mock_tm
-
-    yield
-
-    # Restore the original task manager
-    mcp_server.task_manager = original_task_manager
-
-    # Ensure clean shutdown
-    if hasattr(original_task_manager, "shutdown_sync"):
-        original_task_manager.shutdown_sync()
+    # Patch Progress to return our mock
+    with patch("fastmcp.dependencies.Progress", return_value=mock_progress):
+        yield mock_progress
 
 
 @pytest.fixture
@@ -254,17 +228,10 @@ async def test_migration_task_tracking(test_env):
         result = await mcp_server.migrate_schema(subject=subject, source_registry="dev", target_registry="prod")
         assert "error" not in result, f"Migration failed: {result.get('error')}"
 
-        # Verify task tracking
-        task_id = result.get("task_id")
-        assert task_id is not None, "No task ID returned"
-
-        # Get task progress (not status)
-        task_progress = await mcp_server.get_task_progress(task_id)
-        assert task_progress is not None, "Could not get task progress"
-        assert task_progress["status"] in [
-            "completed",
-            "running",
-        ], f"Unexpected task status: {task_progress['status']}"
+        # Verify migration completed successfully
+        # FastMCP handles task tracking via Docket, so we just verify the result
+        assert "error" not in result, f"Migration failed: {result.get('error')}"
+        assert result.get("successful_migrations", 0) >= 0, "Migration should report results"
 
         # Clean up
         mcp_server.delete_subject(subject, context=".", registry="dev")

@@ -27,7 +27,7 @@ from core_registry_tools import (
     get_schema_versions_tool,
     register_schema_tool,
 )
-from migration_tools import get_migration_status_tool, migrate_schema_tool
+from migration_tools import migrate_schema_tool
 
 # Configuration
 DEV_REGISTRY_URL = "http://localhost:38081"
@@ -142,7 +142,7 @@ class AllVersionsMigrationTest:
         print(f"✓ Verified {len(versions)} versions in {registry} registry")
         return True
 
-    def test_all_versions_migration(self):
+    async def test_all_versions_migration(self):
         """Test migration of all versions."""
         print("\n=== Testing All Versions Migration ===")
 
@@ -178,7 +178,7 @@ class AllVersionsMigrationTest:
         print(f"✓ Found {len(versions)} versions to migrate: {versions}")
 
         # Migrate the schema with all versions using direct function call
-        migration_result = migrate_schema_tool(
+        migration_result = await migrate_schema_tool(
             subject=subject,
             source_registry="dev",
             target_registry="prod",
@@ -199,7 +199,7 @@ class AllVersionsMigrationTest:
                 from migration_tools import confirm_migration_without_ids_tool
 
                 # Retry migration without ID preservation
-                migration_result = confirm_migration_without_ids_tool(
+                migration_result = await confirm_migration_without_ids_tool(
                     subject=subject,
                     source_registry="dev",
                     target_registry="prod",
@@ -218,15 +218,8 @@ class AllVersionsMigrationTest:
             else:
                 raise Exception(f"Migration failed: {migration_result['error']}")
 
-        # Check for task tracking
-        if "migration_id" in migration_result:
-            print(f"✓ Migration started with task ID: {migration_result['migration_id']}")
-
-            # Check task status
-            status = get_migration_status_tool(migration_result["migration_id"], mcp_server.REGISTRY_MODE)
-            if status and "error" not in status:
-                print(f"✓ Migration task status: {status.get('status', 'unknown')}")
-
+        # Note: FastMCP 2.14.0+ handles task tracking internally via Docket
+        # Migration status is tracked automatically through FastMCP's task protocol
         print("✓ Migration completed")
 
         # Verify target has all versions
@@ -235,21 +228,19 @@ class AllVersionsMigrationTest:
         print("✓ All versions migration successful")
         return True
 
-    def cleanup_test_subjects(self):
+    async def cleanup_test_subjects(self):
         """Clean up test subjects from both registries."""
         print("\n=== Cleaning Up Test Subjects ===")
 
         for subject in self.test_subjects:
             # Clean up from dev registry
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="dev",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="dev",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"✓ Cleaned up {subject} from dev")
             except Exception as e:
@@ -257,20 +248,18 @@ class AllVersionsMigrationTest:
 
             # Clean up from prod registry
             try:
-                result = asyncio.run(
-                    delete_subject_tool(
-                        subject=subject,
-                        registry="prod",
-                        permanent=True,
-                        registry_manager=mcp_server.registry_manager,
-                        registry_mode=mcp_server.REGISTRY_MODE,
-                    )
+                result = await delete_subject_tool(
+                    subject=subject,
+                    registry="prod",
+                    permanent=True,
+                    registry_manager=mcp_server.registry_manager,
+                    registry_mode=mcp_server.REGISTRY_MODE,
                 )
                 print(f"✓ Cleaned up {subject} from prod")
             except Exception as e:
                 print(f"Warning: Failed to delete {subject} from prod: {e}")
 
-    def run_all_tests(self):
+    async def run_all_tests(self):
         """Run all migration tests."""
         print("🧪 Starting All Versions Migration Tests")
         print("=" * 50)
@@ -278,7 +267,7 @@ class AllVersionsMigrationTest:
         try:
             self.setup_test_environment()
             self.setup_test_contexts()
-            self.test_all_versions_migration()
+            await self.test_all_versions_migration()
             print("\n✅ All tests passed!")
             return True
         except Exception as e:
@@ -288,21 +277,36 @@ class AllVersionsMigrationTest:
             traceback.print_exc()
             return False
         finally:
-            self.cleanup_test_subjects()
+            await self.cleanup_test_subjects()
 
 
 def test_registry_connectivity():
     """Test that both registries are accessible before running tests"""
     print("🔍 Testing registry connectivity...")
 
-    dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
-    prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+    try:
+        dev_response = requests.get("http://localhost:38081/subjects", timeout=5)
+        if dev_response.status_code != 200:
+            raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        raise Exception(
+            f"DEV registry not accessible at http://localhost:38081\n"
+            f"Error: {e}\n"
+            f"💡 To start test registries, run:\n"
+            f"   cd tests && docker-compose up -d schema-registry-dev schema-registry-prod"
+        )
 
-    if dev_response.status_code != 200:
-        raise Exception(f"DEV registry not accessible: {dev_response.status_code}")
-
-    if prod_response.status_code != 200:
-        raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+    try:
+        prod_response = requests.get("http://localhost:38082/subjects", timeout=5)
+        if prod_response.status_code != 200:
+            raise Exception(f"PROD registry not accessible: {prod_response.status_code}")
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+        raise Exception(
+            f"PROD registry not accessible at http://localhost:38082\n"
+            f"Error: {e}\n"
+            f"💡 To start test registries, run:\n"
+            f"   cd tests && docker-compose up -d schema-registry-dev schema-registry-prod"
+        )
 
     print("✅ Both registries accessible")
 
@@ -318,7 +322,7 @@ def main():
 
         # Run the test
         test = AllVersionsMigrationTest()
-        success = test.run_all_tests()
+        success = asyncio.run(test.run_all_tests())
 
         if success:
             print("\n🎉 All Versions Migration Test completed successfully!")

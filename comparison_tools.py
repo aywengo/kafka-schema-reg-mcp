@@ -85,7 +85,7 @@ async def compare_registries_tool(
             "timestamp": datetime.now().isoformat(),
             "differences": {},
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Compare subjects (10-30%)
@@ -374,7 +374,7 @@ async def compare_contexts_across_registries_tool(
             },
             "timestamp": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         if context:
@@ -526,7 +526,7 @@ async def find_missing_schemas_tool(
             "details": [],
             "timestamp": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Ensure details is treated as a list

@@ -280,9 +280,13 @@ async def handle_bulk_operations_tool(
         return await wizard.start_wizard(BulkOperationType.CONFIGURATION)
 
     elif tool_name == "get_bulk_operation_status":
-        # Get task status
+        # Get task status - deprecated, FastMCP handles this via Docket
         task_id = arguments["task_id"]
-        return await wizard.task_manager.get_task_status(task_id)
+        return {
+            "status": "deprecated",
+            "message": "Task status tracking is now handled by FastMCP via Docket. Use FastMCP's built-in task tracking instead.",
+            "task_id": task_id,
+        }
 
     elif tool_name == "cancel_bulk_operation":
         # Cancel operation

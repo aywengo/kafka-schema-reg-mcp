@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.0.0 REST API with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**, including comprehensive export capabilities and enhanced authentication.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v2.1.3 REST API with **FastMCP 2.8.0+ framework** and **MCP 2025-11-25 specification compliance**, including comprehensive export capabilities and enhanced authentication.
 
 > **Note**: This document describes the REST API endpoints provided by the Kafka Schema Registry MCP Server. For the MCP (Message Control Protocol) tools used with Claude Desktop, please refer to the [MCP Tools Reference](mcp-tools-reference.md).
 
@@ -1598,8 +1598,6 @@ These tools are maintained for backward compatibility with existing clients. The
 | **Migration** | `migrate_schema` | Tool | ❌ | admin | Migrate schema between registries |
 | **Migration** | `migrate_context` | Tool | ❌ | admin | Migrate context between registries |
 | **Migration** | `migrate_context_interactive` | Tool | ❌ | admin | Interactive context migration |
-| **Migration** | `list_migrations` | Tool | ❌ | read | List migration tasks |
-| **Migration** | `get_migration_status` | Tool | ❌ | read | Get migration status |
 | **Comparison** | `compare_registries` | Tool | ❌ | read | Compare two registries |
 | **Comparison** | `compare_contexts_across_registries` | Tool | ❌ | read | Compare contexts across registries |
 | **Comparison** | `find_missing_schemas` | Tool | ❌ | read | Find missing schemas |
@@ -1611,12 +1609,6 @@ These tools are maintained for backward compatibility with existing clients. The
 | **Resource Discovery** | `list_available_resources` | Tool | ✅ | read | List all available resources |
 | **Resource Discovery** | `suggest_resource_for_tool` | Tool | ✅ | read | Get resource migration suggestions |
 | **Resource Discovery** | `generate_resource_templates` | Tool | ✅ | read | Generate resource URI templates |
-| **Task Management** | `get_task_status` | Tool | ❌ | read | Get task status |
-| **Task Management** | `get_task_progress` | Tool | ❌ | read | Get task progress |
-| **Task Management** | `list_active_tasks` | Tool | ❌ | read | List active tasks |
-| **Task Management** | `cancel_task` | Tool | ❌ | admin | Cancel running task |
-| **Task Management** | `list_statistics_tasks` | Tool | ❌ | read | List statistics tasks |
-| **Task Management** | `get_statistics_task_progress` | Tool | ❌ | read | Get statistics task progress |
 | **Elicitation** | `submit_elicitation_response` | Tool | ❌ | write | Submit elicitation response |
 | **Elicitation** | `list_elicitation_requests` | Tool | ❌ | read | List elicitation requests |
 | **Elicitation** | `get_elicitation_request` | Tool | ❌ | read | Get elicitation request details |
@@ -1654,4 +1646,10 @@ These tools are maintained for backward compatibility with existing clients. The
 
 ---
 
-This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v1.3.0. Use this as a reference when building integrations or working with the server programmatically. 
+## Task Management Note
+
+> **Important:** Custom task management tools (`get_task_status`, `get_task_progress`, `list_active_tasks`, `cancel_task`, `list_statistics_tasks`, `get_statistics_task_progress`) and migration status tools (`list_migrations`, `get_migration_status`) have been removed. Task status tracking is now handled by FastMCP's built-in Docket system. Use FastMCP's native task tracking instead.
+
+---
+
+This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v2.1.3. Use this as a reference when building integrations or working with the server programmatically. 

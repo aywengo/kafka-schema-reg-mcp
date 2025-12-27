@@ -421,7 +421,7 @@ def validate_registry_response(data: Any, registry_mode: str = "unknown") -> Any
         if "registry_mode" not in data:
             data["registry_mode"] = registry_mode
         if "mcp_protocol_version" not in data:
-            data["mcp_protocol_version"] = "2025-06-18"
+            data["mcp_protocol_version"] = "2025-11-25"
 
     return data
 
@@ -433,7 +433,7 @@ def create_success_response(
     response = {
         "message": message,
         "registry_mode": registry_mode,
-        "mcp_protocol_version": "2025-06-18",
+        "mcp_protocol_version": "2025-11-25",
     }
 
     if data:
@@ -452,7 +452,7 @@ def create_error_response(
     response = {
         "error": error,
         "registry_mode": registry_mode,
-        "mcp_protocol_version": "2025-06-18",
+        "mcp_protocol_version": "2025-11-25",
     }
 
     if error_code:

@@ -31,12 +31,7 @@ def cleanup_executor():
     if _executor:
         _executor.shutdown(wait=False)
         _executor = None
-    # Also cleanup task manager
-    if mcp_server.task_manager:
-        mcp_server.task_manager._shutdown = True
-        if mcp_server.task_manager._executor:
-            mcp_server.task_manager._executor.shutdown(wait=False)
-            mcp_server.task_manager._executor = None
+    # Note: task_manager was removed - FastMCP 2.14.0+ handles tasks internally
 
 
 # Register cleanup
@@ -46,8 +41,6 @@ atexit.register(cleanup_executor)
 @pytest.fixture(scope="function")
 async def test_env():
     """Fixture to set up test environment"""
-    global _executor
-
     dev_url = "http://localhost:38081"
     prod_url = "http://localhost:38082"
 
@@ -76,11 +69,6 @@ async def test_env():
     # Create a session for async HTTP requests
     session = aiohttp.ClientSession()
 
-    # Create thread pool executor if not exists
-    if not _executor:
-        _executor = ThreadPoolExecutor(max_workers=10)
-        mcp_server.task_manager._executor = _executor
-
     yield {"dev_url": dev_url, "prod_url": prod_url, "session": session}
 
     # Cleanup
@@ -90,53 +78,15 @@ async def test_env():
     mcp_server.registry_manager.registries.clear()
     mcp_server.registry_manager.default_registry = None
 
-    # Cancel any running tasks and cleanup task manager
-    try:
-        await mcp_server.task_manager.cancel_all_tasks()
-    except Exception:
-        pass  # Ignore errors during cleanup
-    mcp_server.task_manager.reset_queue()
-    mcp_server.task_manager._shutdown = True
-    if mcp_server.task_manager._executor:
-        mcp_server.task_manager._executor.shutdown(wait=False)
-        mcp_server.task_manager._executor = None
+    # FastMCP handles task cleanup automatically via Docket
 
 
 @pytest.fixture(autouse=True)
 async def cleanup_after_test():
     """Cleanup fixture that runs after each test"""
     yield
-    # Cancel any remaining tasks and cleanup task manager
-    try:
-        await mcp_server.task_manager.cancel_all_tasks()
-    except Exception:
-        pass  # Ignore errors during cleanup
-    mcp_server.task_manager.reset_queue()
-    mcp_server.task_manager._shutdown = True
-    if mcp_server.task_manager._executor:
-        mcp_server.task_manager._executor.shutdown(wait=False)
-        mcp_server.task_manager._executor = None
-
-
-async def wait_for_task_completion(task_id: str, timeout: int = 30) -> bool:
-    """Wait for a task to complete with timeout"""
-    start_time = datetime.now()
-    while True:
-        task = mcp_server.task_manager.get_task(task_id)
-        if not task:
-            return False
-
-        if task.status in [
-            mcp_server.TaskStatus.COMPLETED,
-            mcp_server.TaskStatus.FAILED,
-            mcp_server.TaskStatus.CANCELLED,
-        ]:
-            return task.status == mcp_server.TaskStatus.COMPLETED
-
-        if (datetime.now() - start_time).total_seconds() > timeout:
-            return False
-
-        await asyncio.sleep(0.1)
+    # FastMCP handles task cleanup automatically via Docket
+    pass
 
 
 @pytest.mark.asyncio
@@ -194,20 +144,8 @@ async def test_registry_comparison(test_env):
             print(f"   ❌ Registry comparison failed: {comparison['error']}")
             return False
 
-        # Wait for task completion if it's an async task
-        if "task_id" in comparison:
-            task_completed = await wait_for_task_completion(comparison["task_id"])
-            if not task_completed:
-                print("   ❌ Registry comparison task did not complete")
-                return False
-
-            # Get the final result
-            task = mcp_server.task_manager.get_task(comparison["task_id"])
-            if not task or not task.result:
-                print("   ❌ No result from registry comparison task")
-                return False
-
-            comparison = task.result
+        # FastMCP handles task tracking via Docket
+        # Results are returned directly from async operations
 
         print("   ✅ Registry comparison successful")
 
@@ -246,20 +184,11 @@ async def test_migration_tools_availability(test_env):
             print(f"   ❌ find_missing_schemas failed: {missing_schemas['error']}")
             return False
 
-        # Wait for task completion if it's an async task
-        if "task_id" in missing_schemas:
-            task_completed = await wait_for_task_completion(missing_schemas["task_id"])
-            if not task_completed:
-                print("   ❌ find_missing_schemas task did not complete")
-                return False
-
-            # Get the final result
-            task = mcp_server.task_manager.get_task(missing_schemas["task_id"])
-            if not task or not task.result:
-                print("   ❌ No result from find_missing_schemas task")
-                return False
-
-            missing_schemas = task.result
+        # FastMCP handles task tracking via Docket
+        # Results are returned directly from async operations
+        if "error" in missing_schemas:
+            print(f"   ❌ find_missing_schemas failed: {missing_schemas['error']}")
+            return False
 
         print("   ✅ find_missing_schemas working")
         print(f"      Missing schemas: {missing_schemas.get('missing_count', 0)}")
@@ -269,20 +198,9 @@ async def test_migration_tools_availability(test_env):
             context_comparison = await mcp_server.compare_contexts_across_registries("dev", "prod", ".")
 
             if "error" not in context_comparison:
-                # Wait for task completion if it's an async task
-                if "task_id" in context_comparison:
-                    task_completed = await wait_for_task_completion(context_comparison["task_id"])
-                    if not task_completed:
-                        print("   ❌ compare_contexts_across_registries task did not complete")
-                        return False
-
-                    # Get the final result
-                    task = mcp_server.task_manager.get_task(context_comparison["task_id"])
-                    if not task or not task.result:
-                        print("   ❌ No result from compare_contexts_across_registries task")
-                        return False
-
-                    context_comparison = task.result
+                # FastMCP handles task tracking via Docket
+                # Results are returned directly from async operations
+                pass
 
                 print("   ✅ compare_contexts_across_registries working")
                 subjects_info = context_comparison.get("subjects", {})

@@ -1,5 +1,5 @@
-# FastMCP 2.8.0+ for MCP 2025-06-18 specification compliance - Issue #32
-fastmcp>=2.10.1
+# FastMCP 2.14.0+ for MCP 2025-11-25 specification compliance with background tasks support
+fastmcp>=2.14.0
 
 # MCP Python SDK - CVE-2025-66416: DNS rebinding protection requires >=1.23.0
 mcp>=1.23.0

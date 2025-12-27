@@ -119,7 +119,7 @@ async def clear_context_batch_enhanced_tool(
                 "guidance": "Monitor progress via MCP progress notifications or get_task_status()",
             },
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         return result

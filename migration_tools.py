@@ -9,21 +9,38 @@ Provides schema migration, context migration, and migration status tracking
 with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
+import asyncio
 import json
 import logging
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from fastmcp.dependencies import Progress
+
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
     structured_output,
 )
-from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+async def _safe_progress_call(progress: Optional[Progress], method: str, *args, **kwargs) -> None:
+    """Safely call Progress methods, handling None or validation errors gracefully."""
+    if progress is None:
+        return
+    try:
+        method_func = getattr(progress, method)
+        if asyncio.iscoroutinefunction(method_func):
+            await method_func(*args, **kwargs)
+        else:
+            method_func(*args, **kwargs)
+    except Exception:
+        # Progress validation failed (not injected) or other error - continue without progress reporting
+        pass
 
 
 class IDPreservationError(Exception):
@@ -54,7 +71,7 @@ def _get_registry_name_for_linking(registry_mode: str, registry_name: Optional[s
 
 
 @structured_output("migrate_schema", fallback_on_error=True)
-def migrate_schema_tool(
+async def migrate_schema_tool(
     subject: str,
     source_registry: str,
     target_registry: str,
@@ -66,14 +83,14 @@ def migrate_schema_tool(
     target_context: str = ".",
     versions: Optional[List[int]] = None,
     migrate_all_versions: bool = False,
+    progress: Optional[Progress] = None,
 ) -> Dict[str, Any]:
     """
     Migrate a schema from one registry to another.
     Only available in multi-registry mode.
 
-    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
-    This operation runs asynchronously and returns a task_id immediately.
-    Use get_task_status(task_id) to monitor progress and get results.
+    **MEDIUM-DURATION OPERATION** - Uses FastMCP background tasks API (SEP-1686).
+    This operation runs asynchronously with progress tracking.
 
     Args:
         subject: The subject name
@@ -85,10 +102,10 @@ def migrate_schema_tool(
         target_context: Target context (default: ".")
         versions: Optional list of specific versions to migrate
         migrate_all_versions: Migrate all versions instead of just latest
+        progress: FastMCP Progress dependency for progress reporting (injected by FastMCP when called through MCP tools)
 
     Returns:
-        Task information with task_id for monitoring progress (multi-registry mode)
-        or simple result (single-registry mode) with structured validation and resource links
+        Migration result with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -99,132 +116,70 @@ def migrate_schema_tool(
                 registry_mode="single",
             )
 
-        # Multi-registry mode: use task queue
-        # Create migration task
-        task = task_manager.create_task(
-            TaskType.MIGRATION,
-            metadata={
-                "operation": "migrate_schema",
-                "subject": subject,
-                "source_registry": source_registry,
-                "target_registry": target_registry,
-                "source_context": source_context,
-                "target_context": target_context,
-                "migrate_all_versions": migrate_all_versions,
-                "preserve_ids": preserve_ids,
-                "dry_run": dry_run,
-            },
-        )
+        await _safe_progress_call(progress, "set_total", 100)
+        await _safe_progress_call(progress, "set_message", f"Starting schema migration for '{subject}'")
 
-        # Implement basic schema migration for testing
+        # Check registry connections
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+
+        if not source_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Source registry '{source_registry}' not found")
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
+        if not target_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Target registry '{target_registry}' not found")
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
+
+        await _safe_progress_call(progress, "set_message", "Registry connections validated")
+
+        # Perform actual schema migration
         try:
-            # Check registry connections
-            source_client = registry_manager.get_registry(source_registry)
-            target_client = registry_manager.get_registry(target_registry)
+            migration_result = await _execute_schema_migration_async(
+                subject=subject,
+                source_client=source_client,
+                target_client=target_client,
+                source_context=source_context,
+                target_context=target_context,
+                versions=versions,
+                migrate_all_versions=migrate_all_versions,
+                preserve_ids=preserve_ids,
+                dry_run=dry_run,
+                force_without_id_preservation=False,  # User confirmation required by default
+                progress=progress,
+            )
+        except MigrationConfirmationRequired as e:
+            # Handle confirmation required case
+            await _safe_progress_call(progress, "set_message", "Migration requires user confirmation")
+            migration_result = {
+                "error": str(e),
+                "error_type": "confirmation_required",
+                "confirmation_details": e.confirmation_details,
+                "user_prompt": (
+                    "Migration requires user confirmation due to ID preservation failure. "
+                    "Please confirm if you want to proceed without ID preservation."
+                ),
+                "action_required": "Call migrate_schema_tool again with preserve_ids=False to proceed without ID preservation, or resolve the permission issue first.",
+            }
 
-            if not source_client:
-                task.status = TaskStatus.FAILED
-                task.error = f"Source registry '{source_registry}' not found"
-                return create_error_response(
-                    f"Source registry '{source_registry}' not found",
-                    error_code="SOURCE_REGISTRY_NOT_FOUND",
-                    registry_mode="multi",
-                )
-            if not target_client:
-                task.status = TaskStatus.FAILED
-                task.error = f"Target registry '{target_registry}' not found"
-                return create_error_response(
-                    f"Target registry '{target_registry}' not found",
-                    error_code="TARGET_REGISTRY_NOT_FOUND",
-                    registry_mode="multi",
-                )
-
-            # Mark task as running
-            task.status = TaskStatus.RUNNING
-            task.started_at = datetime.now().isoformat()
-
-            # Perform actual schema migration
-            try:
-                migration_result = _execute_schema_migration(
-                    subject=subject,
-                    source_client=source_client,
-                    target_client=target_client,
-                    source_context=source_context,
-                    target_context=target_context,
-                    versions=versions,
-                    migrate_all_versions=migrate_all_versions,
-                    preserve_ids=preserve_ids,
-                    dry_run=dry_run,
-                    force_without_id_preservation=False,  # User confirmation required by default
-                )
-            except MigrationConfirmationRequired as e:
-                # Handle confirmation required case
-                task.status = TaskStatus.FAILED
-                task.error = str(e)
-                migration_result = {
-                    "error": str(e),
-                    "error_type": "confirmation_required",
-                    "confirmation_details": e.confirmation_details,
-                    "user_prompt": (
-                        "Migration requires user confirmation due to ID preservation failure. "
-                        "Please confirm if you want to proceed without ID preservation."
-                    ),
-                    "action_required": "Call migrate_schema_tool again with preserve_ids=False to proceed without ID preservation, or resolve the permission issue first.",
-                }
-                task.completed_at = datetime.now().isoformat()
-
-                # Add structured output metadata
-                migration_result.update(
-                    {
-                        "migration_id": task.id,
-                        "subject": subject,
-                        "source_registry": source_registry,
-                        "target_registry": target_registry,
-                        "source_context": source_context,
-                        "target_context": target_context,
-                        "status": task.status.value,
-                        "dry_run": dry_run,
-                        "registry_mode": "multi",
-                        "mcp_protocol_version": "2025-06-18",
-                    }
-                )
-
-                # Add resource links
-                migration_result = add_links_to_response(
-                    migration_result,
-                    "migration",
-                    source_registry,
-                    migration_id=task.id,
-                    source_registry=source_registry,
-                    target_registry=target_registry,
-                )
-
-                return migration_result
-
-            # Update task with result
-            if "error" in migration_result:
-                task.status = TaskStatus.FAILED
-                task.error = migration_result["error"]
-            else:
-                task.status = TaskStatus.COMPLETED
-                task.progress = 100.0
-                task.result = migration_result
-
-            task.completed_at = datetime.now().isoformat()
-
-            # Add structured output metadata to result
+            # Add structured output metadata
             migration_result.update(
                 {
-                    "migration_id": task.id,
                     "subject": subject,
                     "source_registry": source_registry,
                     "target_registry": target_registry,
                     "source_context": source_context,
                     "target_context": target_context,
-                    "status": task.status.value,
                     "dry_run": dry_run,
                     "registry_mode": "multi",
-                    "mcp_protocol_version": "2025-06-18",
+                    "mcp_protocol_version": "2025-11-25",
                 }
             )
 
@@ -233,22 +188,37 @@ def migrate_schema_tool(
                 migration_result,
                 "migration",
                 source_registry,
-                migration_id=task.id,
                 source_registry=source_registry,
                 target_registry=target_registry,
             )
 
             return migration_result
 
-        except MigrationConfirmationRequired:
-            # Re-raise confirmation required exceptions - don't convert them to generic errors
-            raise
-        except Exception as e:
-            return create_error_response(
-                f"Migration setup failed: {str(e)}",
-                error_code="MIGRATION_SETUP_FAILED",
-                registry_mode="multi",
-            )
+        # Add structured output metadata to result
+        migration_result.update(
+            {
+                "subject": subject,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "source_context": source_context,
+                "target_context": target_context,
+                "dry_run": dry_run,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-11-25",
+            }
+        )
+
+        # Add resource links
+        migration_result = add_links_to_response(
+            migration_result,
+            "migration",
+            source_registry,
+            source_registry=source_registry,
+            target_registry=target_registry,
+        )
+
+        await _safe_progress_call(progress, "set_message", "Schema migration completed successfully")
+        return migration_result
 
     except MigrationConfirmationRequired as e:
         # Handle confirmation required at the outer level - just return confirmation response
@@ -267,7 +237,7 @@ def migrate_schema_tool(
 
 
 @structured_output("confirm_migration_without_ids", fallback_on_error=True)
-def confirm_migration_without_ids_tool(
+async def confirm_migration_without_ids_tool(
     subject: str,
     source_registry: str,
     target_registry: str,
@@ -278,14 +248,14 @@ def confirm_migration_without_ids_tool(
     target_context: str = ".",
     versions: Optional[List[int]] = None,
     migrate_all_versions: bool = False,
+    progress: Optional[Progress] = None,
 ) -> Dict[str, Any]:
     """
     Confirm and proceed with schema migration without ID preservation.
     Use this after receiving a confirmation_required error from migrate_schema_tool.
 
-    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
-    This operation runs asynchronously and returns a task_id immediately.
-    Use get_task_status(task_id) to monitor progress and get results.
+    **MEDIUM-DURATION OPERATION** - Uses FastMCP background tasks API (SEP-1686).
+    This operation runs asynchronously with progress tracking.
 
     Args:
         subject: The subject name
@@ -296,10 +266,10 @@ def confirm_migration_without_ids_tool(
         target_context: Target context (default: ".")
         versions: Optional list of specific versions to migrate
         migrate_all_versions: Migrate all versions instead of just latest
+        progress: FastMCP Progress dependency for progress reporting
 
     Returns:
-        Task information with task_id for monitoring progress (multi-registry mode)
-        or simple result (single-registry mode) with structured validation and resource links
+        Migration result with structured validation and resource links
     """
     try:
         if registry_mode == "single":
@@ -310,115 +280,137 @@ def confirm_migration_without_ids_tool(
                 registry_mode="single",
             )
 
-        # Multi-registry mode: use task queue
-        # Create migration task
-        task = task_manager.create_task(
-            TaskType.MIGRATION,
-            metadata={
-                "operation": "confirm_migration_without_ids",
+        await _safe_progress_call(progress, "set_total", 100)
+        await _safe_progress_call(
+            progress, "set_message", f"Starting migration without ID preservation for '{subject}'"
+        )
+
+        # Check registry connections
+        source_client = registry_manager.get_registry(source_registry)
+        target_client = registry_manager.get_registry(target_registry)
+
+        if not source_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Source registry '{source_registry}' not found")
+            return create_error_response(
+                f"Source registry '{source_registry}' not found",
+                error_code="SOURCE_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
+        if not target_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Target registry '{target_registry}' not found")
+            return create_error_response(
+                f"Target registry '{target_registry}' not found",
+                error_code="TARGET_REGISTRY_NOT_FOUND",
+                registry_mode="multi",
+            )
+
+        await _safe_progress_call(progress, "set_message", "Registry connections validated")
+
+        # Perform actual schema migration (with force flag to skip confirmation)
+        migration_result = await _execute_schema_migration_async(
+            subject=subject,
+            source_client=source_client,
+            target_client=target_client,
+            source_context=source_context,
+            target_context=target_context,
+            versions=versions,
+            migrate_all_versions=migrate_all_versions,
+            preserve_ids=False,  # Explicitly disabled
+            dry_run=dry_run,
+            force_without_id_preservation=True,  # Force proceed without confirmation
+            progress=progress,
+        )
+
+        # Add structured output metadata to result
+        migration_result.update(
+            {
                 "subject": subject,
                 "source_registry": source_registry,
                 "target_registry": target_registry,
                 "source_context": source_context,
                 "target_context": target_context,
-                "migrate_all_versions": migrate_all_versions,
-                "preserve_ids": False,  # Explicitly disabled
                 "dry_run": dry_run,
-                "force_without_id_preservation": True,  # Force proceed without confirmation
-            },
+                "preserve_ids": False,
+                "confirmed_without_id_preservation": True,
+                "registry_mode": "multi",
+                "mcp_protocol_version": "2025-11-25",
+            }
         )
 
-        # Implement schema migration without ID preservation
-        try:
-            # Check registry connections
-            source_client = registry_manager.get_registry(source_registry)
-            target_client = registry_manager.get_registry(target_registry)
+        # Add resource links
+        migration_result = add_links_to_response(
+            migration_result,
+            "migration",
+            source_registry,
+            source_registry=source_registry,
+            target_registry=target_registry,
+        )
 
-            if not source_client:
-                task.status = TaskStatus.FAILED
-                task.error = f"Source registry '{source_registry}' not found"
-                return create_error_response(
-                    f"Source registry '{source_registry}' not found",
-                    error_code="SOURCE_REGISTRY_NOT_FOUND",
-                    registry_mode="multi",
-                )
-            if not target_client:
-                task.status = TaskStatus.FAILED
-                task.error = f"Target registry '{target_registry}' not found"
-                return create_error_response(
-                    f"Target registry '{target_registry}' not found",
-                    error_code="TARGET_REGISTRY_NOT_FOUND",
-                    registry_mode="multi",
-                )
-
-            # Mark task as running
-            task.status = TaskStatus.RUNNING
-            task.started_at = datetime.now().isoformat()
-
-            # Perform actual schema migration (with force flag to skip confirmation)
-            migration_result = _execute_schema_migration(
-                subject=subject,
-                source_client=source_client,
-                target_client=target_client,
-                source_context=source_context,
-                target_context=target_context,
-                versions=versions,
-                migrate_all_versions=migrate_all_versions,
-                preserve_ids=False,  # Explicitly disabled
-                dry_run=dry_run,
-                force_without_id_preservation=True,  # Force proceed without confirmation
-            )
-
-            # Update task with result
-            if "error" in migration_result:
-                task.status = TaskStatus.FAILED
-                task.error = migration_result["error"]
-            else:
-                task.status = TaskStatus.COMPLETED
-                task.progress = 100.0
-                task.result = migration_result
-
-            task.completed_at = datetime.now().isoformat()
-
-            # Add structured output metadata to result
-            migration_result.update(
-                {
-                    "migration_id": task.id,
-                    "subject": subject,
-                    "source_registry": source_registry,
-                    "target_registry": target_registry,
-                    "source_context": source_context,
-                    "target_context": target_context,
-                    "status": task.status.value,
-                    "dry_run": dry_run,
-                    "preserve_ids": False,
-                    "confirmed_without_id_preservation": True,
-                    "registry_mode": "multi",
-                    "mcp_protocol_version": "2025-06-18",
-                }
-            )
-
-            # Add resource links
-            migration_result = add_links_to_response(
-                migration_result,
-                "migration",
-                source_registry,
-                migration_id=task.id,
-                source_registry=source_registry,
-                target_registry=target_registry,
-            )
-
-            return migration_result
-
-        except Exception as e:
-            return create_error_response(
-                f"Migration setup failed: {str(e)}",
-                error_code="MIGRATION_SETUP_FAILED",
-                registry_mode="multi",
-            )
+        await _safe_progress_call(progress, "set_message", "Migration completed successfully")
+        return migration_result
 
     except Exception as e:
+        await _safe_progress_call(progress, "set_message", f"Migration failed: {str(e)}")
         return create_error_response(str(e), error_code="CONFIRMED_MIGRATION_FAILED", registry_mode=registry_mode)
+
+
+async def _execute_schema_migration_async(
+    subject: str,
+    source_client,
+    target_client,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[List[int]] = None,
+    migrate_all_versions: bool = False,
+    preserve_ids: bool = True,
+    dry_run: bool = False,
+    force_without_id_preservation: bool = False,
+    progress: Optional[Progress] = None,
+) -> Dict[str, Any]:
+    """
+    Async wrapper for schema migration with progress reporting.
+
+    This function wraps the synchronous _execute_schema_migration function
+    and adds progress reporting using FastMCP Progress dependency.
+    """
+    import asyncio
+
+    await _safe_progress_call(progress, "set_message", "Preparing schema migration")
+
+    # Run the synchronous migration in a thread pool to avoid blocking
+    loop = asyncio.get_event_loop()
+    migration_result = await loop.run_in_executor(
+        None,
+        _execute_schema_migration,
+        subject,
+        source_client,
+        target_client,
+        source_context,
+        target_context,
+        versions,
+        migrate_all_versions,
+        preserve_ids,
+        dry_run,
+        force_without_id_preservation,
+    )
+
+    # Update progress based on result
+    if "error" in migration_result:
+        await _safe_progress_call(
+            progress, "set_message", f"Migration failed: {migration_result.get('error', 'Unknown error')}"
+        )
+    else:
+        successful = migration_result.get("successful_migrations", 0)
+        total = migration_result.get("versions_to_migrate", 0)
+        if total > 0:
+            progress_pct = (successful / total) * 100
+            await _safe_progress_call(
+                progress, "set_message", f"Migrated {successful}/{total} versions successfully ({progress_pct:.1f}%)"
+            )
+        else:
+            await _safe_progress_call(progress, "set_message", "Migration completed")
+
+    return migration_result
 
 
 def _execute_schema_migration(
@@ -888,135 +880,8 @@ def _execute_schema_migration(
         }
 
 
-@structured_output("list_migrations", fallback_on_error=True)
-def list_migrations_tool(registry_mode: str) -> Dict[str, Any]:
-    """
-    List all migration tasks and their status.
-    Only available in multi-registry mode.
-
-    Returns:
-        Dictionary containing migration tasks with their status and progress, including resource links
-    """
-    try:
-        if registry_mode == "single":
-            return create_error_response(
-                "Migration tracking not available in single-registry mode",
-                details={"suggestion": "Use multi-registry configuration to enable migration tracking"},
-                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-                registry_mode="single",
-            )
-
-        # Get all migration-related tasks
-        all_tasks = task_manager.list_tasks(task_type=TaskType.MIGRATION)
-
-        migrations = []
-        for task in all_tasks:
-            migration_info = {
-                "migration_id": task.id,
-                "type": task.type.value,
-                "status": task.status.value,
-                "created_at": task.created_at,
-                "started_at": task.started_at,
-                "completed_at": task.completed_at,
-                "progress": task.progress,
-                "error": task.error,
-                "metadata": task.metadata or {},
-            }
-            migrations.append(migration_info)
-
-        # Convert to enhanced response format
-        result = {
-            "migrations": migrations,
-            "total_migrations": len(migrations),
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
-        # Add resource links
-        registry_name = _get_registry_name_for_linking(registry_mode)
-        result = add_links_to_response(result, "migrations_list", registry_name)
-
-        return result
-
-    except Exception as e:
-        return create_error_response(str(e), error_code="MIGRATION_LIST_FAILED", registry_mode=registry_mode)
-
-
-@structured_output("get_migration_status", fallback_on_error=True)
-def get_migration_status_tool(migration_id: str, registry_mode: str) -> Dict[str, Any]:
-    """
-    Get detailed status of a specific migration.
-    Only available in multi-registry mode.
-
-    Args:
-        migration_id: The migration task ID to query
-
-    Returns:
-        Detailed migration status and progress information with structured validation and resource links
-    """
-    try:
-        if registry_mode == "single":
-            return create_error_response(
-                "Migration tracking not available in single-registry mode",
-                details={"suggestion": "Use multi-registry configuration to enable migration tracking"},
-                error_code="SINGLE_REGISTRY_MODE_LIMITATION",
-                registry_mode="single",
-            )
-
-        # Get the specific migration task
-        task = task_manager.get_task(migration_id)
-        if task is None:
-            return create_error_response(
-                f"Migration '{migration_id}' not found",
-                error_code="MIGRATION_NOT_FOUND",
-                registry_mode=registry_mode,
-            )
-
-        migration_status = {
-            "migration_id": task.id,
-            "status": task.status.value,
-            "progress": task.progress,
-            "started_at": task.started_at,
-            "completed_at": task.completed_at,
-            "error": task.error,
-            "result": task.result,
-            "metadata": task.metadata or {},
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
-        # Add estimated time remaining if in progress
-        if task.status == TaskStatus.RUNNING and task.progress > 0:
-            elapsed = time.time() - (
-                datetime.fromisoformat(task.started_at).timestamp() if task.started_at else time.time()
-            )
-            if task.progress > 5:  # Only estimate if we have meaningful progress
-                estimated_total = elapsed / (task.progress / 100)
-                estimated_remaining = max(0, estimated_total - elapsed)
-                migration_status["estimated_remaining_seconds"] = round(estimated_remaining, 1)
-
-        # Add resource links - extract registry names from metadata
-        metadata = task.metadata or {}
-        source_registry = metadata.get("source_registry", "unknown")
-        target_registry = metadata.get("target_registry", "unknown")
-
-        migration_status = add_links_to_response(
-            migration_status,
-            "migration",
-            source_registry,
-            migration_id=migration_id,
-            source_registry=source_registry,
-            target_registry=target_registry,
-        )
-
-        return migration_status
-
-    except Exception as e:
-        return create_error_response(str(e), error_code="MIGRATION_STATUS_FAILED", registry_mode=registry_mode)
-
-
 @structured_output("migrate_context", fallback_on_error=True)
-def migrate_context_tool(
+async def migrate_context_tool(
     source_registry: str,
     target_registry: str,
     registry_manager,
@@ -1026,11 +891,15 @@ def migrate_context_tool(
     preserve_ids: bool = True,
     dry_run: bool = True,
     migrate_all_versions: bool = True,
+    progress: Optional[Progress] = None,
 ) -> Dict[str, Any]:
     """
     Generate Docker command for migrating an entire context using the external
     kafka-schema-reg-migrator tool. This MCP only supports single schema migration.
     For context migration, use the specialized external tool.
+
+    **MEDIUM-DURATION OPERATION** - Uses FastMCP background tasks API (SEP-1686).
+    This operation runs asynchronously with progress tracking.
 
     Args:
         source_registry: Source registry name
@@ -1040,11 +909,15 @@ def migrate_context_tool(
         preserve_ids: Preserve original schema IDs (requires IMPORT mode)
         dry_run: Preview migration without executing
         migrate_all_versions: Migrate all versions or just latest
+        progress: FastMCP Progress dependency for progress reporting
 
     Returns:
         Docker command and instructions for running the external migration tool with structured validation and resource links
     """
     try:
+        await _safe_progress_call(progress, "set_total", 100)
+        await _safe_progress_call(progress, "set_message", "Preparing context migration guide")
+
         if registry_mode == "single":
             return create_error_response(
                 "Context migration between registries not available in single-registry mode",
@@ -1053,22 +926,28 @@ def migrate_context_tool(
                 registry_mode="single",
             )
 
+        await _safe_progress_call(progress, "set_message", "Validating registry configurations")
+
         # Get registry configurations
         source_client = registry_manager.get_registry(source_registry)
         target_client = registry_manager.get_registry(target_registry)
 
         if not source_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Source registry '{source_registry}' not found")
             return create_error_response(
                 f"Source registry '{source_registry}' not found",
                 error_code="SOURCE_REGISTRY_NOT_FOUND",
                 registry_mode="multi",
             )
         if not target_client:
+            await _safe_progress_call(progress, "set_message", f"Error: Target registry '{target_registry}' not found")
             return create_error_response(
                 f"Target registry '{target_registry}' not found",
                 error_code="TARGET_REGISTRY_NOT_FOUND",
                 registry_mode="multi",
             )
+
+        await _safe_progress_call(progress, "set_message", "Building Docker migration command")
 
         # Use default context if not specified
         context = context or "."
@@ -1175,7 +1054,7 @@ def migrate_context_tool(
             "target_registry": target_registry,
             "dry_run": dry_run,
             "registry_mode": "multi",
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         # Add resource links
@@ -1187,7 +1066,9 @@ def migrate_context_tool(
             target_registry=target_registry,
         )
 
+        await _safe_progress_call(progress, "set_message", "Context migration guide generated successfully")
         return result
 
     except Exception as e:
+        await _safe_progress_call(progress, "set_message", f"Failed to generate migration guide: {str(e)}")
         return create_error_response(str(e), error_code="CONTEXT_MIGRATION_FAILED", registry_mode=registry_mode)
