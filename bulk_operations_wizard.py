@@ -207,7 +207,11 @@ class BulkOperationsWizard:
 
         # Step 6: Execute migration
         return await self._execute_bulk_operation(
-            BulkOperationType.MIGRATION, schemas, {**source_target, **migration_options}, preview, progress=self._progress
+            BulkOperationType.MIGRATION,
+            schemas,
+            {**source_target, **migration_options},
+            preview,
+            progress=self._progress,
         )
 
     async def _handle_bulk_cleanup(self) -> Dict[str, Any]:
@@ -239,7 +243,11 @@ class BulkOperationsWizard:
 
         # Step 7: Execute cleanup
         return await self._execute_bulk_operation(
-            BulkOperationType.CLEANUP, items, {"cleanup_type": cleanup_type, **cleanup_options}, preview, progress=self._progress
+            BulkOperationType.CLEANUP,
+            items,
+            {"cleanup_type": cleanup_type, **cleanup_options},
+            preview,
+            progress=self._progress,
         )
 
     async def _handle_bulk_configuration(self) -> Dict[str, Any]:
@@ -456,9 +464,7 @@ class BulkOperationsWizard:
         try:
             # Initialize progress tracking
             await _safe_progress_call(active_progress, "set_total", total_items)
-            await _safe_progress_call(
-                active_progress, "set_message", f"Starting bulk {operation_type.value} operation"
-            )
+            await _safe_progress_call(active_progress, "set_message", f"Starting bulk {operation_type.value} operation")
 
             # Create backup if required
             if params.get("create_backup", True):

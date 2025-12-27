@@ -6,7 +6,6 @@ This test module validates that FastMCP Progress dependency works correctly
 with background tasks for migration and batch operations.
 """
 
-import asyncio
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -63,8 +62,6 @@ class TestProgressReporting:
     @pytest.mark.asyncio
     async def test_migration_progress_integration(self):
         """Test that migration tools use Progress correctly"""
-        from unittest.mock import AsyncMock, MagicMock, patch
-
         # Mock Progress
         mock_progress = MagicMock()
         mock_progress.set_total = AsyncMock()
@@ -140,8 +137,6 @@ class TestProgressReporting:
     @pytest.mark.asyncio
     async def test_batch_cleanup_progress_integration(self):
         """Test that batch cleanup tools use Progress correctly"""
-        from unittest.mock import AsyncMock, MagicMock, patch
-
         # Mock Progress
         mock_progress = MagicMock()
         mock_progress.set_total = AsyncMock()
@@ -184,8 +179,6 @@ class TestProgressReporting:
     @pytest.mark.asyncio
     async def test_progress_message_sequence(self):
         """Test that progress messages are set in correct sequence"""
-        from unittest.mock import AsyncMock, MagicMock, patch
-
         # Track message calls
         messages = []
 
