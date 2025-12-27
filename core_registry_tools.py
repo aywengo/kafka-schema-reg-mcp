@@ -105,7 +105,7 @@ def register_schema_tool(
             # Add structured output metadata
             result["subject"] = subject
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -147,7 +147,7 @@ def register_schema_tool(
             result["subject"] = subject
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             if "id" in result:
@@ -218,7 +218,7 @@ def get_schema_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -259,7 +259,7 @@ def get_schema_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(
@@ -325,7 +325,7 @@ def get_schema_versions_tool(
                 "subject": subject,
                 "versions": versions_list,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -366,7 +366,7 @@ def get_schema_versions_tool(
                 "versions": versions_list,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -425,7 +425,7 @@ def list_subjects_tool(
                 "subjects": subjects_list,
                 "context": context,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -451,7 +451,7 @@ def list_subjects_tool(
                 "context": context,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -519,7 +519,7 @@ def check_compatibility_tool(
                     result["is_compatible"] = False
 
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -555,7 +555,7 @@ def check_compatibility_tool(
 
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(
@@ -617,7 +617,7 @@ def get_global_config_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -647,7 +647,7 @@ def get_global_config_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "config", client.config.name, context=context)
@@ -709,7 +709,7 @@ def update_global_config_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -739,7 +739,7 @@ def update_global_config_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "config", client.config.name, context=context)
@@ -794,7 +794,7 @@ def get_subject_config_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -824,7 +824,7 @@ def get_subject_config_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "config", client.config.name, subject=subject, context=context)
@@ -891,7 +891,7 @@ def update_subject_config_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -919,7 +919,7 @@ def update_subject_config_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "config", client.config.name, subject=subject, context=context)
@@ -989,7 +989,7 @@ def add_subject_alias_tool(
             result.setdefault("alias", alias)
             result.setdefault("target", existing_subject)
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             registry_name = _get_registry_name(registry_mode, registry)
             result = add_links_to_response(
@@ -1025,7 +1025,7 @@ def add_subject_alias_tool(
             result.setdefault("target", existing_subject)
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             result = add_links_to_response(
                 result,
@@ -1087,7 +1087,7 @@ def delete_subject_alias_tool(
                 "alias": alias,
                 "deleted": response.status_code in (200, 204),
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1114,7 +1114,7 @@ def delete_subject_alias_tool(
                 "deleted": response.status_code in (200, 204),
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             result = add_links_to_response(result, "config", client.config.name, subject=alias, context=context)
@@ -1165,7 +1165,7 @@ def get_mode_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1191,7 +1191,7 @@ def get_mode_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "mode", client.config.name, context=context)
@@ -1253,7 +1253,7 @@ def update_mode_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1283,7 +1283,7 @@ def update_mode_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "mode", client.config.name, context=context)
@@ -1334,7 +1334,7 @@ def get_subject_mode_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1360,7 +1360,7 @@ def get_subject_mode_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "mode", client.config.name, subject=subject, context=context)
@@ -1428,7 +1428,7 @@ def update_subject_mode_tool(
 
             # Add structured output metadata
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1458,7 +1458,7 @@ def update_subject_mode_tool(
             # Add structured output metadata
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(result, "mode", client.config.name, subject=subject, context=context)
@@ -1508,7 +1508,7 @@ def list_contexts_tool(
             result = {
                 "contexts": contexts_list,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -1533,7 +1533,7 @@ def list_contexts_tool(
                 "contexts": contexts_list,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -1751,7 +1751,7 @@ async def delete_subject_tool(
                 "permanent": permanent,
                 "context": context,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add links to subjects list since the specific subject is now deleted
@@ -1789,7 +1789,7 @@ async def delete_subject_tool(
                 "context": context,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add links to subjects list since the specific subject is now deleted
@@ -1849,7 +1849,7 @@ def get_schema_by_id_tool(
             # Add schema ID to the result
             result["id"] = schema_id
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name(registry_mode, registry)
@@ -1890,7 +1890,7 @@ def get_schema_by_id_tool(
             result["id"] = schema_id
             result["registry"] = client.config.name
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             result = add_links_to_response(
@@ -1947,7 +1947,7 @@ def get_subjects_by_schema_id_tool(
                 "schema_id": schema_id,
                 "subject_versions": subject_versions,
                 "registry_mode": "single",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links
@@ -1982,7 +1982,7 @@ def get_subjects_by_schema_id_tool(
                 "subject_versions": subject_versions,
                 "registry": client.config.name,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add resource links

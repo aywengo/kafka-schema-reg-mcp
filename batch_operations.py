@@ -1,56 +1,57 @@
 #!/usr/bin/env python3
 """
-Application-Level Batch Operations Module - Updated with Structured Output
+Application-Level Batch Operations Module - Updated with Structured Output and FastMCP Background Tasks
 
 ⚠️  IMPORTANT: These are APPLICATION-LEVEL batch operations, NOT JSON-RPC batching.
 
-    JSON-RPC batching has been disabled per MCP 2025-06-18 specification compliance.
+    JSON-RPC batching has been disabled per MCP 2025-11-25 specification compliance.
     These functions perform application-level batching by making individual JSON-RPC
     requests for each operation, providing client-side request queuing for performance.
 
 Handles batch cleanup operations for Schema Registry contexts with structured tool output
-support per MCP 2025-06-18 specification.
+support per MCP 2025-11-25 specification.
 
 Provides clear_context_batch and clear_multiple_contexts_batch functionality.
+
+Uses FastMCP background tasks API (SEP-1686) for long-running operations.
 
 Migration from JSON-RPC Batching:
 - Previously: Single JSON-RPC batch request with multiple operations
 - Now: Individual JSON-RPC requests with application-level coordination
-- Performance: Maintains efficiency through parallel processing and task queuing
+- Performance: Maintains efficiency through parallel processing and background tasks
 """
 
 import asyncio
 import logging
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
+from fastmcp.dependencies import Progress
 from schema_validation import create_error_response, structured_output
-from task_management import TaskStatus, TaskType, task_manager
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
 @structured_output("clear_context_batch", fallback_on_error=True)
-def clear_context_batch_tool(
+async def clear_context_batch_tool(
     context: str,
     registry_manager,
     registry_mode: str,
     registry: Optional[str] = None,
     delete_context_after: bool = True,
     dry_run: bool = True,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """Clear all subjects in a context using application-level batch operations.
 
     ⚠️  APPLICATION-LEVEL BATCHING: This performs application-level batching by
         making individual JSON-RPC requests for each operation. JSON-RPC batching
-        has been disabled per MCP 2025-06-18 specification compliance.
+        has been disabled per MCP 2025-11-25 specification compliance.
 
-    **MEDIUM-DURATION OPERATION** - Uses task queue pattern.
-    This operation runs asynchronously and returns a task_id immediately.
-    Use get_task_status(task_id) to monitor progress and get results.
+    **MEDIUM-DURATION OPERATION** - Uses FastMCP background tasks API (SEP-1686).
+    This operation runs asynchronously with progress tracking.
 
     Performance Notes:
     - Uses parallel processing with ThreadPoolExecutor for efficiency
@@ -62,12 +63,13 @@ def clear_context_batch_tool(
         registry: The registry to operate on (uses default if not specified)
         delete_context_after: Whether to delete the context after clearing subjects
         dry_run: If True, only simulate the operation without making changes
+        progress: FastMCP Progress dependency for progress reporting
 
     Returns:
-        Task information with task_id for monitoring progress with structured validation
+        Cleanup results with structured validation
     """
     try:
-        # Resolve registry name BEFORE creating task (critical for task lookup)
+        # Resolve registry name
         if registry is None:
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
@@ -89,89 +91,27 @@ def clear_context_batch_tool(
                 registry_mode=registry_mode,
             )
 
-        # Create async task with resolved registry name
-        task = task_manager.create_task(
-            TaskType.CLEANUP,
-            metadata={
-                "operation": "clear_context_batch",
-                "context": context,
-                "registry": registry,  # Now always a resolved string, never None
-                "delete_context_after": delete_context_after,
-                "dry_run": dry_run,
-                "batching_type": "application_level",  # For clarity
-                "jsonrpc_batching": False,  # Explicitly disabled
-            },
+        # Execute cleanup with progress tracking
+        return await _execute_clear_context_batch(
+            context=context,
+            registry=registry,
+            registry_manager=registry_manager,
+            delete_context_after=delete_context_after,
+            dry_run=dry_run,
+            progress=progress,
         )
-
-        # Start async execution
-        try:
-            # Check if there's a running event loop
-            asyncio.get_running_loop()
-            asyncio.create_task(
-                task_manager.execute_task(
-                    task,
-                    _execute_clear_context_batch,
-                    context=context,
-                    registry=registry,
-                    registry_manager=registry_manager,
-                    delete_context_after=delete_context_after,
-                    dry_run=dry_run,
-                )
-            )
-        except RuntimeError:
-            # No running event loop, use thread pool to run the task
-            def run_task():
-                asyncio.run(
-                    task_manager.execute_task(
-                        task,
-                        _execute_clear_context_batch,
-                        context=context,
-                        registry=registry,
-                        registry_manager=registry_manager,
-                        delete_context_after=delete_context_after,
-                        dry_run=dry_run,
-                    )
-                )
-
-            thread = threading.Thread(target=run_task)
-            thread.start()
-
-        # Return structured response
-        result = {
-            "message": "Context cleanup started as async task (application-level batching)",
-            "task_id": task.id,
-            "task": task.to_dict(),
-            "operation_info": {
-                "operation": "clear_context_batch",
-                "expected_duration": "medium",
-                "async_pattern": "task_queue",
-                "batching_type": "application_level",
-                "jsonrpc_batching_disabled": True,
-                "guidance": "Long-running operation using individual requests. Returns task_id immediately. Use get_task_status() to monitor progress.",
-                "registry_mode": registry_mode,
-                "performance_note": "Uses parallel individual requests instead of JSON-RPC batching for MCP 2025-06-18 compliance",
-            },
-            "operation": "clear_context_batch",
-            "dry_run": dry_run,
-            "total_items": 1,  # One context
-            "successful": 0,  # Will be updated by task
-            "failed": 0,  # Will be updated by task
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
-        return result
 
     except Exception as e:
         return create_error_response(str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode)
 
 
-def _execute_clear_context_batch(
+async def _execute_clear_context_batch(
     context: str,
     registry: str,
     registry_manager,
     delete_context_after: bool = True,
     dry_run: bool = True,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """Execute the actual context cleanup logic using individual requests.
 
@@ -187,28 +127,18 @@ def _execute_clear_context_batch(
     errors = []
 
     try:
-        # Get the current task ID from task manager for progress updates
-        current_task = None
-        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
-            if (
-                task.metadata
-                and task.metadata.get("operation") == "clear_context_batch"
-                and task.metadata.get("context") == context
-                and task.metadata.get("registry") == registry
-            ):
-                current_task = task
-                break
+        await progress.set_total(100)  # Set total to 100 for percentage-based progress
 
-        def update_progress(progress: float, message: str = ""):
-            if current_task:
-                task_manager.update_progress(current_task.id, progress)
+        async def update_progress(progress_value: float, message: str = ""):
+            # Convert percentage to steps (assuming 100 total steps)
+            await progress.set_message(message if message else f"Progress: {progress_value:.1f}%")
             if message:
-                logger.info(f"Clear Context Progress {progress:.1f}%: {message}")
+                logger.info(f"Clear Context Progress {progress_value:.1f}%: {message}")
 
         # Get registry client (registry is already resolved, never None here)
         registry_client = registry_manager.get_registry(registry)
 
-        update_progress(
+        await update_progress(
             5.0,
             f"Starting cleanup of context '{context}' in registry '{registry}' (individual requests)",
         )
@@ -228,7 +158,7 @@ def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(10.0, "Registry client connected")
+        await update_progress(10.0, "Registry client connected")
 
         # Check viewonly mode
         viewonly_check = registry_manager.is_viewonly(registry)
@@ -247,7 +177,7 @@ def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(20.0, "Fetching subjects from context")
+        await update_progress(20.0, "Fetching subjects from context")
 
         # Get all subjects in the context
         subjects = registry_client.get_subjects(context)
@@ -256,7 +186,7 @@ def _execute_clear_context_batch(
         subjects_found = len(subjects)
 
         if subjects_found == 0:
-            update_progress(100.0, "Context is already empty")
+            await update_progress(100.0, "Context is already empty")
             return {
                 "subjects_found": 0,
                 "subjects_deleted": 0,
@@ -270,13 +200,13 @@ def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(
+        await update_progress(
             30.0,
             f"Found {subjects_found} subjects to {'delete' if not dry_run else 'analyze'} (using individual requests)",
         )
 
         if dry_run:
-            update_progress(
+            await update_progress(
                 100.0,
                 f"DRY RUN: Would delete {subjects_found} subjects using individual requests",
             )
@@ -293,7 +223,7 @@ def _execute_clear_context_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(
+        await update_progress(
             40.0,
             f"Starting deletion of {subjects_found} subjects using parallel individual requests",
         )
@@ -315,12 +245,12 @@ def _execute_clear_context_batch(
 
                 # Update progress for deletions (40% to 85%)
                 deletion_progress = 40.0 + ((i + 1) / total_futures) * 45.0
-                update_progress(
+                await update_progress(
                     deletion_progress,
                     f"Deleted {subjects_deleted} of {subjects_found} subjects (individual requests)",
                 )
 
-        update_progress(90.0, "Computing cleanup results")
+        await update_progress(90.0, "Computing cleanup results")
 
         # Calculate metrics
         duration = time.time() - start_time
@@ -330,9 +260,9 @@ def _execute_clear_context_batch(
         # Delete context if requested (not supported by Schema Registry API)
         if delete_context_after and subjects_deleted == subjects_found:
             context_deleted = False  # Context deletion not supported by API
-            update_progress(95.0, "Context deletion not supported by API")
+            await update_progress(95.0, "Context deletion not supported by API")
 
-        update_progress(
+        await update_progress(
             100.0,
             f"Cleanup completed - deleted {subjects_deleted} subjects using individual requests",
         )
@@ -372,7 +302,7 @@ def _delete_subject_from_context(registry_client, subject: str, context: Optiona
     """Helper function to delete a subject from a context using individual request.
 
     Note: This makes a single HTTP request per subject, replacing previous
-    JSON-RPC batching approach for MCP 2025-06-18 compliance.
+    JSON-RPC batching approach for MCP 2025-11-25 compliance.
     """
     try:
         url = registry_client.build_context_url(f"/subjects/{subject}", context)
@@ -383,23 +313,23 @@ def _delete_subject_from_context(registry_client, subject: str, context: Optiona
 
 
 @structured_output("clear_multiple_contexts_batch", fallback_on_error=True)
-def clear_multiple_contexts_batch_tool(
+async def clear_multiple_contexts_batch_tool(
     contexts: List[str],
     registry_manager,
     registry_mode: str,
     registry: Optional[str] = None,
     delete_contexts_after: bool = True,
     dry_run: bool = True,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """Clear multiple contexts in a registry using application-level batch operations.
 
     ⚠️  APPLICATION-LEVEL BATCHING: This performs application-level batching by
         making individual JSON-RPC requests for each operation. JSON-RPC batching
-        has been disabled per MCP 2025-06-18 specification compliance.
+        has been disabled per MCP 2025-11-25 specification compliance.
 
-    **LONG-DURATION OPERATION** - Uses task queue pattern.
-    This operation runs asynchronously and returns a task_id immediately.
-    Use get_task_status(task_id) to monitor progress and get results.
+    **LONG-DURATION OPERATION** - Uses FastMCP background tasks API (SEP-1686).
+    This operation runs asynchronously with progress tracking.
 
     Performance Notes:
     - Uses parallel processing with ThreadPoolExecutor for efficiency
@@ -411,12 +341,13 @@ def clear_multiple_contexts_batch_tool(
         registry: Registry name to clear contexts from (uses default if not specified)
         delete_contexts_after: Whether to delete the contexts after clearing subjects
         dry_run: If True, only simulate the operation without making changes
+        progress: FastMCP Progress dependency for progress reporting
 
     Returns:
-        Task information with task_id for monitoring progress with structured validation
+        Cleanup results with structured validation
     """
     try:
-        # Resolve registry name BEFORE creating task (critical for task lookup)
+        # Resolve registry name
         if registry is None:
             # Get first available registry for single-registry compatibility
             available_registries = registry_manager.list_registries()
@@ -438,89 +369,27 @@ def clear_multiple_contexts_batch_tool(
                 registry_mode=registry_mode,
             )
 
-        # Create async task with resolved registry name
-        task = task_manager.create_task(
-            TaskType.CLEANUP,
-            metadata={
-                "operation": "clear_multiple_contexts_batch",
-                "contexts": contexts,
-                "registry": registry,  # Now always a resolved string, never None
-                "delete_contexts_after": delete_contexts_after,
-                "dry_run": dry_run,
-                "batching_type": "application_level",  # For clarity
-                "jsonrpc_batching": False,  # Explicitly disabled
-            },
+        # Execute cleanup with progress tracking
+        return await _execute_clear_multiple_contexts_batch(
+            contexts=contexts,
+            registry=registry,
+            registry_manager=registry_manager,
+            delete_contexts_after=delete_contexts_after,
+            dry_run=dry_run,
+            progress=progress,
         )
-
-        # Start async execution
-        try:
-            # Check if there's a running event loop
-            asyncio.get_running_loop()
-            asyncio.create_task(
-                task_manager.execute_task(
-                    task,
-                    _execute_clear_multiple_contexts_batch,
-                    contexts=contexts,
-                    registry=registry,
-                    registry_manager=registry_manager,
-                    delete_contexts_after=delete_contexts_after,
-                    dry_run=dry_run,
-                )
-            )
-        except RuntimeError:
-            # No running event loop, use thread pool to run the task
-            def run_task():
-                asyncio.run(
-                    task_manager.execute_task(
-                        task,
-                        _execute_clear_multiple_contexts_batch,
-                        contexts=contexts,
-                        registry=registry,
-                        registry_manager=registry_manager,
-                        delete_contexts_after=delete_contexts_after,
-                        dry_run=dry_run,
-                    )
-                )
-
-            thread = threading.Thread(target=run_task)
-            thread.start()
-
-        # Return structured response
-        result = {
-            "message": "Multiple contexts cleanup started as async task (application-level batching)",
-            "task_id": task.id,
-            "task": task.to_dict(),
-            "operation_info": {
-                "operation": "clear_multiple_contexts_batch",
-                "expected_duration": "long",
-                "async_pattern": "task_queue",
-                "batching_type": "application_level",
-                "jsonrpc_batching_disabled": True,
-                "guidance": "Long-running operation using individual requests. Returns task_id immediately. Use get_task_status() to monitor progress.",
-                "registry_mode": registry_mode,
-                "performance_note": "Uses parallel individual requests instead of JSON-RPC batching for MCP 2025-06-18 compliance",
-            },
-            "operation": "clear_multiple_contexts_batch",
-            "dry_run": dry_run,
-            "total_items": len(contexts),
-            "successful": 0,  # Will be updated by task
-            "failed": 0,  # Will be updated by task
-            "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-06-18",
-        }
-
-        return result
 
     except Exception as e:
         return create_error_response(str(e), error_code="BATCH_OPERATION_FAILED", registry_mode=registry_mode)
 
 
-def _execute_clear_multiple_contexts_batch(
+async def _execute_clear_multiple_contexts_batch(
     contexts: List[str],
     registry: str,
     registry_manager,
     delete_contexts_after: bool = True,
     dry_run: bool = True,
+    progress: Progress = Progress(),
 ) -> Dict[str, Any]:
     """Execute the actual multiple contexts cleanup logic using individual requests.
 
@@ -536,27 +405,17 @@ def _execute_clear_multiple_contexts_batch(
     errors = []
 
     try:
-        # Get the current task ID from task manager for progress updates
-        current_task = None
-        for task in task_manager.list_tasks(status=TaskStatus.RUNNING):
-            if (
-                task.metadata
-                and task.metadata.get("operation") == "clear_multiple_contexts_batch"
-                and task.metadata.get("registry") == registry
-            ):
-                current_task = task
-                break
+        await progress.set_total(len(contexts))  # Set total to number of contexts
 
-        def update_progress(progress: float, message: str = ""):
-            if current_task:
-                task_manager.update_progress(current_task.id, progress)
+        async def update_progress(progress_value: float, message: str = ""):
+            await progress.set_message(message if message else f"Progress: {progress_value:.1f}%")
             if message:
-                logger.info(f"Multi-Context Clear Progress {progress:.1f}%: {message}")
+                logger.info(f"Multi-Context Clear Progress {progress_value:.1f}%: {message}")
 
         # Get registry client (registry is already resolved, never None here)
         registry_client = registry_manager.get_registry(registry)
 
-        update_progress(
+        await update_progress(
             3.0,
             f"Starting cleanup of {len(contexts)} contexts in registry '{registry}' (individual requests)",
         )
@@ -575,7 +434,7 @@ def _execute_clear_multiple_contexts_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(8.0, "Registry client connected")
+        await update_progress(8.0, "Registry client connected")
 
         # Check viewonly mode
         viewonly_check = registry_manager.is_viewonly(registry)
@@ -594,7 +453,7 @@ def _execute_clear_multiple_contexts_batch(
                 "batching_method": "application_level",
             }
 
-        update_progress(15.0, "Starting context processing with individual requests")
+        await update_progress(15.0, "Starting context processing with individual requests")
 
         # Process each context using individual requests
         total_contexts = len(contexts)
@@ -609,7 +468,7 @@ def _execute_clear_multiple_contexts_batch(
                 context_progress_start = 15.0 + ((i - 1) / total_contexts) * 70.0
                 context_progress_end = 15.0 + (i / total_contexts) * 70.0
 
-                update_progress(
+                await update_progress(
                     context_progress_start,
                     f"Processing context {i}/{total_contexts}: '{context}' ({len(subjects)} subjects, individual requests)",
                 )
@@ -643,7 +502,7 @@ def _execute_clear_multiple_contexts_batch(
                 if delete_contexts_after:
                     pass  # Context deletion not supported
 
-                update_progress(
+                await update_progress(
                     context_progress_end,
                     f"Completed context '{context}' - deleted {context_deleted_count} subjects using individual requests",
                 )
@@ -651,7 +510,7 @@ def _execute_clear_multiple_contexts_batch(
             except Exception as e:
                 errors.append(f"Error processing context '{context}': {str(e)}")
 
-        update_progress(90.0, "Computing final results")
+        await update_progress(90.0, "Computing final results")
 
         duration = time.time() - start_time
         success_rate = (total_subjects_deleted / total_subjects_found * 100) if total_subjects_found > 0 else 100.0
@@ -663,7 +522,7 @@ def _execute_clear_multiple_contexts_batch(
             else f"Successfully cleared {len(contexts)} contexts - deleted {total_subjects_deleted}/{total_subjects_found} subjects using individual requests"
         )
 
-        update_progress(100.0, message)
+        await update_progress(100.0, message)
 
         return {
             "contexts_processed": len(contexts),

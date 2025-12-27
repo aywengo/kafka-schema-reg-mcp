@@ -2,18 +2,28 @@
 """
 Test Statistics Tasks with Task Queue Integration
 
+⚠️ DEPRECATED: This test module is deprecated as task_manager is being phased out
+in favor of FastMCP's built-in task tracking via Docket.
+
 This script tests the new optimized statistics functionality that uses
 the task queue for better performance with parallel API calls and progress tracking.
+
+Note: These tests are kept for backward compatibility but should be updated
+to use FastMCP Progress dependency instead of task_manager.
 """
 
 import os
 import sys
+import warnings
 from unittest.mock import Mock, patch
 
 import pytest
 
 # Add project root to Python path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Suppress deprecation warnings for these tests
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from task_management import TaskStatus, TaskType, task_manager
 

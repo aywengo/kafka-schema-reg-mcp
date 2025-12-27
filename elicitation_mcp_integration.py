@@ -67,7 +67,7 @@ async def real_mcp_elicit(request: ElicitationRequest) -> Optional[ElicitationRe
         elicitation_data = {
             "type": "elicitation_request",
             "request": request.to_dict(),
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         try:

@@ -85,8 +85,8 @@ Restart Claude Desktop and try these prompts:
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
-- **🧪 Full MCP Compliance** - 57+ tools following MCP 2025-06-18 specification
-- **🚀 SLIM_MODE** - Reduce tool overhead from 57+ to ~9 essential tools for better LLM performance
+- **🧪 Full MCP Compliance** - 50+ tools following MCP 2025-06-18 specification
+- **🚀 SLIM_MODE** - Reduce tool overhead from 50+ to ~9 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -193,7 +193,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 #### Enable SLIM_MODE
 ```bash
-export SLIM_MODE="true"  # Reduces tools from 57+ to ~9
+export SLIM_MODE="true"  # Reduces tools from 50+ to ~9
 # Enables reduced essential tool set
 ```
 
@@ -223,9 +223,11 @@ export SLIM_MODE="true"  # Reduces tools from 57+ to ~9
 - Advanced export/import tools (`export_context`, `export_global`)
 - All interactive/elicitation tools (`*_interactive` variants)
 - Heavy statistics tools with async operations
-- Task management and workflow tools
+- Workflow tools
 - Configuration update tools
 - Delete operations
+
+> **Note:** Task status tracking is now handled by FastMCP's built-in Docket system. Custom task management tools have been removed in favor of FastMCP's native task tracking.
 
 > **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access the full tool set.
 
@@ -281,8 +283,6 @@ These tools are maintained for backward compatibility with existing clients. The
 | **Migration** | `migrate_schema` | Tool | ❌ | admin | Migrate schema between registries |
 | **Migration** | `migrate_context` | Tool | ❌ | admin | Migrate context between registries |
 | **Migration** | `migrate_context_interactive` | Tool | ❌ | admin | Interactive context migration |
-| **Migration** | `list_migrations` | Tool | ❌ | read | List migration tasks |
-| **Migration** | `get_migration_status` | Tool | ❌ | read | Get migration status |
 | **Comparison** | `compare_registries` | Tool | ❌ | read | Compare two registries |
 | **Comparison** | `compare_contexts_across_registries` | Tool | ❌ | read | Compare contexts across registries |
 | **Comparison** | `find_missing_schemas` | Tool | ❌ | read | Find missing schemas |
@@ -294,12 +294,6 @@ These tools are maintained for backward compatibility with existing clients. The
 | **Resource Discovery** | `list_available_resources` | Tool | ✅ | read | List all available resources |
 | **Resource Discovery** | `suggest_resource_for_tool` | Tool | ✅ | read | Get resource migration suggestions |
 | **Resource Discovery** | `generate_resource_templates` | Tool | ✅ | read | Generate resource URI templates |
-| **Task Management** | `get_task_status` | Tool | ❌ | read | Get task status |
-| **Task Management** | `get_task_progress` | Tool | ❌ | read | Get task progress |
-| **Task Management** | `list_active_tasks` | Tool | ❌ | read | List active tasks |
-| **Task Management** | `cancel_task` | Tool | ❌ | admin | Cancel running task |
-| **Task Management** | `list_statistics_tasks` | Tool | ❌ | read | List statistics tasks |
-| **Task Management** | `get_statistics_task_progress` | Tool | ❌ | read | Get statistics task progress |
 | **Elicitation** | `submit_elicitation_response` | Tool | ❌ | write | Submit elicitation response |
 | **Elicitation** | `list_elicitation_requests` | Tool | ❌ | read | List elicitation requests |
 | **Elicitation** | `get_elicitation_request` | Tool | ❌ | read | Get elicitation request details |
@@ -482,6 +476,7 @@ python kafka_schema_registry_unified_mcp.py
 - **🧭 Subject Aliasing** - New tools `add_subject_alias` and `delete_subject_alias`
 - **🛠️ Fixes** - Evolution assistant and import interactive fixes
 - **📦 Enhancements** - Continued MCP tool refinements and testing improvements
+- **🗑️ Removed Deprecated Tools** - Custom task management tools removed in favor of FastMCP's built-in Docket system
 
 ### v2.0.x
 - **🔒 Security Fixes** - Resolved credential exposure in logging
@@ -504,6 +499,6 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 
-**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 70+ MCP Tools (12 backward compatibility), 19 Resources, 8 Registries, OAuth 2.1, Multi-platform
+**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 50+ MCP Tools (12 backward compatibility), 19 Resources, 8 Registries, OAuth 2.1, Multi-platform
 
 **License:** MIT | **Maintainer:** [@aywengo](https://github.com/aywengo) | **Issues:** [GitHub Issues](https://github.com/aywengo/kafka-schema-reg-mcp/issues)

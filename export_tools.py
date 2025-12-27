@@ -80,7 +80,7 @@ def export_schema_tool(
         if isinstance(result, dict):
             # Add structured output metadata
             result["registry_mode"] = registry_mode
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Ensure required fields for export schema
             if "subject" not in result:
@@ -159,7 +159,7 @@ def export_subject_tool(
 
         # Add structured output metadata
         result["registry_mode"] = registry_mode
-        result["mcp_protocol_version"] = "2025-06-18"
+        result["mcp_protocol_version"] = "2025-11-25"
 
         # Ensure required fields for export subject
         if "subject" not in result:
@@ -222,7 +222,7 @@ async def export_context_tool(
 
             result = common_export_context(client, context, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
@@ -302,7 +302,7 @@ async def export_context_tool(
                 "subject_count": len(subjects_data),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add configuration data if requested (80-90%)
@@ -401,7 +401,7 @@ async def export_global_tool(
 
             result = common_export_global(client, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-06-18"
+            result["mcp_protocol_version"] = "2025-11-25"
 
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
@@ -499,7 +499,7 @@ async def export_global_tool(
                 "default_context": (default_export if "error" not in default_export else None),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-06-18",
+                "mcp_protocol_version": "2025-11-25",
             }
 
             # Add configuration data if requested (80-90%)

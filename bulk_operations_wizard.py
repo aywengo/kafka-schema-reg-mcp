@@ -15,7 +15,8 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
-from task_management import AsyncTaskManager
+
+from fastmcp.dependencies import Progress
 
 # from batch_operations import BatchOperations  # Not needed for now
 
@@ -65,13 +66,22 @@ class BulkOperationsWizard:
         self,
         registry_manager,
         elicitation_manager: ElicitationManager,
-        task_manager: AsyncTaskManager,
         batch_operations,
+        progress: Optional["Progress"] = None,
     ):
+        """
+        Initialize the bulk operations wizard.
+        
+        Args:
+            registry_manager: Registry manager instance
+            elicitation_manager: Elicitation manager for interactive prompts
+            batch_operations: Batch operations handler (optional)
+            progress: FastMCP Progress dependency for progress reporting (optional, will be created if needed)
+        """
         self.registry = registry_manager
         self.elicitation = elicitation_manager
-        self.task_manager = task_manager
         self.batch_ops = batch_operations
+        self._progress = progress
         self._operation_handlers = self._register_handlers()
 
     def _register_handlers(self) -> Dict[BulkOperationType, Callable]:
@@ -154,7 +164,7 @@ class BulkOperationsWizard:
             return {"status": "cancelled", "reason": "User cancelled operation"}
 
         # Step 6: Execute operation
-        return await self._execute_bulk_operation(BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview)
+        return await self._execute_bulk_operation(BulkOperationType.SCHEMA_UPDATE, schemas, update_params, preview, progress=None)
 
     async def _handle_bulk_migration(self) -> Dict[str, Any]:
         """Handle bulk migration operations"""
@@ -180,7 +190,7 @@ class BulkOperationsWizard:
 
         # Step 6: Execute migration
         return await self._execute_bulk_operation(
-            BulkOperationType.MIGRATION, schemas, {**source_target, **migration_options}, preview
+            BulkOperationType.MIGRATION, schemas, {**source_target, **migration_options}, preview, progress=None
         )
 
     async def _handle_bulk_cleanup(self) -> Dict[str, Any]:
@@ -212,7 +222,7 @@ class BulkOperationsWizard:
 
         # Step 7: Execute cleanup
         return await self._execute_bulk_operation(
-            BulkOperationType.CLEANUP, items, {"cleanup_type": cleanup_type, **cleanup_options}, preview
+            BulkOperationType.CLEANUP, items, {"cleanup_type": cleanup_type, **cleanup_options}, preview, progress=None
         )
 
     async def _handle_bulk_configuration(self) -> Dict[str, Any]:
@@ -237,7 +247,7 @@ class BulkOperationsWizard:
 
         # Step 6: Execute configuration
         return await self._execute_bulk_operation(
-            BulkOperationType.CONFIGURATION, targets, {"config_type": config_type, **config_params}, preview
+            BulkOperationType.CONFIGURATION, targets, {"config_type": config_type, **config_params}, preview, progress=None
         )
 
     async def _elicit_schema_selection(

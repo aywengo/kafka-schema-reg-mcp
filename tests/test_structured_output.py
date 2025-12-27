@@ -252,7 +252,7 @@ class TestSchemaValidation(unittest.TestCase):
         self.assertIsInstance(response, dict)
         self.assertEqual(response["message"], "Operation successful")
         self.assertEqual(response["registry_mode"], "single")
-        self.assertEqual(response["mcp_protocol_version"], "2025-06-18")
+        self.assertEqual(response["mcp_protocol_version"], "2025-11-25")
         self.assertEqual(response["data"]["result"], "test")
 
     def test_create_error_response(self):
@@ -263,7 +263,7 @@ class TestSchemaValidation(unittest.TestCase):
         self.assertEqual(response["error"], "Something went wrong")
         self.assertEqual(response["error_code"], "TEST_ERROR")
         self.assertEqual(response["registry_mode"], "multi")
-        self.assertEqual(response["mcp_protocol_version"], "2025-06-18")
+        self.assertEqual(response["mcp_protocol_version"], "2025-11-25")
 
     def test_validate_registry_response(self):
         """Test registry response metadata enhancement."""
@@ -271,7 +271,7 @@ class TestSchemaValidation(unittest.TestCase):
         enhanced = validate_registry_response(data, "single")
 
         self.assertEqual(enhanced["registry_mode"], "single")
-        self.assertEqual(enhanced["mcp_protocol_version"], "2025-06-18")
+        self.assertEqual(enhanced["mcp_protocol_version"], "2025-11-25")
         self.assertEqual(enhanced["some"], "data")
 
 
@@ -333,7 +333,7 @@ class TestToolIntegration(unittest.TestCase):
             # Check structured response
             self.assertIsInstance(result, dict)
             self.assertEqual(result["registry_mode"], "single")
-            self.assertEqual(result["mcp_protocol_version"], "2025-06-18")
+            self.assertEqual(result["mcp_protocol_version"], "2025-11-25")
 
             # Check if operation was blocked by VIEWONLY mode or succeeded
             if "error" in result and "viewonly_mode" in result:
@@ -585,7 +585,7 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
             "schema": '{"type": "record", "name": "Test", "fields": [{"name": "field1", "type": "string"}]}',
             "schemaType": "AVRO",
             "registry_mode": "single",
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         result = validate_response(schema_by_id_response, GET_SCHEMA_BY_ID_SCHEMA, "get_schema_by_id")
@@ -599,7 +599,7 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
                 {"subject": "another-subject", "version": 2},
             ],
             "registry_mode": "single",
-            "mcp_protocol_version": "2025-06-18",
+            "mcp_protocol_version": "2025-11-25",
         }
 
         result = validate_response(

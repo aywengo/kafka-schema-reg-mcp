@@ -123,7 +123,7 @@ def test_mcp_header_validation_basic():
         try:
             if test1_passed:
                 # Check that protocol version matches specification
-                if MCP_PROTOCOL_VERSION == "2025-06-18":
+                if MCP_PROTOCOL_VERSION == "2025-11-25":
                     print("✅ MCP protocol version matches specification")
                     test4_passed = True
                 else:
@@ -187,7 +187,7 @@ class MCPHeaderValidationTest(unittest.TestCase):
 
     def test_protocol_version(self):
         """Test that protocol version is correctly set."""
-        self.assertEqual(self.MCP_PROTOCOL_VERSION, "2025-06-18")
+        self.assertEqual(self.MCP_PROTOCOL_VERSION, "2025-11-25")
         self.assertIn(self.MCP_PROTOCOL_VERSION, self.SUPPORTED_MCP_VERSIONS)
 
     def test_exempt_paths_health_endpoints(self):
@@ -233,7 +233,7 @@ class MCPHeaderValidationTest(unittest.TestCase):
                     self.assertIn(field, status, f"Status missing required field: {field}")
 
             # Verify protocol version in status
-            self.assertEqual(status["protocol_version"], "2025-06-18")
+            self.assertEqual(status["protocol_version"], "2025-11-25")
 
             # Verify compliance status is compliant
             self.assertEqual(status["compliance_status"], "COMPLIANT")
@@ -246,7 +246,7 @@ def main():
     """Main function to run MCP header validation tests."""
     print("🚀 MCP Header Validation Test Suite")
     print("   Kafka Schema Registry MCP Server")
-    print("   MCP 2025-06-18 Header Validation Testing")
+    print("   MCP 2025-11-25 Header Validation Testing")
     print("")
 
     # Run basic tests
