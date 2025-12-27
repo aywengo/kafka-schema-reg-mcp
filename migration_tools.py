@@ -404,7 +404,9 @@ async def _execute_schema_migration_async(
         total = migration_result.get("versions_to_migrate", 0)
         if total > 0:
             progress_pct = (successful / total) * 100
-            await _safe_progress_call(progress, "set_message", f"Migrated {successful}/{total} versions successfully")
+            await _safe_progress_call(
+                progress, "set_message", f"Migrated {successful}/{total} versions successfully ({progress_pct:.1f}%)"
+            )
         else:
             await _safe_progress_call(progress, "set_message", "Migration completed")
 
