@@ -25,9 +25,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Suppress deprecation warnings for these tests
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-from operation_metadata import TaskStatus, TaskType
-
-# Note: task_manager is deprecated and removed - these tests are kept for backward compatibility
+# Note: operation_metadata.py removed in v2.2.0+ - FastMCP tool definitions expose task capability automatically
+# TaskStatus and TaskType enums were removed as they're no longer needed
+# task_manager is deprecated and removed - these tests are kept for backward compatibility
 # but should be updated to use FastMCP Progress dependency instead
 task_manager = None  # Placeholder - actual task_manager functionality removed in v2.2.0
 
@@ -57,9 +57,9 @@ class TestStatisticsTaskQueue:
     """Test the task queue versions of statistics functions"""
 
     def test_statistics_task_type_exists(self):
-        """Test that STATISTICS task type is properly defined"""
-        assert TaskType.STATISTICS
-        assert TaskType.STATISTICS.value == "statistics"
+        """Test that STATISTICS task type is properly defined (deprecated - skipped)"""
+        # TaskType enum removed in v2.2.0+ - FastMCP tool definitions (task=True) expose task capability
+        pytest.skip("TaskType enum removed - FastMCP tool definitions expose task capability automatically")
 
     def test_task_manager_can_create_statistics_task(self):
         """Test that task manager can create statistics tasks (deprecated - skipped)"""
