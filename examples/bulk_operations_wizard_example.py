@@ -2,6 +2,9 @@
 """
 Example: Using the Bulk Operations Wizard
 
+⚠️ DEPRECATED: This example is outdated and references TaskManager which was removed in v2.2.0.
+BulkOperationsWizard now uses FastMCP Progress dependency directly.
+
 This example demonstrates how to use the Bulk Operations Wizard
 for various administrative tasks on Schema Registry.
 """
@@ -15,9 +18,6 @@ from batch_operations import BatchOperations
 from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType
 from elicitation import ElicitationManager
 from schema_registry_common import SchemaRegistryClient
-# Note: TaskManager removed in v2.2.0 - BulkOperationsWizard now uses FastMCP Progress directly
-# This example is deprecated and should be updated to use FastMCP Progress dependency
-# from operation_metadata import TaskType  # Only enums available, no TaskManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,11 +31,10 @@ async def example_bulk_cleanup():
     # Initialize components
     registry = SchemaRegistryClient()
     elicitation = ElicitationManager()
-    task_manager = TaskManager()
     batch_ops = BatchOperations(registry)
 
-    # Create wizard instance
-    wizard = BulkOperationsWizard(registry, elicitation, task_manager, batch_ops)
+    # Create wizard instance (TaskManager removed in v2.2.0 - uses FastMCP Progress directly)
+    wizard = BulkOperationsWizard(registry, elicitation, batch_ops)
 
     # Start cleanup wizard
     result = await wizard.start_wizard(BulkOperationType.CLEANUP)
@@ -55,11 +54,10 @@ async def example_bulk_update():
     # Initialize components
     registry = SchemaRegistryClient()
     elicitation = ElicitationManager()
-    task_manager = TaskManager()
     batch_ops = BatchOperations(registry)
 
-    # Create wizard with custom configuration
-    wizard = BulkOperationsWizard(registry, elicitation, task_manager, batch_ops)
+    # Create wizard with custom configuration (TaskManager removed in v2.2.0)
+    wizard = BulkOperationsWizard(registry, elicitation, batch_ops)
 
     # Configure the operation (example configuration)
     # In real implementation, would pass configuration to wizard
@@ -77,10 +75,10 @@ async def example_bulk_migration():
     # Initialize components
     registry = SchemaRegistryClient()
     elicitation = ElicitationManager()
-    task_manager = TaskManager()
     batch_ops = BatchOperations(registry)
 
-    wizard = BulkOperationsWizard(registry, elicitation, task_manager, batch_ops)
+    # TaskManager removed in v2.2.0 - wizard uses FastMCP Progress directly
+    wizard = BulkOperationsWizard(registry, elicitation, batch_ops)
 
     # Define progress callback
     def progress_callback(processed: int, total: int, message: str):
@@ -97,14 +95,10 @@ async def example_bulk_migration():
     if result["status"] == "success":
         task_id = result["task_id"]
 
-        # Check task status
-        while True:
-            status = await task_manager.get_task_status(task_id)
-            if status["status"] in ["completed", "failed"]:
-                break
-            await asyncio.sleep(5)  # Check every 5 seconds
-
-        print(f"Migration completed: {status}")
+        # Note: Task status tracking now handled by FastMCP's Docket system
+        # Use FastMCP's native task tracking instead of task_manager.get_task_status()
+        print(f"Migration task started: {task_id}")
+        print("Use FastMCP's task protocol to monitor progress")
 
 
 async def example_with_mock_responses():
@@ -145,10 +139,10 @@ async def example_error_handling():
     # Initialize components
     registry = SchemaRegistryClient()
     elicitation = ElicitationManager()
-    task_manager = TaskManager()
     batch_ops = BatchOperations(registry)
 
-    wizard = BulkOperationsWizard(registry, elicitation, task_manager, batch_ops)
+    # TaskManager removed in v2.2.0 - wizard uses FastMCP Progress directly
+    wizard = BulkOperationsWizard(registry, elicitation, batch_ops)
 
     # Configure with rollback enabled (example configuration)
     # In real implementation, would pass configuration to wizard
