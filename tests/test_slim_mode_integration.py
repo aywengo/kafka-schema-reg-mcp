@@ -117,7 +117,7 @@ EXCLUDED_TOOLS_SLIM_MODE = {
     # OAuth tools (may be heavy)
     "get_oauth_scopes_info_tool",
     "test_oauth_discovery_endpoints",
-    "get_operation_info_tool",
+    # get_operation_info_tool removed in v2.2.0+ - FastMCP tool definitions expose task capability
 }
 
 

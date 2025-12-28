@@ -20,7 +20,6 @@ and supports both single and multi-registry modes based on environment variables
     must include the MCP-Protocol-Version header per MCP 2025-06-18 specification.
 
 This modular version splits functionality across specialized modules:
-- task_management: Async task queue operations
 - migration_tools: Schema and context migration
 - comparison_tools: Registry and context comparison
 - export_tools: Schema export functionality
@@ -2949,47 +2948,9 @@ if not SLIM_MODE:
         return results
 
 
-# Operation info tool (Hidden in SLIM_MODE)
-if not SLIM_MODE:
-
-    @structured_output("get_operation_info_tool", fallback_on_error=True)
-    def get_operation_info_tool_wrapper(operation_name: Optional[str] = None):
-        """Get detailed information about MCP operations and their metadata with structured output validation."""
-        try:
-            from task_management import OPERATION_METADATA
-
-            if operation_name:
-                # Get specific operation info
-                if operation_name in OPERATION_METADATA:
-                    return {
-                        "operation": operation_name,
-                        "metadata": OPERATION_METADATA[operation_name],
-                        "registry_mode": REGISTRY_MODE,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                    }
-                else:
-                    return create_error_response(
-                        f"Operation '{operation_name}' not found",
-                        details={"available_operations": list(OPERATION_METADATA.keys())},
-                        error_code="OPERATION_NOT_FOUND",
-                        registry_mode=REGISTRY_MODE,
-                    )
-            else:
-                # Return all operations
-                return {
-                    "operations": OPERATION_METADATA,
-                    "total_operations": len(OPERATION_METADATA),
-                    "registry_mode": REGISTRY_MODE,
-                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
-                }
-        except Exception as e:
-            return create_error_response(str(e), error_code="OPERATION_INFO_FAILED", registry_mode=REGISTRY_MODE)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_operation_info_tool(operation_name: Optional[str] = None):
-        """Get detailed information about MCP operations and their metadata."""
-        return get_operation_info_tool_wrapper(operation_name)
+# Note: get_operation_info_tool removed in v2.2.0+
+# FastMCP tool definitions (with task=True) automatically expose background task capability
+# Clients can see task support directly in tool metadata via MCP protocol
 
 
 # ===== RESOURCES =====

@@ -489,7 +489,7 @@ class TestSchemaDefinitionCompleteness(unittest.TestCase):
             "get_default_registry",
             "check_viewonly_mode",
             "get_oauth_scopes_info_tool",
-            "get_operation_info_tool",
+            # get_operation_info_tool removed in v2.2.0+ - FastMCP tool definitions expose task capability
             "get_mcp_compliance_status_tool",
         ]
 

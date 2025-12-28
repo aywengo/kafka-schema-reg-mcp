@@ -1054,7 +1054,7 @@ TOOL_OUTPUT_SCHEMAS = {
         "properties": {"viewonly": {"type": "boolean"}},
     },
     "get_oauth_scopes_info_tool": {"type": "object", "additionalProperties": True},
-    "get_operation_info_tool": {"type": "object", "additionalProperties": True},
+    # get_operation_info_tool removed in v2.2.0+ - FastMCP tool definitions expose task capability
     "get_mcp_compliance_status_tool": {"type": "object", "additionalProperties": True},
 }
 

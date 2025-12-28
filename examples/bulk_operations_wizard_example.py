@@ -15,7 +15,9 @@ from batch_operations import BatchOperations
 from bulk_operations_wizard import BulkOperationsWizard, BulkOperationType
 from elicitation import ElicitationManager
 from schema_registry_common import SchemaRegistryClient
-from task_management import TaskManager
+# Note: TaskManager removed in v2.2.0 - BulkOperationsWizard now uses FastMCP Progress directly
+# This example is deprecated and should be updated to use FastMCP Progress dependency
+# from operation_metadata import TaskType  # Only enums available, no TaskManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

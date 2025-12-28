@@ -45,7 +45,6 @@ include = [
     "oauth_provider.py",
     "schema_registry_common.py",
     "core_registry_tools.py",
-    "task_management.py",
     "batch_operations.py",
     "statistics_tools.py",
     "export_tools.py",
