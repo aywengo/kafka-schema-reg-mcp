@@ -6,14 +6,15 @@ Welcome! This guide will help you get up and running with contributing to the Ka
 
 1. [Prerequisites](#prerequisites)
 2. [Quick Setup](#quick-setup)
-3. [Development Workflow](#development-workflow)
-4. [Running Tests](#running-tests)
-5. [Code Quality](#code-quality)
-6. [Making Changes](#making-changes)
-7. [Submitting Changes](#submitting-changes)
-8. [Common Tasks](#common-tasks)
-9. [Troubleshooting](#troubleshooting)
-10. [Resources](#resources)
+3. [Claude Code Skills](#claude-code-skills)
+4. [Development Workflow](#development-workflow)
+5. [Running Tests](#running-tests)
+6. [Code Quality](#code-quality)
+7. [Making Changes](#making-changes)
+8. [Submitting Changes](#submitting-changes)
+9. [Common Tasks](#common-tasks)
+10. [Troubleshooting](#troubleshooting)
+11. [Resources](#resources)
 
 ---
 
@@ -107,6 +108,96 @@ ruff --version
 **Expected output:**
 ```
 ✅ All critical checks passed! Ready for CI.
+```
+
+---
+
+## Claude Code Skills
+
+This project includes **4 specialized Claude Code skills** to automate common development tasks and boost productivity.
+
+### Available Skills
+
+#### 1. `/schema-generate` - Generate Schemas
+Generate production-ready Avro schemas from natural language descriptions.
+
+```
+/schema-generate event UserRegistered "user registration with userId, email, registrationMethod enum, timestamp"
+
+/schema-generate entity Product "product with id, name, price, inventory, status"
+```
+
+**Use when:** Starting a new schema from scratch
+
+---
+
+#### 2. `/schema-evolve` - Evolve Schemas
+Safely evolve existing schemas with automatic compatibility checking.
+
+```
+/schema-evolve user-profile "add optional phoneNumber and preferences fields"
+
+/schema-evolve order-event "add REFUNDED enum value to orderStatus"
+```
+
+**Use when:** Modifying existing schemas while maintaining compatibility
+
+---
+
+#### 3. `/migration-plan` - Plan Migrations
+Generate comprehensive migration plans for promoting schemas between environments.
+
+```
+/migration-plan development staging
+
+/migration-plan staging production --with-rollback
+```
+
+**Use when:** Deploying schemas from dev → staging → production
+
+---
+
+#### 4. `/lint-and-test` - Quality Automation
+Run linting and testing workflows with auto-fix capabilities.
+
+```
+/lint-and-test quick        # Before commit (2-3 seconds)
+/lint-and-test fix          # Auto-fix formatting issues
+/lint-and-test pre-commit   # Pre-commit workflow
+/lint-and-test pre-push     # Pre-push workflow
+```
+
+**Use when:** Before every commit and push
+
+---
+
+### Quick Skills Tutorial
+
+**5-Minute Quick Start:** Read [`.claude-code/SKILLS_GUIDE.md`](.claude-code/SKILLS_GUIDE.md)
+
+**Complete Reference:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md)
+
+**Setup Documentation:** [`CLAUDE_CODE_SKILLS_SETUP.md`](CLAUDE_CODE_SKILLS_SETUP.md)
+
+### Skills in Daily Workflow
+
+```bash
+# Morning
+source .venv/bin/activate
+/lint-and-test quick
+
+# During development
+/schema-generate event OrderPlaced "order with id, items, total"
+/schema-evolve user-profile "add loyalty points"
+/lint-and-test quick
+
+# Before commit
+/lint-and-test pre-commit
+git commit -m "feat: add order schema"
+
+# Before push
+/lint-and-test pre-push
+git push
 ```
 
 ---
@@ -551,6 +642,16 @@ export MCP_SERVER_PORT=39000
 - **docs/ide-integration.md** - IDE setup (VS Code, Claude Code, Cursor)
 - **CHANGELOG.md** - Version history
 
+### Claude Code Skills Documentation
+
+- **`.claude-code/SKILLS_GUIDE.md`** - 5-minute quick start tutorial ⭐
+- **`.claude-code/skills/README.md`** - Complete skills reference
+- **`CLAUDE_CODE_SKILLS_SETUP.md`** - Setup summary and configuration
+- **`.claude-code/skills/schema-generate.md`** - Schema generation skill
+- **`.claude-code/skills/schema-evolve.md`** - Schema evolution skill
+- **`.claude-code/skills/migration-plan.md`** - Migration planning skill
+- **`.claude-code/skills/lint-and-test.md`** - Quality assurance skill
+
 ### Configuration Examples
 
 Located in `config-examples/`:
@@ -575,12 +676,14 @@ Located in `tests/`:
 - `run_comprehensive_tests.sh` - Category-based testing
 - 80+ test files covering all features
 
-### Claude Code Configuration
+### Claude Code
 
 Located in `.claude-code/`:
 - `config.json` - Project configuration
 - `workspace.json` - Workspace settings
 - `templates/` - Schema templates (Event, Entity, Command, Aggregate)
+- `skills/` - Claude Code skills (4 specialized skills)
+- `SKILLS_GUIDE.md` - Quick start guide for skills ⭐
 - `README.md` - Claude Code usage guide
 
 ---
@@ -588,11 +691,12 @@ Located in `.claude-code/`:
 ## Next Steps
 
 1. ✅ **Complete the setup** - Follow Quick Setup section
-2. 📖 **Read AGENTS.md** - Understand development workflow
-3. 🧪 **Run tests** - Familiarize yourself with test suite
-4. 💻 **Make a small change** - Fix a typo or add a comment
-5. 🔍 **Review a PR** - Learn from existing contributions
-6. 🚀 **Start contributing** - Pick an issue or suggest improvements
+2. 🛠️ **Try Claude Code Skills** - Read `.claude-code/SKILLS_GUIDE.md` (5 minutes)
+3. 📖 **Read AGENTS.md** - Understand development workflow
+4. 🧪 **Run tests** - Familiarize yourself with test suite
+5. 💻 **Make a small change** - Use `/schema-generate` to create a test schema
+6. 🔍 **Review a PR** - Learn from existing contributions
+7. 🚀 **Start contributing** - Pick an issue or suggest improvements
 
 ---
 

@@ -33,6 +33,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 
 - [🚀 Quick Start](#-quick-start)
 - [✨ Key Features](#-key-features)
+- [🛠️ Claude Code Skills](#️-claude-code-skills)
 - [📦 Installation](#-installation)
 - [⚙️ Configuration](#️-configuration)
 - [💬 Usage Examples](#-usage-examples)
@@ -89,6 +90,54 @@ Restart Claude Desktop and try these prompts:
 - **🚀 SLIM_MODE** - Reduce tool overhead from 50+ to ~9 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
+
+## 🛠️ Claude Code Skills
+
+This project includes **4 specialized Claude Code skills** for automated schema development workflows:
+
+### Available Skills
+
+- **`/schema-generate`** - Generate production-ready Avro schemas from natural language
+  ```
+  /schema-generate event UserRegistered "user registration with userId, email, timestamp"
+  ```
+
+- **`/schema-evolve`** - Safely evolve schemas with automatic compatibility checking
+  ```
+  /schema-evolve user-profile "add optional phoneNumber field"
+  ```
+
+- **`/migration-plan`** - Create detailed migration plans between environments
+  ```
+  /migration-plan development staging
+  ```
+
+- **`/lint-and-test`** - Automated quality assurance workflows
+  ```
+  /lint-and-test quick        # Before commit (2-3s)
+  /lint-and-test fix          # Auto-fix issues (20-30s)
+  /lint-and-test pre-push     # Before push (10-15s)
+  ```
+
+### Getting Started with Skills
+
+**Quick Start:** Read [`.claude-code/SKILLS_GUIDE.md`](.claude-code/SKILLS_GUIDE.md) - 5-minute tutorial
+
+**Complete Reference:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md) - Full documentation
+
+**Setup Summary:** [`CLAUDE_CODE_SKILLS_SETUP.md`](CLAUDE_CODE_SKILLS_SETUP.md) - Configuration details
+
+### Skills Features
+
+- ✅ Natural language schema generation with templates
+- ✅ Automatic compatibility checking (BACKWARD, FORWARD, FULL)
+- ✅ Migration planning with rollback procedures
+- ✅ Pre-commit and pre-push quality automation
+- ✅ Integration with Black, Ruff, isort, Flake8
+- ✅ Docker-based test execution
+- ✅ Comprehensive error handling and auto-fix
+
+**Try it now:** `/schema-generate event TestEvent "test with id and timestamp"`
 
 ## 📦 Installation
 
