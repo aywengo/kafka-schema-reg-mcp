@@ -93,7 +93,7 @@ Restart Claude Desktop and try these prompts:
 
 ## 🛠️ Claude Code Skills
 
-This project includes **4 specialized Claude Code skills** for automated schema development workflows:
+This project includes **5 specialized Claude Code skills** – 4 for automated schema development workflows plus 1 for schema context comparison (`/context-compare`, documented below):
 
 ### Available Skills
 
