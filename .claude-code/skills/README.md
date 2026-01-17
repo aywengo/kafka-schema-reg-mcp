@@ -75,23 +75,6 @@ Generate comprehensive migration plans for moving schemas between contexts or re
 
 ---
 
-#### `/context-compare`
-Compare schemas between contexts to identify differences and plan synchronization.
-
-```
-/context-compare development staging
-/context-compare staging production --detailed
-/context-compare development production --only-differences
-```
-
-**Use when:**
-- Before deploying to higher environments
-- Detecting schema drift between contexts
-- Auditing environment synchronization
-- Planning releases and promotions
-
----
-
 ### 3. Quality Assurance Skills
 
 #### `/lint-and-test`
