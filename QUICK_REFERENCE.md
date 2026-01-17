@@ -1,13 +1,14 @@
 # Kafka Schema Registry MCP - Quick Reference Card
 
-**Version:** 2.1.5 | **Branch:** magical-proskuriakova | **Date:** 2026-01-17
+**Version:** 2.1.5 | **Date:** 2026-01-17
 
 ---
 
 ## 🚀 INSTANT START
 
 ```bash
-cd /Users/roman/.claude-worktrees/kafka-schema-reg-mcp/magical-proskuriakova
+# Navigate to project directory
+cd /path/to/kafka-schema-reg-mcp
 source .venv/bin/activate
 ./scripts/quick-lint-check.sh
 ```
@@ -538,7 +539,7 @@ Before pushing to remote:
 | Metric | Value |
 |--------|-------|
 | **Version** | 2.1.5 |
-| **Branch** | magical-proskuriakova |
+| **Branch** | Current working branch |
 | **Python** | 3.10.0 |
 | **Tests** | 35/35 passed (100%) |
 | **Files Created** | 9 new files |
@@ -555,7 +556,8 @@ Before pushing to remote:
 
 ```bash
 # 1. Start your day
-cd /Users/roman/.claude-worktrees/kafka-schema-reg-mcp/magical-proskuriakova
+# Navigate to project directory
+cd /path/to/kafka-schema-reg-mcp
 source .venv/bin/activate
 
 # 2. Pull latest changes (if working with team)
