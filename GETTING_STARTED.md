@@ -114,7 +114,7 @@ ruff --version
 
 ## Claude Code Skills
 
-This project includes **4 specialized Claude Code skills** to automate common development tasks and boost productivity.
+This project includes **5 specialized Claude Code skills** to automate common development tasks and boost productivity.
 
 ### Available Skills
 
