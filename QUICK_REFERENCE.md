@@ -363,8 +363,6 @@ cat README.md               # Main documentation
 [optional body]
 
 [optional footer]
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 ```
 
 ### Commit Types
