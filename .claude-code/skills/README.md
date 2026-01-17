@@ -441,12 +441,13 @@ Compatible with: Claude Code, Kafka Schema Registry MCP v2.1.5
 
 ## Summary
 
-You now have 4 powerful skills at your disposal:
+You now have 5 powerful skills at your disposal:
 
 1. **`/schema-generate`** - Create schemas from descriptions
 2. **`/schema-evolve`** - Safely evolve existing schemas
 3. **`/migration-plan`** - Plan schema migrations
 4. **`/lint-and-test`** - Ensure code quality
+5. **`/context-compare`** - Compare and analyze context changes
 
 These skills are designed to work together to provide a seamless development experience for the Kafka Schema Registry MCP project.
 
