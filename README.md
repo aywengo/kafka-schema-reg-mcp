@@ -125,7 +125,7 @@ This project includes **5 specialized Claude Code skills** – 4 for automated s
 
 **Complete Reference:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md) - Full documentation
 
-**Setup Summary:** [`CLAUDE_CODE_SKILLS_SETUP.md`](CLAUDE_CODE_SKILLS_SETUP.md) - Configuration details
+**Setup Summary:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md) - Configuration details
 
 ### Skills Features
 
