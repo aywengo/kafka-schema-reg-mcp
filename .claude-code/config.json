@@ -169,6 +169,41 @@
     }
   },
 
+  "skills": {
+    "enabled": true,
+    "skills_directory": ".claude-code/skills",
+    "available_skills": [
+      {
+        "name": "schema-generate",
+        "command": "/schema-generate",
+        "category": "Schema Development",
+        "description": "Generate production-ready Avro schemas from natural language descriptions",
+        "file": "schema-generate.md"
+      },
+      {
+        "name": "schema-evolve",
+        "command": "/schema-evolve",
+        "category": "Schema Development",
+        "description": "Safely evolve existing schemas with automatic compatibility checking",
+        "file": "schema-evolve.md"
+      },
+      {
+        "name": "migration-plan",
+        "command": "/migration-plan",
+        "category": "Operations",
+        "description": "Generate comprehensive migration plans for moving schemas between contexts",
+        "file": "migration-plan.md"
+      },
+      {
+        "name": "lint-and-test",
+        "command": "/lint-and-test",
+        "category": "Quality Assurance",
+        "description": "Run comprehensive linting and testing workflow with auto-fix capabilities",
+        "file": "lint-and-test.md"
+      }
+    ]
+  },
+
   "shortcuts": {
     "schema:analyze": "Analyze schema structure and provide recommendations",
     "schema:generate": "Generate schema from natural language description",
