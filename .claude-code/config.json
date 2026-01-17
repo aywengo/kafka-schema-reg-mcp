@@ -200,6 +200,13 @@
         "category": "Quality Assurance",
         "description": "Run comprehensive linting and testing workflow with auto-fix capabilities",
         "file": "lint-and-test.md"
+      },
+      {
+        "name": "context-compare",
+        "command": "/context-compare",
+        "category": "Operations",
+        "description": "Compare schemas between contexts to identify differences and plan synchronization",
+        "file": "context-compare.md"
       }
     ]
   },
