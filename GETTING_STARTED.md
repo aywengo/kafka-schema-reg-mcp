@@ -177,7 +177,7 @@ Run linting and testing workflows with auto-fix capabilities.
 
 **Complete Reference:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md)
 
-**Setup Documentation:** [`CLAUDE_CODE_SKILLS_SETUP.md`](CLAUDE_CODE_SKILLS_SETUP.md)
+**Setup Documentation:** [`.claude-code/skills/README.md`](.claude-code/skills/README.md)
 
 ### Skills in Daily Workflow
 
