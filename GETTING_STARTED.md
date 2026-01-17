@@ -646,7 +646,6 @@ export MCP_SERVER_PORT=39000
 
 - **`.claude-code/SKILLS_GUIDE.md`** - 5-minute quick start tutorial ⭐
 - **`.claude-code/skills/README.md`** - Complete skills reference
-- **`CLAUDE_CODE_SKILLS_SETUP.md`** - Setup summary and configuration
 - **`.claude-code/skills/schema-generate.md`** - Schema generation skill
 - **`.claude-code/skills/schema-evolve.md`** - Schema evolution skill
 - **`.claude-code/skills/migration-plan.md`** - Migration planning skill
