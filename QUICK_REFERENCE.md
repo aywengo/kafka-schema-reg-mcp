@@ -74,7 +74,7 @@ git status                              # Check current state
 git add .                               # Stage all changes
 git commit -m "feat: description"      # Commit with conventional format
 git log -1                              # View last commit
-git push origin magical-proskuriakova  # Push to remote
+git push origin your-branch-name       # Push to remote
 ```
 
 ---
@@ -582,7 +582,7 @@ git commit -m "feat: add new feature"
 cd tests && ./run_all_tests.sh --quick
 
 # 8. Push
-git push origin magical-proskuriakova
+git push origin your-branch-name
 ```
 
 ### Creating New Schema
@@ -759,7 +759,7 @@ Your development environment is **fully configured** and **verified**:
 ### Optional: Push Your Setup
 
 ```bash
-git push origin magical-proskuriakova
+git push origin your-branch-name
 ```
 
 Then create a PR on GitHub to share this setup with the team!
