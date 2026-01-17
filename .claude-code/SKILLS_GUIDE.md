@@ -53,7 +53,24 @@ Skills are specialized, reusable workflows that automate common development task
 
 ---
 
-### 4. `/lint-and-test` - Ensure Quality
+### 4. `/context-compare` - Compare Schemas Between Environments
+
+**What it does:** Compares schemas across different contexts to identify differences and plan synchronization
+
+**When to use:** Before migrations, during environment audits, or investigating schema drift
+
+**Quick examples:**
+```
+/context-compare development staging
+/context-compare staging production --detailed
+/context-compare development production --only-differences
+```
+
+**Output:** Detailed comparison report + difference analysis + synchronization recommendations
+
+---
+
+### 5. `/lint-and-test` - Ensure Quality
 
 **What it does:** Runs linting and testing workflows automatically
 
@@ -480,12 +497,13 @@ Now that you know the basics:
 
 ## Summary
 
-You now have **4 powerful skills** that will supercharge your development workflow:
+You now have **5 powerful skills** that will supercharge your development workflow:
 
 1. **`/schema-generate`** - Create schemas in seconds
 2. **`/schema-evolve`** - Evolve schemas safely
 3. **`/migration-plan`** - Plan deployments confidently
-4. **`/lint-and-test`** - Ensure quality automatically
+4. **`/context-compare`** - Compare schemas between environments
+5. **`/lint-and-test`** - Ensure quality automatically
 
 **Start using them today!** Try:
 ```
