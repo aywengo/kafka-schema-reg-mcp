@@ -6,7 +6,7 @@ Welcome to Claude Code Skills for the Kafka Schema Registry MCP project! This gu
 
 Skills are specialized, reusable workflows that automate common development tasks. Think of them as powerful shortcuts that combine multiple steps into a single command.
 
-## The 4 Essential Skills
+## The 5 Essential Skills
 
 ### 1. `/schema-generate` - Create Schemas Fast
 
