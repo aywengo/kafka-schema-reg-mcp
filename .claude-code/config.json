@@ -1,0 +1,216 @@
+{
+  "project_name": "Kafka Schema Registry MCP Server",
+  "project_type": "kafka_schema_management",
+  "description": "Model Context Protocol server for managing Kafka Schema Registry operations with multi-registry support, schema migration, and OAuth 2.1 security",
+
+  "mcp_servers": {
+    "kafka-schema-registry-local": {
+      "command": "python",
+      "args": ["kafka_schema_registry_unified_mcp.py"],
+      "env": {
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081",
+        "MCP_SERVER_PORT": "38000",
+        "DEFAULT_CONTEXT": "development",
+        "SLIM_MODE": "false"
+      },
+      "capabilities": [
+        "schema_management",
+        "context_management",
+        "compatibility_checking",
+        "migration_operations",
+        "export_functionality",
+        "multi_registry_support"
+      ]
+    },
+    "kafka-schema-registry-multi": {
+      "command": "python",
+      "args": ["remote-mcp-server.py"],
+      "env": {
+        "MULTI_REGISTRY_CONFIG": "multi_registry.env",
+        "MCP_SERVER_PORT": "39000"
+      },
+      "capabilities": [
+        "multi_registry_management",
+        "cross_registry_migration",
+        "disaster_recovery",
+        "bulk_operations"
+      ]
+    }
+  },
+
+  "development": {
+    "python_version": "3.10+",
+    "virtual_env": ".venv",
+    "auto_activate_venv": true,
+
+    "lint_tools": {
+      "black": {
+        "enabled": true,
+        "line_length": 120,
+        "auto_format_on_save": true
+      },
+      "ruff": {
+        "enabled": true,
+        "line_length": 120,
+        "max_complexity": 15
+      },
+      "isort": {
+        "enabled": true,
+        "profile": "black",
+        "line_length": 120
+      },
+      "flake8": {
+        "enabled": true,
+        "max_line_length": 127,
+        "max_complexity": 15
+      },
+      "mypy": {
+        "enabled": false,
+        "strict": false
+      }
+    },
+
+    "pre_commit_checks": [
+      "./scripts/quick-lint-check.sh",
+      "./scripts/check-lint-issues.sh --fix"
+    ],
+
+    "pre_push_checks": [
+      "./scripts/ci-lint-check.sh"
+    ]
+  },
+
+  "testing": {
+    "framework": "pytest",
+    "test_directory": "tests/",
+    "requires_docker": true,
+    "required_ports": [38080, 38081, 38082, 9092, 39093],
+    "docker_memory": "4GB",
+
+    "test_commands": {
+      "quick": "cd tests && ./run_all_tests.sh --quick",
+      "full": "cd tests && ./run_all_tests.sh",
+      "keep_env": "cd tests && ./run_all_tests.sh --no-cleanup",
+      "migration": "./tests/run_migration_integration_tests.sh",
+      "comprehensive": "./tests/run_comprehensive_tests.sh --category all"
+    }
+  },
+
+  "ai_assistance": {
+    "schema_generation": {
+      "enabled": true,
+      "templates": [
+        "event_schema",
+        "entity_schema",
+        "command_schema",
+        "aggregate_schema"
+      ],
+      "validation_mode": "real_time"
+    },
+
+    "migration_assistance": {
+      "enabled": true,
+      "auto_planning": true,
+      "compatibility_analysis": true,
+      "rollback_planning": true
+    },
+
+    "documentation_generation": {
+      "enabled": true,
+      "formats": ["markdown", "avro_idl", "json_schema"],
+      "auto_update": true
+    },
+
+    "code_review": {
+      "enabled": true,
+      "check_compatibility": true,
+      "suggest_improvements": true,
+      "enforce_standards": true
+    }
+  },
+
+  "workflows": {
+    "schema_development": {
+      "name": "Schema Development Workflow",
+      "description": "End-to-end schema development and evolution process",
+      "steps": [
+        "analyze_existing_schemas",
+        "design_new_schema",
+        "check_compatibility",
+        "register_schema",
+        "validate_integration"
+      ]
+    },
+
+    "multi_environment_promotion": {
+      "name": "Multi-Environment Schema Promotion",
+      "description": "Promote schemas from development to production",
+      "steps": [
+        "validate_development_schema",
+        "check_staging_compatibility",
+        "migrate_to_staging",
+        "validate_staging_deployment",
+        "check_production_compatibility",
+        "migrate_to_production"
+      ]
+    },
+
+    "disaster_recovery_setup": {
+      "name": "Disaster Recovery Configuration",
+      "description": "Set up and validate disaster recovery registry",
+      "steps": [
+        "validate_primary_registry",
+        "setup_dr_registry",
+        "perform_initial_sync",
+        "validate_sync_integrity",
+        "setup_continuous_sync",
+        "test_failover_scenario"
+      ]
+    }
+  },
+
+  "shortcuts": {
+    "schema:analyze": "Analyze schema structure and provide recommendations",
+    "schema:generate": "Generate schema from natural language description",
+    "schema:evolve": "Evolve existing schema with compatibility checking",
+    "migration:plan": "Generate migration plan between contexts",
+    "migration:execute": "Execute migration with monitoring",
+    "export:smart": "AI-optimized export strategy selection",
+    "docs:generate": "Generate comprehensive documentation",
+    "lint:check": "Run quick lint check",
+    "lint:fix": "Run comprehensive lint check with auto-fix",
+    "test:quick": "Run quick test suite",
+    "test:full": "Run full test suite"
+  },
+
+  "development_contexts": {
+    "default": "development",
+    "available": ["development", "staging", "production", "testing"],
+    "context_isolation": true
+  },
+
+  "documentation": {
+    "main_docs": "docs/",
+    "api_reference": "docs/api-reference.md",
+    "testing_guide": "TESTING_SETUP_GUIDE.md",
+    "development_guide": "AGENTS.md",
+    "integration_guide": "docs/ide-integration.md",
+    "changelog": "CHANGELOG.md"
+  },
+
+  "important_files": {
+    "configuration": "pyproject.toml",
+    "dependencies": "requirements.txt",
+    "docker_compose": "docker-compose.yml",
+    "lint_scripts": "scripts/",
+    "test_suite": "tests/"
+  },
+
+  "notes": [
+    "Always run lint checks before committing: ./scripts/quick-lint-check.sh",
+    "Never modify pyproject.toml lint configurations",
+    "Docker Desktop required for running tests",
+    "Python 3.10+ required",
+    "Use virtual environment: source .venv/bin/activate"
+  ]
+}

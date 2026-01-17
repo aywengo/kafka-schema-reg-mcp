@@ -1,0 +1,126 @@
+{
+  "template_name": "Aggregate Schema Template",
+  "description": "Template for aggregate root schemas in Domain-Driven Design",
+  "schema_type": "AVRO",
+
+  "schema_template": {
+    "type": "record",
+    "name": "{{AggregateName}}Aggregate",
+    "namespace": "{{namespace}}",
+    "doc": "{{aggregate_description}}",
+    "fields": [
+      {
+        "name": "aggregateId",
+        "type": "string",
+        "doc": "Unique identifier for this aggregate root (UUID recommended)"
+      },
+      {
+        "name": "aggregateType",
+        "type": "string",
+        "doc": "Type identifier for this aggregate"
+      },
+      {
+        "name": "version",
+        "type": "long",
+        "default": 0,
+        "doc": "Version number for event sourcing and optimistic locking"
+      },
+      {
+        "name": "createdAt",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when aggregate was created"
+      },
+      {
+        "name": "updatedAt",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when aggregate was last updated"
+      },
+      {
+        "name": "state",
+        "type": {
+          "type": "enum",
+          "name": "{{AggregateName}}State",
+          "symbols": ["CREATED", "ACTIVE", "SUSPENDED", "ARCHIVED", "DELETED"]
+        },
+        "default": "CREATED",
+        "doc": "Current state of the aggregate in its lifecycle"
+      },
+      {
+        "name": "snapshot",
+        "type": "{{AggregateSnapshotType}}",
+        "doc": "Current state snapshot of the aggregate"
+      },
+      {
+        "name": "lastEventId",
+        "type": ["null", "string"],
+        "default": null,
+        "doc": "ID of the last event applied to this aggregate"
+      },
+      {
+        "name": "eventCount",
+        "type": "long",
+        "default": 0,
+        "doc": "Total number of events applied to this aggregate"
+      },
+      {
+        "name": "entities",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "{{ChildEntityType}}"
+          }
+        ],
+        "default": null,
+        "doc": "Child entities managed by this aggregate root"
+      },
+      {
+        "name": "metadata",
+        "type": [
+          "null",
+          {
+            "type": "map",
+            "values": "string"
+          }
+        ],
+        "default": null,
+        "doc": "Optional aggregate metadata"
+      }
+    ]
+  },
+
+  "usage_examples": [
+    {
+      "name": "OrderAggregate",
+      "namespace": "com.example.order.aggregates",
+      "description": "Order aggregate managing order lifecycle",
+      "snapshot_type": {
+        "type": "record",
+        "name": "OrderSnapshot",
+        "fields": [
+          {"name": "customerId", "type": "string"},
+          {"name": "orderStatus", "type": {"type": "enum", "name": "OrderStatus", "symbols": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"]}},
+          {"name": "totalAmount", "type": "double"},
+          {"name": "currency", "type": "string"}
+        ]
+      },
+      "child_entity_type": {
+        "type": "record",
+        "name": "OrderLineItem",
+        "fields": [
+          {"name": "itemId", "type": "string"},
+          {"name": "productId", "type": "string"},
+          {"name": "quantity", "type": "int"},
+          {"name": "unitPrice", "type": "double"}
+        ]
+      }
+    }
+  ],
+
+  "ai_prompts": {
+    "generation": "Generate an aggregate schema for {{AggregateName}} that manages {{entities}}",
+    "invariants": "Add invariant checks for {{business_rules}}",
+    "events": "Design event schemas that can be applied to this aggregate",
+    "evolution": "Evolve this aggregate to support {{new_behavior}} while maintaining consistency"
+  }
+}
