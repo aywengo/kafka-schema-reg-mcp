@@ -41,6 +41,23 @@ Safely evolve existing schemas with automatic compatibility checking.
 
 ### 2. Operations Skills
 
+#### `/context-compare`
+Compare schemas between contexts to identify differences and plan synchronization.
+
+```
+/context-compare development staging
+/context-compare staging production --detailed
+/context-compare development production --only-differences
+```
+
+**Use when:**
+- Before deploying to higher environments
+- Detecting schema drift between contexts
+- Auditing environment synchronization
+- Planning releases and promotions
+
+---
+
 #### `/migration-plan`
 Generate comprehensive migration plans for moving schemas between contexts or registries.
 
@@ -55,6 +72,23 @@ Generate comprehensive migration plans for moving schemas between contexts or re
 - Setting up disaster recovery
 - Consolidating registries
 - Need step-by-step migration process
+
+---
+
+#### `/context-compare`
+Compare schemas between contexts to identify differences and plan synchronization.
+
+```
+/context-compare development staging
+/context-compare staging production --detailed
+/context-compare development production --only-differences
+```
+
+**Use when:**
+- Before deploying to higher environments
+- Detecting schema drift between contexts
+- Auditing environment synchronization
+- Planning releases and promotions
 
 ---
 
