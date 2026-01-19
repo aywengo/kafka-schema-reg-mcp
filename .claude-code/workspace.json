@@ -1,0 +1,185 @@
+{
+  "workspace_type": "kafka_schema_management",
+  "workspace_name": "Kafka Schema Registry MCP",
+  "version": "2.1.5",
+
+  "mcp_integration": {
+    "enabled": true,
+    "servers": ["kafka-schema-registry-local", "kafka-schema-registry-multi"],
+    "auto_context_detection": true,
+    "smart_completion": true,
+    "real_time_validation": true
+  },
+
+  "ai_enhanced_features": {
+    "schema_generation": {
+      "enabled": true,
+      "use_templates": true,
+      "context_aware": true,
+      "auto_validation": true
+    },
+
+    "compatibility_checking": {
+      "enabled": true,
+      "real_time": true,
+      "cross_context": true,
+      "suggest_fixes": true
+    },
+
+    "migration_planning": {
+      "enabled": true,
+      "auto_dependency_analysis": true,
+      "dry_run_first": true,
+      "rollback_strategy": true
+    },
+
+    "documentation": {
+      "enabled": true,
+      "auto_generate": true,
+      "formats": ["markdown", "avro_idl"],
+      "keep_updated": true
+    }
+  },
+
+  "code_quality": {
+    "auto_format_on_save": true,
+    "lint_on_save": true,
+    "type_checking": false,
+    "pre_commit_hooks": true,
+
+    "formatters": {
+      "python": ["black", "isort"],
+      "json": ["prettier"],
+      "yaml": ["prettier"]
+    }
+  },
+
+  "smart_features": {
+    "auto_completion": {
+      "schema_fields": true,
+      "context_names": true,
+      "registry_names": true,
+      "compatibility_modes": true
+    },
+
+    "inline_hints": {
+      "compatibility_warnings": true,
+      "migration_suggestions": true,
+      "best_practices": true,
+      "deprecated_features": true
+    },
+
+    "quick_fixes": {
+      "compatibility_issues": true,
+      "formatting_errors": true,
+      "import_sorting": true,
+      "schema_validation": true
+    }
+  },
+
+  "file_watchers": {
+    "python_files": {
+      "pattern": "**/*.py",
+      "actions": ["lint", "format"],
+      "ignore": [".venv/**", "build/**", "dist/**"]
+    },
+
+    "schema_files": {
+      "pattern": "**/*.avsc",
+      "actions": ["validate", "analyze"],
+      "auto_register": false
+    },
+
+    "config_files": {
+      "pattern": "**/*.{json,yml,yaml,env}",
+      "actions": ["validate"],
+      "reload_on_change": true
+    }
+  },
+
+  "task_automation": {
+    "pre_commit": [
+      {
+        "name": "Quick Lint Check",
+        "command": "./scripts/quick-lint-check.sh",
+        "blocking": true
+      }
+    ],
+
+    "pre_push": [
+      {
+        "name": "CI Lint Check",
+        "command": "./scripts/ci-lint-check.sh",
+        "blocking": true
+      },
+      {
+        "name": "Quick Tests",
+        "command": "cd tests && ./run_all_tests.sh --quick",
+        "blocking": false,
+        "optional": true
+      }
+    ],
+
+    "on_branch_switch": [
+      {
+        "name": "Update Dependencies",
+        "command": "source .venv/bin/activate && pip install -r requirements.txt",
+        "blocking": false
+      }
+    ]
+  },
+
+  "debugging": {
+    "python": {
+      "justMyCode": false,
+      "stopOnEntry": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "SCHEMA_REGISTRY_URL": "http://localhost:8081"
+      }
+    },
+
+    "docker": {
+      "compose_file": "docker-compose.yml",
+      "auto_start": false,
+      "healthcheck_timeout": 60
+    }
+  },
+
+  "templates": {
+    "schema_templates_dir": ".claude-code/templates/",
+    "available_templates": [
+      "event-schema.json",
+      "entity-schema.json",
+      "command-schema.json",
+      "aggregate-schema.json"
+    ]
+  },
+
+  "navigation": {
+    "quick_access": {
+      "docs": "docs/",
+      "tests": "tests/",
+      "scripts": "scripts/",
+      "examples": "examples/",
+      "config": "config-examples/"
+    },
+
+    "important_files": [
+      "README.md",
+      "AGENTS.md",
+      "TESTING_SETUP_GUIDE.md",
+      "CHANGELOG.md",
+      "pyproject.toml",
+      "requirements.txt"
+    ]
+  },
+
+  "hints": {
+    "show_context_hints": true,
+    "show_compatibility_hints": true,
+    "show_migration_hints": true,
+    "show_security_hints": true,
+    "show_performance_hints": true
+  }
+}

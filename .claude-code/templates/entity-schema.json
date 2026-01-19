@@ -1,0 +1,101 @@
+{
+  "template_name": "Entity Schema Template",
+  "description": "Template for business entity schemas with standard entity metadata",
+  "schema_type": "AVRO",
+
+  "schema_template": {
+    "type": "record",
+    "name": "{{EntityName}}",
+    "namespace": "{{namespace}}",
+    "doc": "{{entity_description}}",
+    "fields": [
+      {
+        "name": "id",
+        "type": "string",
+        "doc": "Unique identifier for this {{EntityName}} (UUID recommended)"
+      },
+      {
+        "name": "version",
+        "type": "long",
+        "default": 0,
+        "doc": "Entity version for optimistic locking and change tracking"
+      },
+      {
+        "name": "createdAt",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when entity was created"
+      },
+      {
+        "name": "updatedAt",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when entity was last updated"
+      },
+      {
+        "name": "createdBy",
+        "type": ["null", "string"],
+        "default": null,
+        "doc": "User or service that created this entity"
+      },
+      {
+        "name": "updatedBy",
+        "type": ["null", "string"],
+        "default": null,
+        "doc": "User or service that last updated this entity"
+      },
+      {
+        "name": "status",
+        "type": {
+          "type": "enum",
+          "name": "{{EntityName}}Status",
+          "symbols": ["ACTIVE", "INACTIVE", "ARCHIVED", "DELETED"]
+        },
+        "default": "ACTIVE",
+        "doc": "Current lifecycle status of the entity"
+      },
+      {
+        "name": "attributes",
+        "type": "{{EntityAttributesType}}",
+        "doc": "Entity-specific attributes and business data"
+      },
+      {
+        "name": "tags",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "string"
+          }
+        ],
+        "default": null,
+        "doc": "Optional tags for categorization and search"
+      }
+    ]
+  },
+
+  "usage_examples": [
+    {
+      "name": "Product",
+      "namespace": "com.example.catalog.entities",
+      "description": "Product entity in catalog system",
+      "attributes_type": {
+        "type": "record",
+        "name": "ProductAttributes",
+        "fields": [
+          {"name": "sku", "type": "string"},
+          {"name": "name", "type": "string"},
+          {"name": "description", "type": ["null", "string"], "default": null},
+          {"name": "price", "type": "double"},
+          {"name": "currency", "type": "string", "default": "USD"},
+          {"name": "inStock", "type": "boolean", "default": true}
+        ]
+      }
+    }
+  ],
+
+  "ai_prompts": {
+    "generation": "Generate an entity schema for {{EntityName}} with fields: {{field_list}}",
+    "relationships": "Add relationship fields to connect {{EntityName}} with {{related_entities}}",
+    "constraints": "Add validation constraints for {{business_rules}}",
+    "evolution": "Evolve this entity schema to add {{new_fields}} while maintaining backward compatibility"
+  }
+}

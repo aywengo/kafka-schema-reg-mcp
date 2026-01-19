@@ -1,0 +1,96 @@
+{
+  "template_name": "Event Schema Template",
+  "description": "Template for domain event schemas with standard event metadata",
+  "schema_type": "AVRO",
+
+  "schema_template": {
+    "type": "record",
+    "name": "{{EventName}}Event",
+    "namespace": "{{namespace}}",
+    "doc": "{{event_description}}",
+    "fields": [
+      {
+        "name": "eventId",
+        "type": "string",
+        "doc": "Unique identifier for this event instance (UUID recommended)"
+      },
+      {
+        "name": "eventType",
+        "type": "string",
+        "doc": "Type of event for routing and processing"
+      },
+      {
+        "name": "timestamp",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when event occurred"
+      },
+      {
+        "name": "version",
+        "type": "string",
+        "default": "1.0",
+        "doc": "Schema version for compatibility tracking"
+      },
+      {
+        "name": "source",
+        "type": {
+          "type": "record",
+          "name": "EventSource",
+          "fields": [
+            {
+              "name": "service",
+              "type": "string",
+              "doc": "Service that generated the event"
+            },
+            {
+              "name": "instance",
+              "type": ["null", "string"],
+              "default": null,
+              "doc": "Service instance identifier"
+            }
+          ]
+        },
+        "doc": "Source information about where the event originated"
+      },
+      {
+        "name": "data",
+        "type": "{{DataRecordType}}",
+        "doc": "Event-specific payload data"
+      },
+      {
+        "name": "metadata",
+        "type": [
+          "null",
+          {
+            "type": "map",
+            "values": "string"
+          }
+        ],
+        "default": null,
+        "doc": "Optional event metadata for extensibility and correlation"
+      }
+    ]
+  },
+
+  "usage_examples": [
+    {
+      "name": "UserRegisteredEvent",
+      "namespace": "com.example.user.events",
+      "description": "Event emitted when a new user registers",
+      "data_type": {
+        "type": "record",
+        "name": "UserRegisteredData",
+        "fields": [
+          {"name": "userId", "type": "string"},
+          {"name": "email", "type": "string"},
+          {"name": "registrationMethod", "type": {"type": "enum", "name": "RegistrationMethod", "symbols": ["EMAIL", "GOOGLE", "FACEBOOK"]}}
+        ]
+      }
+    }
+  ],
+
+  "ai_prompts": {
+    "generation": "Generate an event schema for {{domain}} domain with {{EventName}} event type. Include fields: {{field_list}}",
+    "evolution": "Evolve this event schema to support {{new_requirements}} while maintaining backward compatibility",
+    "validation": "Validate this event schema against existing schemas in {{context}} context for compatibility"
+  }
+}

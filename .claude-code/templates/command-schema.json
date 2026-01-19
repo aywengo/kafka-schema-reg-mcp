@@ -1,0 +1,109 @@
+{
+  "template_name": "Command Schema Template",
+  "description": "Template for command schemas in CQRS/Event Sourcing architectures",
+  "schema_type": "AVRO",
+
+  "schema_template": {
+    "type": "record",
+    "name": "{{CommandName}}Command",
+    "namespace": "{{namespace}}",
+    "doc": "{{command_description}}",
+    "fields": [
+      {
+        "name": "commandId",
+        "type": "string",
+        "doc": "Unique identifier for this command instance (UUID recommended)"
+      },
+      {
+        "name": "commandType",
+        "type": "string",
+        "doc": "Type of command for routing and processing"
+      },
+      {
+        "name": "timestamp",
+        "type": "long",
+        "doc": "Unix timestamp in milliseconds when command was issued"
+      },
+      {
+        "name": "issuedBy",
+        "type": {
+          "type": "record",
+          "name": "CommandIssuer",
+          "fields": [
+            {
+              "name": "userId",
+              "type": ["null", "string"],
+              "default": null,
+              "doc": "User who issued the command"
+            },
+            {
+              "name": "serviceId",
+              "type": ["null", "string"],
+              "default": null,
+              "doc": "Service that issued the command"
+            },
+            {
+              "name": "correlationId",
+              "type": ["null", "string"],
+              "default": null,
+              "doc": "Correlation ID for tracing"
+            }
+          ]
+        },
+        "doc": "Information about who or what issued this command"
+      },
+      {
+        "name": "targetEntityId",
+        "type": "string",
+        "doc": "ID of the entity this command targets"
+      },
+      {
+        "name": "expectedVersion",
+        "type": ["null", "long"],
+        "default": null,
+        "doc": "Expected version of target entity for optimistic locking"
+      },
+      {
+        "name": "payload",
+        "type": "{{CommandPayloadType}}",
+        "doc": "Command-specific payload data"
+      },
+      {
+        "name": "metadata",
+        "type": [
+          "null",
+          {
+            "type": "map",
+            "values": "string"
+          }
+        ],
+        "default": null,
+        "doc": "Optional command metadata"
+      }
+    ]
+  },
+
+  "usage_examples": [
+    {
+      "name": "CreateOrderCommand",
+      "namespace": "com.example.order.commands",
+      "description": "Command to create a new order",
+      "payload_type": {
+        "type": "record",
+        "name": "CreateOrderPayload",
+        "fields": [
+          {"name": "customerId", "type": "string"},
+          {"name": "items", "type": {"type": "array", "items": "string"}},
+          {"name": "shippingAddress", "type": "string"},
+          {"name": "paymentMethod", "type": "string"}
+        ]
+      }
+    }
+  ],
+
+  "ai_prompts": {
+    "generation": "Generate a command schema for {{CommandName}} that performs {{action}} on {{entity}}",
+    "validation": "Add validation rules to ensure {{business_constraints}}",
+    "idempotency": "Add idempotency support to handle duplicate command submissions"
+  }
+}
