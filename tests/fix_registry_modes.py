@@ -7,7 +7,6 @@ This script checks and fixes the modes of DEV and PROD registries:
 - PROD (38082): Can be VIEWONLY for production safety
 """
 
-
 import requests
 
 
