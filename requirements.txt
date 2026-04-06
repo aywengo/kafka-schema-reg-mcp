@@ -2,6 +2,8 @@
 fastmcp[tasks]>=2.14.0
 # Explicit pydocket: FastMCP 3.x gates task=True on import docket (tasks extra); ensures Docker/pip edge cases install it
 pydocket>=0.18.0
+# Transitive via fastmcp -> py-key-value-aio[keyring] -> keyring; GHSA-58pv-8j8x-9vj2 path traversal fixed in 6.1.0+
+jaraco-context>=6.1.0
 
 # MCP Python SDK - CVE-2025-66416: DNS rebinding protection requires >=1.23.0
 mcp>=1.23.0
