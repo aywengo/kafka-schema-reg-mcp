@@ -5,6 +5,28 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-04-06
+
+### Security
+
+- Require `jaraco-context>=6.1.0` to address GHSA-58pv-8j8x-9vj2 (path traversal; transitive via FastMCP → keyring stack).
+
+### Added
+
+- Contributor onboarding: [GETTING_STARTED.md](GETTING_STARTED.md) and [QUICK_REFERENCE.md](QUICK_REFERENCE.md).
+- Claude Code project assets under `.claude-code/` (configuration, workspace hints, Avro schema templates, skill docs) and related README updates.
+
+### Changed
+
+- Declare the FastMCP **`tasks`** extra in `pyproject.toml` and `requirements.txt` so installs consistently include background-task support; add explicit `pydocket>=0.18.0` for FastMCP 3.x / constrained install paths.
+- Demo MCP bridge: bump pinned FastAPI and `python-multipart` in [demo/requirements-bridge.txt](demo/requirements-bridge.txt).
+- GitHub Actions: routine version bumps across workflows (artifacts, Docker actions, Helm setup, etc.).
+- Local unified tests: [tests/docker-compose.yml](tests/docker-compose.yml) `pull_policy` adjusted for local image builds.
+
+### Fixed
+
+- Minor formatting cleanup in `tests/fix_registry_modes.py` (Black).
+
 ## [2.2.0] - 2026-01-02
 
 ### 🚀 MCP Protocol 2025-11-25 Compliance & FastMCP Background Tasks API
