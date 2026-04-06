@@ -5,6 +5,32 @@ entries:
       category: Infrastructure
       licenses: MIT
     apiVersion: v2
+    appVersion: 2.2.1
+    created: "2026-04-06T13:02:55.338814855Z"
+    description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
+    digest: 2ce69e3d22db12e99cfed098012b4030c5716f7e3a1dc308a23507538a764ddb
+    home: https://github.com/aywengo/kafka-schema-reg-mcp
+    icon: https://kafka.apache.org/images/apache-kafka.png
+    keywords:
+    - kafka
+    - schema-registry
+    - mcp
+    - claude
+    - oauth2
+    maintainers:
+    - email: your-email@example.com
+      name: aywengo
+    name: kafka-schema-registry-mcp
+    sources:
+    - https://github.com/aywengo/kafka-schema-reg-mcp
+    type: application
+    urls:
+    - kafka-schema-registry-mcp-2.2.1.tgz
+    version: 2.2.1
+  - annotations:
+      category: Infrastructure
+      licenses: MIT
+    apiVersion: v2
     appVersion: 2.2.0
     created: "2025-12-28T18:16:36.347120029Z"
     description: A Helm chart for Kafka Schema Registry MCP Server with OAuth2 authentication
@@ -547,4 +573,4 @@ entries:
     urls:
     - kafka-schema-registry-mcp-2.0.0-rc2.tgz
     version: 2.0.0-rc2
-generated: "2025-12-28T18:16:36.347281274Z"
+generated: "2026-04-06T13:02:55.338974444Z"
