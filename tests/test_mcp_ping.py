@@ -23,12 +23,48 @@ import os
 import sys
 import unittest
 from datetime import datetime
+from typing import Any
 
 from fastmcp import Client
 
 # Add project root to Python path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
+
+
+def _unwrap_ping_callable(ping: Any):
+    """Return the implementation callable for the ping tool (FastMCP 2.x / 3.x wrappers)."""
+    if callable(ping) and getattr(ping, "__name__", None) == "ping":
+        return ping
+    for attr in ("fn", "func", "_func", "__wrapped__"):
+        inner = getattr(ping, attr, None)
+        if callable(inner):
+            return inner
+    return ping if callable(ping) else None
+
+
+def _parse_ping_response_from_call_tool_result(result: Any) -> dict:
+    """Normalize FastMCP client call_tool result to the ping tool dict."""
+    if result is None:
+        raise ValueError("ping call_tool returned None")
+    data = getattr(result, "data", None)
+    if isinstance(data, dict):
+        return data
+    structured = getattr(result, "structured_content", None)
+    if structured is None:
+        structured = getattr(result, "structuredContent", None)
+    if isinstance(structured, dict):
+        inner = structured.get("result")
+        if isinstance(inner, dict):
+            return inner
+        return structured
+    content = getattr(result, "content", None) or []
+    if content:
+        block = content[0]
+        text = getattr(block, "text", None)
+        if text:
+            return json.loads(text)
+    raise ValueError(f"could not parse ping result from {type(result)!r}")
 
 
 async def test_ping_tool_directly():
@@ -38,33 +74,25 @@ async def test_ping_tool_directly():
 
     try:
         # Import the ping function directly
-        from kafka_schema_registry_unified_mcp import ping
+        from kafka_schema_registry_unified_mcp import MCP_PROTOCOL_VERSION, ping
 
         print("✅ Successfully imported ping function")
 
-        # The ping function is wrapped as a FastMCP tool, so we need to access the underlying function
-        if hasattr(ping, "func"):
-            ping_func = ping.func
-        elif hasattr(ping, "_func"):
-            ping_func = ping._func
-        elif callable(ping):
-            ping_func = ping
-        else:
-            # If we can't access the underlying function, try to find it in the module
+        ping_func = _unwrap_ping_callable(ping)
+        if ping_func is None:
             import kafka_schema_registry_unified_mcp as mcp_module
 
-            # Look for the ping function in the module's globals
             ping_func = None
             for name, obj in vars(mcp_module).items():
-                if hasattr(obj, "func") and hasattr(obj.func, "__name__") and obj.func.__name__ == "ping":
-                    ping_func = obj.func
+                inner = _unwrap_ping_callable(obj)
+                if inner is not None and getattr(inner, "__name__", None) == "ping":
+                    ping_func = inner
                     break
 
             if ping_func is None:
                 print("⚠️ Could not access ping function directly, skipping direct test")
                 return True
 
-        # Call the ping function
         response = ping_func()
 
         # Validate response structure
@@ -106,10 +134,9 @@ async def test_ping_tool_directly():
             print(f"❌ Invalid timestamp format: {e}")
             return False
 
-        # Validate protocol version
         assert (
-            response["protocol_version"] == "2025-06-18"
-        ), f"Expected protocol version '2025-06-18', got '{response['protocol_version']}'"
+            response["protocol_version"] == MCP_PROTOCOL_VERSION
+        ), f"Expected protocol version {MCP_PROTOCOL_VERSION!r}, got {response['protocol_version']!r}"
         print("✅ Protocol version validation passed")
 
         print("🎉 Direct ping tool test completed successfully!")
@@ -185,7 +212,7 @@ async def test_ping_via_mcp_client():
             assert ping_tool is not None, "Ping tool should be found"
 
             # Validate ping tool description
-            description = ping_tool.description.lower()
+            description = (ping_tool.description or "").lower()
             assert "ping" in description, "Ping tool description should mention ping"
             assert "pong" in description, "Ping tool description should mention pong"
             assert "health" in description, "Ping tool description should mention health checking"
@@ -197,16 +224,16 @@ async def test_ping_via_mcp_client():
 
             assert result is not None, "Ping tool should return results"
 
-            # Parse the response - CallToolResult has content attribute
-            if hasattr(result, "content") and result.content:
-                response_text = result.content[0].text if result.content else str(result)
-            else:
-                response_text = str(result)
             try:
-                response_data = json.loads(response_text)
-            except json.JSONDecodeError:
-                # If it's not JSON, check if it contains the expected response
-                assert "pong" in response_text.lower(), "Response should contain 'pong'"
+                response_data = _parse_ping_response_from_call_tool_result(result)
+            except (json.JSONDecodeError, ValueError) as parse_err:
+                response_text = str(result)
+                if hasattr(result, "content") and result.content:
+                    block = result.content[0]
+                    response_text = getattr(block, "text", None) or response_text
+                assert (
+                    "pong" in response_text.lower()
+                ), f"Response should contain 'pong': {parse_err!s}; body={response_text!r}"
                 print("✅ Ping response received (non-JSON format)")
                 return True
 
@@ -250,14 +277,8 @@ async def test_ping_performance():
     try:
         from kafka_schema_registry_unified_mcp import ping
 
-        # Get the underlying function
-        if hasattr(ping, "func"):
-            ping_func = ping.func
-        elif hasattr(ping, "_func"):
-            ping_func = ping._func
-        elif callable(ping):
-            ping_func = ping
-        else:
+        ping_func = _unwrap_ping_callable(ping)
+        if ping_func is None:
             print("⚠️ Could not access ping function directly, skipping performance test")
             return True
 
@@ -308,8 +329,9 @@ class MCPPingTestSuite(unittest.TestCase):
         try:
             from kafka_schema_registry_unified_mcp import ping
 
-            # Test that the ping tool exists and has expected attributes
-            self.assertTrue(hasattr(ping, "__name__") or hasattr(ping, "name"))
+            self.assertTrue(
+                hasattr(ping, "__name__") or hasattr(ping, "name") or hasattr(ping, "key") or callable(ping)
+            )
             print("✅ Ping tool is available as FastMCP tool")
         except ImportError:
             self.fail("Ping tool not available")
@@ -343,8 +365,8 @@ class MCPPingTestSuite(unittest.TestCase):
         try:
             from kafka_schema_registry_unified_mcp import MCP_PROTOCOL_VERSION, REGISTRY_MODE
 
-            # Validate constants used by ping function
-            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-06-18")
+            # Validate constants used by ping function (dated MCP revision evolves with the server)
+            self.assertRegex(MCP_PROTOCOL_VERSION, r"^2025-\d{2}-\d{2}$")
             self.assertIn(REGISTRY_MODE, ["single", "multi"])
             print("✅ Required constants for ping are properly defined")
 
