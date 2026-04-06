@@ -134,6 +134,8 @@ services:
       context: ..
       dockerfile: Dockerfile
     image: kafka-schema-registry-mcp:test
+    # Local tag only; do not pull from a registry (avoids "pull access denied").
+    pull_policy: build
     container_name: mcp-server
     depends_on:
       schema-registry-dev:
