@@ -18,7 +18,7 @@ dependencies = [
     "aiohttp>=3.12.13",
     "jsonschema>=4.24.0",
     "PyJWT>=2.10.0",
-    "cryptography>=45.0.0",
+    "cryptography>=45.0.7",
     "avro-python3>=1.10.0",
     "jaraco-context>=6.1.0",  # GHSA-58pv-8j8x-9vj2 (transitive via fastmcp/keyring)
 ]
