@@ -35,5 +35,5 @@ pytest-asyncio>=1.0.0
 httpx>=0.27.0
 
 # Additional security dependencies - Conservative versions
-safety>=3.0.0
+safety>=3.8.1
 pip-audit>=2.10.1
