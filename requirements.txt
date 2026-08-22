@@ -36,4 +36,4 @@ httpx>=0.27.0
 
 # Additional security dependencies - Conservative versions
 safety>=3.0.0
-pip-audit>=2.6.0
+pip-audit>=2.10.1
