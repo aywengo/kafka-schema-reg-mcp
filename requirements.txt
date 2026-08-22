@@ -1,28 +1,30 @@
 # FastMCP 2.14.0+ for MCP 2025-11-25 specification compliance with background tasks support
-fastmcp[tasks]>=2.14.0
+fastmcp[tasks]>=2.14.7
 # Explicit pydocket: FastMCP 3.x gates task=True on import docket (tasks extra); ensures Docker/pip edge cases install it
 pydocket>=0.18.0
 # Transitive via fastmcp -> py-key-value-aio[keyring] -> keyring; GHSA-58pv-8j8x-9vj2 path traversal fixed in 6.1.0+
-jaraco-context>=6.1.0
+jaraco-context>=6.1.2
+# Transitive via pydocket/redis stack; GHSA-6v7p-g79w-8964 out-of-bounds read fixed in 1.2.1+
+msgpack>=1.2.1
 
 # MCP Python SDK - CVE-2025-66416: DNS rebinding protection requires >=1.23.0
 mcp>=1.23.0
 
 # FastAPI for MCP-Protocol-Version header validation middleware
-fastapi>=0.115.0
+fastapi>=0.135.3
 
 # Kafka Schema Registry integration - Updated to latest secure versions
-requests>=2.32.4
-python-dotenv>=1.1.1
-aiohttp>=3.12.13
+requests>=2.33.1
+python-dotenv>=1.2.2
+aiohttp>=3.13.5
 
 # OAuth JWT validation dependencies - Updated to latest secure versions
 PyJWT>=2.10.1
-cryptography>=45.0.4
+cryptography>=45.0.7
 
 # Data processing for export functionality - Using known stable versions
 avro-python3>=1.10.2
-jsonschema>=4.24.0
+jsonschema>=4.26.0
 
 # FastMCP web framework for remote deployment - Conservative version
 starlette>=0.27.0

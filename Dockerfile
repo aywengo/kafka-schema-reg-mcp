@@ -23,7 +23,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 
 # Copy requirements and install Python dependencies in builder stage
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+RUN pip install --no-cache-dir --upgrade "pip>=25.0" "setuptools>=78.1.1" wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # Production stage with minimal attack surface
@@ -83,6 +83,12 @@ RUN chown -R mcp:mcp /app
 # Copy Python packages from builder stage
 COPY --from=builder /usr/local/lib/python3.14/site-packages /usr/local/lib/python3.14/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Remove pip/setuptools/wheel from runtime image (not needed; pip vendors msgpack 1.1.2)
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* \
+    /usr/local/lib/python3.14/site-packages/setuptools* \
+    /usr/local/lib/python3.14/site-packages/wheel* \
+    && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14 2>/dev/null || true
 
 # Copy core application modules with proper ownership
 COPY --chown=mcp:mcp oauth_provider.py .

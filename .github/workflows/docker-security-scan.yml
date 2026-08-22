@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -79,72 +79,102 @@ jobs:
             --scanners vuln \
             kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
 
-      - name: Create issue from vulnerabilities
+      - name: Manage security scan issues
         if: github.event_name == 'schedule'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
             const trivyOutput = fs.readFileSync('trivy-table.txt', 'utf8');
-            
-            // Check if there are any vulnerabilities
-            if (trivyOutput.includes('Total: 0')) {
-              console.log('No HIGH or CRITICAL vulnerabilities found');
-              return;
-            }
-            
-            // Check for CRITICAL and HIGH vulnerabilities specifically
+
             const hasCritical = trivyOutput.includes('CRITICAL');
             const hasHigh = trivyOutput.includes('HIGH');
-            
-            if (!hasCritical && !hasHigh) {
+            const hasFindings = hasCritical || hasHigh;
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security,automated',
+              per_page: 20,
+            });
+
+            const existingIssue = openIssues.find((issue) =>
+              issue.title.includes('Security Scan Alert')
+            );
+
+            if (!hasFindings) {
               console.log('No HIGH or CRITICAL vulnerabilities found');
+              for (const issue of openIssues.filter((item) => item.title.includes('Security Scan Alert'))) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `## Clean scan — ${new Date().toISOString()}\n\nNo HIGH or CRITICAL vulnerabilities with available fixes were found. Closing this issue.`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed',
+                  state_reason: 'completed',
+                });
+              }
               return;
             }
-            
-            // Create issue body
-            const issueBody = `## 🔒 Security Scan Results
-            
+
+            const issueBody = `## Security Scan Results
+
             The scheduled security scan found HIGH or CRITICAL vulnerabilities in the Docker image.
-            
+
             ### Scan Details
             - **Date**: ${new Date().toISOString()}
             - **Image**: kafka-schema-registry-mcp
             - **Scanner**: Trivy
             - **Severity Filter**: CRITICAL and HIGH only (MEDIUM and LOW excluded)
             - **Configuration**: Unfixed vulnerabilities are ignored
-            
+
             ### Vulnerabilities Found
-            
+
             \`\`\`
             ${trivyOutput}
             \`\`\`
-            
+
             **Note**: This scan excludes:
             - MEDIUM and LOW severity issues per security policy
             - Vulnerabilities without available fixes
-            
+
             Only CRITICAL and HIGH severity vulnerabilities with available fixes are reported.
-            
+
             ### Recommended Actions
             1. Review the vulnerabilities listed above
             2. Update base images if newer versions are available
             3. Update dependencies in requirements.txt
             4. Apply security patches where possible
             5. Add to .trivyignore if vulnerabilities are not exploitable in our context
-            
+
             ### Resources
             - [Trivy Documentation](https://aquasecurity.github.io/trivy/)
             - [Docker Security Best Practices](https://docs.docker.com/develop/security-best-practices/)
             `;
-            
-            // Create the issue
+
+            if (existingIssue) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `## Updated scan — ${new Date().toISOString()}\n\n${issueBody}`,
+              });
+              console.log(`Updated existing security issue #${existingIssue.number}`);
+              return;
+            }
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🔒 Security Scan Alert - HIGH/CRITICAL Vulnerabilities - ${new Date().toLocaleDateString()}`,
+              title: `Security Scan Alert - HIGH/CRITICAL Vulnerabilities - ${new Date().toLocaleDateString()}`,
               body: issueBody,
-              labels: ['security', 'docker', 'automated', 'high-priority']
+              labels: ['security', 'docker', 'automated', 'high-priority'],
             });
 
       - name: Generate scan summary

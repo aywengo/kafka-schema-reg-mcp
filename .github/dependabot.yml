@@ -7,7 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 12
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "version-update"
@@ -15,6 +15,13 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     # Only allow patch and minor version updates (excludes major security updates)
     allow:
       - dependency-type: "direct"
