@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demo MCP bridge: bump FastAPI, uvicorn, and python-multipart in [demo/requirements-bridge.txt](demo/requirements-bridge.txt).
 - Dependabot: group pip dependency updates into weekly consolidated PRs.
 - Docker security scan workflow: comment on existing open security issue instead of creating duplicates; auto-close when scan is clean.
+- Follow-on Dependabot merges #171–#176: fastapi `>=0.141.1`, starlette `>=0.52.1`, safety `>=3.8.1`, pip-audit `>=2.10.1`; demo bridge stack updated; `actions/setup-python@v7`, `actions/setup-node@v7`.
 
 ### Added
 
