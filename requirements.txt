@@ -11,7 +11,7 @@ msgpack>=1.2.1
 mcp>=1.23.0
 
 # FastAPI for MCP-Protocol-Version header validation middleware
-fastapi>=0.135.3
+fastapi>=0.141.1
 
 # Kafka Schema Registry integration - Updated to latest secure versions
 requests>=2.33.1
