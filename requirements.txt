@@ -27,7 +27,7 @@ avro-python3>=1.10.2
 jsonschema>=4.26.0
 
 # FastMCP web framework for remote deployment - Conservative version
-starlette>=0.27.0
+starlette>=0.52.1
 
 # Testing dependencies - Conservative but recent versions
 pytest>=8.4.1
