@@ -99,6 +99,16 @@ if ! run_ci_check "isort import sorting" \
     CRITICAL_FAILED=true
 fi
 
+# Step 6: Dependency pin parity (CRITICAL - will fail CI)
+echo -e "\n${BLUE}=== STEP 6: Dependency Pin Parity ===${NC}"
+echo "This check will FAIL CI if requirements.txt and pyproject.toml pins diverge"
+
+if ! run_ci_check "Dependency pin parity" \
+    "python scripts/check-deps-parity.py" \
+    true; then
+    CRITICAL_FAILED=true
+fi
+
 # Summary
 echo -e "\n${BLUE}=== SUMMARY ===${NC}"
 if [[ "${CRITICAL_FAILED:-false}" == "true" ]]; then

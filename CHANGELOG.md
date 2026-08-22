@@ -5,6 +5,27 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-08-22
+
+### Security
+
+- Pin `setuptools>=78.1.1` in Docker builder stage to address CVE-2025-47273 (path traversal in PackageIndex).
+- Pin `msgpack>=1.2.1` to address GHSA-6v7p-g79w-8964 (transitive via pydocket/redis stack).
+- Strip pip/setuptools/wheel from production Docker image to eliminate pip-vendored msgpack scan noise.
+- Consolidated dependency floor bumps from Dependabot PRs #147–#166 (superseded by this release).
+
+### Changed
+
+- Sync `requirements.txt` and `pyproject.toml` dependency floors (aiohttp, requests, fastmcp, cryptography, python-dotenv, jsonschema, jaraco-context, fastapi).
+- Bump GitHub Actions: checkout v7, configure-pages v6, deploy-pages v5, github-script v9, upload-pages-artifact v5, action-gh-release v3, codecov-action v7.
+- Demo MCP bridge: bump FastAPI, uvicorn, and python-multipart in [demo/requirements-bridge.txt](demo/requirements-bridge.txt).
+- Dependabot: group pip dependency updates into weekly consolidated PRs.
+- Docker security scan workflow: comment on existing open security issue instead of creating duplicates; auto-close when scan is clean.
+
+### Added
+
+- CI check script [scripts/check-deps-parity.py](scripts/check-deps-parity.py) to keep `requirements.txt` and `pyproject.toml` pins aligned.
+
 ## [2.2.1] - 2026-04-06
 
 ### Security
