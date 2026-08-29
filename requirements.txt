@@ -1,5 +1,5 @@
-# FastMCP 2.14.0+ for MCP 2025-11-25 specification compliance with background tasks support
-fastmcp[tasks]>=2.14.7
+# FastMCP 3.2.0+ for CVE-2026-32871 (SSRF) and CVE-2026-27124 (OAuthProxy); cap <4 until FastMCP 4 GA (#177)
+fastmcp[tasks]>=3.2.0,<4
 # Explicit pydocket: FastMCP 3.x gates task=True on import docket (tasks extra); ensures Docker/pip edge cases install it
 pydocket>=0.18.0
 # Transitive via fastmcp -> py-key-value-aio[keyring] -> keyring; GHSA-58pv-8j8x-9vj2 path traversal fixed in 6.1.0+

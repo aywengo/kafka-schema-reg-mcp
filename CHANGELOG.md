@@ -5,6 +5,12 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Pin `fastmcp[tasks]>=3.2.0,<4` to address CVE-2026-32871 (authenticated SSRF in OpenAPIProvider) and CVE-2026-27124 (OAuthProxy confused deputy). Both are fixed in FastMCP 3.2.0. Cap below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)).
+
 ## [2.2.2] - 2026-08-22
 
 ### Security

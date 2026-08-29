@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.1,<25.0.0",
     "httpx>=0.27.0",
-    "fastmcp[tasks]>=2.14.7",
+    "fastmcp[tasks]>=3.2.0,<4",  # CVE-2026-32871 / CVE-2026-27124; cap <4 until FastMCP 4 GA (#177)
     "pydocket>=0.18.0",
     "mcp>=1.23.0",  # CVE-2025-66416: DNS rebinding protection
     "requests>=2.33.1",
