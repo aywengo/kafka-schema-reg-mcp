@@ -1,6 +1,6 @@
 # v2.x Migration Guide - Current Stable Versions
 
-This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**.
+This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**.
 
 ## 🚀 Current Version Information
 
@@ -197,7 +197,7 @@ cp ~/claude_desktop_config_v1_backup.json \
 
 | Feature | v1.8.3 (Legacy) | v2.2.2 (Current) |
 |---------|------------------|------------------|
-| **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 2.14.7+ (2.x, capped below 3) |
+| **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 3.2.0+ (3.x, capped below 4) |
 | **MCP Specification** | Pre-2025 | ✅ MCP 2025-11-25 |
 | **Authentication** | Provider-specific OAuth | ✅ Universal OAuth 2.1 Discovery |
 | **Configuration Complexity** | 8+ variables per provider | ✅ 2 variables (universal) |

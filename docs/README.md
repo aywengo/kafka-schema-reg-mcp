@@ -1,13 +1,13 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v2.2.2 documentation! This folder contains comprehensive guides and references for the **FastMCP 2.14.7+ Framework** with **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v2.2.2 documentation! This folder contains comprehensive guides and references for the **FastMCP 3.2.0+ Framework** with **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
-This project uses **FastMCP 2.14.7+** (2.x line, capped below 3) for **MCP 2025-11-25 specification compliance**, providing a **true Model Context Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
+This project uses **FastMCP 3.2.0+** (3.x, capped below 4) for **MCP 2025-11-25 specification compliance**, providing a **true Model Context Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
 
 ### **Key MCP Features:**
-- ✅ **FastMCP 2.14.7+ Framework**: Modern MCP architecture with enhanced performance (2.x line, capped below 3)
+- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with enhanced performance (3.x, capped below 4)
 - ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
 - ✅ **70+ MCP Tools**: Complete schema operations via natural language with async task management
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.1 support for any provider

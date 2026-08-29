@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**.
 
 ## 📂 Available Configurations
 
@@ -274,7 +274,7 @@ ENFORCE_SSL_TLS_VERIFICATION=false
 
 ## 🔗 Related Documentation
 
-- **[v2.x Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 2.14.7+ testing and migration
+- **[v2.x Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 3.2.0+ testing and migration
 - **[TEST_ENVIRONMENT_SUMMARY.md](../tests/TEST_ENVIRONMENT_SUMMARY.md)** - Complete testing and troubleshooting guide
 - **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Testing environment setup
 - **[tests/README.md](../tests/README.md)** - Testing infrastructure details

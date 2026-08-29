@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**, including all 70+ tools and their usage with Claude Desktop.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**, including all 70+ tools and their usage with Claude Desktop.
 
 ## 🏃 SLIM_MODE: Performance Optimization
 

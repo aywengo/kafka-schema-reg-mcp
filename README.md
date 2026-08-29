@@ -22,7 +22,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: Uses **FastMCP 2.14.7+** (2.x line, capped below 3) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
+> **🎯 True MCP Implementation**: Uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
 **Latest Version:** [v2.2.2](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
@@ -523,7 +523,7 @@ python kafka_schema_registry_unified_mcp.py
 
 ### v2.2.x (Latest)
 - **📋 MCP 2025-11-25** - Protocol compliance with FastMCP native background tasks
-- **🔒 FastMCP 2.14.7+** - 2.x line, capped below 3 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177))
+- **🔒 FastMCP 3.2.0+** - 3.x, capped below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177))
 
 ### v2.1.x
 - **🧭 Subject Aliasing** - New tools `add_subject_alias` and `delete_subject_alias`

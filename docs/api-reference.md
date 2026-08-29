@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 REST API with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**, including comprehensive export capabilities and enhanced authentication.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 REST API with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**, including comprehensive export capabilities and enhanced authentication.
 
 > **Note**: This document describes the REST API endpoints provided by the Kafka Schema Registry MCP Server. For the MCP (Model Context Protocol) tools used with Claude Desktop, please refer to the [MCP Tools Reference](mcp-tools-reference.md).
 
