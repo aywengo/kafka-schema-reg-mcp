@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v2.0.2 with **FastMCP 2.8.0+ framework**, **MCP 2025-06-18 specification compliance**, **Interactive Schema Migration**, and **Enhanced Security Features**, from local development to production environments.
+This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 2.14.7+ framework**, **MCP 2025-11-25 specification compliance**, **Interactive Schema Migration**, and **Enhanced Security Features**, from local development to production environments.
 
 ## 🐳 Docker Deployment
 
@@ -659,4 +659,4 @@ The project includes production-ready workflows:
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v2.0.2 with FastMCP 2.8.0+ framework, enhanced security features, and interactive migration capabilities across various production environments.
+This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v2.2.2 with FastMCP 2.14.7+ framework, enhanced security features, and interactive migration capabilities across various production environments.

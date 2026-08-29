@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**.
 
 ## 📂 Available Configurations
 
@@ -13,12 +13,12 @@ This directory contains example Claude Desktop configuration files for different
 
 ### Version-Specific Configurations
 
-#### Current Stable (v1.8.3)
-- **`claude_desktop_stable_config.json`** - Current stable release (v1.8.3)
+#### Current Stable (v2.2.2)
+- **`claude_desktop_stable_config.json`** - Current stable release (v2.2.2)
 - **`claude_desktop_docker_config.json`** - Latest Docker image (may be pre-release)
 
-#### FastMCP 2.8.0+ Configurations (v2.0.0)
-- **`claude_desktop_v2_config.json`** - FastMCP 2.8.0+ framework (v2.0.0)
+#### FastMCP 2.x Configurations (v2.0.0+)
+- **`claude_desktop_v2_config.json`** - FastMCP 2.x framework (v2.0.0)
 - **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth 2.1 generic discovery
 - **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
 
@@ -199,7 +199,7 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Current Production (Stable v1.8.3)
+### Use Case: Current Production (Stable v2.2.2)
 **Recommended:** `claude_desktop_stable_config.json`
 - ✅ Battle-tested stable release
 - ✅ Proven in production environments
@@ -274,7 +274,7 @@ ENFORCE_SSL_TLS_VERIFICATION=false
 
 ## 🔗 Related Documentation
 
-- **[v2.0.0 Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 2.8.0+ testing and migration
+- **[v2.x Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 2.14.7+ testing and migration
 - **[TEST_ENVIRONMENT_SUMMARY.md](../tests/TEST_ENVIRONMENT_SUMMARY.md)** - Complete testing and troubleshooting guide
 - **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Testing environment setup
 - **[tests/README.md](../tests/README.md)** - Testing infrastructure details

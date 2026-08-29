@@ -1,14 +1,14 @@
 # v2.x Migration Guide - Current Stable Versions
 
-This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 2.8.0+ framework** and **MCP 2025-06-18 specification compliance**.
+This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 2.14.7+ framework** and **MCP 2025-11-25 specification compliance**.
 
 ## 🚀 Current Version Information
 
-- **Latest Stable**: v2.0.2 (`:stable` tag)
+- **Latest Stable**: v2.2.2 (`:stable` tag)
 - **Previous Stable**: v1.8.3 (deprecated)
-- **Upgrade Path**: v1.x → v2.0.2 (direct upgrade supported)
+- **Upgrade Path**: v1.x → v2.2.2 (direct upgrade supported)
 
-> **✅ Production Ready**: v2.0.x series is stable and production-ready. Use `:stable` tag for automatic updates to latest stable version.
+> **✅ Production Ready**: v2.2.x series is stable and production-ready. Use `:stable` tag for automatic updates to latest stable version.
 
 ## 🔄 Migration Overview
 
@@ -195,10 +195,10 @@ cp ~/claude_desktop_config_v1_backup.json \
 
 ## 📊 Version Comparison
 
-| Feature | v1.8.3 (Legacy) | v2.0.2 (Current) |
+| Feature | v1.8.3 (Legacy) | v2.2.2 (Current) |
 |---------|------------------|------------------|
-| **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 2.8.0+ |
-| **MCP Specification** | Pre-2025 | ✅ MCP 2025-06-18 |
+| **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 2.14.7+ (2.x, capped below 3) |
+| **MCP Specification** | Pre-2025 | ✅ MCP 2025-11-25 |
 | **Authentication** | Provider-specific OAuth | ✅ Universal OAuth 2.1 Discovery |
 | **Configuration Complexity** | 8+ variables per provider | ✅ 2 variables (universal) |
 | **OAuth Standards** | Custom implementations | ✅ RFC 8414 + RFC 8692 + RFC 8707 |
