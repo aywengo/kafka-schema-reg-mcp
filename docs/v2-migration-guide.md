@@ -12,7 +12,7 @@ This guide helps teams migrate from v1.x versions to the current stable v2.x rel
 
 ## 🔄 Migration Overview
 
-### What's New in v2.0.2 (Latest)
+### What's New in v2.0.2
 - **🔒 Security Enhancements**: Complete credential protection in logging and object representations
 - **🤖 Interactive Schema Migration**: Smart migration with user preference elicitation
 - **💾 Automatic Backups**: Pre-migration backup creation with error handling

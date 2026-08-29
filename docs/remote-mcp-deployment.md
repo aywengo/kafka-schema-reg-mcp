@@ -227,7 +227,7 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-### FastMCP Client (Python) - v2.0.0
+### FastMCP Client (Python)
 
 ```python
 from fastmcp import Client

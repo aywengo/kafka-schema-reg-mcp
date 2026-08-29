@@ -8,7 +8,7 @@ The Kafka Schema Registry MCP Server uses **FastMCP 2.14.7+** (2.x line, capped 
 
 ### **Key MCP Features:**
 - ✅ **FastMCP 2.14.7+ Framework**: Modern MCP architecture with enhanced performance
-- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Message Control Protocol specification
+- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0 support for 5 providers
 - ✅ **48 MCP Tools**: Complete schema operations via natural language  
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
