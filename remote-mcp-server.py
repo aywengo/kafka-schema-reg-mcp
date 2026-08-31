@@ -1191,7 +1191,7 @@ def main():
 
         # Only streamable-http transport is supported (SSE deprecated per MCP 2025-06-18)
         logger.info("🚀 Starting MCP server with streamable-http transport")
-        mcp.run(transport="streamable-http")
+        mcp.run(transport="streamable-http", host=host, port=port, path=path)
 
     except Exception as e:
         logger.error(f"Failed to start remote MCP server: {e}")

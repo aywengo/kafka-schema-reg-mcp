@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Align current-facing docs and README with FastMCP 3.2.0+ (3.x, capped below 4) and MCP 2025-11-25 (no longer advertise FastMCP 2.8 / MCP 2025-06-18 as current).
+- FastMCP 3.4 compatibility: replace removed `BearerAuthProvider` with `JWTVerifier`, prefer `list_tools()`, and pass host/port/path into `mcp.run()` ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177) Phase 1).
 
 ## [2.2.2] - 2026-08-22
 
