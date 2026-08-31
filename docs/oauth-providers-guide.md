@@ -47,6 +47,10 @@ export AUTH_ISSUER_URL="https://your-oauth-provider.com"
 # Set your client ID or API identifier
 export AUTH_AUDIENCE="your-client-id-or-api-identifier"
 
+# FastMCP 3 JWTVerifier: JWKS URI (default `{issuer}/.well-known/jwks.json`).
+# Set this for Keycloak and other providers whose JWKS is not at that path.
+# export AUTH_JWKS_URI="https://your-oauth-provider.com/.well-known/jwks.json"
+
 # Optional: Configure scopes (defaults shown)
 export AUTH_VALID_SCOPES="read,write,admin"
 export AUTH_DEFAULT_SCOPES="read"
@@ -71,6 +75,7 @@ export AUTH_AUDIENCE="your-client-id.apps.googleusercontent.com"
 ```bash
 export AUTH_ISSUER_URL="https://your-keycloak-server.com/realms/your-realm"
 export AUTH_AUDIENCE="your-keycloak-client-id"
+export AUTH_JWKS_URI="https://your-keycloak-server.com/realms/your-realm/protocol/openid-connect/certs"
 ```
 
 #### 🟧 Okta
@@ -197,6 +202,7 @@ export AUTH_AUDIENCE="YOUR_CLIENT_ID.apps.googleusercontent.com"
 export ENABLE_AUTH=true
 export AUTH_ISSUER_URL="https://your-keycloak-server.com/realms/your-realm"
 export AUTH_AUDIENCE="mcp-schema-registry"
+export AUTH_JWKS_URI="https://your-keycloak-server.com/realms/your-realm/protocol/openid-connect/certs"
 ```
 
 ### 🟧 Okta

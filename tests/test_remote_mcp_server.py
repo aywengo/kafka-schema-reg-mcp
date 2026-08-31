@@ -158,7 +158,12 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 result = remote_mcp_server.main()
 
                 # Verify mcp.run was called with correct transport
-                mock_mcp.run.assert_called_once_with(transport="streamable-http")
+                mock_mcp.run.assert_called_once_with(
+                    transport="streamable-http",
+                    host="0.0.0.0",
+                    port=8000,
+                    path="/mcp",
+                )
                 self.assertEqual(result, 0)
             except Exception:
                 # If we can't test the startup, at least verify config is correct
