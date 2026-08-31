@@ -840,7 +840,7 @@ if ENABLE_AUTH:
                 oauth_provider = OAuth21BearerAuthProvider()
                 logger.info("OAuth 2.1 JWT verifier initialized successfully")
             except Exception as e:
-                logger.warning(f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}")
+                logger.warning(f"Failed to initialize OAuth 2.1 JWT verifier: {e}")
                 oauth_provider = None
         else:
             oauth_provider = None

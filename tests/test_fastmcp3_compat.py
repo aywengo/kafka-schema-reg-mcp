@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
-from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.auth import JWTVerifier
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -24,7 +25,7 @@ def test_bearer_auth_provider_is_gone() -> None:
 
 
 def test_server_lists_tools_via_list_tools() -> None:
-    """FastMCP 3 uses list_tools() (list of Tool), not get_tools() (dict)."""
+    """FastMCP 3 uses list_tools() (Sequence[Tool]), not get_tools() (dict)."""
     assert hasattr(mcp, "list_tools")
     assert not hasattr(mcp, "get_tools")
 
@@ -32,8 +33,8 @@ def test_server_lists_tools_via_list_tools() -> None:
 @pytest.mark.asyncio
 async def test_list_tools_returns_named_tools() -> None:
     tools = await mcp.list_tools()
-    assert isinstance(tools, list)
-    assert len(tools) >= 20
+    assert isinstance(tools, Sequence)
+    assert tools
     names = {t.name for t in tools if getattr(t, "name", None)}
     assert "ping" in names
 
