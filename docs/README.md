@@ -1,14 +1,14 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v2.1.3 documentation! This folder contains comprehensive guides and references for the **FastMCP 2.8.0+ Framework** with **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v2.2.2 documentation! This folder contains comprehensive guides and references for the **FastMCP 3.2.0+ Framework** with **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
-This project uses the **modern FastMCP 2.8.0+ framework** for full **MCP 2025-06-18 specification compliance**, providing a **true Message Control Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
+This project uses **FastMCP 3.2.0+** (3.x, capped below 4) for **MCP 2025-11-25 specification compliance**, providing a **true Model Context Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
 
 ### **Key MCP Features:**
-- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with enhanced performance
-- ✅ **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with enhanced performance (3.x, capped below 4)
+- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
 - ✅ **70+ MCP Tools**: Complete schema operations via natural language with async task management
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.1 support for any provider
 - ✅ **Interactive Operations**: Smart migration with user preference elicitation (v2.0.2+)

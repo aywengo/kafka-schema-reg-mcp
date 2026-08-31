@@ -16,7 +16,7 @@ Remote MCP servers are third-party services that expand LLM capabilities by prov
 
 Our Kafka Schema Registry MCP Server is **production-ready** for remote deployment:
 
-- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with MCP 2025-06-18 specification compliance
+- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with MCP 2025-11-25 specification compliance
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 support
 - ✅ **Multi-Transport Support**: stdio, SSE, and Streamable HTTP transports via FastMCP
 - ✅ **Enterprise OAuth**: Azure AD, Google, Keycloak, Okta, GitHub with JWT validation
@@ -227,14 +227,14 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-### FastMCP Client (Python) - v2.0.0
+### FastMCP Client (Python)
 
 ```python
 from fastmcp import Client
 import asyncio
 
 async def main():
-    # Connect to remote MCP server using FastMCP 2.8.0+ client
+    # Connect to remote MCP server using FastMCP 3.2.0+ client
     client = Client("https://mcp-schema-registry.your-domain.com/mcp")
     
     async with client:

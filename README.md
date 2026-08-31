@@ -6,7 +6,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
 [![Docker Image Size](https://img.shields.io/docker/image-size/aywengo/kafka-schema-reg-mcp/stable)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/aywengo/kafka-schema-reg-mcp/graphs/commit-activity)
-[![MCP Specification](https://img.shields.io/badge/MCP-2025--06--18-brightgreen.svg)](https://modelcontextprotocol.io)
+[![MCP Specification](https://img.shields.io/badge/MCP-2025--11--25-brightgreen.svg)](https://modelcontextprotocol.io)
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/aywengo/kafka-schema-reg-mcp)](https://archestra.ai/mcp-catalog/aywengo__kafka-schema-reg-mcp)
 
 # Kafka Schema Registry MCP Server
@@ -22,9 +22,9 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: Uses modern **FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
+> **🎯 True MCP Implementation**: Uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v2.1.5](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.2.2](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -86,7 +86,7 @@ Restart Claude Desktop and try these prompts:
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
-- **🧪 Full MCP Compliance** - 50+ tools following MCP 2025-06-18 specification
+- **🧪 Full MCP Compliance** - 50+ tools following MCP 2025-11-25 specification
 - **🚀 SLIM_MODE** - Reduce tool overhead from 50+ to ~9 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
@@ -521,7 +521,11 @@ python kafka_schema_registry_unified_mcp.py
 
 ## 🆕 What's New
 
-### v2.1.x (Latest)
+### v2.2.x (Latest)
+- **📋 MCP 2025-11-25** - Protocol compliance with FastMCP native background tasks
+- **🔒 FastMCP 3.2.0+** - 3.x, capped below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177))
+
+### v2.1.x
 - **🧭 Subject Aliasing** - New tools `add_subject_alias` and `delete_subject_alias`
 - **🛠️ Fixes** - Evolution assistant and import interactive fixes
 - **📦 Enhancements** - Continued MCP tool refinements and testing improvements

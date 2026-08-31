@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin `fastmcp[tasks]>=3.2.0,<4` to address CVE-2026-32871 (authenticated SSRF in OpenAPIProvider) and CVE-2026-27124 (OAuthProxy confused deputy). Both are fixed in FastMCP 3.2.0. Cap below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)).
 
+### Changed
+
+- Align current-facing docs and README with FastMCP 3.2.0+ (3.x, capped below 4) and MCP 2025-11-25 (no longer advertise FastMCP 2.8 / MCP 2025-06-18 as current).
+
 ## [2.2.2] - 2026-08-22
 
 ### Security

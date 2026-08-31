@@ -1,14 +1,14 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v2.0.0 with **FastMCP 2.8.0+ Framework**, **MCP 2025-06-18 Specification Compliance**, **Enhanced Authentication**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
+This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ Framework**, **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server uses the **modern FastMCP 2.8.0+ framework** with full **MCP 2025-06-18 specification compliance**, integrating seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance, reliability, and authentication capabilities.
+The Kafka Schema Registry MCP Server uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25 specification compliance**, integrating seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance, reliability, and authentication capabilities.
 
 ### **Key MCP Features:**
-- ✅ **FastMCP 2.8.0+ Framework**: Modern MCP architecture with enhanced performance
-- ✅ **MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with enhanced performance
+- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
 - ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0 support for 5 providers
 - ✅ **48 MCP Tools**: Complete schema operations via natural language  
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
