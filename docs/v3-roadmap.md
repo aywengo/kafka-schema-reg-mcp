@@ -25,10 +25,15 @@ enforcement with gaps.
 - Speak MCP `2026-07-28` (stateless requests, `server/discover`, multi-round-trip requests,
   tasks extension) and keep every `2025-11-25` client working with no configuration.
 - Ship `developer` and `admin` editions with least-privilege defaults. A client connected to a
-  developer edition cannot discover, let alone call, a destructive tool.
+  developer edition cannot discover, let alone call, a destructive tool. "Least privilege" here
+  means no destructive or configuration tools; the developer edition still includes
+  `register_schema`, which is a write (see section 2.4).
 - One codebase, one Dockerfile, one Helm chart. Editions differ only by a startup setting.
 - Make the tool catalog declarative so edition, OAuth scope, VIEWONLY enforcement, and MCP tool
-  annotations come from one table instead of ~18 `if not SLIM_MODE:` blocks.
+  annotations come from one table instead of the 41 `if not SLIM_MODE:` blocks in
+  `kafka_schema_registry_unified_mcp.py`.
+- Remove process-local state that does not survive a stateless, multi-replica deployment
+  (in-process workflow registry, mutable default registry).
 - One version source consumed by code, image labels, and the Helm chart.
 - Actually expose the nine prompts in `mcp_prompts.py` and make every `_links` URI resolvable.
 
@@ -62,20 +67,23 @@ enforcement with gaps.
 - Helm: new value `edition: developer|admin` in [helm/values.yaml](../helm/values.yaml). It
   selects the image tag suffix and sets `MCP_EDITION` in the ConfigMap. `values-remote-mcp.yaml`
   and `helm/examples/*` get an explicit `edition:` line.
-- `config-examples/` gains `claude_desktop_developer_config.json` and
+- `config-examples/` gains `claude_desktop_developer_config.json` (with `VIEWONLY=true` on
+  production registries, since the developer edition can still register schemas) and
   `claude_desktop_admin_config.json`; the existing `viewonly` example is kept and points at the
   developer edition.
 
 ### 2.2 Why "not registered" rather than "registered but blocked"
 
-MCP `2026-07-28` makes `tools/list`, `prompts/list` and `resources/list` cacheable and requires
-that they do not vary per connection. A catalog that lists admin tools but rejects them per call
-would either break caching or leak the admin surface to developer clients. Therefore:
+MCP `2026-07-28` removes protocol-level sessions, and with them per-connection list results:
+"List endpoints (`tools/list`, `resources/list`, `prompts/list`) no longer vary per-connection"
+(SEP-2567); SEP-2549 adds `ttlMs` / `cacheScope` cache hints on those results. A catalog that
+lists admin tools but rejects them per call would either defeat caching or leak the admin
+surface to developer clients. Therefore:
 
 - Tools, prompts and resources outside the active edition are **never registered** with FastMCP.
 - Within an edition, OAuth scopes and VIEWONLY continue to gate individual calls.
-- A smaller catalog also saves model context: the developer edition exposes 44 tools instead of
-  the 74 registered today.
+- A smaller catalog also saves model context: the developer edition exposes 41 tools instead of
+  the 75 registered today (44 developer-eligible, 26 admin-only, 5 elicitation fallback).
 
 ### 2.3 Declarative tool catalog
 
@@ -97,18 +105,18 @@ class ToolSpec:
 
 - `SCOPE_DEFINITIONS[...]["includes"]` in `oauth_provider.py` (generated, no stale names).
 - The centralised VIEWONLY check (section 2.5).
-- `get_mcp_compliance_status_tool` and `list_available_resources` output.
+- `get_mcp_compliance_status` and `list_available_resources` output.
 - `tests/test_editions.py`, which snapshots the exact catalog per edition.
 
 ### 2.4 Catalog by edition
 
-Names below are the registered MCP tool names as of `2.2.2`.
+Names below are the registered MCP tool names as of `2.2.2`, except where a 3.0 rename is noted.
 
-**Developer edition** (also included in admin)
+**Developer edition** (also included in admin), 41 tools
 
 | Group | Tools |
 |---|---|
-| Protocol and discovery | `ping`, `get_mcp_compliance_status_tool`, `list_available_resources`, `suggest_resource_for_tool`, `generate_resource_templates`, `get_oauth_scopes_info_tool`, `test_oauth_discovery_endpoints` |
+| Protocol and discovery | `ping`, `get_mcp_compliance_status` (renamed from `get_mcp_compliance_status_tool`), `list_available_resources`, `suggest_resource_for_tool`, `generate_resource_templates`, `get_oauth_scopes_info` (renamed from `get_oauth_scopes_info_tool`), `test_oauth_discovery_endpoints` |
 | Registry info | `list_registries`, `get_registry_info`, `test_registry_connection`, `test_all_registries`, `get_default_registry` |
 | Read | `list_subjects`, `list_contexts`, `get_schema`, `get_schema_versions`, `get_schema_by_id`, `get_subjects_by_schema_id`, `get_global_config`, `get_mode`, `get_subject_config`, `get_subject_mode` |
 | Compatibility and evolution | `check_compatibility`, `check_compatibility_interactive`, `guided_schema_evolution` |
@@ -116,39 +124,59 @@ Names below are the registered MCP tool names as of `2.2.2`.
 | Export | `export_schema`, `export_subject`, `export_context`, `export_global`, `export_global_interactive` |
 | Comparison | `compare_registries`, `compare_contexts_across_registries`, `find_missing_schemas` |
 | Statistics | `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics` |
-| Workflow inspection | `list_workflows`, `workflow_status`, `describe_workflow`, `list_available_workflows`, `get_workflow_status` |
+| Workflow definitions | `list_workflows`, `describe_workflow` (static definitions; see "Removed" below for the instance-inspection tools) |
 
 Developer prompts: `schema-getting-started`, `schema-registration`, `schema-compatibility`,
 `schema-evolution`, `schema-export`, `troubleshooting`.
 
 Developer resources: all `registry://`, `schema://` and `subject://` read resources.
 
-**Admin edition** (developer set plus the following)
+**Admin edition** (developer set plus the following), 28 additional tools
 
 | Group | Tools |
 |---|---|
 | Context and subject lifecycle | `create_context`, `create_context_interactive`, `delete_context`, `delete_subject` |
-| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `add_subject_alias`, `delete_subject_alias`, `set_default_registry` |
+| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `add_subject_alias`, `delete_subject_alias` |
 | Migration | `migrate_schema`, `migrate_context`, `migrate_context_interactive`, `migrate_schema_interactive` (new registration; function already exists in `interactive_tools.py`) |
 | Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation`, `get_bulk_operation_status`, `cancel_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today) |
-| Guided workflows | `start_workflow`, `abort_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
+| Guided workflows | `start_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
 
 Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-workflows`).
 
-Removed in 3.0 (both editions): `submit_elicitation_response`, `list_elicitation_requests`,
-`get_elicitation_request`, `get_elicitation_status`, `cancel_elicitation_request` and the
-`elicitation://response/{request_id}` resource. These exist only to drive the home-grown
-elicitation fallback, which multi-round-trip requests replace (section 3.3).
+**Removed in 3.0** (both editions):
+
+- `submit_elicitation_response`, `list_elicitation_requests`, `get_elicitation_request`,
+  `get_elicitation_status`, `cancel_elicitation_request` and the
+  `elicitation://response/{request_id}` resource. These exist only to drive the home-grown
+  elicitation fallback, which multi-round-trip requests replace (section 3.3).
+- `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow`. The
+  first three read `multi_step_manager.get_active_workflows()`, an in-process dictionary. Once
+  workflow state travels in client-carried `request_state` (section 3.3) the server has no
+  instance list to report, so these would return empty results. `list_available_workflows` and
+  `get_workflow_status` also duplicate `list_workflows` and `workflow_status`. Aborting an MRTR
+  workflow is the client declining to retry; a tool is not needed. Workflow progress is returned
+  in each round-trip result instead.
+- `set_default_registry`. It mutates a process-wide default, so under several replicas it
+  changes one replica for every user. The default registry becomes configuration-only
+  (`DEFAULT_REGISTRY` / `REGISTRIES_CONFIG`); `get_default_registry` stays as a read.
 
 Boundary decisions worth stating explicitly:
 
 - `register_schema` is in developer because schema evolution ends with registering the next
-  version. It is a `write`-scope, non-destructive, VIEWONLY-gated operation.
+  version. It is a `write`-scope, non-destructive, VIEWONLY-gated operation. This means a
+  developer image pointed at a production registry without `VIEWONLY` can register schemas;
+  the developer config example therefore sets `VIEWONLY` on production registries.
 - `create_context` is admin. Contexts are a tenancy/organisation boundary, not part of a
-  developer's day-to-day evolution loop.
+  developer's day-to-day evolution loop. The boundary is soft: Confluent Schema Registry
+  creates a context implicitly when a subject is registered with a `:.ctx:` prefix, so
+  `register_schema` in the developer edition can create contexts as a side effect. 3.0 accepts
+  this and documents it; rejecting context-qualified subjects whose context does not exist is
+  an opt-in follow-up.
 - `check_compatibility` and all `export_*` stay `read` scope.
 - `delete_subject_alias` moves from `write` to `admin` scope to match `add_subject_alias` being
   admin-edition only.
+- The `_tool` suffix on `get_mcp_compliance_status_tool` and `get_oauth_scopes_info_tool` is
+  dropped; a major release is the cheap moment to rename.
 
 ### 2.5 Relationship to VIEWONLY and OAuth scopes
 
@@ -185,20 +213,34 @@ flowchart LR
 MCP `2026-07-28` (stable 2026-07-28) relative to `2025-11-25`:
 
 - No `initialize` handshake and no `Mcp-Session-Id`; each request carries protocol version,
-  client info and capabilities in `_meta`. Servers must implement `server/discover`.
-- `tools/list`, `prompts/list`, `resources/list` are cacheable and must not vary per connection.
-- Server-initiated requests (`elicitation/create`, `sampling/createMessage`, `roots/list`) are
-  gone. Interactivity uses multi-round-trip requests (MRTR): a tool returns
-  `resultType: "input_required"` and the client retries with `inputResponses`.
-- Protocol `ping`, `logging/setLevel` and SSE resumability are removed. Log level is per request.
-- Tasks move to the `io.modelcontextprotocol/tasks` extension (`tasks/get` polling).
-- `Mcp-Method` / `Mcp-Name` routing headers for gateways; server cache hints; argument
-  completion for prompt and resource-template inputs.
+  client info and capabilities in `_meta`. Servers must implement `server/discover` (SEP-2575).
+- `tools/list`, `prompts/list`, `resources/list` no longer vary per connection (SEP-2567) and
+  carry `ttlMs` / `cacheScope` cache hints (SEP-2549).
+- Multi-round-trip requests (MRTR, SEP-2322) replace server-initiated requests: a tool returns
+  `resultType: "input_required"` with `inputRequests`, and the client retries the original
+  request with `inputResponses`. All results carry a required `resultType`.
+- **Removed**: protocol `ping`, `logging/setLevel`, `notifications/roots/list_changed`,
+  `tasks/list`, `resources/subscribe` / `resources/unsubscribe` (replaced by
+  `subscriptions/listen`), `Mcp-Session-Id`, SSE resumability (`Last-Event-ID`). Log level is
+  per request via `_meta`.
+- **Deprecated, not removed** (kept for at least 12 months): Roots, Sampling, Logging,
+  HTTP+SSE transport, and OAuth Dynamic Client Registration (in favour of Client ID Metadata
+  Documents). Authorization adds `iss` validation (RFC 9207).
+- Tasks move to the `io.modelcontextprotocol/tasks` extension (`tasks/get` polling,
+  `tasks/update` for client input, unsolicited task handles).
+- Resource-not-found error code changes from `-32002` to `-32602`.
+- `Mcp-Method` / `Mcp-Name` routing headers for gateways; argument completion for prompt and
+  resource-template inputs; `extensions` field on client and server capabilities.
 
 FastMCP 4.0.0 (GA 2026-08-31) on MCP Python SDK 2.0 serves both eras from one deployment and
-negotiates per connection. Relevant breaking changes for this repository: `ctx.elicit()` is
-legacy-protocol only, background tasks live in the separate `fastmcp-tasks` package, FastMCP 3
-deprecated APIs are removed, MCP model fields are snake_case, and the stack moves to httpx 2.
+negotiates per connection. FastMCP 4 goes further than the spec in places, and those are what
+constrain this repository: server-initiated sampling and roots are **removed from FastMCP's
+server API** (no live connection to call back into), `ctx.elicit()` works only on legacy
+connections, background tasks live in the separate `fastmcp-tasks` package, FastMCP 3 deprecated
+APIs are removed, MCP model fields are snake_case, and the stack moves to httpx 2. FastMCP's MRTR
+surface is `InputRequiredResult` / `ctx.input_responses` (guard-mode tools), with round-trip
+state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and keyed from
+`REQUEST_STATE_KEY` (at least 32 bytes).
 
 ### 3.2 Dependency pins
 
@@ -220,25 +262,38 @@ deprecated APIs are removed, MCP model fields are snake_case, and the stack move
 - **Keep the application-level `ping` tool.** It is an ordinary tool, not the removed protocol
   method. Its payload drops the stale `server_version` string and reports edition, package
   version, negotiated protocol version and registry mode.
-- **Interactive tools on MRTR.** `register_schema_interactive`, `check_compatibility_interactive`,
-  `create_context_interactive`, `export_global_interactive`, `migrate_context_interactive`,
-  `migrate_schema_interactive` and `bulk_operations_wizard` move from `ctx.elicit()` to FastMCP 4
-  multi-round-trip tools (`Resolve(...)` dependencies / `input_required` results). One tool body
-  serves both eras: legacy clients still see `elicitation/create`, modern clients see MRTR.
+- **Interactive tools on MRTR.** The six `*_interactive` tools (`register_schema_interactive`,
+  `check_compatibility_interactive`, `create_context_interactive`, `export_global_interactive`,
+  `migrate_context_interactive`, `migrate_schema_interactive`) move from `ctx.elicit()` to
+  FastMCP 4 guard-mode tools that return `InputRequiredResult` and read `ctx.input_responses`
+  on the retry. One tool body serves both eras: legacy clients still see `elicitation/create`,
+  modern clients see MRTR. `migrate_schema_interactive` is ported and unit-tested directly in
+  M1 and registered in M2 with the catalog.
+- **Bulk wizard decoupling.** `bulk_operations_wizard.py` does not use `ctx.elicit()`; it makes
+  13 calls into the home-grown `self.elicitation.elicit(...)` manager from `elicitation.py`.
+  Because M3 deletes that manager, the wizard must be fully rewritten on `InputRequiredResult`
+  in M1, not merely have its call sites swapped. This is the largest single port in M1.
 - **Multi-step workflows on MRTR.** `multi_step_elicitation.py` and
-  `workflow_mcp_integration.py` keep workflow state in the sealed `request_state` that the SDK
-  carries across round trips instead of the in-process `active_workflows` dictionary, so any
-  replica can continue a workflow. Helm gets a `requestStateKeys` secret feeding
-  `RequestStateSecurity(keys=[...])` for multi-replica deployments. `smart_defaults*.py`
-  pre-population plugs into the first round trip.
+  `workflow_mcp_integration.py` keep workflow state (step cursor and collected answers only) in
+  the sealed `request_state` that the SDK carries across round trips instead of the in-process
+  `active_workflows` dictionary, so any replica can continue a workflow. The server is
+  configured with `FastMCP(request_state_security=RequestStateSecurity(...))`; Helm gets a
+  `requestStateKey` secret mapped to `REQUEST_STATE_KEY` (at least 32 bytes, generated by the
+  chart if unset). Key rotation: `RequestStateSecurity` accepts a key list, so rotate by
+  prepending a new key, redeploying, and dropping the old key after the longest expected
+  workflow duration. `smart_defaults*.py` pre-population plugs into the first round trip.
 - **Remove the home-grown elicitation fallback.** `elicitation.py` mock mode,
   `elicitation_mcp_integration.py` request registry, the five `*_elicitation_*` tools and the
   `elicitation://response/{request_id}` resource are deleted. Clients without MRTR or
   elicitation support get a structured error naming the non-interactive tool to use instead.
-- **Tasks.** `migrate_schema`, `migrate_context`, `clear_context_batch`,
+- **Tasks need a shared backend.** `migrate_schema`, `migrate_context`, `clear_context_batch`,
   `clear_multiple_contexts_batch`, `count_schemas`, `get_registry_statistics` keep `task=True`
-  via `fastmcp-tasks`. Verify `tasks/get` polling, unsolicited task handles, and encrypted task
-  snapshots; drop any code relying on `tasks/list` or blocking `tasks/result`.
+  via `fastmcp-tasks`. Its Docket engine defaults to an in-memory backend; under the stateless
+  protocol a `tasks/get` poll can land on any replica, so multi-replica deployments need Redis or
+  Valkey. Helm gets a `tasks.backend: memory|redis` value with an optional bundled Valkey or an
+  external URL; with `memory` the chart caps `replicaCount` at 1 and the NOTES explain why.
+  Verify `tasks/get` polling, unsolicited task handles, and encrypted task snapshots; drop any
+  code relying on `tasks/list` or blocking `tasks/result`.
 - **Prompts.** Register the nine generators in `mcp_prompts.PROMPT_REGISTRY` with
   `@mcp.prompt`, filtered by edition. Add argument completion for prompt arguments and for the
   `{name}`, `{context}` and `{subject}` placeholders in resource templates (completions come
@@ -252,6 +307,12 @@ deprecated APIs are removed, MCP model fields are snake_case, and the stack move
   `/.well-known/*` custom routes in `remote-mcp-server.py`.
 - **Logging.** Honour the per-request log level from `_meta`; stop emitting
   `notifications/message` for requests that did not ask for it.
+- **Error codes.** Resource handlers and `tests/test_registry_specific_resources.py` currently
+  assume `-32002` for resource-not-found; move to `-32602` and let the SDK map the exception.
+- **Authorization.** Add `iss` validation (RFC 9207) to `oauth_provider.py` token verification
+  and to `test_oauth_discovery_endpoints`. Dynamic Client Registration is deprecated in favour
+  of Client ID Metadata Documents (CIMD); FastMCP 4 supports CIMD, so advertise it in the
+  `.well-known` metadata in M1 and keep DCR working through 3.x.
 - **Deferred.** Identity assertion (SEP-990, beta in FastMCP 4) and client-credentials auth are
   3.1 candidates once the OAuth provider tests exist for them.
 
@@ -291,7 +352,7 @@ gantt
     section Protocol
     M1 FastMCP 4 core, MRTR interactive, prompts  :m1, after m0, 28d
     section Editions
-    M2 edition.py, tool_catalog, Docker and Helm  :m2, after m1, 21d
+    M2 edition.py, tool_catalog, Docker and Helm  :m2, after m1, 28d
     section Workflows
     M3 workflows on MRTR, resources, cache hints  :m3, after m2, 21d
     section Release
@@ -300,8 +361,10 @@ gantt
 
 ### M0 - Prep, ships as `2.3.0` (2 weeks)
 
-- Deprecation warnings at startup for `READONLY*`, `SLIM_MODE`, and the five
-  `*_elicitation_*` tools; announce editions in README and CHANGELOG `[Unreleased]`.
+- Deprecation warnings at startup for `READONLY*`, `SLIM_MODE`, the five `*_elicitation_*`
+  tools, `set_default_registry`, `workflow_status`, `get_workflow_status`,
+  `list_available_workflows`, `abort_workflow`, and the two `_tool`-suffixed names; announce
+  editions in README and CHANGELOG `[Unreleased]`.
 - Single version source and Helm chart version bump (section 4) land here so 2.3.0 already
   reports a correct version everywhere.
 - Open `release/3.0` branch and a tracking issue listing M1-M4 with checkboxes.
@@ -311,28 +374,37 @@ gantt
 
 - FastMCP 4 / SDK 2 / `fastmcp-tasks` pins; fix import and snake_case breakages.
 - Delete the protocol middleware; verify `server/discover` and legacy `initialize` both work.
-- Port the seven `*_interactive` tools and `bulk_operations_wizard` to MRTR
-  (`guided_schema_evolution` is the first multi-step workflow ported, as the developer pilot).
+- Port the six `*_interactive` tools to `InputRequiredResult`; rewrite `bulk_operations_wizard`
+  off the home-grown elicitation manager; port `guided_schema_evolution` as the first multi-step
+  workflow (developer pilot) with state in `request_state`.
+- Configure `RequestStateSecurity`; wire `REQUEST_STATE_KEY`.
 - Register prompts with `@mcp.prompt`.
+- Resource-not-found error code `-32602`; `iss` validation; advertise CIMD.
 - MCP conformance suite green for both protocol eras; `tests/test_fastmcp3_compat.py` replaced
   by `tests/test_fastmcp4_compat.py`.
 - Exit: alpha image published, all `tests/run_all_tests.sh --quick` categories pass.
 
-### M2 - Editions, ships as `3.0.0-beta.1` (3 weeks)
+### M2 - Editions, ships as `3.0.0-beta.1` (4 weeks)
 
-- `edition.py`, `tool_catalog.py`, catalog-driven registration; remove `if not SLIM_MODE` blocks.
+- `edition.py`, `tool_catalog.py`, catalog-driven registration; remove the 41
+  `if not SLIM_MODE` blocks.
 - Centralised VIEWONLY enforcement; remove `READONLY*`.
 - Native FastMCP scope checks; regenerate `SCOPE_DEFINITIONS` from the catalog.
-- Register `migrate_schema_interactive` and the three bulk status/cancel/preview tools.
+- Register `migrate_schema_interactive` and the three bulk status/cancel/preview tools; rename
+  the two `_tool`-suffixed tools; remove `set_default_registry`, `workflow_status`,
+  `get_workflow_status`, `list_available_workflows`, `abort_workflow`.
+- `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`), replica cap for
+  `memory`.
 - Docker tag matrix in `publish.yml`, `ENV MCP_EDITION` build arg, Helm `edition` value, edition
-  config examples.
-- Exit: `tests/test_editions.py` snapshots match section 2.4; CI runs the full suite for both
-  editions.
+  config examples (developer example sets `VIEWONLY` on production registries).
+- Exit: `tests/test_editions.py` snapshots match section 2.4 (41 developer, 69 admin); CI runs
+  the full suite for both editions.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 
 - Remaining guided workflows (`guided_schema_migration`, `guided_context_reorganization`,
-  `guided_disaster_recovery`) on MRTR with `request_state`; `RequestStateSecurity` wiring in Helm.
+  `guided_disaster_recovery`) on MRTR with `request_state`; `requestStateKey` secret and
+  rotation notes in Helm.
 - Remove the elicitation fallback tools and resource.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
@@ -377,7 +449,9 @@ gantt
   `core_registry_tools.py` / `comparison_tools.py` / `statistics_tools.py` (protocol version
   literal), `mcp_prompts.py`, `tests/test_fastmcp4_compat.py` (new), `tests/test_mcp_compliance.py`,
   `tests/test_mcp_header_validation.py` (delete), `tests/test_elicitation*.py`,
-  `tests/test_prompts.py`.
+  `tests/test_prompts.py`, `tests/test_registry_specific_resources.py` (error code),
+  `oauth_provider.py` (`iss` validation, CIMD metadata), `tests/test_oauth*.py`,
+  `tests/test_bulk_operations_wizard.py`.
 
 **M2**
 
@@ -386,9 +460,12 @@ gantt
   scope checks, remove custom `require_scopes`), `schema_registry_common.py` (remove
   `READONLY*`, keep `is_viewonly`), `core_registry_tools.py` (drop inline VIEWONLY calls),
   `batch_operations.py`, `migration_tools.py`, `bulk_operations_mcp_integration.py`,
+  `workflow_mcp_integration.py` (remove instance-inspection tools and `abort_workflow`),
   `Dockerfile` (`ARG MCP_EDITION`), `.github/workflows/publish.yml`,
-  `.github/workflows/tag-stable.yml`, `helm/values.yaml`, `helm/values-remote-mcp.yaml`,
-  `helm/templates/configmap.yaml`, `helm/templates/deployment.yaml`, `helm/examples/*.yaml`,
+  `.github/workflows/tag-stable.yml`, `helm/values.yaml` (`edition`, `tasks.backend`),
+  `helm/values-remote-mcp.yaml`, `helm/templates/configmap.yaml`,
+  `helm/templates/deployment.yaml` (replica cap), `helm/templates/valkey.yaml` (new, optional),
+  `helm/templates/NOTES.txt`, `helm/examples/*.yaml`,
   `config-examples/claude_desktop_developer_config.json` (new),
   `config-examples/claude_desktop_admin_config.json` (new), `config-examples/README.md`,
   `tests/test_editions.py` (new), `tests/test_viewonly_*.py`, `tests/test_slim_mode_integration.py`
@@ -415,7 +492,10 @@ gantt
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4). Any catalog change must update the snapshot deliberately.
+  (section 2.4: 41 developer, 69 admin, unconditional of registry mode). The snapshot is taken
+  with `REGISTRY_MODE=multi`; a second case asserts that `single` mode yields the same catalog,
+  since mode-conditional registration is removed with the `SLIM_MODE` blocks. Any catalog change
+  must update the snapshot deliberately.
 - CI matrix in `.github/workflows/test.yml`: `edition: [developer, admin]` for `test-quick`,
   `test-full` and `test-mcp-container`. The `docker-build` job builds both tag variants.
 - Compliance tests connect twice: `fastmcp.Client(target)` (negotiates `2026-07-28`) and
@@ -441,13 +521,22 @@ gantt
 | `fastmcp-tasks` behaviour differs from 3.x tasks | Medium | Medium | Port one task tool first (`count_schemas`), extend `tests/test_statistics_tasks.py` before touching migration |
 | Removing the elicitation fallback breaks `mock` test paths | Medium | Low | Replace with FastMCP in-memory client tests; delete mock-only tests |
 | Scope change for `delete_subject_alias` surprises existing tokens | Low | Low | Call out in Breaking Changes; `admin` already includes `write` |
+| `tasks/get` poll lands on a replica without the task (in-memory Docket backend) | High for multi-replica | High | Helm `tasks.backend: redis` with bundled Valkey or external URL; `memory` caps replicas at 1; documented in NOTES and deployment guide |
+| Bulk wizard rewrite (13 home-grown elicitation calls) overruns M1 | Medium | Medium | Start it in M1 week 1 alongside the httpx spike; if it slips, ship alpha.1 with the wizard admin-only and legacy-era only, finish in M2 |
+| Removing `set_default_registry` breaks clients that switch registries per session | Low | Medium | Deprecation warning in 2.3.0; all tools already accept an explicit `registry` argument |
+| `REQUEST_STATE_KEY` lost or rotated mid-workflow invalidates in-flight workflows | Low | Low | Key list rotation procedure (section 3.3); workflows are short and restartable |
 
 ### 6.4 Backward compatibility matrix
 
 | Area | 2.x behaviour | 3.0 behaviour |
 |---|---|---|
 | MCP protocol | `2025-11-25` only, custom header middleware | `2026-07-28` negotiated, `2025-11-25` still served |
-| Default tool set | All 74 tools unless `SLIM_MODE` | Developer edition (44 tools); set `MCP_EDITION=admin` or use `-admin` tag for full set |
+| Default tool set | All 75 tools unless `SLIM_MODE` | Developer edition (41 tools); set `MCP_EDITION=admin` or use `-admin` tag for the full 69 |
+| `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
+| `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
+| `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |
+| Background task durability | Single process | `tasks.backend: memory` (1 replica) or `redis` (any replicas) |
+| OAuth client registration | DCR | DCR still works; CIMD advertised; `iss` validated |
 | `SLIM_MODE=true` | Reduces to ~20 tools | Deprecated alias for `MCP_EDITION=developer`, warning |
 | `VIEWONLY` / `VIEWONLY_{n}` / `viewonly` | Supported | Supported, enforced centrally |
 | `READONLY*` / `readonly` | Deprecated with warning | Removed (startup error with hint) |
