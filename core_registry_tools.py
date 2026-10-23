@@ -9,11 +9,10 @@ Provides schema, subject, configuration, and mode management functionality
 with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 """
 
+import asyncio
 import json
 import logging
 from typing import Any, Dict, Optional
-
-import aiohttp
 
 from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
@@ -1776,11 +1775,16 @@ async def delete_subject_tool(
             if permanent:
                 url += "?permanent=true"
 
-            # Use aiohttp for async HTTP requests
-            async with aiohttp.ClientSession() as session:
-                async with session.delete(url, headers=client.headers) as response:
-                    response.raise_for_status()
-                    deleted_versions = await response.json()
+            # Go through the guarded requests session so VIEWONLY is enforced.
+            response = await asyncio.to_thread(
+                client.session.delete,
+                url,
+                headers=client.headers,
+                auth=client.auth,
+                timeout=30,
+            )
+            response.raise_for_status()
+            deleted_versions = response.json()
 
             # Convert to enhanced response format
             result = {

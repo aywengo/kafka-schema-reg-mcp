@@ -23,7 +23,7 @@ enforcement with gaps.
 |---|---|---|
 | M0 prep, deprecations, single version source (`2.3.0`) | ✅ complete | [#186](https://github.com/aywengo/kafka-schema-reg-mcp/issues/186) |
 | M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | 🟡 in progress | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
-| M2 editions and tool catalog (`3.0.0-beta.1`) | ⬜ not started | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
+| M2 editions and tool catalog (`3.0.0-beta.1`) | 🟡 in progress | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
 | M3 workflows and resources (`3.0.0-rc.1`) | ⬜ not started | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
 | M4 docs and release (`3.0.0`) | ⬜ not started | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
 
@@ -633,6 +633,40 @@ Still open for M1 exit:
 - Exit: `tests/test_editions.py` snapshots match section 2.4 for viewer (38) and editor (41);
   the admin snapshot is the transitional 72 (67 plus the 5 fallback tools) and is marked as
   such in the test. CI runs the full suite for all three editions.
+
+### M2 progress (2026-10-23)
+
+Implemented on `release/3.0`:
+
+- `edition.py` resolves `MCP_EDITION` > `SLIM_MODE` alias > `MCP_EDITION_DEFAULT` >
+  `viewer`, with a hard error when `MCP_EDITION` and `SLIM_MODE` conflict.
+- `tool_catalog.py` holds 72 specs (38 viewer, 41 editor, 72 admin) with scope,
+  mutation, write-target and annotation metadata; `tests/test_editions.py` snapshots
+  all three sets and the alias precedence.
+- `EditionGate` filters registration by catalog at import time. It registers the two
+  renamed tools under their public names, applies native `require_scopes` checks, and
+  exposes the real FastMCP server after registration.
+- The 19 top-level `if not SLIM_MODE` registration blocks are gone; `SLIM_MODE` is
+  now only a selection alias and no longer a runtime flag.
+- `GuardedSession` enforces VIEWONLY on `post`/`put`/`delete`, allowlisting the two
+  read-shaped POSTs; the last `aiohttp` delete in `core_registry_tools.py` goes
+  through it. `READONLY*`, `readonly` JSON keys, `is_readonly()` and
+  `check_readonly_mode()` are removed.
+- `SCOPE_DEFINITIONS` is regenerated from the catalog; the native scope check is
+  attached by the gate.
+- Helm gains `edition`, `requestStateKey` and `tasks` values; the image tag defaults
+  to `<appVersion>-<edition>` when `image.tag` is empty. Dockerfile bakes
+  `MCP_EDITION_DEFAULT`. Viewer/editor/admin Claude Desktop configs are added.
+- `preview_bulk_operation` is registered; the two dead bulk status/cancel stubs are
+  deleted; `get_bulk_operation_status` and `cancel_bulk_operation` are not registered.
+
+Still open for M2 exit:
+
+- Publish the three edition image tag sets in `publish.yml`; set the beta version and
+  empty `image.tag`.
+- Remove the remaining inline `check_viewonly_mode` calls after a full middleware
+  test sweep.
+- Run the full suite for viewer, editor and admin in CI.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 

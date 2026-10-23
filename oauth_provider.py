@@ -1163,6 +1163,21 @@ def get_fastmcp_config(server_name: str):
     return config
 
 
+# Regenerate the advertised scope contents from the tool catalog so renamed or
+# removed tools cannot linger in discovery documents.
+try:
+    from tool_catalog import TOOL_CATALOG
+
+    _read_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "read")
+    _write_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "write")
+    _admin_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "admin")
+    SCOPE_DEFINITIONS["read"]["includes"] = _read_tools
+    SCOPE_DEFINITIONS["write"]["includes"] = _read_tools + _write_tools
+    SCOPE_DEFINITIONS["admin"]["includes"] = _read_tools + _write_tools + _admin_tools
+except ImportError:
+    pass
+
+
 # Export main components
 __all__ = [
     "ENABLE_AUTH",

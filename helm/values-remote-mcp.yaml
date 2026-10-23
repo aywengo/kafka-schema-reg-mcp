@@ -117,6 +117,9 @@ ingress:
 # Deployment configuration
 deployment:
   replicaCount: 2
+
+# Tool catalog edition: viewer, editor, or admin.
+edition: admin
   strategy:
     type: RollingUpdate
     rollingUpdate:

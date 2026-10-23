@@ -113,6 +113,8 @@ from core_registry_tools import (
     update_subject_config_tool,
     update_subject_mode_tool,
 )
+from edition import Edition, edition_name, resolve_edition
+from edition_gate import EditionGate
 from elicitation import (
     elicitation_manager,
     is_elicitation_supported,
@@ -171,6 +173,7 @@ from statistics_tools import (
     count_schemas_tool,
     get_registry_statistics_task_queue_tool,
 )
+from tool_catalog import TOOL_CATALOG, tools_for
 from workflow_mcp_integration import (
     handle_workflow_elicitation_response,
     register_workflow_tools,
@@ -179,8 +182,9 @@ from workflow_mcp_integration import (
 # Load environment variables first
 load_dotenv()
 
-# SLIM MODE Configuration
-SLIM_MODE = os.getenv("SLIM_MODE", "false").lower() == "true"
+# SLIM_MODE is a deprecated selection alias handled by edition.resolve_edition().
+# Runtime tool visibility is decided by EditionGate, not by this flag.
+SLIM_MODE = False
 
 # Deprecations scheduled for removal or rename in 3.0.0.
 DEPRECATED_TOOL_NAMES = (
@@ -213,11 +217,10 @@ def log_deprecation_notices() -> None:
             "DEPRECATED: READONLY / READONLY_{n} are deprecated and will be removed in 3.0.0. "
             "Use VIEWONLY / VIEWONLY_{n} instead."
         )
-    if not SLIM_MODE:
-        logger.warning(
-            "DEPRECATED: these tools will be removed in 3.0.0: %s",
-            ", ".join(DEPRECATED_TOOL_NAMES),
-        )
+    logger.warning(
+        "DEPRECATED: these tools will be removed in 3.0.0: %s",
+        ", ".join(DEPRECATED_TOOL_NAMES),
+    )
     logger.warning(
         "DEPRECATED: these tools will be renamed in 3.0.0: %s",
         ", ".join(f"{old} -> {new}" for old, new in DEPRECATED_TOOL_RENAMES.items()),
@@ -333,7 +336,9 @@ except ImportError:
 
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
-mcp: FastMCP = FastMCP(**mcp_config)
+EDITION_RESOLUTION = resolve_edition()
+EDITION = EDITION_RESOLUTION.edition
+mcp: FastMCP = EditionGate(FastMCP(**mcp_config), EDITION, auth_enabled=ENABLE_AUTH)
 
 # SEP-2663 tasks extension. FastMCP 4 refuses to serve a task=True tool without it.
 TASKS_BACKEND = os.getenv("TASKS_BACKEND", "memory").strip().lower()
@@ -464,39 +469,35 @@ else:
     headers = SecureHeaderDict("application/vnd.schemaregistry.v1+json")
     standard_headers = SecureHeaderDict("application/json")
 
-# Initialize elicitation MCP integration (only if not in SLIM_MODE)
-if not SLIM_MODE:
-    try:
-        # Register elicitation handlers with the MCP instance
-        elicitation_handlers_registered = register_elicitation_handlers(mcp)
-        if elicitation_handlers_registered:
-            logger.info("✅ Elicitation handlers registered with MCP server")
+# Initialize elicitation MCP integration
+try:
+    # Register elicitation handlers with the MCP instance
+    elicitation_handlers_registered = register_elicitation_handlers(mcp)
+    if elicitation_handlers_registered:
+        logger.info("✅ Elicitation handlers registered with MCP server")
 
-            # Update the elicitation implementation to use real MCP protocol
-            update_elicitation_implementation()
-            logger.info("✅ Enhanced elicitation implementation activated")
-        else:
-            logger.warning("⚠️ Failed to register elicitation handlers, using fallback implementation")
-    except Exception as e:
-        logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
-        logger.info("📝 Falling back to mock elicitation implementation")
+        # Update the elicitation implementation to use real MCP protocol
+        update_elicitation_implementation()
+        logger.info("✅ Enhanced elicitation implementation activated")
+    else:
+        logger.warning("⚠️ Failed to register elicitation handlers, using fallback implementation")
+except Exception as e:
+    logger.error(f"❌ Error initializing elicitation MCP integration: {str(e)}")
+    logger.info("📝 Falling back to mock elicitation implementation")
 
-    # Initialize multi-step elicitation workflow system
-    try:
-        # Register workflow tools with the MCP server and get the manager instance
-        workflow_tools = register_workflow_tools(mcp, elicitation_manager)
+# Initialize multi-step elicitation workflow system
+try:
+    # Register workflow tools with the MCP server and get the manager instance
+    workflow_tools = register_workflow_tools(mcp, elicitation_manager)
 
-        # Use the same manager instance globally to ensure workflows are shared
-        multi_step_manager: Any = workflow_tools.multi_step_manager
+    # Use the same manager instance globally to ensure workflows are shared
+    multi_step_manager: Any = workflow_tools.multi_step_manager
 
-        logger.info("✅ Multi-step elicitation workflows registered with MCP server")
-        logger.info(f"✅ {len(multi_step_manager.workflows)} workflows available")
-    except Exception as e:
-        logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
-        logger.info("📝 Multi-step workflows not available")
-        multi_step_manager = None
-else:
-    logger.info("🚀 SLIM_MODE enabled - Elicitation and workflow features disabled")
+    logger.info("✅ Multi-step elicitation workflows registered with MCP server")
+    logger.info(f"✅ {len(multi_step_manager.workflows)} workflows available")
+except Exception as e:
+    logger.error(f"❌ Error initializing multi-step elicitation workflows: {str(e)}")
+    logger.info("📝 Multi-step workflows not available")
     multi_step_manager = None
 
 # ===== MCP PROTOCOL SUPPORT =====
@@ -517,7 +518,8 @@ def ping():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "protocol_version": current_protocol_version(),
         "registry_mode": REGISTRY_MODE,
-        "slim_mode": SLIM_MODE,
+        "edition": edition_name(EDITION),
+        "edition_source": EDITION_RESOLUTION.source,
         "status": "healthy",
         "ping_supported": True,
         "message": "MCP server is alive and responding",
@@ -529,57 +531,56 @@ def ping():
 
 # ===== COMPARISON TOOLS (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def compare_registries(
-        source_registry: str,
-        target_registry: str,
-        include_contexts: bool = True,
-        include_configs: bool = True,
-        *,
-        context: Context,
-    ):
-        """Compare two Schema Registry instances and show differences."""
-        return await compare_registries_tool(
-            source_registry,
-            target_registry,
-            registry_manager,
-            REGISTRY_MODE,
-            include_contexts,
-            include_configs,
-            context,
-        )
+@mcp.tool()
+@require_scopes("read")
+async def compare_registries(
+    source_registry: str,
+    target_registry: str,
+    include_contexts: bool = True,
+    include_configs: bool = True,
+    *,
+    context: Context,
+):
+    """Compare two Schema Registry instances and show differences."""
+    return await compare_registries_tool(
+        source_registry,
+        target_registry,
+        registry_manager,
+        REGISTRY_MODE,
+        include_contexts,
+        include_configs,
+        context,
+    )
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def compare_contexts_across_registries(
-        source_registry: str,
-        target_registry: str,
-        source_context: str,
-        target_context: Optional[str] = None,
-        *,
-        context: Context,
-    ):
-        """Compare contexts across two registries."""
-        return await compare_contexts_across_registries_tool(
-            source_registry,
-            target_registry,
-            source_context,
-            registry_manager,
-            REGISTRY_MODE,
-            target_context,
-            context,
-        )
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def find_missing_schemas(source_registry: str, target_registry: str, context: Optional[str] = None):
-        """Find schemas that exist in source registry but not in target registry."""
-        return await find_missing_schemas_tool(
-            source_registry, target_registry, registry_manager, REGISTRY_MODE, context
-        )
+@mcp.tool()
+@require_scopes("read")
+async def compare_contexts_across_registries(
+    source_registry: str,
+    target_registry: str,
+    source_context: str,
+    target_context: Optional[str] = None,
+    *,
+    context: Context,
+):
+    """Compare contexts across two registries."""
+    return await compare_contexts_across_registries_tool(
+        source_registry,
+        target_registry,
+        source_context,
+        registry_manager,
+        REGISTRY_MODE,
+        target_context,
+        context,
+    )
+
+
+@mcp.tool()
+@require_scopes("read")
+async def find_missing_schemas(source_registry: str, target_registry: str, context: Optional[str] = None):
+    """Find schemas that exist in source registry but not in target registry."""
+    return await find_missing_schemas_tool(source_registry, target_registry, registry_manager, REGISTRY_MODE, context)
 
 
 # ===== RESOURCE DISCOVERY TOOLS =====
@@ -694,6 +695,7 @@ def list_available_resources():
             ]
         ),
         "registry_mode": REGISTRY_MODE,
+        "edition": edition_name(EDITION),
         "mcp_protocol_version": current_protocol_version(),
     }
 
@@ -1218,39 +1220,39 @@ def register_schema(
 
 
 # Interactive schema registration (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    async def register_schema_interactive(
-        subject: str,
-        schema_definition: Optional[dict] = None,
-        schema_type: str = "AVRO",
-        context: Optional[str] = None,
-        registry: Optional[str] = None,
-        ctx: Context = None,
-    ):
-        """
-        Interactive schema registration with elicitation for missing field definitions.
 
-        When schema_definition is incomplete or missing fields, this tool will
-        elicit the required information from the user interactively.
-        """
-        return await register_schema_interactive_impl(
-            subject=subject,
-            schema_definition=schema_definition,
-            schema_type=schema_type,
-            context=context,
-            registry=registry,
-            register_schema_tool=register_schema_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=SCHEMA_REGISTRY_URL,
-            multi_step_manager=multi_step_manager,
-            ctx=ctx,
-        )
+@mcp.tool()
+@require_scopes("write")
+async def register_schema_interactive(
+    subject: str,
+    schema_definition: Optional[dict] = None,
+    schema_type: str = "AVRO",
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    ctx: Context = None,
+):
+    """
+    Interactive schema registration with elicitation for missing field definitions.
+
+    When schema_definition is incomplete or missing fields, this tool will
+    elicit the required information from the user interactively.
+    """
+    return await register_schema_interactive_impl(
+        subject=subject,
+        schema_definition=schema_definition,
+        schema_type=schema_type,
+        context=context,
+        registry=registry,
+        register_schema_tool=register_schema_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
+        multi_step_manager=multi_step_manager,
+        ctx=ctx,
+    )
 
 
 @mcp.tool()
@@ -1278,168 +1280,169 @@ def check_compatibility(
 
 
 # Interactive compatibility checking (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def check_compatibility_interactive(
-        subject: str,
-        schema_definition: dict,
-        schema_type: str = "AVRO",
-        context: Optional[str] = None,
-        registry: Optional[str] = None,
-        ctx: Context = None,
-    ):
-        """
-        Interactive compatibility checking with elicitation for resolution options.
 
-        When compatibility issues are found, this tool will elicit resolution
-        preferences from the user.
-        """
-        return await check_compatibility_interactive_impl(
-            subject=subject,
-            schema_definition=schema_definition,
-            schema_type=schema_type,
-            context=context,
-            registry=registry,
-            check_compatibility_tool=check_compatibility_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=SCHEMA_REGISTRY_URL,
-            ctx=ctx,
-        )
+@mcp.tool()
+@require_scopes("read")
+async def check_compatibility_interactive(
+    subject: str,
+    schema_definition: dict,
+    schema_type: str = "AVRO",
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+    ctx: Context = None,
+):
+    """
+    Interactive compatibility checking with elicitation for resolution options.
+
+    When compatibility issues are found, this tool will elicit resolution
+    preferences from the user.
+    """
+    return await check_compatibility_interactive_impl(
+        subject=subject,
+        schema_definition=schema_definition,
+        schema_type=schema_type,
+        context=context,
+        registry=registry,
+        check_compatibility_tool=check_compatibility_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
+        ctx=ctx,
+    )
 
 
 # ===== CONFIGURATION TOOLS =====
 
 
 # Update configuration tools (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    def update_global_config(compatibility: str, context: Optional[str] = None, registry: Optional[str] = None):
-        """Update global configuration settings."""
-        return update_global_config_tool(
-            compatibility,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
+
+@mcp.tool()
+@require_scopes("write")
+def update_global_config(compatibility: str, context: Optional[str] = None, registry: Optional[str] = None):
+    """Update global configuration settings."""
+    return update_global_config_tool(
+        compatibility,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # Update subject config (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    def update_subject_config(
-        subject: str, compatibility: str, context: Optional[str] = None, registry: Optional[str] = None
-    ):
-        """Update configuration settings for a specific subject."""
-        return update_subject_config_tool(
-            subject,
-            compatibility,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
+
+@mcp.tool()
+@require_scopes("write")
+def update_subject_config(
+    subject: str, compatibility: str, context: Optional[str] = None, registry: Optional[str] = None
+):
+    """Update configuration settings for a specific subject."""
+    return update_subject_config_tool(
+        subject,
+        compatibility,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # Add subject alias tool (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    def add_subject_alias(
-        alias: str,
-        existing_subject: str,
-        context: Optional[str] = None,
-        registry: Optional[str] = None,
-    ):
-        """Create a subject alias to an existing subject (not available in SLIM/VIEWONLY)."""
-        return add_subject_alias_tool(
-            alias,
-            existing_subject,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
 
-    @mcp.tool()
-    @require_scopes("write")
-    def delete_subject_alias(
-        alias: str,
-        context: Optional[str] = None,
-        registry: Optional[str] = None,
-    ):
-        """Delete a subject alias (not available in SLIM/VIEWONLY)."""
-        return delete_subject_alias_tool(
-            alias,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
+@mcp.tool()
+@require_scopes("write")
+def add_subject_alias(
+    alias: str,
+    existing_subject: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+):
+    """Create a subject alias to an existing subject (not available in SLIM/VIEWONLY)."""
+    return add_subject_alias_tool(
+        alias,
+        existing_subject,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
+
+
+@mcp.tool()
+@require_scopes("write")
+def delete_subject_alias(
+    alias: str,
+    context: Optional[str] = None,
+    registry: Optional[str] = None,
+):
+    """Delete a subject alias (not available in SLIM/VIEWONLY)."""
+    return delete_subject_alias_tool(
+        alias,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # ===== MODE TOOLS =====
 
 
 # Update mode tools (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    def update_mode(mode: str, context: Optional[str] = None, registry: Optional[str] = None):
-        """Update the mode of the Schema Registry."""
-        return update_mode_tool(
-            mode,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
+
+@mcp.tool()
+@require_scopes("write")
+def update_mode(mode: str, context: Optional[str] = None, registry: Optional[str] = None):
+    """Update the mode of the Schema Registry."""
+    return update_mode_tool(
+        mode,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # Update subject mode (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    def update_subject_mode(subject: str, mode: str, context: Optional[str] = None, registry: Optional[str] = None):
-        """Update the mode for a specific subject."""
-        return update_subject_mode_tool(
-            subject,
-            mode,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            auth,
-            standard_headers,
-            SCHEMA_REGISTRY_URL,
-        )
+
+@mcp.tool()
+@require_scopes("write")
+def update_subject_mode(subject: str, mode: str, context: Optional[str] = None, registry: Optional[str] = None):
+    """Update the mode for a specific subject."""
+    return update_subject_mode_tool(
+        subject,
+        mode,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        auth,
+        standard_headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # ===== CONTEXT TOOLS =====
@@ -1462,83 +1465,84 @@ def create_context(context: str, registry: Optional[str] = None):
 
 
 # Interactive context creation (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    async def create_context_interactive(
-        context: str,
-        registry: Optional[str] = None,
-        description: Optional[str] = None,
-        owner: Optional[str] = None,
-        environment: Optional[str] = None,
-        tags: Optional[list] = None,
-        ctx: Context = None,
-    ):
-        """
-        Interactive context creation with elicitation for metadata.
 
-        When context metadata is not provided, this tool will elicit
-        organizational information from the user.
-        """
-        return await create_context_interactive_impl(
-            context=context,
-            registry=registry,
-            description=description,
-            owner=owner,
-            environment=environment,
-            tags=tags,
-            create_context_tool=create_context_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=SCHEMA_REGISTRY_URL,
-            ctx=ctx,
-        )
+@mcp.tool()
+@require_scopes("write")
+async def create_context_interactive(
+    context: str,
+    registry: Optional[str] = None,
+    description: Optional[str] = None,
+    owner: Optional[str] = None,
+    environment: Optional[str] = None,
+    tags: Optional[list] = None,
+    ctx: Context = None,
+):
+    """
+    Interactive context creation with elicitation for metadata.
+
+    When context metadata is not provided, this tool will elicit
+    organizational information from the user.
+    """
+    return await create_context_interactive_impl(
+        context=context,
+        registry=registry,
+        description=description,
+        owner=owner,
+        environment=environment,
+        tags=tags,
+        create_context_tool=create_context_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        auth=auth,
+        headers=headers,
+        schema_registry_url=SCHEMA_REGISTRY_URL,
+        ctx=ctx,
+    )
 
 
 # Delete operations (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("admin")
-    def delete_context(context: str, registry: Optional[str] = None):
-        """Delete a schema context."""
-        return delete_context_tool(
-            context,
-            registry_manager,
-            REGISTRY_MODE,
-            registry,
-            auth,
-            headers,
-            SCHEMA_REGISTRY_URL,
-        )
 
-    @mcp.tool()
-    @require_scopes("admin")
-    async def delete_subject(
-        subject: str, context: Optional[str] = None, registry: Optional[str] = None, permanent: bool = False
-    ):
-        """Delete a subject and all its versions.
+@mcp.tool()
+@require_scopes("admin")
+def delete_context(context: str, registry: Optional[str] = None):
+    """Delete a schema context."""
+    return delete_context_tool(
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
-        Args:
-            subject: The subject name to delete
-            context: Optional schema context
-            registry: Optional registry name
-            permanent: If True, perform a hard delete (removes all metadata including schema ID)
-        """
-        return await delete_subject_tool(
-            subject,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            registry,
-            permanent,
-            auth,
-            headers,
-            SCHEMA_REGISTRY_URL,
-        )
+
+@mcp.tool()
+@require_scopes("admin")
+async def delete_subject(
+    subject: str, context: Optional[str] = None, registry: Optional[str] = None, permanent: bool = False
+):
+    """Delete a subject and all its versions.
+
+    Args:
+        subject: The subject name to delete
+        context: Optional schema context
+        registry: Optional registry name
+        permanent: If True, perform a hard delete (removes all metadata including schema ID)
+    """
+    return await delete_subject_tool(
+        subject,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        registry,
+        permanent,
+        auth,
+        headers,
+        SCHEMA_REGISTRY_URL,
+    )
 
 
 # ===== EXPORT TOOLS =====
@@ -1582,426 +1586,443 @@ def export_subject(
 
 
 # Advanced export tools (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def export_context(
-        context: str,
-        registry: Optional[str] = None,
-        include_metadata: bool = True,
-        include_config: bool = True,
-        include_versions: str = "all",
-        *,
-        mcp_context: Context,
-    ):
-        """Export all subjects within a context."""
-        return await export_context_tool(
-            context,
-            registry_manager,
-            REGISTRY_MODE,
-            registry,
-            include_metadata,
-            include_config,
-            include_versions,
-            mcp_context,
-        )
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def export_global(
-        registry: Optional[str] = None,
-        include_metadata: bool = True,
-        include_config: bool = True,
-        include_versions: str = "all",
-        *,
-        mcp_context: Context,
-    ):
-        """Export all contexts and schemas from a registry."""
-        return await export_global_tool(
-            registry_manager,
-            REGISTRY_MODE,
-            registry,
-            include_metadata,
-            include_config,
-            include_versions,
-            mcp_context,
-        )
+@mcp.tool()
+@require_scopes("read")
+async def export_context(
+    context: str,
+    registry: Optional[str] = None,
+    include_metadata: bool = True,
+    include_config: bool = True,
+    include_versions: str = "all",
+    *,
+    mcp_context: Context,
+):
+    """Export all subjects within a context."""
+    return await export_context_tool(
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        include_metadata,
+        include_config,
+        include_versions,
+        mcp_context,
+    )
 
-    @mcp.tool()
-    @require_scopes("read")
-    async def export_global_interactive(
-        registry: Optional[str] = None,
-        include_metadata: Optional[bool] = None,
-        include_config: Optional[bool] = None,
-        include_versions: Optional[str] = None,
-        format: Optional[str] = None,
-        compression: Optional[str] = None,
-        # Backward compatibility parameters
-        output_format: Optional[str] = None,
-        schemas_per_file: Optional[str] = None,
-        ctx: Context = None,
-    ):
-        """
-        Interactive global export with elicitation for export preferences.
 
-        When export preferences are not specified, this tool will elicit
-        the required configuration from the user.
-        """
-        # Handle backward compatibility parameters
-        if output_format is not None and format is None:
-            format = output_format
+@mcp.tool()
+@require_scopes("read")
+async def export_global(
+    registry: Optional[str] = None,
+    include_metadata: bool = True,
+    include_config: bool = True,
+    include_versions: str = "all",
+    *,
+    mcp_context: Context,
+):
+    """Export all contexts and schemas from a registry."""
+    return await export_global_tool(
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        include_metadata,
+        include_config,
+        include_versions,
+        mcp_context,
+    )
 
-        # schemas_per_file is not currently used but accepted for compatibility
-        if schemas_per_file is not None:
-            logger.warning(f"schemas_per_file parameter is not currently supported, ignoring value: {schemas_per_file}")
 
-        return await export_global_interactive_impl(
-            registry=registry,
-            include_metadata=include_metadata,
-            include_config=include_config,
-            include_versions=include_versions,
-            format=format,
-            compression=compression,
-            export_global_tool=export_global_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            ctx=ctx,
-        )
+@mcp.tool()
+@require_scopes("read")
+async def export_global_interactive(
+    registry: Optional[str] = None,
+    include_metadata: Optional[bool] = None,
+    include_config: Optional[bool] = None,
+    include_versions: Optional[str] = None,
+    format: Optional[str] = None,
+    compression: Optional[str] = None,
+    # Backward compatibility parameters
+    output_format: Optional[str] = None,
+    schemas_per_file: Optional[str] = None,
+    ctx: Context = None,
+):
+    """
+    Interactive global export with elicitation for export preferences.
+
+    When export preferences are not specified, this tool will elicit
+    the required configuration from the user.
+    """
+    # Handle backward compatibility parameters
+    if output_format is not None and format is None:
+        format = output_format
+
+    # schemas_per_file is not currently used but accepted for compatibility
+    if schemas_per_file is not None:
+        logger.warning(f"schemas_per_file parameter is not currently supported, ignoring value: {schemas_per_file}")
+
+    return await export_global_interactive_impl(
+        registry=registry,
+        include_metadata=include_metadata,
+        include_config=include_config,
+        include_versions=include_versions,
+        format=format,
+        compression=compression,
+        export_global_tool=export_global_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        ctx=ctx,
+    )
 
 
 # ===== MIGRATION TOOLS (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
 
-    @mcp.tool(task=True)
-    @require_scopes("admin")
-    async def migrate_schema(
-        subject: str,
-        source_registry: str,
-        target_registry: str,
-        dry_run: bool = False,
-        preserve_ids: bool = True,
-        source_context: str = ".",
-        target_context: str = ".",
-        versions: Optional[list] = None,
-        migrate_all_versions: bool = False,
-        progress: Progress = Progress(),
-    ):
-        """Migrate a schema from one registry to another.
+@mcp.tool(task=True)
+@require_scopes("admin")
+async def migrate_schema(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    dry_run: bool = False,
+    preserve_ids: bool = True,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[list] = None,
+    migrate_all_versions: bool = False,
+    progress: Progress = Progress(),
+):
+    """Migrate a schema from one registry to another.
 
-        Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
-        """
-        return await migrate_schema_tool(
-            subject=subject,
-            source_registry=source_registry,
-            target_registry=target_registry,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            dry_run=dry_run,
-            preserve_ids=preserve_ids,
-            source_context=source_context,
-            target_context=target_context,
-            versions=versions,
-            migrate_all_versions=migrate_all_versions,
-            progress=progress,
-        )
+    Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+    """
+    return await migrate_schema_tool(
+        subject=subject,
+        source_registry=source_registry,
+        target_registry=target_registry,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        dry_run=dry_run,
+        preserve_ids=preserve_ids,
+        source_context=source_context,
+        target_context=target_context,
+        versions=versions,
+        migrate_all_versions=migrate_all_versions,
+        progress=progress,
+    )
 
-    @mcp.tool(task=True)
-    @require_scopes("admin")
-    async def migrate_context(
-        source_registry: str,
-        target_registry: str,
-        context: Optional[str] = None,
-        target_context: Optional[str] = None,
-        preserve_ids: bool = True,
-        dry_run: bool = True,
-        migrate_all_versions: bool = True,
-        progress: Progress = Progress(),
-    ):
-        """Guide for migrating an entire context using Docker-based tools.
 
-        Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
-        """
-        return await migrate_context_tool(
-            source_registry,
-            target_registry,
-            registry_manager,
-            REGISTRY_MODE,
-            context,
-            target_context,
-            preserve_ids,
-            dry_run,
-            migrate_all_versions,
-            progress=progress,
-        )
+@mcp.tool(task=True)
+@require_scopes("admin")
+async def migrate_context(
+    source_registry: str,
+    target_registry: str,
+    context: Optional[str] = None,
+    target_context: Optional[str] = None,
+    preserve_ids: bool = True,
+    dry_run: bool = True,
+    migrate_all_versions: bool = True,
+    progress: Progress = Progress(),
+):
+    """Guide for migrating an entire context using Docker-based tools.
 
-    @mcp.tool()
-    @require_scopes("admin")
-    async def migrate_schema_interactive(
-        subject: str,
-        source_registry: str,
-        target_registry: str,
-        source_context: str = ".",
-        target_context: str = ".",
-        versions: Optional[list] = None,
-        migrate_all_versions: Optional[bool] = None,
-        preserve_ids: Optional[bool] = None,
-        dry_run: Optional[bool] = None,
-        ctx: Context = None,
-    ):
-        """Interactive schema migration that asks for missing preferences.
+    Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+    """
+    return await migrate_context_tool(
+        source_registry,
+        target_registry,
+        registry_manager,
+        REGISTRY_MODE,
+        context,
+        target_context,
+        preserve_ids,
+        dry_run,
+        migrate_all_versions,
+        progress=progress,
+    )
 
-        Modern clients get a multi-round-trip form; legacy clients get
-        ``elicitation/create``. Declining returns a structured error.
-        """
-        return await migrate_schema_interactive_impl(
-            subject=subject,
-            source_registry=source_registry,
-            target_registry=target_registry,
-            source_context=source_context,
-            target_context=target_context,
-            versions=versions,
-            migrate_all_versions=migrate_all_versions,
-            preserve_ids=preserve_ids,
-            dry_run=dry_run,
-            migrate_schema_tool=migrate_schema_tool,
-            get_schema_tool=get_schema_tool,
-            export_schema_tool=export_schema_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            ctx=ctx,
-        )
 
-    @mcp.tool()
-    @require_scopes("admin")
-    async def migrate_context_interactive(
-        source_registry: str,
-        target_registry: str,
-        context: Optional[str] = None,
-        target_context: Optional[str] = None,
-        preserve_ids: Optional[bool] = None,
-        dry_run: Optional[bool] = None,
-        migrate_all_versions: Optional[bool] = None,
-        ctx: Context = None,
-    ):
-        """
-        Interactive context migration with elicitation for missing preferences.
+@mcp.tool()
+@require_scopes("admin")
+async def migrate_schema_interactive(
+    subject: str,
+    source_registry: str,
+    target_registry: str,
+    source_context: str = ".",
+    target_context: str = ".",
+    versions: Optional[list] = None,
+    migrate_all_versions: Optional[bool] = None,
+    preserve_ids: Optional[bool] = None,
+    dry_run: Optional[bool] = None,
+    ctx: Context = None,
+):
+    """Interactive schema migration that asks for missing preferences.
 
-        When migration preferences are not specified, this tool will elicit
-        the required configuration from the user.
-        """
-        return await migrate_context_interactive_impl(
-            source_registry=source_registry,
-            target_registry=target_registry,
-            context=context,
-            target_context=target_context,
-            preserve_ids=preserve_ids,
-            dry_run=dry_run,
-            migrate_all_versions=migrate_all_versions,
-            migrate_context_tool=migrate_context_tool,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            ctx=ctx,
-        )
+    Modern clients get a multi-round-trip form; legacy clients get
+    ``elicitation/create``. Declining returns a structured error.
+    """
+    return await migrate_schema_interactive_impl(
+        subject=subject,
+        source_registry=source_registry,
+        target_registry=target_registry,
+        source_context=source_context,
+        target_context=target_context,
+        versions=versions,
+        migrate_all_versions=migrate_all_versions,
+        preserve_ids=preserve_ids,
+        dry_run=dry_run,
+        migrate_schema_tool=migrate_schema_tool,
+        get_schema_tool=get_schema_tool,
+        export_schema_tool=export_schema_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        ctx=ctx,
+    )
+
+
+@mcp.tool()
+@require_scopes("admin")
+async def migrate_context_interactive(
+    source_registry: str,
+    target_registry: str,
+    context: Optional[str] = None,
+    target_context: Optional[str] = None,
+    preserve_ids: Optional[bool] = None,
+    dry_run: Optional[bool] = None,
+    migrate_all_versions: Optional[bool] = None,
+    ctx: Context = None,
+):
+    """
+    Interactive context migration with elicitation for missing preferences.
+
+    When migration preferences are not specified, this tool will elicit
+    the required configuration from the user.
+    """
+    return await migrate_context_interactive_impl(
+        source_registry=source_registry,
+        target_registry=target_registry,
+        context=context,
+        target_context=target_context,
+        preserve_ids=preserve_ids,
+        dry_run=dry_run,
+        migrate_all_versions=migrate_all_versions,
+        migrate_context_tool=migrate_context_tool,
+        registry_manager=registry_manager,
+        registry_mode=REGISTRY_MODE,
+        ctx=ctx,
+    )
 
 
 # ===== APPLICATION-LEVEL BATCH OPERATIONS (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
 
-    @mcp.tool(task=True)
-    @require_scopes("admin")
-    async def clear_context_batch(
-        context: str,
-        registry: Optional[str] = None,
-        delete_context_after: bool = True,
-        dry_run: bool = True,
-        progress: Progress = Progress(),
-    ):
-        """Clear all subjects in a context using application-level batch operations.
+@mcp.tool(task=True)
+@require_scopes("admin")
+async def clear_context_batch(
+    context: str,
+    registry: Optional[str] = None,
+    delete_context_after: bool = True,
+    dry_run: bool = True,
+    progress: Progress = Progress(),
+):
+    """Clear all subjects in a context using application-level batch operations.
 
-        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
-        Uses FastMCP background tasks API (SEP-1686) for async execution.
-        """
-        return await clear_context_batch_tool(
-            context,
-            registry_manager,
-            REGISTRY_MODE,
-            registry,
-            delete_context_after,
-            dry_run,
-            progress=progress,
-        )
+    ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
+    Uses FastMCP background tasks API (SEP-1686) for async execution.
+    """
+    return await clear_context_batch_tool(
+        context,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        delete_context_after,
+        dry_run,
+        progress=progress,
+    )
 
-    @mcp.tool(task=True)
-    @require_scopes("admin")
-    async def clear_multiple_contexts_batch(
-        contexts: list,
-        registry: Optional[str] = None,
-        delete_contexts_after: bool = True,
-        dry_run: bool = True,
-        progress: Progress = Progress(),
-    ):
-        """Clear multiple contexts in a registry using application-level batch operations.
 
-        ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
-        Uses FastMCP background tasks API (SEP-1686) for async execution.
-        """
-        return await clear_multiple_contexts_batch_tool(
-            contexts,
-            registry_manager,
-            REGISTRY_MODE,
-            registry,
-            delete_contexts_after,
-            dry_run,
-            progress=progress,
-        )
+@mcp.tool(task=True)
+@require_scopes("admin")
+async def clear_multiple_contexts_batch(
+    contexts: list,
+    registry: Optional[str] = None,
+    delete_contexts_after: bool = True,
+    dry_run: bool = True,
+    progress: Progress = Progress(),
+):
+    """Clear multiple contexts in a registry using application-level batch operations.
+
+    ⚠️  APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2025-11-25 compliance.
+    Uses FastMCP background tasks API (SEP-1686) for async execution.
+    """
+    return await clear_multiple_contexts_batch_tool(
+        contexts,
+        registry_manager,
+        REGISTRY_MODE,
+        registry,
+        delete_contexts_after,
+        dry_run,
+        progress=progress,
+    )
 
 
 # ===== BULK OPERATIONS WIZARD (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
-    # Initialize bulk operations wizard
-    try:
-        # Create wizard instance (using None for batch_operations for now)
-        # Note: task_manager removed - wizard now uses FastMCP Progress directly
-        bulk_wizard = BulkOperationsWizard(registry_manager, elicitation_manager, None)  # batch_operations placeholder
+# Initialize bulk operations wizard
+try:
+    # Create wizard instance (using None for batch_operations for now)
+    # Note: task_manager removed - wizard now uses FastMCP Progress directly
+    bulk_wizard = BulkOperationsWizard(registry_manager, elicitation_manager, None)  # batch_operations placeholder
 
-        # Register bulk operations tools
-        bulk_tools = create_bulk_operations_tools(bulk_wizard)
+    # Register bulk operations tools
+    bulk_tools = create_bulk_operations_tools(bulk_wizard)
 
-        # Add tools to MCP server
-        @mcp.tool()
-        @require_scopes("admin")
-        async def bulk_operations_wizard(
-            operation_type: Optional[str] = None,
-            dry_run: bool = True,
-            ctx: Context = None,
-        ):
-            """
-            Start the interactive Bulk Operations Wizard for admin tasks.
+    # Add tools to MCP server
+    @mcp.tool()
+    @require_scopes("admin")
+    async def bulk_operations_wizard(
+        operation_type: Optional[str] = None,
+        dry_run: bool = True,
+        ctx: Context = None,
+    ):
+        """
+        Start the interactive Bulk Operations Wizard for admin tasks.
 
-            Guides through safe execution of operations across multiple schemas.
-            Supports schema updates, migrations, cleanup, and configuration changes.
-            """
-            from bulk_operations_wizard import BulkOperationType
+        Guides through safe execution of operations across multiple schemas.
+        Supports schema updates, migrations, cleanup, and configuration changes.
+        """
+        from bulk_operations_wizard import BulkOperationType
 
-            op_type = None
-            if operation_type:
-                op_type = BulkOperationType(operation_type)
+        op_type = None
+        if operation_type:
+            op_type = BulkOperationType(operation_type)
 
-            return await bulk_wizard.start_wizard(op_type, ctx=ctx)
+        return await bulk_wizard.start_wizard(op_type, ctx=ctx)
 
-        @mcp.tool()
-        @require_scopes("admin")
-        async def bulk_schema_update(
-            pattern: Optional[str] = None,
-            update_type: str = "compatibility",
-            dry_run: bool = True,
-            batch_size: int = 10,
-        ):
-            """
-            Update schemas in bulk with interactive guidance.
+    @mcp.tool()
+    @require_scopes("admin")
+    async def preview_bulk_operation(
+        operation_type: str,
+        items: list,
+        parameters: Optional[dict] = None,
+    ):
+        """Preview the changes a bulk operation would make without executing it."""
+        return await handle_bulk_operations_tool(
+            bulk_wizard,
+            "preview_bulk_operation",
+            {"operation_type": operation_type, "items": items, "parameters": parameters or {}},
+        )
 
-            Supports compatibility settings, naming conventions, and metadata updates.
-            Pattern matching supported (e.g., test-*, deprecated-*).
-            """
-            return await handle_bulk_operations_tool(
-                bulk_wizard,
-                "bulk_schema_update",
-                {"pattern": pattern, "update_type": update_type, "dry_run": dry_run, "batch_size": batch_size},
-            )
+    @mcp.tool()
+    @require_scopes("admin")
+    async def bulk_schema_update(
+        pattern: Optional[str] = None,
+        update_type: str = "compatibility",
+        dry_run: bool = True,
+        batch_size: int = 10,
+    ):
+        """
+        Update schemas in bulk with interactive guidance.
 
-        @mcp.tool()
-        @require_scopes("admin")
-        async def bulk_schema_cleanup(
-            cleanup_type: str = "test",
-            pattern: Optional[str] = None,
-            keep_versions: int = 3,
-            check_consumers: bool = True,
-            force: bool = False,
-        ):
-            """
-            Clean up schemas in bulk with safety checks.
+        Supports compatibility settings, naming conventions, and metadata updates.
+        Pattern matching supported (e.g., test-*, deprecated-*).
+        """
+        return await handle_bulk_operations_tool(
+            bulk_wizard,
+            "bulk_schema_update",
+            {"pattern": pattern, "update_type": update_type, "dry_run": dry_run, "batch_size": batch_size},
+        )
 
-            Detects active consumers and provides options for handling them.
-            Supports test schema cleanup, deprecated schema removal, and version purging.
-            """
-            return await handle_bulk_operations_tool(
-                bulk_wizard,
-                "bulk_schema_cleanup",
-                {
-                    "cleanup_type": cleanup_type,
-                    "pattern": pattern,
-                    "keep_versions": keep_versions,
-                    "check_consumers": check_consumers,
-                    "force": force,
-                },
-            )
+    @mcp.tool()
+    @require_scopes("admin")
+    async def bulk_schema_cleanup(
+        cleanup_type: str = "test",
+        pattern: Optional[str] = None,
+        keep_versions: int = 3,
+        check_consumers: bool = True,
+        force: bool = False,
+    ):
+        """
+        Clean up schemas in bulk with safety checks.
 
-        @mcp.tool()
-        @require_scopes("admin")
-        async def bulk_schema_migration(
-            source_context: Optional[str] = None,
-            target_context: Optional[str] = None,
-            source_registry: Optional[str] = None,
-            target_registry: Optional[str] = None,
-            schema_pattern: Optional[str] = None,
-            preserve_ids: bool = True,
-            dry_run: bool = True,
-        ):
-            """
-            Migrate schemas between contexts or registries.
+        Detects active consumers and provides options for handling them.
+        Supports test schema cleanup, deprecated schema removal, and version purging.
+        """
+        return await handle_bulk_operations_tool(
+            bulk_wizard,
+            "bulk_schema_cleanup",
+            {
+                "cleanup_type": cleanup_type,
+                "pattern": pattern,
+                "keep_versions": keep_versions,
+                "check_consumers": check_consumers,
+                "force": force,
+            },
+        )
 
-            Supports pattern-based selection and maintains schema IDs.
-            Includes preview and rollback capabilities.
-            """
-            return await handle_bulk_operations_tool(
-                bulk_wizard,
-                "bulk_schema_migration",
-                {
-                    "source_context": source_context,
-                    "target_context": target_context,
-                    "source_registry": source_registry,
-                    "target_registry": target_registry,
-                    "schema_pattern": schema_pattern,
-                    "preserve_ids": preserve_ids,
-                    "dry_run": dry_run,
-                },
-            )
+    @mcp.tool()
+    @require_scopes("admin")
+    async def bulk_schema_migration(
+        source_context: Optional[str] = None,
+        target_context: Optional[str] = None,
+        source_registry: Optional[str] = None,
+        target_registry: Optional[str] = None,
+        schema_pattern: Optional[str] = None,
+        preserve_ids: bool = True,
+        dry_run: bool = True,
+    ):
+        """
+        Migrate schemas between contexts or registries.
 
-        @mcp.tool()
-        @require_scopes("admin")
-        async def bulk_configuration_update(
-            config_type: str = "security",
-            target_type: str = "schemas",
-            pattern: Optional[str] = None,
-            settings: Optional[dict] = None,
-            dry_run: bool = True,
-        ):
-            """
-            Update configuration settings across multiple schemas or contexts.
+        Supports pattern-based selection and maintains schema IDs.
+        Includes preview and rollback capabilities.
+        """
+        return await handle_bulk_operations_tool(
+            bulk_wizard,
+            "bulk_schema_migration",
+            {
+                "source_context": source_context,
+                "target_context": target_context,
+                "source_registry": source_registry,
+                "target_registry": target_registry,
+                "schema_pattern": schema_pattern,
+                "preserve_ids": preserve_ids,
+                "dry_run": dry_run,
+            },
+        )
 
-            Supports security policies, retention settings, and access controls.
-            """
-            return await handle_bulk_operations_tool(
-                bulk_wizard,
-                "bulk_configuration_update",
-                {
-                    "config_type": config_type,
-                    "target_type": target_type,
-                    "pattern": pattern,
-                    "settings": settings,
-                    "dry_run": dry_run,
-                },
-            )
+    @mcp.tool()
+    @require_scopes("admin")
+    async def bulk_configuration_update(
+        config_type: str = "security",
+        target_type: str = "schemas",
+        pattern: Optional[str] = None,
+        settings: Optional[dict] = None,
+        dry_run: bool = True,
+    ):
+        """
+        Update configuration settings across multiple schemas or contexts.
 
-        logger.info("✅ Bulk Operations Wizard registered with MCP server")
+        Supports security policies, retention settings, and access controls.
+        """
+        return await handle_bulk_operations_tool(
+            bulk_wizard,
+            "bulk_configuration_update",
+            {
+                "config_type": config_type,
+                "target_type": target_type,
+                "pattern": pattern,
+                "settings": settings,
+                "dry_run": dry_run,
+            },
+        )
 
-    except Exception as e:
-        logger.error(f"❌ Error initializing Bulk Operations Wizard: {str(e)}")
-        logger.info("📝 Bulk Operations Wizard not available")
+    logger.info("✅ Bulk Operations Wizard registered with MCP server")
+
+except Exception as e:
+    logger.error(f"❌ Error initializing Bulk Operations Wizard: {str(e)}")
+    logger.info("📝 Bulk Operations Wizard not available")
 
 
 # ===== STATISTICS TOOLS =====
@@ -2039,288 +2060,291 @@ def count_schema_versions(subject: str, context: Optional[str] = None, registry:
 
 
 # Heavy statistics tool (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @mcp.tool(task=True)
-    @require_scopes("read")
-    async def get_registry_statistics(
-        registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()
-    ):
-        """Get comprehensive statistics about a registry."""
-        # Always use background task version for better performance due to complexity
-        return await get_registry_statistics_task_queue_tool(
-            registry_manager, REGISTRY_MODE, registry, include_context_details, progress=progress
-        )
+
+@mcp.tool(task=True)
+@require_scopes("read")
+async def get_registry_statistics(
+    registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()
+):
+    """Get comprehensive statistics about a registry."""
+    # Always use background task version for better performance due to complexity
+    return await get_registry_statistics_task_queue_tool(
+        registry_manager, REGISTRY_MODE, registry, include_context_details, progress=progress
+    )
 
 
 # ===== ELICITATION MANAGEMENT TOOLS (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("read")
-    def list_elicitation_requests():
-        """List all pending elicitation requests."""
-        try:
-            requests = elicitation_manager.list_pending_requests()
-            return {
-                "pending_requests": [req.to_dict() for req in requests],
-                "total_pending": len(requests),
-                "elicitation_supported": is_elicitation_supported(),
-                "mcp_protocol_version": current_protocol_version(),
-            }
-        except Exception as e:
+@mcp.tool()
+@require_scopes("read")
+def list_elicitation_requests():
+    """List all pending elicitation requests."""
+    try:
+        requests = elicitation_manager.list_pending_requests()
+        return {
+            "pending_requests": [req.to_dict() for req in requests],
+            "total_pending": len(requests),
+            "elicitation_supported": is_elicitation_supported(),
+            "mcp_protocol_version": current_protocol_version(),
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to list elicitation requests: {str(e)}",
+            error_code="ELICITATION_LIST_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_elicitation_request(request_id: str):
+    """Get details of a specific elicitation request."""
+    try:
+        request = elicitation_manager.get_request(request_id)
+        if not request:
             return create_error_response(
-                f"Failed to list elicitation requests: {str(e)}",
-                error_code="ELICITATION_LIST_FAILED",
+                f"Elicitation request '{request_id}' not found",
+                error_code="ELICITATION_REQUEST_NOT_FOUND",
                 registry_mode=REGISTRY_MODE,
             )
 
-    @mcp.tool()
-    @require_scopes("read")
-    def get_elicitation_request(request_id: str):
-        """Get details of a specific elicitation request."""
-        try:
-            request = elicitation_manager.get_request(request_id)
-            if not request:
-                return create_error_response(
-                    f"Elicitation request '{request_id}' not found",
-                    error_code="ELICITATION_REQUEST_NOT_FOUND",
-                    registry_mode=REGISTRY_MODE,
-                )
+        response = elicitation_manager.get_response(request_id)
 
-            response = elicitation_manager.get_response(request_id)
+        return {
+            "request": request.to_dict(),
+            "response": response.to_dict() if response else None,
+            "status": ("completed" if response else ("expired" if request.is_expired() else "pending")),
+            "mcp_protocol_version": current_protocol_version(),
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to get elicitation request: {str(e)}",
+            error_code="ELICITATION_GET_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
 
-            return {
-                "request": request.to_dict(),
-                "response": response.to_dict() if response else None,
-                "status": ("completed" if response else ("expired" if request.is_expired() else "pending")),
-                "mcp_protocol_version": current_protocol_version(),
-            }
-        except Exception as e:
-            return create_error_response(
-                f"Failed to get elicitation request: {str(e)}",
-                error_code="ELICITATION_GET_FAILED",
+
+@mcp.tool()
+@require_scopes("admin")
+@structured_output("cancel_elicitation_request", fallback_on_error=True)
+def cancel_elicitation_request(request_id: str):
+    """Cancel a pending elicitation request."""
+    try:
+        cancelled = elicitation_manager.cancel_request(request_id)
+        if cancelled:
+            return create_success_response(
+                f"Elicitation request '{request_id}' cancelled successfully",
+                data={"request_id": request_id, "cancelled": True},
                 registry_mode=REGISTRY_MODE,
             )
-
-    @mcp.tool()
-    @require_scopes("admin")
-    @structured_output("cancel_elicitation_request", fallback_on_error=True)
-    def cancel_elicitation_request(request_id: str):
-        """Cancel a pending elicitation request."""
-        try:
-            cancelled = elicitation_manager.cancel_request(request_id)
-            if cancelled:
-                return create_success_response(
-                    f"Elicitation request '{request_id}' cancelled successfully",
-                    data={"request_id": request_id, "cancelled": True},
-                    registry_mode=REGISTRY_MODE,
-                )
-            else:
-                return create_error_response(
-                    f"Elicitation request '{request_id}' not found or already completed",
-                    error_code="ELICITATION_REQUEST_NOT_FOUND",
-                    registry_mode=REGISTRY_MODE,
-                )
-        except Exception as e:
+        else:
             return create_error_response(
-                f"Failed to cancel elicitation request: {str(e)}",
-                error_code="ELICITATION_CANCEL_FAILED",
+                f"Elicitation request '{request_id}' not found or already completed",
+                error_code="ELICITATION_REQUEST_NOT_FOUND",
                 registry_mode=REGISTRY_MODE,
             )
+    except Exception as e:
+        return create_error_response(
+            f"Failed to cancel elicitation request: {str(e)}",
+            error_code="ELICITATION_CANCEL_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
 
-    @mcp.tool()
-    @require_scopes("read")
-    @structured_output("get_elicitation_status", fallback_on_error=True)
-    def get_elicitation_status():
-        """Get the status of the elicitation system."""
-        try:
-            pending_requests = elicitation_manager.list_pending_requests()
-            return {
-                "elicitation_supported": is_elicitation_supported(),
-                "total_pending_requests": len(pending_requests),
-                "request_details": [
-                    {
-                        "id": req.id,
-                        "title": req.title,
-                        "type": req.type.value,
-                        "priority": req.priority.value,
-                        "created_at": req.created_at.isoformat(),
-                        "expires_at": (req.expires_at.isoformat() if req.expires_at else None),
-                        "expired": req.is_expired(),
-                    }
-                    for req in pending_requests
-                ],
-                "mcp_protocol_version": current_protocol_version(),
-                "registry_mode": REGISTRY_MODE,
-            }
-        except Exception as e:
-            return create_error_response(
-                f"Failed to get elicitation status: {str(e)}",
-                error_code="ELICITATION_STATUS_FAILED",
-                registry_mode=REGISTRY_MODE,
-            )
+
+@mcp.tool()
+@require_scopes("read")
+@structured_output("get_elicitation_status", fallback_on_error=True)
+def get_elicitation_status():
+    """Get the status of the elicitation system."""
+    try:
+        pending_requests = elicitation_manager.list_pending_requests()
+        return {
+            "elicitation_supported": is_elicitation_supported(),
+            "total_pending_requests": len(pending_requests),
+            "request_details": [
+                {
+                    "id": req.id,
+                    "title": req.title,
+                    "type": req.type.value,
+                    "priority": req.priority.value,
+                    "created_at": req.created_at.isoformat(),
+                    "expires_at": (req.expires_at.isoformat() if req.expires_at else None),
+                    "expired": req.is_expired(),
+                }
+                for req in pending_requests
+            ],
+            "mcp_protocol_version": current_protocol_version(),
+            "registry_mode": REGISTRY_MODE,
+        }
+    except Exception as e:
+        return create_error_response(
+            f"Failed to get elicitation status: {str(e)}",
+            error_code="ELICITATION_STATUS_FAILED",
+            registry_mode=REGISTRY_MODE,
+        )
 
 
 # ===== MULTI-STEP WORKFLOW TOOLS (Hidden in SLIM_MODE) =====
 
-if not SLIM_MODE:
 
-    @mcp.tool()
-    @require_scopes("write")
-    async def submit_elicitation_response(
-        request_id: str,
-        response_data: dict,
-        complete: bool = True,
-    ):
-        """
-        Submit a response to an elicitation request.
+@mcp.tool()
+@require_scopes("write")
+async def submit_elicitation_response(
+    request_id: str,
+    response_data: dict,
+    complete: bool = True,
+):
+    """
+    Submit a response to an elicitation request.
 
-        This tool handles both regular elicitation responses and multi-step workflow responses.
-        When a workflow is in progress, it will automatically advance to the next step.
-        """
-        from elicitation import ElicitationResponse
+    This tool handles both regular elicitation responses and multi-step workflow responses.
+    When a workflow is in progress, it will automatically advance to the next step.
+    """
+    from elicitation import ElicitationResponse
 
-        try:
-            # Create response object
-            response = ElicitationResponse(request_id=request_id, values=response_data, complete=complete)
+    try:
+        # Create response object
+        response = ElicitationResponse(request_id=request_id, values=response_data, complete=complete)
 
-            # Check if multi-step manager is available and handle workflow responses
-            if "multi_step_manager" in globals() and multi_step_manager:
-                workflow_result = await handle_workflow_elicitation_response(
-                    elicitation_manager, multi_step_manager, response
-                )
-
-                if workflow_result:
-                    if workflow_result.get("workflow_completed"):
-                        # Workflow completed - return execution plan
-                        execution_plan = workflow_result.get("execution_plan", {})
-                        return {
-                            "status": "workflow_completed",
-                            "message": "Workflow completed successfully",
-                            "execution_plan": execution_plan,
-                            "next_action": "Execute the generated plan using appropriate tools",
-                            "mcp_protocol_version": current_protocol_version(),
-                        }
-                    elif workflow_result.get("workflow_continuing"):
-                        # More steps needed
-                        return {
-                            "status": "workflow_continuing",
-                            "message": f"Proceeding to: {workflow_result.get('next_step')}",
-                            "request_id": workflow_result.get("request_id"),
-                            "mcp_protocol_version": current_protocol_version(),
-                        }
-                    else:
-                        # Error in workflow
-                        return create_error_response(
-                            workflow_result.get("error", "Unknown workflow error"),
-                            error_code="WORKFLOW_ERROR",
-                            registry_mode=REGISTRY_MODE,
-                        )
-
-            # Original elicitation handling (non-workflow)
-            success = await elicitation_manager.submit_response(response)
-
-            if success:
-                result = elicitation_manager.get_response(request_id)
-                if result:
-                    return {
-                        "status": "success",
-                        "message": "Response submitted successfully",
-                        "values": result.values,
-                        "mcp_protocol_version": current_protocol_version(),
-                    }
-
-            return create_error_response(
-                "Failed to submit response", error_code="ELICITATION_RESPONSE_FAILED", registry_mode=REGISTRY_MODE
+        # Check if multi-step manager is available and handle workflow responses
+        if "multi_step_manager" in globals() and multi_step_manager:
+            workflow_result = await handle_workflow_elicitation_response(
+                elicitation_manager, multi_step_manager, response
             )
 
-        except Exception as e:
-            logger.error(f"Error submitting elicitation response: {e}")
-            return create_error_response(str(e), error_code="ELICITATION_RESPONSE_ERROR", registry_mode=REGISTRY_MODE)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def list_available_workflows():
-        """List all available multi-step workflows for complex operations."""
-        try:
-            if "multi_step_manager" not in globals() or not multi_step_manager:
-                return create_error_response(
-                    "Multi-step workflows are not available",
-                    error_code="WORKFLOWS_NOT_AVAILABLE",
-                    registry_mode=REGISTRY_MODE,
-                )
-
-            from workflow_definitions import get_all_workflows
-
-            workflows = get_all_workflows()
-            workflow_list = []
-
-            for workflow in workflows:
-                workflow_list.append(
-                    {
-                        "id": workflow.id,
-                        "name": workflow.name,
-                        "description": workflow.description,
-                        "steps": len(workflow.steps),
-                        "difficulty": workflow.metadata.get("difficulty", "intermediate"),
-                        "estimated_duration": workflow.metadata.get("estimated_duration", "5-10 minutes"),
-                        "requires_admin": workflow.metadata.get("requires_admin", False),
-                    }
-                )
-
-            return {
-                "workflows": workflow_list,
-                "total": len(workflow_list),
-                "message": "Use 'start_workflow' tool to begin any workflow",
-                "mcp_protocol_version": current_protocol_version(),
-            }
-
-        except Exception as e:
-            logger.error(f"Error listing available workflows: {e}")
-            return create_error_response(str(e), error_code="WORKFLOWS_LIST_ERROR", registry_mode=REGISTRY_MODE)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_workflow_status(workflow_id: Optional[str] = None):
-        """Get the status of active workflows."""
-        try:
-            if "multi_step_manager" not in globals() or not multi_step_manager:
-                return create_error_response(
-                    "Multi-step workflows are not available",
-                    error_code="WORKFLOWS_NOT_AVAILABLE",
-                    registry_mode=REGISTRY_MODE,
-                )
-
-            active_workflows = multi_step_manager.get_active_workflows()
-
-            if workflow_id:
-                # Return status for specific workflow
-                workflow_info = next((wf for wf in active_workflows if wf.get("instance_id") == workflow_id), None)
-                if workflow_info:
+            if workflow_result:
+                if workflow_result.get("workflow_completed"):
+                    # Workflow completed - return execution plan
+                    execution_plan = workflow_result.get("execution_plan", {})
                     return {
-                        "workflow_id": workflow_id,
-                        "status": workflow_info,
+                        "status": "workflow_completed",
+                        "message": "Workflow completed successfully",
+                        "execution_plan": execution_plan,
+                        "next_action": "Execute the generated plan using appropriate tools",
+                        "mcp_protocol_version": current_protocol_version(),
+                    }
+                elif workflow_result.get("workflow_continuing"):
+                    # More steps needed
+                    return {
+                        "status": "workflow_continuing",
+                        "message": f"Proceeding to: {workflow_result.get('next_step')}",
+                        "request_id": workflow_result.get("request_id"),
                         "mcp_protocol_version": current_protocol_version(),
                     }
                 else:
+                    # Error in workflow
                     return create_error_response(
-                        f"Workflow '{workflow_id}' not found or not active",
-                        error_code="WORKFLOW_NOT_FOUND",
+                        workflow_result.get("error", "Unknown workflow error"),
+                        error_code="WORKFLOW_ERROR",
                         registry_mode=REGISTRY_MODE,
                     )
 
-            # Return all active workflows
-            return {
-                "active_workflows": active_workflows,
-                "total_active": len(active_workflows),
-                "mcp_protocol_version": current_protocol_version(),
-            }
+        # Original elicitation handling (non-workflow)
+        success = await elicitation_manager.submit_response(response)
 
-        except Exception as e:
-            logger.error(f"Error getting workflow status: {e}")
-            return create_error_response(str(e), error_code="WORKFLOW_STATUS_ERROR", registry_mode=REGISTRY_MODE)
+        if success:
+            result = elicitation_manager.get_response(request_id)
+            if result:
+                return {
+                    "status": "success",
+                    "message": "Response submitted successfully",
+                    "values": result.values,
+                    "mcp_protocol_version": current_protocol_version(),
+                }
+
+        return create_error_response(
+            "Failed to submit response", error_code="ELICITATION_RESPONSE_FAILED", registry_mode=REGISTRY_MODE
+        )
+
+    except Exception as e:
+        logger.error(f"Error submitting elicitation response: {e}")
+        return create_error_response(str(e), error_code="ELICITATION_RESPONSE_ERROR", registry_mode=REGISTRY_MODE)
+
+
+@mcp.tool()
+@require_scopes("read")
+def list_available_workflows():
+    """List all available multi-step workflows for complex operations."""
+    try:
+        if "multi_step_manager" not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE,
+            )
+
+        from workflow_definitions import get_all_workflows
+
+        workflows = get_all_workflows()
+        workflow_list = []
+
+        for workflow in workflows:
+            workflow_list.append(
+                {
+                    "id": workflow.id,
+                    "name": workflow.name,
+                    "description": workflow.description,
+                    "steps": len(workflow.steps),
+                    "difficulty": workflow.metadata.get("difficulty", "intermediate"),
+                    "estimated_duration": workflow.metadata.get("estimated_duration", "5-10 minutes"),
+                    "requires_admin": workflow.metadata.get("requires_admin", False),
+                }
+            )
+
+        return {
+            "workflows": workflow_list,
+            "total": len(workflow_list),
+            "message": "Use 'start_workflow' tool to begin any workflow",
+            "mcp_protocol_version": current_protocol_version(),
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing available workflows: {e}")
+        return create_error_response(str(e), error_code="WORKFLOWS_LIST_ERROR", registry_mode=REGISTRY_MODE)
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_workflow_status(workflow_id: Optional[str] = None):
+    """Get the status of active workflows."""
+    try:
+        if "multi_step_manager" not in globals() or not multi_step_manager:
+            return create_error_response(
+                "Multi-step workflows are not available",
+                error_code="WORKFLOWS_NOT_AVAILABLE",
+                registry_mode=REGISTRY_MODE,
+            )
+
+        active_workflows = multi_step_manager.get_active_workflows()
+
+        if workflow_id:
+            # Return status for specific workflow
+            workflow_info = next((wf for wf in active_workflows if wf.get("instance_id") == workflow_id), None)
+            if workflow_info:
+                return {
+                    "workflow_id": workflow_id,
+                    "status": workflow_info,
+                    "mcp_protocol_version": current_protocol_version(),
+                }
+            else:
+                return create_error_response(
+                    f"Workflow '{workflow_id}' not found or not active",
+                    error_code="WORKFLOW_NOT_FOUND",
+                    registry_mode=REGISTRY_MODE,
+                )
+
+        # Return all active workflows
+        return {
+            "active_workflows": active_workflows,
+            "total_active": len(active_workflows),
+            "mcp_protocol_version": current_protocol_version(),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting workflow status: {e}")
+        return create_error_response(str(e), error_code="WORKFLOW_STATUS_ERROR", registry_mode=REGISTRY_MODE)
 
     # Guided workflow tools are now registered in workflow_mcp_integration.py
     # to avoid duplicate registrations
@@ -2343,7 +2367,8 @@ def _internal_get_mcp_compliance_status():
     try:
         # FastMCP 4 / MCP SDK 2 negotiate the protocol per connection.
         config_details = {
-            "slim_mode": SLIM_MODE,
+            "edition": edition_name(EDITION),
+            "edition_source": EDITION_RESOLUTION.source,
             "protocol_version": current_protocol_version(),
             "supported_versions": list(KNOWN_PROTOCOL_VERSIONS),
             "protocol_negotiation": "sdk-managed",
@@ -2355,7 +2380,7 @@ def _internal_get_mcp_compliance_status():
                 "version": __version__,
                 "architecture": "modular",
                 "registry_mode": REGISTRY_MODE,
-                "slim_mode": SLIM_MODE,
+                "edition": edition_name(EDITION),
                 "structured_output_implementation": "100% Complete - All tools",
                 "elicitation_capability": (
                     "Enabled - MCP 2025-06-18 Interactive Workflows" if not SLIM_MODE else "Disabled in SLIM_MODE"
@@ -2384,7 +2409,7 @@ def _internal_get_mcp_compliance_status():
             },
             "structured_output": {
                 "implementation_status": "100% Complete",
-                "total_tools": "70+" if not SLIM_MODE else "~20 (SLIM_MODE)",
+                "total_tools": len(tools_for(EDITION)),
                 "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
                 "mcp_protocol_version": current_protocol_version(),
@@ -2721,203 +2746,203 @@ def check_viewonly_mode_tool(registry: Optional[str] = None):
 
 
 # OAuth info tools (Hidden in SLIM_MODE)
-if not SLIM_MODE:
 
-    @structured_output("get_oauth_scopes_info_tool", fallback_on_error=True)
-    def get_oauth_scopes_info_tool_wrapper():
-        """Get information about OAuth scopes and permissions with structured output validation."""
-        try:
-            result = get_oauth_scopes_info()
 
-            # Ensure the result is structured properly
-            if isinstance(result, dict):
-                # Add structured output metadata
-                result["registry_mode"] = REGISTRY_MODE
-                result["mcp_protocol_version"] = current_protocol_version()
-                return result
-            else:
-                # If result is not a dict, structure it
-                return {
-                    "oauth_scopes": result,
-                    "registry_mode": REGISTRY_MODE,
-                    "mcp_protocol_version": current_protocol_version(),
-                }
+@structured_output("get_oauth_scopes_info_tool", fallback_on_error=True)
+def get_oauth_scopes_info_tool_wrapper():
+    """Get information about OAuth scopes and permissions with structured output validation."""
+    try:
+        result = get_oauth_scopes_info()
 
-        except Exception as e:
-            return create_error_response(str(e), error_code="OAUTH_SCOPES_INFO_FAILED", registry_mode=REGISTRY_MODE)
-
-    @mcp.tool()
-    @require_scopes("read")
-    def get_oauth_scopes_info_tool():
-        """Get information about OAuth scopes and permissions."""
-        return get_oauth_scopes_info_tool_wrapper()
-
-    @mcp.tool()
-    @require_scopes("read")
-    def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
-        """
-        Test OAuth discovery endpoints to ensure proper MCP client compatibility.
-
-        Validates:
-        - /.well-known/oauth-authorization-server
-        - /.well-known/oauth-protected-resource
-        - /.well-known/jwks.json
-
-        Args:
-            server_url: Base URL of the MCP server (default: http://localhost:8000)
-
-        Returns:
-            Dictionary with test results for each discovery endpoint
-        """
-        import json
-
-        import requests
-
-        results: Dict[str, Any] = {
-            "test_time": datetime.now(timezone.utc).isoformat(),
-            "server_url": server_url,
-            "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
-            "mcp_protocol_version": current_protocol_version(),
-            "endpoints": {},
-        }
-
-        # Discovery endpoints to test
-        endpoints = {
-            "oauth_authorization_server": "/.well-known/oauth-authorization-server",
-            "oauth_protected_resource": "/.well-known/oauth-protected-resource",
-            "jwks": "/.well-known/jwks.json",
-        }
-
-        for endpoint_name, endpoint_path in endpoints.items():
-            endpoint_url = f"{server_url.rstrip('/')}{endpoint_path}"
-
-            try:
-                response = requests.get(endpoint_url, timeout=10)
-
-                endpoint_result = {
-                    "url": endpoint_url,
-                    "status_code": response.status_code,
-                    "success": response.status_code in [200, 404],  # 404 is OK if OAuth disabled
-                    "headers": dict(response.headers),
-                    "response_time_ms": response.elapsed.total_seconds() * 1000,
-                }
-
-                # Check for MCP-Protocol-Version header in response
-                if "MCP-Protocol-Version" in response.headers:
-                    endpoint_result["mcp_protocol_version_header"] = response.headers["MCP-Protocol-Version"]
-                else:
-                    endpoint_result["mcp_protocol_version_header"] = "Missing"
-
-                # Try to parse JSON response
-                try:
-                    response_data = response.json()
-                    endpoint_result["data"] = response_data
-
-                    # Validate expected fields based on endpoint
-                    if endpoint_name == "oauth_authorization_server" and response.status_code == 200:
-                        required_fields = [
-                            "issuer",
-                            "scopes_supported",
-                            "mcp_server_version",
-                        ]
-                        missing_fields = [f for f in required_fields if f not in response_data]
-                        if missing_fields:
-                            endpoint_result["warnings"] = f"Missing recommended fields: {missing_fields}"
-
-                        # Check MCP-specific extensions
-                        if "mcp_endpoints" not in response_data:
-                            warnings = endpoint_result.get("warnings", "")
-                            if isinstance(warnings, str):
-                                endpoint_result["warnings"] = warnings + " Missing MCP endpoints"
-                            else:
-                                endpoint_result["warnings"] = "Missing MCP endpoints"
-
-                    elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
-                        required_fields = [
-                            "resource",
-                            "authorization_servers",
-                            "scopes_supported",
-                        ]
-                        missing_fields = [f for f in required_fields if f not in response_data]
-                        if missing_fields:
-                            endpoint_result["warnings"] = f"Missing required fields: {missing_fields}"
-
-                        # Check MCP-specific fields
-                        if "mcp_server_info" not in response_data:
-                            warnings = endpoint_result.get("warnings", "")
-                            if isinstance(warnings, str):
-                                endpoint_result["warnings"] = warnings + " Missing MCP server info"
-                            else:
-                                endpoint_result["warnings"] = "Missing MCP server info"
-
-                    elif endpoint_name == "jwks" and response.status_code == 200:
-                        if "keys" not in response_data:
-                            endpoint_result["warnings"] = "Missing 'keys' field in JWKS response"
-
-                except json.JSONDecodeError:
-                    endpoint_result["data"] = response.text[:500]  # First 500 chars if not JSON
-                    endpoint_result["warnings"] = "Response is not valid JSON"
-
-                # Additional validations
-                if response.status_code == 404 and not results["oauth_enabled"]:
-                    endpoint_result["note"] = "404 expected when OAuth is disabled"
-                elif response.status_code == 200 and not results["oauth_enabled"]:
-                    endpoint_result["warnings"] = "Endpoint returns 200 but OAuth appears disabled"
-                elif response.status_code != 200 and results["oauth_enabled"]:
-                    endpoint_result["warnings"] = f"Expected 200 status when OAuth enabled, got {response.status_code}"
-
-            except requests.exceptions.RequestException as e:
-                endpoint_result = {
-                    "url": endpoint_url,
-                    "success": False,
-                    "error": str(e),
-                    "note": "Could not connect to endpoint",
-                }
-
-            results["endpoints"][endpoint_name] = endpoint_result
-
-        # Overall assessment
-        successful_endpoints = sum(1 for ep in results["endpoints"].values() if ep.get("success", False))
-        total_endpoints = len(endpoints)
-
-        results["summary"] = {
-            "successful_endpoints": successful_endpoints,
-            "total_endpoints": total_endpoints,
-            "success_rate": f"{(successful_endpoints/total_endpoints)*100:.1f}%",
-            "oauth_discovery_ready": successful_endpoints == total_endpoints and results["oauth_enabled"],
-            "mcp_header_validation": "Enabled",
-            "recommendations": [],
-        }
-
-        # Add recommendations
-        if not results["oauth_enabled"]:
-            results["summary"]["recommendations"].append(
-                "Enable OAuth with ENABLE_AUTH=true to test full discovery functionality"
-            )
-
-        for endpoint_name, endpoint_result in results["endpoints"].items():
-            if endpoint_result.get("warnings"):
-                results["summary"]["recommendations"].append(f"{endpoint_name}: {endpoint_result['warnings']}")
-
-        if results["oauth_enabled"] and successful_endpoints == total_endpoints:
-            results["summary"]["recommendations"].append(
-                "✅ All OAuth discovery endpoints working correctly - MCP clients should have no issues"
-            )
-
-        # Check MCP-Protocol-Version header presence
-        headers_present = sum(
-            1
-            for ep in results["endpoints"].values()
-            if ep.get("mcp_protocol_version_header") == current_protocol_version()
-        )
-        if headers_present == total_endpoints:
-            results["summary"]["recommendations"].append(
-                f"✅ MCP-Protocol-Version header correctly added to all responses ({current_protocol_version()})"
-            )
+        # Ensure the result is structured properly
+        if isinstance(result, dict):
+            # Add structured output metadata
+            result["registry_mode"] = REGISTRY_MODE
+            result["mcp_protocol_version"] = current_protocol_version()
+            return result
         else:
-            results["summary"]["recommendations"].append("⚠️ MCP-Protocol-Version header missing from some responses")
+            # If result is not a dict, structure it
+            return {
+                "oauth_scopes": result,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": current_protocol_version(),
+            }
 
-        return results
+    except Exception as e:
+        return create_error_response(str(e), error_code="OAUTH_SCOPES_INFO_FAILED", registry_mode=REGISTRY_MODE)
+
+
+@mcp.tool()
+@require_scopes("read")
+def get_oauth_scopes_info_tool():
+    """Get information about OAuth scopes and permissions."""
+    return get_oauth_scopes_info_tool_wrapper()
+
+
+@mcp.tool()
+@require_scopes("read")
+def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
+    """
+    Test OAuth discovery endpoints to ensure proper MCP client compatibility.
+
+    Validates:
+    - /.well-known/oauth-authorization-server
+    - /.well-known/oauth-protected-resource
+    - /.well-known/jwks.json
+
+    Args:
+        server_url: Base URL of the MCP server (default: http://localhost:8000)
+
+    Returns:
+        Dictionary with test results for each discovery endpoint
+    """
+    import json
+
+    import requests
+
+    results: Dict[str, Any] = {
+        "test_time": datetime.now(timezone.utc).isoformat(),
+        "server_url": server_url,
+        "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
+        "mcp_protocol_version": current_protocol_version(),
+        "endpoints": {},
+    }
+
+    # Discovery endpoints to test
+    endpoints = {
+        "oauth_authorization_server": "/.well-known/oauth-authorization-server",
+        "oauth_protected_resource": "/.well-known/oauth-protected-resource",
+        "jwks": "/.well-known/jwks.json",
+    }
+
+    for endpoint_name, endpoint_path in endpoints.items():
+        endpoint_url = f"{server_url.rstrip('/')}{endpoint_path}"
+
+        try:
+            response = requests.get(endpoint_url, timeout=10)
+
+            endpoint_result = {
+                "url": endpoint_url,
+                "status_code": response.status_code,
+                "success": response.status_code in [200, 404],  # 404 is OK if OAuth disabled
+                "headers": dict(response.headers),
+                "response_time_ms": response.elapsed.total_seconds() * 1000,
+            }
+
+            # Check for MCP-Protocol-Version header in response
+            if "MCP-Protocol-Version" in response.headers:
+                endpoint_result["mcp_protocol_version_header"] = response.headers["MCP-Protocol-Version"]
+            else:
+                endpoint_result["mcp_protocol_version_header"] = "Missing"
+
+            # Try to parse JSON response
+            try:
+                response_data = response.json()
+                endpoint_result["data"] = response_data
+
+                # Validate expected fields based on endpoint
+                if endpoint_name == "oauth_authorization_server" and response.status_code == 200:
+                    required_fields = [
+                        "issuer",
+                        "scopes_supported",
+                        "mcp_server_version",
+                    ]
+                    missing_fields = [f for f in required_fields if f not in response_data]
+                    if missing_fields:
+                        endpoint_result["warnings"] = f"Missing recommended fields: {missing_fields}"
+
+                    # Check MCP-specific extensions
+                    if "mcp_endpoints" not in response_data:
+                        warnings = endpoint_result.get("warnings", "")
+                        if isinstance(warnings, str):
+                            endpoint_result["warnings"] = warnings + " Missing MCP endpoints"
+                        else:
+                            endpoint_result["warnings"] = "Missing MCP endpoints"
+
+                elif endpoint_name == "oauth_protected_resource" and response.status_code == 200:
+                    required_fields = [
+                        "resource",
+                        "authorization_servers",
+                        "scopes_supported",
+                    ]
+                    missing_fields = [f for f in required_fields if f not in response_data]
+                    if missing_fields:
+                        endpoint_result["warnings"] = f"Missing required fields: {missing_fields}"
+
+                    # Check MCP-specific fields
+                    if "mcp_server_info" not in response_data:
+                        warnings = endpoint_result.get("warnings", "")
+                        if isinstance(warnings, str):
+                            endpoint_result["warnings"] = warnings + " Missing MCP server info"
+                        else:
+                            endpoint_result["warnings"] = "Missing MCP server info"
+
+                elif endpoint_name == "jwks" and response.status_code == 200:
+                    if "keys" not in response_data:
+                        endpoint_result["warnings"] = "Missing 'keys' field in JWKS response"
+
+            except json.JSONDecodeError:
+                endpoint_result["data"] = response.text[:500]  # First 500 chars if not JSON
+                endpoint_result["warnings"] = "Response is not valid JSON"
+
+            # Additional validations
+            if response.status_code == 404 and not results["oauth_enabled"]:
+                endpoint_result["note"] = "404 expected when OAuth is disabled"
+            elif response.status_code == 200 and not results["oauth_enabled"]:
+                endpoint_result["warnings"] = "Endpoint returns 200 but OAuth appears disabled"
+            elif response.status_code != 200 and results["oauth_enabled"]:
+                endpoint_result["warnings"] = f"Expected 200 status when OAuth enabled, got {response.status_code}"
+
+        except requests.exceptions.RequestException as e:
+            endpoint_result = {
+                "url": endpoint_url,
+                "success": False,
+                "error": str(e),
+                "note": "Could not connect to endpoint",
+            }
+
+        results["endpoints"][endpoint_name] = endpoint_result
+
+    # Overall assessment
+    successful_endpoints = sum(1 for ep in results["endpoints"].values() if ep.get("success", False))
+    total_endpoints = len(endpoints)
+
+    results["summary"] = {
+        "successful_endpoints": successful_endpoints,
+        "total_endpoints": total_endpoints,
+        "success_rate": f"{(successful_endpoints/total_endpoints)*100:.1f}%",
+        "oauth_discovery_ready": successful_endpoints == total_endpoints and results["oauth_enabled"],
+        "mcp_header_validation": "Enabled",
+        "recommendations": [],
+    }
+
+    # Add recommendations
+    if not results["oauth_enabled"]:
+        results["summary"]["recommendations"].append(
+            "Enable OAuth with ENABLE_AUTH=true to test full discovery functionality"
+        )
+
+    for endpoint_name, endpoint_result in results["endpoints"].items():
+        if endpoint_result.get("warnings"):
+            results["summary"]["recommendations"].append(f"{endpoint_name}: {endpoint_result['warnings']}")
+
+    if results["oauth_enabled"] and successful_endpoints == total_endpoints:
+        results["summary"]["recommendations"].append(
+            "✅ All OAuth discovery endpoints working correctly - MCP clients should have no issues"
+        )
+
+    # Check MCP-Protocol-Version header presence
+    headers_present = sum(
+        1 for ep in results["endpoints"].values() if ep.get("mcp_protocol_version_header") == current_protocol_version()
+    )
+    if headers_present == total_endpoints:
+        results["summary"]["recommendations"].append(
+            f"✅ MCP-Protocol-Version header correctly added to all responses ({current_protocol_version()})"
+        )
+    else:
+        results["summary"]["recommendations"].append("⚠️ MCP-Protocol-Version header missing from some responses")
+
+    return results
 
 
 # Note: get_operation_info_tool removed in v2.2.0+
@@ -3016,7 +3041,7 @@ def registry_info_resource():
                 "name": "Kafka Schema Registry Unified MCP Server",
                 "version": __version__,
                 "registry_mode": REGISTRY_MODE,
-                "slim_mode": SLIM_MODE,
+                "edition": edition_name(EDITION),
                 "mcp_protocol_version": current_protocol_version(),
             },
             "resource_info": {
@@ -3736,6 +3761,10 @@ from mcp_prompts import PROMPT_REGISTRY as _PROMPT_REGISTRY
 for _prompt_name, _prompt_fn in _PROMPT_REGISTRY.items():
     _description = (_prompt_fn.__doc__ or _prompt_name).strip().splitlines()[0]
     mcp.prompt(name=_prompt_name, description=_description)(_prompt_fn)
+
+# Registration is complete; expose the real FastMCP server to clients.
+if isinstance(mcp, EditionGate):
+    mcp = mcp._server
 
 
 # ===== SERVER ENTRY POINT =====

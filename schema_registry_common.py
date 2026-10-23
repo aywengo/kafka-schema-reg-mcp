@@ -32,22 +32,7 @@ from _version import __version__
 SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
 SINGLE_REGISTRY_PASSWORD = os.getenv("SCHEMA_REGISTRY_PASSWORD", "")
-# Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
-SINGLE_VIEWONLY = os.getenv("VIEWONLY", os.getenv("READONLY", "false")).lower() in ("true", "1", "yes", "on")
-
-# Warn if deprecated READONLY parameter is used
-if os.getenv("READONLY") is not None and os.getenv("VIEWONLY") is None:
-    import warnings
-
-    warnings.warn(
-        "READONLY parameter is deprecated. Please use VIEWONLY instead. "
-        "Support for READONLY will be removed in a future version.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    print("⚠️  WARNING: READONLY parameter is deprecated. Please use VIEWONLY instead.")
-    print("   Example: export VIEWONLY=true")
-    print("   Support for READONLY will be removed in a future version.")
+SINGLE_VIEWONLY = os.getenv("VIEWONLY", "false").lower() in ("true", "1", "yes", "on")
 
 # SSL/TLS Security Configuration
 ENFORCE_SSL_TLS_VERIFICATION = os.getenv("ENFORCE_SSL_TLS_VERIFICATION", "true").lower() in ("true", "1", "yes", "on")
@@ -257,6 +242,57 @@ class MigrationTask:
     dry_run: bool = False
 
 
+class ViewOnlyError(PermissionError):
+    """Raised when a write reaches a VIEWONLY registry."""
+
+
+class GuardedSession(requests.Session):
+    """Requests session that refuses registry mutations for VIEWONLY clients.
+
+    GET always passes. POST is allowed only for the two Schema Registry read
+    shapes: compatibility checks and subject lookup. PUT and DELETE always
+    mutate. Matching normalises the registry base path and an optional
+    ``/contexts/{ctx}`` prefix.
+    """
+
+    def __init__(self, config: RegistryConfig):
+        super().__init__()
+        self._config = config
+
+    def _is_read_post(self, url: str) -> bool:
+        path = urlparse(url).path
+        base_path = urlparse(self._config.url).path.rstrip("/")
+        if base_path and path.startswith(base_path):
+            path = path[len(base_path) :]
+        parts = [part for part in path.split("/") if part]
+        if parts and parts[0] == "contexts" and len(parts) > 1:
+            parts = parts[2:]
+        if len(parts) == 2 and parts[0] == "subjects":
+            return True
+        if len(parts) == 5 and parts[0] == "compatibility" and parts[1] == "subjects" and parts[3] == "versions":
+            return True
+        return False
+
+    def _guard(self, method: str, url: str, *, read_post: bool = False) -> None:
+        if not self._config.viewonly:
+            return
+        if read_post and self._is_read_post(url):
+            return
+        raise ViewOnlyError(f"Registry '{self._config.name}' is VIEWONLY; refusing {method} {url}")
+
+    def post(self, url, *args, **kwargs):
+        self._guard("POST", url, read_post=True)
+        return super().post(url, *args, **kwargs)
+
+    def put(self, url, *args, **kwargs):
+        self._guard("PUT", url)
+        return super().put(url, *args, **kwargs)
+
+    def delete(self, url, *args, **kwargs):
+        self._guard("DELETE", url)
+        return super().delete(url, *args, **kwargs)
+
+
 class RegistryClient:
     """Client for interacting with a single Schema Registry instance."""
 
@@ -283,7 +319,7 @@ class RegistryClient:
 
     def _create_secure_session(self) -> requests.Session:
         """Create a secure requests session with proper SSL/TLS configuration."""
-        session = requests.Session()
+        session = GuardedSession(self.config)
 
         # Configure SSL verification
         if ENFORCE_SSL_TLS_VERIFICATION:
@@ -821,19 +857,6 @@ class BaseRegistryManager:
             return False
         return client.config.viewonly
 
-    # Backward compatibility alias
-    def is_readonly(self, registry_name: Optional[str] = None) -> bool:
-        """Deprecated: Use is_viewonly instead."""
-        import warnings
-
-        warnings.warn(
-            "is_readonly() is deprecated. Please use is_viewonly() instead. "
-            "Support for is_readonly() will be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.is_viewonly(registry_name)
-
     def get_default_registry(self) -> Optional[str]:
         """Get the default registry name."""
         return self.default_registry
@@ -891,7 +914,6 @@ class MultiRegistryManager(BaseRegistryManager):
             user_var = f"SCHEMA_REGISTRY_USER_{i}"
             password_var = f"SCHEMA_REGISTRY_PASSWORD_{i}"
             viewonly_var = f"VIEWONLY_{i}"
-            readonly_var = f"READONLY_{i}"  # For backward compatibility
 
             name = os.getenv(name_var, "")
             url = os.getenv(url_var, "")
@@ -901,27 +923,7 @@ class MultiRegistryManager(BaseRegistryManager):
 
                 user = os.getenv(user_var, "")
                 password = os.getenv(password_var, "")
-                # Support both VIEWONLY (new) and READONLY (deprecated) for backward compatibility
-                viewonly = os.getenv(viewonly_var, os.getenv(readonly_var, "false")).lower() in (
-                    "true",
-                    "1",
-                    "yes",
-                    "on",
-                )
-
-                # Warn if deprecated READONLY_{i} parameter is used
-                if os.getenv(readonly_var) is not None and os.getenv(viewonly_var) is None:
-                    import warnings
-
-                    warnings.warn(
-                        f"{readonly_var} parameter is deprecated. Please use {viewonly_var} instead. "
-                        f"Support for {readonly_var} will be removed in a future version.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                    print(f"⚠️  WARNING: {readonly_var} parameter is deprecated. Please use {viewonly_var} instead.")
-                    print(f"   Example: export {viewonly_var}=true")
-                    print(f"   Support for {readonly_var} will be removed in a future version.")
+                viewonly = os.getenv(viewonly_var, "false").lower() in ("true", "1", "yes", "on")
 
                 try:
                     config = RegistryConfig(
@@ -998,24 +1000,7 @@ class LegacyRegistryManager(BaseRegistryManager):
                 registries_data = json.loads(self.registries_config)
                 for name, config_data in registries_data.items():
                     try:
-                        # Support both viewonly (new) and readonly (deprecated) for backward compatibility
-                        viewonly = config_data.get("viewonly", config_data.get("readonly", False))
-
-                        # Warn if deprecated "readonly" field is used in JSON config
-                        if "readonly" in config_data and "viewonly" not in config_data:
-                            import warnings
-
-                            warnings.warn(
-                                f"'readonly' field in JSON configuration is deprecated. Please use 'viewonly' instead for registry '{name}'. "
-                                "Support for 'readonly' will be removed in a future version.",
-                                DeprecationWarning,
-                                stacklevel=2,
-                            )
-                            print(
-                                f"⚠️  WARNING: 'readonly' field in JSON configuration is deprecated for registry '{name}'."
-                            )
-                            print("   Please use 'viewonly' instead in your JSON configuration.")
-                            print("   Support for 'readonly' will be removed in a future version.")
+                        viewonly = config_data.get("viewonly", False)
 
                         config = RegistryConfig(
                             name=name,
@@ -1051,22 +1036,6 @@ def check_viewonly_mode(
             "registry": registry_name or registry_manager.get_default_registry() or "unknown",
         }
     return None
-
-
-# Backward compatibility alias
-def check_readonly_mode(
-    registry_manager: BaseRegistryManager, registry_name: Optional[str] = None
-) -> Optional[Dict[str, str]]:
-    """Deprecated: Use check_viewonly_mode instead."""
-    import warnings
-
-    warnings.warn(
-        "check_readonly_mode() is deprecated. Please use check_viewonly_mode() instead. "
-        "Support for check_readonly_mode() will be removed in a future version.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return check_viewonly_mode(registry_manager, registry_name)
 
 
 def build_context_url(base_url: str, registry_url: str, context: Optional[str] = None) -> str:

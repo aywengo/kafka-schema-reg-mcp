@@ -37,9 +37,13 @@ ARG TARGETARCH
 ARG VERSION="dev"
 ARG BUILD_DATE
 ARG VCS_REF
+ARG MCP_EDITION_DEFAULT="viewer"
 
 # Log production platform information
 RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
+
+# The edition is baked in as a default; operators override it with MCP_EDITION.
+ENV MCP_EDITION_DEFAULT=${MCP_EDITION_DEFAULT}
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
