@@ -36,7 +36,7 @@ enforcement with gaps.
 - Remove process-local state that does not survive a stateless, multi-replica deployment
   (in-process workflow registry, mutable default registry).
 - One version source consumed by code, image labels, and the Helm chart.
-- Actually expose the nine prompts in `mcp_prompts.py` and make every `_links` URI resolvable.
+- Actually expose the prompts in `mcp_prompts.py` and make every `_links` URI resolvable.
 
 ### Non-goals
 
@@ -153,7 +153,7 @@ and `mutates=False`; a viewer deployment issues no write to any registry.
 | Workflow definitions | `list_workflows`, `describe_workflow` (static definitions; see "Removed" below for the instance-inspection tools) |
 
 Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export`,
-`troubleshooting`.
+`troubleshooting`, `quick-reference` (5).
 
 Viewer resources: all `registry://`, `schema://` and `subject://` read resources (the full
 resource set; no edition adds resources).
@@ -165,7 +165,7 @@ resource set; no edition adds resources).
 | Registration | `register_schema`, `register_schema_interactive` |
 | Evolution | `guided_schema_evolution` (its final step registers the next version, so it is not a viewer tool; viewers get the analysis half through `check_compatibility` and the `schema-compatibility` prompt) |
 
-Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (6 total).
+Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (7 total).
 
 **Admin edition** (editor set plus the following), 26 additional tools, 67 total
 
@@ -177,7 +177,13 @@ Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (6 tot
 | Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today; backed by `wizard._generate_preview`) |
 | Guided workflows | `start_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
 
-Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-workflows`).
+Admin prompts: all ten (adds `context-management`, `multi-registry`, `advanced-workflows`).
+
+`PROMPT_REGISTRY` actually holds ten entries: `quick-reference` is appended after the initial
+dictionary (`mcp_prompts.py` L1109). It is a condensed index of the other prompts and is
+assigned `min_edition=VIEWER`, bringing the prompt counts to 5 viewer, 7 editor, 10 admin.
+Registration iterates the catalog, not `PROMPT_REGISTRY`, so a prompt added to the registry
+without an edition assignment fails `test_editions.py` rather than silently appearing.
 
 **Removed in 3.0** (all editions):
 
@@ -348,11 +354,15 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   version, negotiated protocol version and registry mode.
 - **Interactive tools on MRTR.** The six `*_interactive` tools (`register_schema_interactive`,
   `check_compatibility_interactive`, `create_context_interactive`, `export_global_interactive`,
-  `migrate_context_interactive`, `migrate_schema_interactive`) move from `ctx.elicit()` to
-  FastMCP 4 guard-mode tools that return `InputRequiredResult` and read `ctx.input_responses`
-  on the retry. One tool body serves both eras: legacy clients still see `elicitation/create`,
-  modern clients see MRTR. `migrate_schema_interactive` is ported and unit-tested directly in
-  M1 and registered in M2 with the catalog.
+  `migrate_context_interactive`, `migrate_schema_interactive`) are **rebuilt**, not ported.
+  Today they call `elicit_with_fallback` (`interactive_tools.py`, 7 call sites), and both
+  branches of that helper end in `mock_elicit` (`elicitation.py` L938-951), so there is no
+  working native elicitation to carry over (see also
+  [#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)). M1 replaces the
+  custom/mock path with FastMCP 4 guard-mode tools that return `InputRequiredResult` and read
+  `ctx.input_responses` on the retry. One tool body serves both eras: legacy clients see
+  `elicitation/create`, modern clients see MRTR. `migrate_schema_interactive` is rebuilt and
+  unit-tested directly in M1 and registered in M2 with the catalog.
 - **Bulk wizard decoupling.** `bulk_operations_wizard.py` does not use `ctx.elicit()`; it makes
   13 calls into the home-grown `self.elicitation.elicit(...)` manager from `elicitation.py`.
   Because M3 deletes that manager, the wizard must be fully rewritten on `InputRequiredResult`
@@ -378,9 +388,19 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   `count_schemas` and `get_registry_statistics`. `tests/test_editions.py` boots each edition
   and asserts the extension is present and that every `ToolSpec.task` tool is listed with a
   task handle.
+- **Bulk tools become tasks.** The five `bulk_*` registrations
+  (`kafka_schema_registry_unified_mcp.py` L1902-1997) currently omit `task=True` and await the
+  wizard inline, so installing `TasksExtension` alone gives bulk callers no task handle. M2
+  registers `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration` and
+  `bulk_configuration_update` with `task=True` (the interactive `bulk_operations_wizard` stays
+  a guard-mode MRTR tool that, once confirmed, submits the same task). The M2 exit includes a
+  check that a bulk task can be polled with `tasks/get` and cancelled with `tasks/cancel`;
+  only then does the claim in section 2.4 that the tasks extension replaces the deleted
+  status/cancel stubs hold.
 - **Tasks need a shared backend.** `migrate_schema`, `migrate_context`, `clear_context_batch`,
   `clear_multiple_contexts_batch`, `count_schemas`, `get_registry_statistics` keep `task=True`
-  via `fastmcp-tasks`. Its Docket engine defaults to an in-memory backend; under the stateless
+  via `fastmcp-tasks`, and the four non-interactive bulk tools join them (above). Its Docket
+  engine defaults to an in-memory backend; under the stateless
   protocol a `tasks/get` poll can land on any replica, so multi-replica deployments need Redis or
   Valkey. Helm gets a `tasks.backend: memory|redis` value with an optional bundled Valkey or an
   external URL. With `memory` the chart must guarantee a single pod, and `replicaCount` alone
@@ -393,7 +413,7 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   shipped autoscaling defaults remain valid.
   Verify `tasks/get` polling, unsolicited task handles, and encrypted task snapshots; drop any
   code relying on `tasks/list` or blocking `tasks/result`.
-- **Prompts.** Register the nine generators in `mcp_prompts.PROMPT_REGISTRY` with
+- **Prompts.** Register the ten generators in `mcp_prompts.PROMPT_REGISTRY` with
   `@mcp.prompt`, filtered by edition. Add argument completion for prompt arguments and for the
   `{name}`, `{context}` and `{subject}` placeholders in resource templates (completions come
   from `list_registries`, `list_contexts`, `list_subjects`).
@@ -422,8 +442,14 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
     `authorization_response_iss_parameter_supported` value, rather than inventing one.
     `test_oauth_discovery_endpoints` checks that mirrored fields match upstream.
   - *Client registration.* Dynamic Client Registration is deprecated in favour of Client ID
-    Metadata Documents (CIMD); FastMCP 4 supports CIMD, so advertise it in the `.well-known`
-    metadata in M1 and keep DCR working through 3.x.
+    Metadata Documents (CIMD). This server does not run the authorization server; it points at
+    an external one via `AUTH_ISSUER_URL` (`remote-mcp-server.py` L748-777). FastMCP 4 being
+    CIMD-capable says nothing about that upstream, and advertising CIMD unconditionally would
+    make clients send metadata-document client IDs that a non-CIMD provider rejects, breaking
+    login. So registration capabilities are **mirrored, not inferred**: the discovery document
+    advertises CIMD only if the upstream's own metadata does, and keeps DCR wherever the
+    upstream supports it. M1 verifies discovery against one provider with CIMD and one without
+    (the existing Keycloak and GitHub test configurations).
 - **Deferred.** Identity assertion (SEP-990, beta in FastMCP 4) and client-credentials auth are
   3.1 candidates once the OAuth provider tests exist for them.
 
@@ -489,10 +515,16 @@ gantt
 - Port the six `*_interactive` tools to `InputRequiredResult`; rewrite `bulk_operations_wizard`
   off the home-grown elicitation manager; port `guided_schema_evolution` as the first multi-step
   workflow (editor pilot) with state in `request_state`.
-- Configure `RequestStateSecurity`; wire `REQUEST_STATE_KEY`.
+- Configure `RequestStateSecurity`; wire `REQUEST_STATE_KEY` end to end, including the Helm
+  `requestStateKey` Secret and `deployment.yaml` env mapping. This cannot wait for M3: the
+  alpha already seals round-trip state for the six interactive tools and
+  `guided_schema_evolution`, and the chart autoscales to 2+ pods by default, so a retry
+  landing on another pod must find the same key. M1 exit includes a cross-pod resume check
+  (two replicas, round trip 1 on pod A, retry on pod B).
 - Register prompts with `@mcp.prompt`.
 - Resource-not-found error code `-32602`; re-verify JWT issuer checks under `JWTVerifier`;
-  mirror upstream AS metadata; advertise CIMD.
+  mirror upstream AS metadata including its registration capabilities (CIMD / DCR), verified
+  against a CIMD and a non-CIMD provider.
 - MCP conformance suite green for both protocol eras; `tests/test_fastmcp3_compat.py` replaced
   by `tests/test_fastmcp4_compat.py`.
 - Exit: alpha image published, all `tests/run_all_tests.sh --quick` categories pass.
@@ -532,8 +564,8 @@ gantt
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 
 - Remaining guided workflows (`guided_schema_migration`, `guided_context_reorganization`,
-  `guided_disaster_recovery`) on MRTR with `request_state`; `requestStateKey` secret and
-  rotation notes in Helm.
+  `guided_disaster_recovery`) on MRTR with `request_state` (the Secret itself ships in M1);
+  key rotation guidance in Helm NOTES and the deployment guide.
 - Remove the elicitation fallback tools and resource; admin snapshot drops to the final 67.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
@@ -583,7 +615,9 @@ gantt
   `tests/test_prompts.py`, `tests/test_registry_specific_resources.py` (error code),
   `oauth_provider.py` (`JWTVerifier` issuer/audience re-verification), `remote-mcp-server.py` (mirror
   upstream AS metadata, CIMD), `tests/test_oauth*.py`,
-  `tests/test_bulk_operations_wizard.py`.
+  `tests/test_bulk_operations_wizard.py`, `remote-mcp-server.py` (`RequestStateSecurity`),
+  `helm/templates/secret.yaml` (`requestStateKey`), `helm/templates/deployment.yaml`
+  (`REQUEST_STATE_KEY` env).
 
 **M2**
 
@@ -613,7 +647,7 @@ gantt
 - `multi_step_elicitation.py`, `workflow_definitions.py`, `workflow_mcp_integration.py`,
   `smart_defaults*.py`, `resource_linking.py`, `kafka_schema_registry_unified_mcp.py`
   (resource handlers, cache hints, completions), `remote-mcp-server.py`
-  (`RequestStateSecurity`), `helm/templates/secret.yaml`, `helm/templates/ingress.yaml`,
+  (workflow resume), `helm/templates/NOTES.txt` (rotation), `helm/templates/ingress.yaml`,
   `docs/remote-mcp-deployment.md`, `inspector-tests/`, `tests/test_resource_linking.py`,
   `tests/test_multi_step_elicitation.py`, `tests/test_end_to_end_workflows.py`.
 
@@ -679,16 +713,17 @@ gantt
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |
 | Background task durability | Single process | `tasks.backend: memory` (single pod enforced by the chart) or `redis` (any replicas, chart default) |
-| OAuth client registration | DCR | DCR still works; CIMD advertised; AS metadata mirrored from upstream |
+| OAuth client registration | DCR | AS metadata mirrored from upstream; DCR and CIMD advertised only when the upstream supports them |
 | `SLIM_MODE=true` | Reduces to ~20 tools | Deprecated alias for `MCP_EDITION=editor`, warning |
 | `VIEWONLY` / `VIEWONLY_{n}` / `viewonly` | Supported | Supported, enforced centrally |
 | `READONLY*` / `readonly` | Deprecated with warning | Removed (startup error with hint) |
 | OAuth scopes `read`/`write`/`admin` | Custom `require_scopes` | Native FastMCP checks with step-up challenges; same scope names |
 | `delete_subject_alias` scope | `write` | `admin` |
-| Interactive `*_interactive` tools | `ctx.elicit()` with mock fallback | MRTR on modern clients, elicitation on legacy clients, no mock |
+| Interactive `*_interactive` tools | `elicit_with_fallback`, which resolves to `mock_elicit` on both branches (no working elicitation) | Rebuilt as guard-mode tools: MRTR on modern clients, `elicitation/create` on legacy clients, no mock |
+| `bulk_*` tools | Inline, no task handle | `task=True`; status and cancel via `tasks/get` / `tasks/cancel` |
 | `*_elicitation_*` tools, `elicitation://response/{id}` | Present | Removed |
 | Background tasks | FastMCP 3 tasks | `fastmcp-tasks` extension, `tasks/get` polling |
-| Prompts | Defined, not exposed | Nine prompts exposed via `prompts/list`, filtered by edition |
+| Prompts | Ten defined, none exposed | Ten prompts exposed via `prompts/list`, filtered by edition (5 / 7 / 10) |
 | `_links` URIs | Some not resolvable | All resolvable |
 | Docker tags | `:x.y.z`, `:latest`, `:stable` | Same tags = viewer; add `-viewer` / `-editor` / `-admin` suffixed tags |
 | `config-examples/claude_desktop_viewonly_config.json` | `VIEWONLY=true` on full server | Replaced by `claude_desktop_viewer_config.json` (viewer edition) |
