@@ -78,6 +78,9 @@ AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() i
 
 # OAuth 2.1 Configuration (generic approach)
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
+# FastMCP 3 JWTVerifier requires public_key or jwks_uri (BearerAuthProvider was removed).
+AUTH_JWKS_URI = os.getenv("AUTH_JWKS_URI", "")
+AUTH_PUBLIC_KEY = os.getenv("AUTH_PUBLIC_KEY", "")
 
 # Legacy GitHub OAuth Configuration (for backward compatibility)
 AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
@@ -736,14 +739,38 @@ class OAuth21TokenValidator:
 # Global token validator instance
 token_validator = OAuth21TokenValidator() if JWT_AVAILABLE else None
 
+
+def _fastmcp_jwt_verifier_kwargs() -> Dict[str, Any]:
+    """Build FastMCP 3 JWTVerifier kwargs (replaces removed BearerAuthProvider)."""
+    audience: Union[str, List[str], None]
+    if AUTH_AUDIENCE:
+        audience = AUTH_AUDIENCE
+    elif RESOURCE_INDICATORS:
+        audience = RESOURCE_INDICATORS
+    else:
+        audience = None
+
+    kwargs: Dict[str, Any] = {
+        "issuer": AUTH_ISSUER_URL,
+        "audience": audience,
+        "required_scopes": AUTH_REQUIRED_SCOPES,
+    }
+    if AUTH_PUBLIC_KEY:
+        kwargs["public_key"] = AUTH_PUBLIC_KEY
+    else:
+        issuer = AUTH_ISSUER_URL.rstrip("/")
+        kwargs["jwks_uri"] = AUTH_JWKS_URI or f"{issuer}/.well-known/jwks.json"
+    return kwargs
+
+
 if ENABLE_AUTH:
     try:
-        from fastmcp.server.auth import BearerAuthProvider
+        from fastmcp.server.auth import JWTVerifier
         from fastmcp.server.dependencies import AccessToken, get_access_token
 
-        class OAuth21BearerAuthProvider(BearerAuthProvider):
+        class OAuth21BearerAuthProvider(JWTVerifier):
             """
-            OAuth 2.1 compliant Bearer Auth Provider for MCP Server.
+            OAuth 2.1 JWT verifier for the MCP server (FastMCP 3 JWTVerifier).
 
             Implements comprehensive OAuth 2.1 features:
             - PKCE enforcement (mandatory)
@@ -756,21 +783,18 @@ if ENABLE_AUTH:
             """
 
             def __init__(self, **kwargs):
-                # Use standard OAuth 2.1 configuration - let discovery handle the details
-                super().__init__(
-                    issuer=AUTH_ISSUER_URL,
-                    audience=AUTH_AUDIENCE or RESOURCE_INDICATORS,
-                    required_scopes=AUTH_REQUIRED_SCOPES,
-                    **kwargs,
-                )
+                init_kwargs = _fastmcp_jwt_verifier_kwargs()
+                init_kwargs.update(kwargs)
+                super().__init__(**init_kwargs)
 
                 self.valid_scopes = set(AUTH_VALID_SCOPES)
                 self.required_scopes = set(AUTH_REQUIRED_SCOPES)
-                logger.info(f"OAuth 2.1 Bearer Auth Provider initialized with scopes: {self.valid_scopes}")
+                logger.info(f"OAuth 2.1 JWT verifier initialized with scopes: {self.valid_scopes}")
                 logger.info(f"JWT validation available: {JWT_AVAILABLE}")
                 logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
                 logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
                 logger.info(f"OAuth 2.1 Issuer: {AUTH_ISSUER_URL}")
+                logger.info(f"JWKS URI: {self.jwks_uri}")
                 logger.info(f"SSL/TLS verification: {ENFORCE_SSL_TLS_VERIFICATION}")
                 logger.info(
                     "🚀 Using generic OAuth 2.1 discovery (RFC 8414) - no provider-specific configuration needed"
@@ -792,7 +816,8 @@ if ENABLE_AUTH:
                 """Check if user has required scopes, considering scope hierarchy."""
                 if token_validator:
                     return token_validator.check_scopes(user_scopes, required_scopes)
-                return super().check_scopes(user_scopes, required_scopes)
+                expanded = self.expand_scopes(list(user_scopes))
+                return required_scopes.issubset(expanded)
 
             def expand_scopes(self, scopes: list) -> Set[str]:
                 """Expand scopes to include inherited scopes based on hierarchy."""
@@ -813,9 +838,9 @@ if ENABLE_AUTH:
         if JWT_AVAILABLE:
             try:
                 oauth_provider = OAuth21BearerAuthProvider()
-                logger.info("OAuth 2.1 Bearer Auth Provider initialized successfully")
+                logger.info("OAuth 2.1 JWT verifier initialized successfully")
             except Exception as e:
-                logger.warning(f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}")
+                logger.warning(f"Failed to initialize OAuth 2.1 JWT verifier: {e}")
                 oauth_provider = None
         else:
             oauth_provider = None

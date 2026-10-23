@@ -172,12 +172,12 @@ class TestSLIMModeIntegration:
 
     async def get_available_tools(self, server) -> Set[str]:
         """Extract available tool names from server instance."""
-        # FastMCP 2.x: get_tools() -> dict. FastMCP 3.x: list_tools() -> Sequence[Tool].
-        if hasattr(server, "get_tools"):
-            tools_dict = await server.get_tools()
-            return set(tools_dict.keys())
-        tools_seq = await server.list_tools()
-        return {t.name for t in tools_seq if getattr(t, "name", None)}
+        # FastMCP 3.x: list_tools() -> Sequence[Tool]. FastMCP 2.x: get_tools() -> dict.
+        if hasattr(server, "list_tools"):
+            tools_seq = await server.list_tools()
+            return {t.name for t in tools_seq if getattr(t, "name", None)}
+        tools_dict = await server.get_tools()
+        return set(tools_dict.keys())
 
     @pytest.mark.asyncio
     async def test_slim_mode_reduces_tool_count(self, mcp_server_full_mode, mcp_server_slim_mode):
