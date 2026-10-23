@@ -24,7 +24,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 
 > **🎯 True MCP Implementation**: Uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v2.3.0](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v3.0.0-rc.1](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>

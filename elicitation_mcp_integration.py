@@ -274,15 +274,6 @@ def register_elicitation_handlers(mcp):
         # Method 2: Tool registration is handled in the main MCP server
         # to avoid duplicate registrations
 
-        # Method 3: Register resource handler if supported
-        if hasattr(mcp, "resource"):
-
-            @mcp.resource("elicitation://response/{request_id}")
-            async def elicitation_response_resource(request_id: str):
-                """Handle elicitation responses via resource mechanism."""
-                # This would be implemented based on the specific resource pattern
-                pass
-
         logger.info("✅ Elicitation handlers registered with MCP server")
         return True
 

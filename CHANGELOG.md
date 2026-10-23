@@ -5,16 +5,36 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0-rc.1] - 2026-10-23
 
-### Security
-
-- Pin `fastmcp[tasks]>=3.2.0,<4` to address CVE-2026-32871 (authenticated SSRF in OpenAPIProvider) and CVE-2026-27124 (OAuthProxy confused deputy). Both are fixed in FastMCP 3.2.0. Cap below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)).
+Release candidate for v3.0. See `docs/v3-migration-guide.md` for the upgrade path.
 
 ### Changed
 
-- Align current-facing docs and README with FastMCP 3.2.0+ (3.x, capped below 4) and MCP 2025-11-25 (no longer advertise FastMCP 2.8 / MCP 2025-06-18 as current).
-- FastMCP 3.4 compatibility: replace removed `BearerAuthProvider` with `JWTVerifier`, prefer `list_tools()`, and pass host/port/path into `mcp.run()` ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177) Phase 1).
+- **FastMCP 4 / MCP SDK 2.** One deployment serves the `2026-07-28` and
+  `2025-11-25` eras and negotiates per connection. The server no longer installs
+  its own protocol-version middleware.
+- **Editions replace `SLIM_MODE`.** `MCP_EDITION=viewer|editor|admin` selects a
+  catalog of 38, 41 or 67 tools. `SLIM_MODE` remains a deprecated alias for
+  `editor` and conflicts with an explicit `MCP_EDITION`.
+- **MRTR workflows.** Interactive tools and the four guided workflows return
+  `InputRequiredResult` on modern connections and use `ctx.elicit()` on legacy
+  connections. `REQUEST_STATE_KEY` signs resumable state.
+- **Guarded session.** `VIEWONLY` is enforced at the HTTP boundary; the
+  `READONLY` alias, `readonly` JSON key, `is_readonly()` and
+  `check_readonly_mode()` are removed.
+- **Resources and links.** `_links` URIs now resolve to registered resources;
+  list results carry short private cache hints; registry arguments are
+  completed by `completion/complete`.
+- **Tasks.** Long-running tools run through `fastmcp-tasks`; select the memory
+  backend for one replica or Redis/Valkey for several.
+
+### Security
+
+- `fastmcp>=4.1,<5` includes the fixes for CVE-2026-32871 and CVE-2026-27124.
+- `REQUEST_STATE_KEY` must be at least 32 bytes; Helm generates or reuses a
+  Secret and fails a memory task backend when more than one replica is
+  configured.
 
 ## [2.3.0] - 2026-10-23
 

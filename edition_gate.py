@@ -43,7 +43,9 @@ class EditionGate:
         return self._server.prompt(*args, **kwargs)
 
     def resource(self, *args: Any, **kwargs: Any):
-        return self._server.resource(*args, **kwargs)
+        options = dict(kwargs)
+        options.setdefault("mime_type", "application/json")
+        return self._server.resource(*args, **options)
 
     def add_extension(self, *args: Any, **kwargs: Any):
         return self._server.add_extension(*args, **kwargs)

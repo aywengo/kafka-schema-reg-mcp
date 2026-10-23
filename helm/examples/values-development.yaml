@@ -10,7 +10,7 @@ edition: admin
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "2.3.0"
+  tag: "3.0.0-rc.1-admin"
 
 # OAuth2 Authentication (optional for dev)
 auth:

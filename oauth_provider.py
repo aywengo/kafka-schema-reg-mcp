@@ -1130,6 +1130,9 @@ def get_fastmcp_config(server_name: str):
     """Get FastMCP configuration with OAuth 2.1 authentication and request-state sealing."""
     config = {
         "name": server_name,
+        # SEP-2549 cache hints for list results (tools/resources/prompts).
+        "cache_ttl": 60,
+        "cache_scope": "private",
         # Protocol compliance is handled by FastMCP 4 / MCP SDK 2.
     }
 

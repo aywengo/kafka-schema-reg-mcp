@@ -3754,6 +3754,46 @@ def subject_mode_default_context_resource(name: str, subject: str):
         return json.dumps(error_response, indent=2)
 
 
+@mcp.resource("registry://{name}/migrations")
+@require_scopes("read")
+def migrations_collection_resource(name: str):
+    """List persisted migration records (none are persisted by this server)."""
+    return json.dumps(
+        {
+            "registry": name,
+            "migrations": [],
+            "note": "Migration execution is stateless; use migrate_schema/migrate_context responses for results.",
+        },
+        indent=2,
+    )
+
+
+@mcp.resource("registry://{name}/tasks")
+@require_scopes("read")
+def tasks_collection_resource(name: str):
+    """Describe how background tasks are exposed."""
+    return json.dumps(
+        {
+            "registry": name,
+            "tasks": [],
+            "note": "Long-running tools use MCP tasks; poll tasks/get with the task id returned by the tool.",
+        },
+        indent=2,
+    )
+
+
+# ===== COMPLETIONS =====
+@mcp.completion
+async def complete_arguments(ref, argument, context):
+    """Complete registry names for tool, prompt and resource arguments."""
+    if getattr(argument, "name", None) in {"registry", "name"}:
+        try:
+            return registry_manager.list_registries()
+        except Exception:
+            return []
+    return []
+
+
 # ===== PROMPTS =====
 # Register the markdown guides as real MCP prompts (previously only importable helpers).
 from mcp_prompts import PROMPT_REGISTRY as _PROMPT_REGISTRY

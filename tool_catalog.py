@@ -160,25 +160,6 @@ _SPECS.extend(
     ]
 )
 
-# Transitional admin-only elicitation fallback (removed once the remaining
-# guided workflows move to MRTR in M3).
-for _name in (
-    "submit_elicitation_response",
-    "list_elicitation_requests",
-    "get_elicitation_request",
-    "get_elicitation_status",
-    "cancel_elicitation_request",
-):
-    _SPECS.append(
-        ToolSpec(
-            name=_name,
-            min_edition=Edition.ADMIN,
-            scope="admin",
-            mutates=False,
-            annotations=ToolAnnotations(readOnlyHint=True),
-        )
-    )
-
 TOOL_CATALOG: dict[str, ToolSpec] = {spec.name: spec for spec in _SPECS}
 
 # Current decorator names that differ from the 3.0 public name.

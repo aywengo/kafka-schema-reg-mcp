@@ -15,7 +15,7 @@ edition: viewer
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "2.3.0"
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""

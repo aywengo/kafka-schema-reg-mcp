@@ -22,10 +22,10 @@ enforcement with gaps.
 | Milestone | Status | Issue |
 |---|---|---|
 | M0 prep, deprecations, single version source (`2.3.0`) | ✅ complete | [#186](https://github.com/aywengo/kafka-schema-reg-mcp/issues/186) |
-| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | 🟡 in progress | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
-| M2 editions and tool catalog (`3.0.0-beta.1`) | 🟡 in progress | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
-| M3 workflows and resources (`3.0.0-rc.1`) | ⬜ not started | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
-| M4 docs and release (`3.0.0`) | ⬜ not started | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
+| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | ✅ complete | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
+| M2 editions and tool catalog (`3.0.0-beta.1`) | ✅ complete | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
+| M3 workflows and resources (`3.0.0-rc.1`) | ✅ complete | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
+| M4 docs and release (`3.0.0`) | 🟡 in progress | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
 
 Umbrella tracker: [#191](https://github.com/aywengo/kafka-schema-reg-mcp/issues/191).
 
@@ -634,6 +634,23 @@ Still open for M1 exit:
   the admin snapshot is the transitional 72 (67 plus the 5 fallback tools) and is marked as
   such in the test. CI runs the full suite for all three editions.
 
+### M1 completion notes
+
+- FastMCP 4.1.3, MCP SDK 2.3.0, `fastmcp-tasks` 4.1.3 and `pydocket` are the
+  dependency floor. `mcp>=2.2` is required by FastMCP 4.1.
+- One process serves `2026-07-28` and `2025-11-25`; `protocol_version.current_protocol_version()`
+  reads the negotiated version from the request context.
+- `mrtr.py` provides the guard helpers; interactive tools and
+  `guided_schema_evolution` branch on modern versus legacy connections.
+- `RequestStateSecurity` is wired through `REQUEST_STATE_KEY`; Helm generates or
+  reuses the Secret and validates it at startup.
+- `TasksExtension` is registered unconditionally; `TASKS_BACKEND=memory|redis`
+  selects the backend and Helm refuses `memory` with more than one replica.
+- Tests: `test_mcp_compliance.py` covers both eras; `test_mrtr.py`,
+  `test_fastmcp4_compat.py` and `test_edition_matrix.py` cover the new paths.
+- Open external step: publish the alpha image and run the two-replica task and
+  request-state check.
+
 ### M2 progress (2026-10-23)
 
 Implemented on `release/3.0`:
@@ -667,6 +684,24 @@ Still open for M2 exit:
 - Remove the remaining inline `check_viewonly_mode` calls after a full middleware
   test sweep.
 - Run the full suite for viewer, editor and admin in CI.
+
+### M3 completion notes
+
+- `guided_schema_migration`, `guided_context_reorganization` and
+  `guided_disaster_recovery` are state-driven MRTR planners; they ask only for
+  missing inputs and return a plan without starting an in-process workflow.
+- The five elicitation fallback tools and the `elicitation://response/{id}`
+  resource are no longer registered; the admin catalog is the final 67 tools.
+- `resource_linking.py` now emits only URIs that resolve to a registered
+  resource; `registry://info|status|mode/{name}` and the migration/task
+  collections are covered. `tests/test_resource_linking.py` verifies every
+  builder output against the live resource list.
+- Server-level cache hints (`cache_ttl=60`, `cache_scope=private`) apply to list
+  results; `completion/complete` returns registry names.
+- Gateway routing is documented in `docs/remote-mcp-deployment.md` with a
+  working nginx example in `kubernetes/ingress-gateway.yaml`.
+- `tests/test_edition_matrix.py` runs all three editions in both protocol modes.
+  The external MCP Inspector run remains a release check.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 

@@ -4,4 +4,4 @@ Consumed by the package build (hatchling), the MCP server, the remote server,
 the Schema Registry HTTP clients and the export metadata.
 """
 
-__version__ = "2.3.0"
+__version__ = "3.0.0-rc.1"

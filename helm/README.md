@@ -1,6 +1,6 @@
 # Kafka Schema Registry MCP Server Helm Chart
 
-A Helm chart for deploying the Kafka Schema Registry MCP Server v2.3.0 with OAuth2 authentication support.
+A Helm chart for deploying the Kafka Schema Registry MCP Server v3.0.0-rc.1 with OAuth2 authentication support.
 
 ## Features
 
@@ -54,7 +54,7 @@ helm install my-mcp-server . -n kafka-mcp --create-namespace -f examples/values-
 |-----------|-------------|---------|
 | `replicaCount` | Number of replicas | `2` |
 | `image.repository` | Image repository | `aywengo/kafka-schema-reg-mcp` |
-| `image.tag` | Image tag | `2.3.0` |
+| `image.tag` | Image tag | `""` (defaults to `<appVersion>-<edition>`) |
 | `image.pullPolicy` | Image pull policy | `Always` |
 
 ### OAuth2 Authentication

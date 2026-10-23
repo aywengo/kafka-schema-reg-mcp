@@ -16,7 +16,7 @@ from fastmcp import FastMCP
 from fastmcp.server.context import Context
 
 from elicitation import ElicitationManager, ElicitationResponse
-from mrtr import ask
+from mrtr import as_bool, ask
 from multi_step_elicitation import MultiStepElicitationManager
 from workflow_definitions import get_all_workflows, get_workflow_by_id
 
@@ -278,100 +278,172 @@ class WorkflowMCPTools:
             )
 
         @self.mcp.tool(description="Start the Schema Migration Wizard workflow for guided schema migration")
-        async def guided_schema_migration() -> str:
-            """Convenience method to start Schema Migration workflow."""
-            workflow_id = "schema_migration_wizard"
+        async def guided_schema_migration(
+            source_registry: Optional[str] = None,
+            target_registry: Optional[str] = None,
+            subject: Optional[str] = None,
+            dry_run: Optional[bool] = None,
+            ctx: Context = None,
+        ) -> Any:
+            """Plan a schema migration, asking for missing inputs over MRTR."""
+            if (source_registry is None or target_registry is None) and ctx is not None:
+                form = {
+                    "type": "object",
+                    "properties": {
+                        "source_registry": {"type": "string", "title": "Source registry"},
+                        "target_registry": {"type": "string", "title": "Target registry"},
+                        "subject": {"type": "string", "title": "Subject (optional)"},
+                        "dry_run": {"type": "boolean", "title": "Dry run", "default": True},
+                    },
+                    "required": ["source_registry", "target_registry"],
+                }
+                status, values = await ask(
+                    ctx,
+                    message="Choose the migration endpoints",
+                    schema=form,
+                    state="guided_schema_migration:v1",
+                )
+                if status == "suspend":
+                    return values
+                if status == "declined":
+                    return json.dumps({"error": "Schema migration input was declined"})
+                source_registry = values.get("source_registry") or source_registry
+                target_registry = values.get("target_registry") or target_registry
+                subject = values.get("subject") or subject
+                dry_run = values.get("dry_run") if dry_run is None else dry_run
 
-            try:
-                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+            if not source_registry or not target_registry:
+                return json.dumps({"error": "source_registry and target_registry are required"})
 
-                if request:
-                    return json.dumps(
-                        {
-                            "status": "started",
-                            "workflow_id": workflow_id,
-                            "workflow_name": "Schema Migration Wizard",
-                            "request_id": request.id,
-                            "first_step": request.title,
-                            "description": request.description,
-                            "message": (
-                                "Schema Migration Wizard started. This workflow will guide you through:\n"
-                                "1. Source and target registry selection\n"
-                                "2. Schema selection and validation\n"
-                                "3. Migration planning and execution\n"
-                                "4. Verification and rollback procedures"
-                            ),
-                        }
-                    )
-                else:
-                    return json.dumps({"error": "Failed to start Schema Migration workflow"})
-            except Exception as e:
-                logger.error(f"Error starting Schema Migration workflow: {str(e)}")
-                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
+            return json.dumps(
+                {
+                    "status": "plan",
+                    "workflow_id": "schema_migration_wizard",
+                    "source_registry": source_registry,
+                    "target_registry": target_registry,
+                    "subject": subject,
+                    "dry_run": as_bool(dry_run, True),
+                    "steps": [
+                        "Validate source and target connectivity.",
+                        "Select and validate the schemas to migrate.",
+                        "Run the migration in dry-run mode.",
+                        "Apply the migration and verify schema IDs and versions.",
+                    ],
+                    "note": "Execution stays in migrate_schema / migrate_context.",
+                }
+            )
 
         @self.mcp.tool(description="Start the Context Reorganization workflow for reorganizing schemas across contexts")
-        async def guided_context_reorganization() -> str:
-            """Convenience method to start Context Reorganization workflow."""
-            workflow_id = "context_reorganization"
+        async def guided_context_reorganization(
+            registry: Optional[str] = None,
+            source_context: Optional[str] = None,
+            target_context: Optional[str] = None,
+            dry_run: Optional[bool] = None,
+            ctx: Context = None,
+        ) -> Any:
+            """Plan a context reorganization, asking for missing inputs over MRTR."""
+            if (source_context is None or target_context is None) and ctx is not None:
+                form = {
+                    "type": "object",
+                    "properties": {
+                        "registry": {"type": "string", "title": "Registry"},
+                        "source_context": {"type": "string", "title": "Source context"},
+                        "target_context": {"type": "string", "title": "Target context"},
+                        "dry_run": {"type": "boolean", "title": "Dry run", "default": True},
+                    },
+                    "required": ["source_context", "target_context"],
+                }
+                status, values = await ask(
+                    ctx,
+                    message="Choose the contexts to reorganize",
+                    schema=form,
+                    state="guided_context_reorganization:v1",
+                )
+                if status == "suspend":
+                    return values
+                if status == "declined":
+                    return json.dumps({"error": "Context reorganization input was declined"})
+                registry = values.get("registry") or registry
+                source_context = values.get("source_context") or source_context
+                target_context = values.get("target_context") or target_context
+                dry_run = values.get("dry_run") if dry_run is None else dry_run
 
-            try:
-                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+            if not source_context or not target_context:
+                return json.dumps({"error": "source_context and target_context are required"})
 
-                if request:
-                    return json.dumps(
-                        {
-                            "status": "started",
-                            "workflow_id": workflow_id,
-                            "workflow_name": "Context Reorganization",
-                            "request_id": request.id,
-                            "first_step": request.title,
-                            "description": request.description,
-                            "message": (
-                                "Context Reorganization workflow started. This workflow will guide you through:\n"
-                                "1. Current context analysis\n"
-                                "2. Target context design\n"
-                                "3. Schema migration planning\n"
-                                "4. Context restructuring execution"
-                            ),
-                        }
-                    )
-                else:
-                    return json.dumps({"error": "Failed to start Context Reorganization workflow"})
-            except Exception as e:
-                logger.error(f"Error starting Context Reorganization workflow: {str(e)}")
-                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
+            return json.dumps(
+                {
+                    "status": "plan",
+                    "workflow_id": "context_reorganization",
+                    "registry": registry,
+                    "source_context": source_context,
+                    "target_context": target_context,
+                    "dry_run": as_bool(dry_run, True),
+                    "steps": [
+                        "Inventory subjects in the source context.",
+                        "Design the target context and naming.",
+                        "Migrate schemas in dependency order.",
+                        "Verify subjects, versions and compatibility.",
+                    ],
+                    "note": "Execution stays in migrate_context.",
+                }
+            )
 
-        @self.mcp.tool(description="Start the Disaster Recovery Setup workflow for configuring DR strategies")
-        async def guided_disaster_recovery() -> str:
-            """Convenience method to start Disaster Recovery workflow."""
-            workflow_id = "disaster_recovery_setup"
+        @self.mcp.tool(description="Start the Disaster Recovery Setup workflow")
+        async def guided_disaster_recovery(
+            registry: Optional[str] = None,
+            backup_target: Optional[str] = None,
+            schedule: Optional[str] = None,
+            verify_restore: Optional[bool] = None,
+            ctx: Context = None,
+        ) -> Any:
+            """Plan a disaster-recovery setup, asking for missing inputs over MRTR."""
+            if backup_target is None and ctx is not None:
+                form = {
+                    "type": "object",
+                    "properties": {
+                        "registry": {"type": "string", "title": "Registry"},
+                        "backup_target": {"type": "string", "title": "Backup target (URI or bucket)"},
+                        "schedule": {"type": "string", "title": "Backup schedule", "default": "daily"},
+                        "verify_restore": {"type": "boolean", "title": "Verify restore", "default": True},
+                    },
+                    "required": ["backup_target"],
+                }
+                status, values = await ask(
+                    ctx,
+                    message="Choose the disaster-recovery target",
+                    schema=form,
+                    state="guided_disaster_recovery:v1",
+                )
+                if status == "suspend":
+                    return values
+                if status == "declined":
+                    return json.dumps({"error": "Disaster recovery input was declined"})
+                registry = values.get("registry") or registry
+                backup_target = values.get("backup_target") or backup_target
+                schedule = values.get("schedule") or schedule
+                verify_restore = values.get("verify_restore") if verify_restore is None else verify_restore
 
-            try:
-                request = await self.multi_step_manager.start_workflow(workflow_id=workflow_id, initial_context={})
+            if not backup_target:
+                return json.dumps({"error": "backup_target is required"})
 
-                if request:
-                    return json.dumps(
-                        {
-                            "status": "started",
-                            "workflow_id": workflow_id,
-                            "workflow_name": "Disaster Recovery Setup",
-                            "request_id": request.id,
-                            "first_step": request.title,
-                            "description": request.description,
-                            "message": (
-                                "Disaster Recovery Setup workflow started. This workflow will guide you through:\n"
-                                "1. Current infrastructure assessment\n"
-                                "2. Backup strategy configuration\n"
-                                "3. Recovery procedures planning\n"
-                                "4. Testing and validation setup"
-                            ),
-                        }
-                    )
-                else:
-                    return json.dumps({"error": "Failed to start Disaster Recovery workflow"})
-            except Exception as e:
-                logger.error(f"Error starting Disaster Recovery workflow: {str(e)}")
-                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
+            return json.dumps(
+                {
+                    "status": "plan",
+                    "workflow_id": "disaster_recovery_setup",
+                    "registry": registry,
+                    "backup_target": backup_target,
+                    "schedule": schedule or "daily",
+                    "verify_restore": as_bool(verify_restore, True),
+                    "steps": [
+                        "Inventory registries, contexts and subjects.",
+                        "Export a full backup to the chosen target.",
+                        "Schedule recurring backups and retention.",
+                        "Restore into a scratch registry and verify.",
+                    ],
+                    "note": "Execution stays in export_global and migrate_context.",
+                }
+            )
 
 
 def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:
