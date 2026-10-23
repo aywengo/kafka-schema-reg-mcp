@@ -2382,9 +2382,7 @@ def _internal_get_mcp_compliance_status():
                 "registry_mode": REGISTRY_MODE,
                 "edition": edition_name(EDITION),
                 "structured_output_implementation": "100% Complete - All tools",
-                "elicitation_capability": (
-                    "Enabled - MCP 2025-06-18 Interactive Workflows" if not SLIM_MODE else "Disabled in SLIM_MODE"
-                ),
+                "elicitation_capability": ("Enabled - MRTR (InputRequiredResult / ctx.elicit)"),
                 "ping_support": "Enabled - MCP ping/pong protocol",
             },
             "protocol_negotiation_details": {
@@ -2394,7 +2392,7 @@ def _internal_get_mcp_compliance_status():
                 "legacy_initialize": True,
             },
             "batching_configuration": {
-                "jsonrpc_batching": "DISABLED - Per MCP 2025-06-18 specification",
+                "jsonrpc_batching": "DISABLED",
                 "application_level_batching": (
                     "ENABLED - clear_context_batch, clear_multiple_contexts_batch"
                     if not SLIM_MODE
@@ -2423,56 +2421,24 @@ def _internal_get_mcp_compliance_status():
                 ],
             },
             "elicitation_capability": {
-                "implementation_status": (
-                    "Complete - MCP 2025-06-18 Specification" if not SLIM_MODE else "Disabled in SLIM_MODE"
-                ),
-                "interactive_tools": (
-                    [
-                        "register_schema_interactive",
-                        "migrate_context_interactive",
-                        "check_compatibility_interactive",
-                        "create_context_interactive",
-                        "export_global_interactive",
-                    ]
-                    if not SLIM_MODE
-                    else []
-                ),
-                "elicitation_types": (
-                    [
-                        "text",
-                        "choice",
-                        "confirmation",
-                        "form",
-                        "multi_field",
-                    ]
-                    if not SLIM_MODE
-                    else []
-                ),
-                "features": (
-                    [
-                        "Interactive schema field definition",
-                        "Migration preference collection",
-                        "Compatibility resolution guidance",
-                        "Context metadata elicitation",
-                        "Export format preference selection",
-                        "Multi-round conversation support",
-                        "Timeout handling and validation",
-                        "Graceful fallback for non-supporting clients",
-                    ]
-                    if not SLIM_MODE
-                    else ["Disabled in SLIM_MODE"]
-                ),
-                "management_tools": (
-                    [
-                        "list_elicitation_requests",
-                        "get_elicitation_request",
-                        "cancel_elicitation_request",
-                        "get_elicitation_status",
-                        "submit_elicitation_response",
-                    ]
-                    if not SLIM_MODE
-                    else []
-                ),
+                "implementation_status": "Complete - MRTR",
+                "interactive_tools": [
+                    "register_schema_interactive",
+                    "migrate_schema_interactive",
+                    "migrate_context_interactive",
+                    "check_compatibility_interactive",
+                    "create_context_interactive",
+                    "export_global_interactive",
+                ],
+                "elicitation_types": ["text", "choice", "confirmation", "form", "multi_field"],
+                "features": [
+                    "InputRequiredResult on modern connections",
+                    "ctx.elicit() on legacy connections",
+                    "Signed request state for resumption",
+                    "Multi-round conversation support",
+                    "Graceful decline and cancellation",
+                ],
+                "management_tools": [],
             },
             "ping_support": {
                 "implementation_status": "Complete - MCP ping/pong protocol",
@@ -2587,7 +2553,7 @@ def _internal_get_mcp_compliance_status():
 
 
 def get_mcp_compliance_status():
-    """Get MCP 2025-06-18 specification compliance status and configuration details.
+    """Get MCP 2026-07-28 specification compliance status and configuration details.
 
     Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
     """
@@ -2597,7 +2563,7 @@ def get_mcp_compliance_status():
 @mcp.tool()
 @require_scopes("read")
 def get_mcp_compliance_status_tool():
-    """Get MCP 2025-06-18 specification compliance status and configuration details.
+    """Get MCP 2026-07-28 specification compliance status and configuration details.
 
     Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
     """
@@ -3831,7 +3797,7 @@ if __name__ == "__main__":
 🚦 SLIM_MODE: {"ENABLED" if SLIM_MODE else "DISABLED"} - {features_status}
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
-🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 Compliance)
+🚫 JSON-RPC Batching: DISABLED
 🔌 MCP Protocol: FastMCP 4 / MCP SDK 2 (negotiated per connection; {current_protocol_version()})
 💼 Application Batching: {"DISABLED (SLIM_MODE)" if SLIM_MODE else "ENABLED (clear_context_batch, etc.)"}
 📦 Architecture: Modular (12 specialized modules)
@@ -3850,7 +3816,7 @@ if __name__ == "__main__":
     logger.info(f"SLIM_MODE: {'ENABLED' if SLIM_MODE else 'DISABLED'} - {features_status}")
     logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
     logger.info(f"🔌 MCP protocol negotiation managed by FastMCP 4 / MCP SDK 2 ({current_protocol_version()})")
-    logger.info("🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance")
+    logger.info("🚫 JSON-RPC batching DISABLED")
     if not SLIM_MODE:
         logger.info("💼 Application-level batch operations ENABLED with individual requests")
     else:
@@ -3860,7 +3826,7 @@ if __name__ == "__main__":
         (
             f"🎭 Elicitation capability: "
             f"{'DISABLED (SLIM_MODE)' if SLIM_MODE else 'ENABLED' if is_elicitation_supported() else 'DISABLED'} - "
-            f"{'SLIM_MODE active' if SLIM_MODE else 'Interactive workflows per MCP 2025-06-18'}"
+            f"{'Interactive workflows via MRTR'}"
         )
     )
     logger.info("🏓 MCP ping/pong protocol: ENABLED - Server health checking for MCP proxies")
