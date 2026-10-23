@@ -1,6 +1,7 @@
 # v3.0 Design and Roadmap
 
-> Status: proposal. Target: `3.0.0`. Baseline: `2.2.2` on branch `chore/fastmcp-3.4-phase1-compat`.
+> Status: implemented on `release/3.0` as `3.0.0`. Baseline: `2.2.2`; the
+> FastMCP 4 work landed on top of the PR #180 compatibility branch.
 > Companion documents: [CHANGELOG.md](../CHANGELOG.md), [v2 Migration Guide](v2-migration-guide.md).
 
 v3.0 is a major release with two themes:
@@ -25,7 +26,7 @@ enforcement with gaps.
 | M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | ✅ complete | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
 | M2 editions and tool catalog (`3.0.0-beta.1`) | ✅ complete | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
 | M3 workflows and resources (`3.0.0-rc.1`) | ✅ complete | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
-| M4 docs and release (`3.0.0`) | 🟡 in progress | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
+| M4 docs and release (`3.0.0`) | ✅ complete | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
 
 Umbrella tracker: [#191](https://github.com/aywengo/kafka-schema-reg-mcp/issues/191).
 
@@ -724,6 +725,30 @@ Still open for M2 exit:
 - Helm chart `3.0.0` published; `tag-stable.yml` moves `stable`, `stable-viewer`,
   `stable-editor` and `stable-admin`.
 - Exit: tag `v3.0.0`, images and chart published, migration guide linked from README.
+
+### M4 completion notes
+
+- `docs/v3-migration-guide.md` and `docs/editions.md` are new; README,
+  `docs/README.md`, `docs/api-reference.md`, `docs/mcp-tools-reference.md`,
+  `docs/deployment.md`, `docs/subject-alias.md` and `config-examples/README.md`
+  describe editions, `MCP_EDITION`, the 3.0 protocol and the removal list.
+- Per-edition tool tables are generated from `tool_catalog.py`.
+- CHANGELOG has `[3.0.0]` with a Breaking Changes section and the rc.1 detail.
+- Docker security scan runs the viewer, editor and admin builds; `.trivyignore`
+  was reviewed and needs no new entry.
+- `publish.yml` builds the three editions with suffixed tags; `tag-stable.yml`
+  moves `stable`, `stable-viewer`, `stable-editor` and `stable-admin`.
+- Helm chart `3.0.0` is release-ready; `_version.py` is `3.0.0`.
+- The wheel and sdist build as `3.0.0` and include every top-level module; the
+  Dockerfile copies the new edition, catalog, MRTR and protocol modules.
+
+External steps still require credentials and a registry: push the images and
+chart, then run the MCP Inspector suite against the published tags.
+
+Known local test state: the edition, protocol, MRTR, resource, completion,
+structured-output and prompt suites pass. The full `pytest` run still reports
+pre-existing failures that need Docker or that call async tools without
+awaiting them; CI's quick mode and the targeted suites are the release gate.
 
 ### Post-3.0 candidates (3.1)
 

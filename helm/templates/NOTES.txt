@@ -83,4 +83,24 @@ helm upgrade {{ .Release.Name }} {{ .Chart.Name }} -n {{ .Release.Namespace }} -
 kubectl get secret {{ include "kafka-schema-registry-mcp.oauth2SecretName" . }} -n {{ .Release.Namespace }} -o yaml
 {{- end }}
 
+🔐 Request-state key:
+{{- if .Values.requestStateKey.value }}
+This release uses the key from `requestStateKey.value`.
+{{- else }}
+This release uses Secret `{{ include "kafka-schema-registry-mcp.fullname" . }}-request-state`.
+{{- end }}
+
+To rotate the key:
+1. Generate a new value with at least 32 bytes: `openssl rand -base64 48`.
+2. Update the Secret (or `requestStateKey.value`) and run `helm upgrade`.
+3. Expect in-flight MRTR suspensions created with the old key to fail once;
+   restart them from the client. Completed workflows are unaffected.
+
+Tasks:
+{{- if eq .Values.tasks.backend "memory" }}
+Backend: memory (single replica only).
+{{- else }}
+Backend: {{ .Values.tasks.backend }} at {{ .Values.tasks.url }}.
+{{- end }}
+
 For more information, visit: https://github.com/aywengo/kafka-schema-reg-mcp 

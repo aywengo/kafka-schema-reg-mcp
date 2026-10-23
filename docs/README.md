@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v2.2.2 documentation! This folder contains comprehensive guides and references for the **FastMCP 3.2.0+ Framework** with **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Interactive Schema Migration**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v3.0 documentation! This folder covers the **FastMCP 4.1+ / MCP SDK 2** stack with **MCP 2026-07-28** compliance, the three runtime editions, **Enhanced Authentication**, **MRTR workflows**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
@@ -81,7 +81,11 @@ Development environment setup guides (updated for MCP):
 - **VS Code Integration**: Extensions and workspace configuration for MCP development
 - **Cursor Integration**: AI-powered development with MCP server testing
 
-### 📋 **[Migration Guide](v2-migration-guide.md)** - Version Upgrade Guide
+### 🎛️ **[Editions](editions.md)** - Per-edition tool tables and selection
+
+### 🚚 **[v3.0 Migration Guide](v3-migration-guide.md)** - Upgrade from 2.x
+
+### 📋 **[v2 Migration Guide](v2-migration-guide.md)** - Version Upgrade Guide
 Migration guide for upgrading between major versions:
 - **v1.x to v2.x Migration**: FastMCP framework upgrade
 - **OAuth Migration**: From provider-specific to generic OAuth 2.1
@@ -100,7 +104,7 @@ Design, milestones and implementation plan for v3.0:
 
 ### **🧭 Subject Aliasing**
 - New tools for managing subject aliases: `add_subject_alias`, `delete_subject_alias`
-- Not available in SLIM_MODE or VIEWONLY mode
+- Available in the editor and admin editions; blocked in VIEWONLY mode
 - Requires write scope in OAuth-enabled environments
 
 ### **Fixes and Enhancements**
@@ -296,7 +300,7 @@ When contributing to the MCP implementation documentation:
 2. **MCP Tools Reference**: Include comprehensive tool examples and usage patterns
 3. **Deployment**: Provide MCP-specific configuration and troubleshooting
 4. **Claude Desktop Integration**: Document best practices for AI-assisted workflows
-5. **Version Updates**: Keep version references current (latest: v2.1.3)
+5. **Version Updates**: Keep version references current (latest: v3.0.0)
 
 ---
 

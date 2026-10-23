@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 REST API with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**, including comprehensive export capabilities and enhanced authentication.
+This document provides a complete reference for the Kafka Schema Registry MCP Server v3.0 REST API with **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The MCP tool surface is edition-dependent; see [editions.md](editions.md).
 
 > **Note**: This document describes the REST API endpoints provided by the Kafka Schema Registry MCP Server. For the MCP (Model Context Protocol) tools used with Claude Desktop, please refer to the [MCP Tools Reference](mcp-tools-reference.md).
 
@@ -780,13 +780,13 @@ curl -X PUT http://localhost:38000/config/user-value?context=staging \
 
 ### Add Subject Alias (MCP Tool)
 
-- Tool: `add_subject_alias` (not in SLIM_MODE, blocked in VIEWONLY)
+- Tool: `add_subject_alias` (editor and admin, blocked in VIEWONLY)
 - Params: `alias`, `existing_subject`, optional `context`, `registry`
 - See: [Subject Aliasing](./subject-alias.md)
 
 ### Delete Subject Alias (MCP Tool)
 
-- Tool: `delete_subject_alias` (not in SLIM_MODE, blocked in VIEWONLY)
+- Tool: `delete_subject_alias` (editor and admin, blocked in VIEWONLY)
 - Params: `alias`, optional `context`, `registry`
 - See: [Subject Aliasing](./subject-alias.md)
 
@@ -1555,94 +1555,94 @@ This section provides a comprehensive analysis of all MCP tools and resources ex
 ### Backward Compatibility Wrapper Tools
 These tools are maintained for backward compatibility with existing clients. They internally use efficient implementations but are exposed as tools to prevent "Tool not listed" errors. Consider migrating to the corresponding resources for better performance.
 
-| **Tool Name** | **SLIM_MODE** | **Scope** | **Recommended Resource** | **Description** |
-|---------------|---------------|-----------|--------------------------|-----------------|
-| `list_registries` | ✅ | read | `registry://names` | List all configured registries |
-| `get_registry_info` | ✅ | read | `registry://info/{name}` | Get registry information |
-| `test_registry_connection` | ✅ | read | `registry://status/{name}` | Test registry connection |
-| `test_all_registries` | ✅ | read | `registry://status` | Test all registry connections |
-| `list_subjects` | ✅ | read | `registry://{name}/subjects` | List all subjects |
-| `get_schema` | ✅ | read | `schema://{name}/{context}/{subject}` | Get schema content |
-| `get_schema_versions` | ✅ | read | `schema://{name}/{context}/{subject}/versions` | Get schema versions |
-| `get_global_config` | ✅ | read | `registry://{name}/config` | Get global configuration |
-| `get_mode` | ✅ | read | `registry://mode` | Get registry mode |
-| `list_contexts` | ✅ | read | `registry://{name}/contexts` | List all contexts |
-| `get_subject_config` | ✅ | read | `subject://{name}/{context}/{subject}/config` | Get subject configuration |
-| `get_subject_mode` | ✅ | read | `subject://{name}/{context}/{subject}/mode` | Get subject mode |
+| **Tool Name** | **Scope** | **Recommended Resource** | **Description** |
+|---------------|-----------|--------------------------|-----------------|
+| `list_registries` | read | `registry://names` | List all configured registries |
+| `get_registry_info` | read | `registry://info/{name}` | Get registry information |
+| `test_registry_connection` | read | `registry://status/{name}` | Test registry connection |
+| `test_all_registries` | read | `registry://status` | Test all registry connections |
+| `list_subjects` | read | `registry://{name}/subjects` | List all subjects |
+| `get_schema` | read | `schema://{name}/{context}/{subject}` | Get schema content |
+| `get_schema_versions` | read | `schema://{name}/{context}/{subject}/versions` | Get schema versions |
+| `get_global_config` | read | `registry://{name}/config` | Get global configuration |
+| `get_mode` | read | `registry://mode` | Get registry mode |
+| `list_contexts` | read | `registry://{name}/contexts` | List all contexts |
+| `get_subject_config` | read | `subject://{name}/{context}/{subject}/config` | Get subject configuration |
+| `get_subject_mode` | read | `subject://{name}/{context}/{subject}/mode` | Get subject mode |
 
 ### Core MCP Tools
 
-| **Category** | **Name** | **Type** | **SLIM_MODE** | **Scope** | **Description** |
-|--------------|----------|----------|---------------|-----------|-----------------|
-| **Core** | `ping` | Tool | ✅ | read | MCP ping/pong health check |
-| **Registry Management** | `set_default_registry` | Tool | ✅ | admin | Set default registry |
-| **Registry Management** | `get_default_registry` | Tool | ✅ | read | Get current default registry |
-| **Schema Operations** | `register_schema` | Tool | ✅ | write | Register new schema version |
-| **Schema Operations** | `check_compatibility` | Tool | ✅ | read | Check schema compatibility |
-| **Context Management** | `create_context` | Tool | ✅ | write | Create new context |
-| **Context Management** | `delete_context` | Tool | ❌ | admin | Delete context |
-| **Subject Management** | `delete_subject` | Tool | ❌ | admin | Delete subject and versions |
-| **Configuration** | `update_global_config` | Tool | ❌ | admin | Update global configuration |
-| **Configuration** | `update_subject_config` | Tool | ❌ | admin | Update subject configuration |
-| **Mode Management** | `update_mode` | Tool | ❌ | admin | Update registry mode |
-| **Mode Management** | `update_subject_mode` | Tool | ❌ | admin | Update subject mode |
-| **Statistics** | `count_contexts` | Tool | ✅ | read | Count contexts |
-| **Statistics** | `count_schemas` | Tool | ✅ | read | Count schemas |
-| **Statistics** | `count_schema_versions` | Tool | ✅ | read | Count schema versions |
-| **Statistics** | `get_registry_statistics` | Tool | ❌ | read | Get comprehensive registry stats |
-| **Export** | `export_schema` | Tool | ✅ | read | Export single schema |
-| **Export** | `export_subject` | Tool | ✅ | read | Export all subject versions |
-| **Export** | `export_context` | Tool | ❌ | read | Export all context subjects |
-| **Export** | `export_global` | Tool | ❌ | read | Export all contexts/schemas |
-| **Export** | `export_global_interactive` | Tool | ❌ | read | Interactive global export |
-| **Migration** | `migrate_schema` | Tool | ❌ | admin | Migrate schema between registries |
-| **Migration** | `migrate_context` | Tool | ❌ | admin | Migrate context between registries |
-| **Migration** | `migrate_context_interactive` | Tool | ❌ | admin | Interactive context migration |
-| **Comparison** | `compare_registries` | Tool | ❌ | read | Compare two registries |
-| **Comparison** | `compare_contexts_across_registries` | Tool | ❌ | read | Compare contexts across registries |
-| **Comparison** | `find_missing_schemas` | Tool | ❌ | read | Find missing schemas |
-| **Batch Operations** | `clear_context_batch` | Tool | ❌ | admin | Clear context with batch operations |
-| **Batch Operations** | `clear_multiple_contexts_batch` | Tool | ❌ | admin | Clear multiple contexts |
-| **Interactive** | `register_schema_interactive` | Tool | ❌ | write | Interactive schema registration |
-| **Interactive** | `check_compatibility_interactive` | Tool | ❌ | read | Interactive compatibility check |
-| **Interactive** | `create_context_interactive` | Tool | ❌ | write | Interactive context creation |
-| **Resource Discovery** | `list_available_resources` | Tool | ✅ | read | List all available resources |
-| **Resource Discovery** | `suggest_resource_for_tool` | Tool | ✅ | read | Get resource migration suggestions |
-| **Resource Discovery** | `generate_resource_templates` | Tool | ✅ | read | Generate resource URI templates |
-| **Elicitation** | `submit_elicitation_response` | Tool | ❌ | write | Submit elicitation response |
-| **Elicitation** | `list_elicitation_requests` | Tool | ❌ | read | List elicitation requests |
-| **Elicitation** | `get_elicitation_request` | Tool | ❌ | read | Get elicitation request details |
-| **Elicitation** | `cancel_elicitation_request` | Tool | ❌ | admin | Cancel elicitation request |
-| **Elicitation** | `get_elicitation_status` | Tool | ❌ | read | Get elicitation system status |
-| **Workflows** | `list_available_workflows` | Tool | ❌ | read | List available workflows |
-| **Workflows** | `get_workflow_status` | Tool | ❌ | read | Get workflow status |
-| **Workflows** | `guided_schema_migration` | Tool | ❌ | admin | Start schema migration wizard |
-| **Workflows** | `guided_context_reorganization` | Tool | ❌ | admin | Start context reorganization wizard |
-| **Workflows** | `guided_disaster_recovery` | Tool | ❌ | admin | Start disaster recovery wizard |
-| **Utility** | `get_mcp_compliance_status_tool` | Tool | ❌ | read | Get MCP compliance status |
-| **Utility** | `get_oauth_scopes_info_tool` | Tool | ❌ | read | Get OAuth scopes information |
-| **Utility** | `test_oauth_discovery_endpoints` | Tool | ❌ | read | Test OAuth discovery endpoints |
-| **Utility** | `get_operation_info_tool` | Tool | ❌ | read | Get operation metadata |
-| **Utility** | `check_viewonly_mode` | Tool | ❌ | read | Check if registry is in viewonly mode |
-| **RESOURCES** | `registry://status` | Resource | ✅ | read | Overall registry connection status |
-| **RESOURCES** | `registry://info` | Resource | ✅ | read | Detailed server configuration |
-| **RESOURCES** | `registry://mode` | Resource | ✅ | read | Registry mode detection |
-| **RESOURCES** | `registry://names` | Resource | ✅ | read | List of configured registry names |
-| **RESOURCES** | `registry://status/{name}` | Resource | ✅ | read | Specific registry connection status |
-| **RESOURCES** | `registry://info/{name}` | Resource | ✅ | read | Specific registry configuration |
-| **RESOURCES** | `registry://mode/{name}` | Resource | ✅ | read | Specific registry mode |
-| **RESOURCES** | `registry://{name}/subjects` | Resource | ✅ | read | List subjects for registry |
-| **RESOURCES** | `registry://{name}/contexts` | Resource | ✅ | read | List contexts for registry |
-| **RESOURCES** | `registry://{name}/config` | Resource | ✅ | read | Global config for registry |
-| **RESOURCES** | `schema://{name}/{context}/{subject}` | Resource | ✅ | read | Schema content with context |
-| **RESOURCES** | `schema://{name}/{subject}` | Resource | ✅ | read | Schema content default context |
-| **RESOURCES** | `schema://{name}/{context}/{subject}/versions` | Resource | ✅ | read | Schema versions with context |
-| **RESOURCES** | `schema://{name}/{subject}/versions` | Resource | ✅ | read | Schema versions default context |
-| **RESOURCES** | `subject://{name}/{context}/{subject}/config` | Resource | ✅ | read | Subject config with context |
-| **RESOURCES** | `subject://{name}/{subject}/config` | Resource | ✅ | read | Subject config default context |
-| **RESOURCES** | `subject://{name}/{context}/{subject}/mode` | Resource | ✅ | read | Subject mode with context |
-| **RESOURCES** | `subject://{name}/{subject}/mode` | Resource | ✅ | read | Subject mode default context |
-| **RESOURCES** | `elicitation://response/{request_id}` | Resource | ❌ | write | Elicitation response handling |
+| **Category** | **Name** | **Type** | **Scope** | **Description** |
+|--------------|----------|----------|-----------|-----------------|
+| **Core** | `ping` | Tool | read | MCP ping/pong health check |
+| **Registry Management** | `set_default_registry` | Tool | admin | Set default registry |
+| **Registry Management** | `get_default_registry` | Tool | read | Get current default registry |
+| **Schema Operations** | `register_schema` | Tool | write | Register new schema version |
+| **Schema Operations** | `check_compatibility` | Tool | read | Check schema compatibility |
+| **Context Management** | `create_context` | Tool | write | Create new context |
+| **Context Management** | `delete_context` | Tool | admin | Delete context |
+| **Subject Management** | `delete_subject` | Tool | admin | Delete subject and versions |
+| **Configuration** | `update_global_config` | Tool | admin | Update global configuration |
+| **Configuration** | `update_subject_config` | Tool | admin | Update subject configuration |
+| **Mode Management** | `update_mode` | Tool | admin | Update registry mode |
+| **Mode Management** | `update_subject_mode` | Tool | admin | Update subject mode |
+| **Statistics** | `count_contexts` | Tool | read | Count contexts |
+| **Statistics** | `count_schemas` | Tool | read | Count schemas |
+| **Statistics** | `count_schema_versions` | Tool | read | Count schema versions |
+| **Statistics** | `get_registry_statistics` | Tool | read | Get comprehensive registry stats |
+| **Export** | `export_schema` | Tool | read | Export single schema |
+| **Export** | `export_subject` | Tool | read | Export all subject versions |
+| **Export** | `export_context` | Tool | read | Export all context subjects |
+| **Export** | `export_global` | Tool | read | Export all contexts/schemas |
+| **Export** | `export_global_interactive` | Tool | read | Interactive global export |
+| **Migration** | `migrate_schema` | Tool | admin | Migrate schema between registries |
+| **Migration** | `migrate_context` | Tool | admin | Migrate context between registries |
+| **Migration** | `migrate_context_interactive` | Tool | admin | Interactive context migration |
+| **Comparison** | `compare_registries` | Tool | read | Compare two registries |
+| **Comparison** | `compare_contexts_across_registries` | Tool | read | Compare contexts across registries |
+| **Comparison** | `find_missing_schemas` | Tool | read | Find missing schemas |
+| **Batch Operations** | `clear_context_batch` | Tool | admin | Clear context with batch operations |
+| **Batch Operations** | `clear_multiple_contexts_batch` | Tool | admin | Clear multiple contexts |
+| **Interactive** | `register_schema_interactive` | Tool | write | Interactive schema registration |
+| **Interactive** | `check_compatibility_interactive` | Tool | read | Interactive compatibility check |
+| **Interactive** | `create_context_interactive` | Tool | write | Interactive context creation |
+| **Resource Discovery** | `list_available_resources` | Tool | read | List all available resources |
+| **Resource Discovery** | `suggest_resource_for_tool` | Tool | read | Get resource migration suggestions |
+| **Resource Discovery** | `generate_resource_templates` | Tool | read | Generate resource URI templates |
+| **Elicitation** | `submit_elicitation_response` | Tool | write | Submit elicitation response |
+| **Elicitation** | `list_elicitation_requests` | Tool | read | List elicitation requests |
+| **Elicitation** | `get_elicitation_request` | Tool | read | Get elicitation request details |
+| **Elicitation** | `cancel_elicitation_request` | Tool | admin | Cancel elicitation request |
+| **Elicitation** | `get_elicitation_status` | Tool | read | Get elicitation system status |
+| **Workflows** | `list_available_workflows` | Tool | read | List available workflows |
+| **Workflows** | `get_workflow_status` | Tool | read | Get workflow status |
+| **Workflows** | `guided_schema_migration` | Tool | admin | Start schema migration wizard |
+| **Workflows** | `guided_context_reorganization` | Tool | admin | Start context reorganization wizard |
+| **Workflows** | `guided_disaster_recovery` | Tool | admin | Start disaster recovery wizard |
+| **Utility** | `get_mcp_compliance_status_tool` | Tool | read | Get MCP compliance status |
+| **Utility** | `get_oauth_scopes_info_tool` | Tool | read | Get OAuth scopes information |
+| **Utility** | `test_oauth_discovery_endpoints` | Tool | read | Test OAuth discovery endpoints |
+| **Utility** | `get_operation_info_tool` | Tool | read | Get operation metadata |
+| **Utility** | `check_viewonly_mode` | Tool | read | Check if registry is in viewonly mode |
+| **RESOURCES** | `registry://status` | Resource | read | Overall registry connection status |
+| **RESOURCES** | `registry://info` | Resource | read | Detailed server configuration |
+| **RESOURCES** | `registry://mode` | Resource | read | Registry mode detection |
+| **RESOURCES** | `registry://names` | Resource | read | List of configured registry names |
+| **RESOURCES** | `registry://status/{name}` | Resource | read | Specific registry connection status |
+| **RESOURCES** | `registry://info/{name}` | Resource | read | Specific registry configuration |
+| **RESOURCES** | `registry://mode/{name}` | Resource | read | Specific registry mode |
+| **RESOURCES** | `registry://{name}/subjects` | Resource | read | List subjects for registry |
+| **RESOURCES** | `registry://{name}/contexts` | Resource | read | List contexts for registry |
+| **RESOURCES** | `registry://{name}/config` | Resource | read | Global config for registry |
+| **RESOURCES** | `schema://{name}/{context}/{subject}` | Resource | read | Schema content with context |
+| **RESOURCES** | `schema://{name}/{subject}` | Resource | read | Schema content default context |
+| **RESOURCES** | `schema://{name}/{context}/{subject}/versions` | Resource | read | Schema versions with context |
+| **RESOURCES** | `schema://{name}/{subject}/versions` | Resource | read | Schema versions default context |
+| **RESOURCES** | `subject://{name}/{context}/{subject}/config` | Resource | read | Subject config with context |
+| **RESOURCES** | `subject://{name}/{subject}/config` | Resource | read | Subject config default context |
+| **RESOURCES** | `subject://{name}/{context}/{subject}/mode` | Resource | read | Subject mode with context |
+| **RESOURCES** | `subject://{name}/{subject}/mode` | Resource | read | Subject mode default context |
+| **RESOURCES** | `elicitation://response/{request_id}` | Resource | write | Elicitation response handling |
 
 ---
 

@@ -88,11 +88,11 @@ def test_explicit_edition_wins_over_image_default():
     assert len(_tools({"MCP_EDITION": "admin", "MCP_EDITION_DEFAULT": "viewer"})) == 67
 
 
-def test_slim_mode_config_example_selects_editor():
-    config = json.loads((ROOT / "config-examples/claude_desktop_slim_mode_config.json").read_text())
+def test_editor_config_example_selects_editor():
+    config = json.loads((ROOT / "config-examples/claude_desktop_editor_config.json").read_text())
     env = config["mcpServers"]["kafka-schema-registry"]["env"]
-    assert env["SLIM_MODE"] == "true"
-    assert len(_tools({"SLIM_MODE": env["SLIM_MODE"]})) == 41
+    assert env["MCP_EDITION"] == "editor"
+    assert len(_tools({"MCP_EDITION": env["MCP_EDITION"]})) == 41
 
 
 def test_explicit_edition_and_slim_mode_conflict():

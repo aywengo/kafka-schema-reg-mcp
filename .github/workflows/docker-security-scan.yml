@@ -20,6 +20,10 @@ permissions:
 jobs:
   security-scan:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [viewer, editor, admin]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -29,15 +33,17 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t kafka-schema-registry-mcp:security-scan .
+          docker build \
+            --build-arg MCP_EDITION_DEFAULT=${{ matrix.edition }} \
+            -t kafka-schema-registry-mcp:security-scan-${{ matrix.edition }} .
 
       # Option 3: Enhanced Trivy configuration
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'kafka-schema-registry-mcp:security-scan'
+          image-ref: 'kafka-schema-registry-mcp:security-scan-${{ matrix.edition }}'
           format: 'sarif'
-          output: 'trivy-results-raw.sarif'
+          output: 'trivy-results-raw-${{ matrix.edition }}.sarif'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -55,7 +61,7 @@ jobs:
             .runs[].results |= map(
               select(.level == "error" or .level == "warning")
             )
-          ' trivy-results-raw.sarif > trivy-results.sarif
+          ' trivy-results-raw-${{ matrix.edition }}.sarif > trivy-results-${{ matrix.edition }}.sarif
           
           # Debug: Show filtered results count
           echo "Filtered SARIF results:"
@@ -65,7 +71,8 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         if: github.event_name != 'pull_request'
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: 'trivy-results-${{ matrix.edition }}.sarif'
+          category: 'trivy-${{ matrix.edition }}'
 
       # Option 3: Enhanced Trivy configuration for table output
       - name: Run Trivy in table format
@@ -77,15 +84,15 @@ jobs:
             --ignore-unfixed \
             --vuln-type os,library \
             --scanners vuln \
-            kafka-schema-registry-mcp:security-scan | tee trivy-table.txt
+            kafka-schema-registry-mcp:security-scan-${{ matrix.edition }} | tee trivy-table-${{ matrix.edition }}.txt
 
       - name: Manage security scan issues
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' && matrix.edition == 'viewer'
         uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
-            const trivyOutput = fs.readFileSync('trivy-table.txt', 'utf8');
+            const trivyOutput = fs.readFileSync('trivy-table-viewer.txt', 'utf8');
 
             const hasCritical = trivyOutput.includes('CRITICAL');
             const hasHigh = trivyOutput.includes('HIGH');
@@ -180,7 +187,7 @@ jobs:
       - name: Generate scan summary
         if: always()
         run: |
-          echo "## Docker Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Security Scan Summary (${{ matrix.edition }})" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Trivy vulnerability scan completed" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ **SARIF Filtering**: Applied to ensure only HIGH and CRITICAL appear in Security tab" >> $GITHUB_STEP_SUMMARY
           echo "- 🎯 **Severity Filter**: CRITICAL and HIGH only" >> $GITHUB_STEP_SUMMARY
@@ -189,17 +196,17 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Include the actual Trivy scan results if available
-          if [ -f "trivy-table.txt" ]; then
+          if [ -f "trivy-table-${{ matrix.edition }}.txt" ]; then
             echo "### Vulnerability Report" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            cat trivy-table.txt >> $GITHUB_STEP_SUMMARY
+            cat trivy-table-${{ matrix.edition }}.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
             # Count vulnerabilities
-            CRITICAL_COUNT=$(grep -c "CRITICAL" trivy-table.txt || echo "0")
-            HIGH_COUNT=$(grep -c "HIGH" trivy-table.txt || echo "0")
+            CRITICAL_COUNT=$(grep -c "CRITICAL" trivy-table-${{ matrix.edition }}.txt || echo "0")
+            HIGH_COUNT=$(grep -c "HIGH" trivy-table-${{ matrix.edition }}.txt || echo "0")
             
             echo "### Summary" >> $GITHUB_STEP_SUMMARY
             echo "- 🔴 **CRITICAL vulnerabilities**: $CRITICAL_COUNT" >> $GITHUB_STEP_SUMMARY
@@ -223,9 +230,9 @@ jobs:
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: security-scan-results
+          name: security-scan-results-${{ matrix.edition }}
           path: |
-            trivy-results.sarif
-            trivy-results-raw.sarif
-            trivy-table.txt
+            trivy-results-${{ matrix.edition }}.sarif
+            trivy-results-raw-${{ matrix.edition }}.sarif
+            trivy-table-${{ matrix.edition }}.txt
           retention-days: 90

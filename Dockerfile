@@ -95,6 +95,12 @@ RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* \
     && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14 2>/dev/null || true
 
 # Copy core application modules with proper ownership
+COPY --chown=mcp:mcp _version.py .
+COPY --chown=mcp:mcp protocol_version.py .
+COPY --chown=mcp:mcp edition.py .
+COPY --chown=mcp:mcp tool_catalog.py .
+COPY --chown=mcp:mcp edition_gate.py .
+COPY --chown=mcp:mcp mrtr.py .
 COPY --chown=mcp:mcp oauth_provider.py .
 COPY --chown=mcp:mcp schema_registry_common.py .
 COPY --chown=mcp:mcp schema_definitions.py .

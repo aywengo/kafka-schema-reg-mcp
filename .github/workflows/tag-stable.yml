@@ -37,20 +37,31 @@ jobs:
 
       - name: Re-tag as stable
         run: |
-          echo "🏷️ Promoting ${{ github.event.inputs.source_tag }} to stable..."
+          echo "🏷️ Promoting ${{ github.event.inputs.source_tag }} edition tags to stable..."
           SOURCE_TAG="${{ github.event.inputs.source_tag }}"
-          
-          # Tag the existing image as stable
-          docker tag aywengo/kafka-schema-reg-mcp:${SOURCE_TAG} aywengo/kafka-schema-reg-mcp:stable
-          
-          # Push the stable tag
-          docker push aywengo/kafka-schema-reg-mcp:stable
-          
-          echo "✅ Successfully promoted ${SOURCE_TAG} to stable!"
+
+          for edition in viewer editor admin; do
+            if [ "$edition" = "viewer" ]; then
+              SOURCE="${SOURCE_TAG}"
+              TARGET="stable"
+            else
+              SOURCE="${SOURCE_TAG}-${edition}"
+              TARGET="stable-${edition}"
+            fi
+            echo "  ${SOURCE} -> ${TARGET}"
+            docker pull aywengo/kafka-schema-reg-mcp:${SOURCE}
+            docker tag aywengo/kafka-schema-reg-mcp:${SOURCE} aywengo/kafka-schema-reg-mcp:${TARGET}
+            docker push aywengo/kafka-schema-reg-mcp:${TARGET}
+          done
+
+          echo "✅ Successfully promoted ${SOURCE_TAG} edition tags to stable!"
 
       - name: Verify stable tag
         run: |
-          echo "🔍 Verifying stable tag was created..."
+          echo "🔍 Verifying stable tags were created..."
+          for tag in stable stable-viewer stable-editor stable-admin; do
+            docker pull aywengo/kafka-schema-reg-mcp:${tag}
+          done
           if docker pull aywengo/kafka-schema-reg-mcp:stable; then
             echo "✅ Stable tag verified successfully"
             

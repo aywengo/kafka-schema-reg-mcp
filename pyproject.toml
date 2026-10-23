@@ -49,17 +49,7 @@ path = "_version.py"
 
 [tool.hatch.build]
 include = [
-    "_version.py",
-    "oauth_provider.py",
-    "schema_registry_common.py",
-    "core_registry_tools.py",
-    "batch_operations.py",
-    "statistics_tools.py",
-    "export_tools.py",
-    "comparison_tools.py",
-    "migration_tools.py",
-    "mcp_prompts.py",
-    "kafka_schema_registry_unified_mcp.py",
+    "*.py",
     "README.md",
     "LICENSE",
     "pyproject.toml",

@@ -1,6 +1,6 @@
 # Kafka Schema Registry MCP Server Helm Chart
 
-A Helm chart for deploying the Kafka Schema Registry MCP Server v3.0.0-rc.1 with OAuth2 authentication support.
+A Helm chart for deploying the Kafka Schema Registry MCP Server v3.0.0 with OAuth2 authentication support.
 
 ## Features
 

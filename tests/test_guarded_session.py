@@ -2,11 +2,11 @@
 
 import pytest
 
-from schema_registry_common import GuardedSession, RegistryConfig, ViewOnlyError
+import schema_registry_common as src
 
 
 def session(url="http://registry.example/base", viewonly=True):
-    return GuardedSession(RegistryConfig(name="prod", url=url, viewonly=viewonly))
+    return src.GuardedSession(src.RegistryConfig(name="prod", url=url, viewonly=viewonly))
 
 
 def test_allowlisted_read_posts():
@@ -26,15 +26,15 @@ def test_mutating_posts_are_not_allowlisted():
 
 def test_viewonly_rejects_put_and_delete():
     s = session()
-    with pytest.raises(ViewOnlyError):
+    with pytest.raises(src.ViewOnlyError):
         s.put("http://registry.example/base/config", json={})
-    with pytest.raises(ViewOnlyError):
+    with pytest.raises(src.ViewOnlyError):
         s.delete("http://registry.example/base/subjects/orders")
 
 
 def test_viewonly_rejects_mutating_post():
     s = session()
-    with pytest.raises(ViewOnlyError):
+    with pytest.raises(src.ViewOnlyError):
         s.post("http://registry.example/base/subjects/orders/versions", json={})
 
 

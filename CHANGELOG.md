@@ -5,6 +5,30 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-10-23
+
+Final v3.0 release. The rc.1 notes below list the full change set; this entry
+records the release decisions.
+
+### Breaking Changes
+
+- `MCP_EDITION` replaces `SLIM_MODE` as the supported selection flag. Plain
+  image tags now run the `viewer` edition (38 tools), not the full surface.
+- Removed `set_default_registry`, the workflow status/abort tools and the five
+  elicitation fallback tools. See `docs/v3-migration-guide.md`.
+- `READONLY`, `READONLY_X` and the `readonly` JSON key are removed; use
+  `VIEWONLY`.
+- Resource-not-found returns `-32602`.
+
+### Release
+
+- `_version.py`, `pyproject.toml` metadata, Helm `version`/`appVersion` and the
+  Docker tag matrix are `3.0.0`.
+- Images: `3.0.0`, `3.0.0-viewer`, `3.0.0-editor`, `3.0.0-admin` (and the
+  matching `latest`/`stable` suffixes).
+- Helm chart `3.0.0` defaults to `edition: viewer` and `<appVersion>-<edition>`
+  image tags.
+
 ## [3.0.0-rc.1] - 2026-10-23
 
 Release candidate for v3.0. See `docs/v3-migration-guide.md` for the upgrade path.
