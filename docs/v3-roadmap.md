@@ -53,21 +53,33 @@ enforcement with gaps.
 
 ### 2.1 Selection
 
-- New module `edition.py` reads `MCP_EDITION` once at import time. Valid values, in order of
+- New module `edition.py` resolves the edition once at import time. Valid values, in order of
   privilege: `viewer` < `editor` < `admin`. Each edition is a strict superset of the one below
   it. Unknown values fail fast with a clear error.
-- Default when unset: `viewer` (least privilege; a plain image can never write). The startup
-  banner and the `ping` tool report the active edition so a misconfigured deployment is obvious.
-- `SLIM_MODE=true` becomes a deprecated alias for `MCP_EDITION=editor` (its closest match:
-  today's slim set includes `register_schema`; warning on startup, removed in 4.0).
-  `SLIM_MODE` together with an explicit `MCP_EDITION` is an error.
+- Two environment variables, because an environment lookup cannot tell an image default from
+  an operator override: `MCP_EDITION` is the operator's explicit choice;
+  `MCP_EDITION_DEFAULT` is what the image bakes in and is never set by operators. Resolution
+  order:
+  1. `MCP_EDITION` if set (explicit wins).
+  2. else `SLIM_MODE=true` selects `editor` with a deprecation warning (its closest match:
+     today's slim set includes `register_schema`; alias removed in 4.0).
+  3. else `MCP_EDITION_DEFAULT` from the image.
+  4. else `viewer` (least privilege; a plain image can never write).
+
+  `SLIM_MODE=true` together with an explicit `MCP_EDITION` is an error, since the operator
+  has stated two different intents. `SLIM_MODE` on top of an image default is fine: the
+  existing `config-examples/claude_desktop_slim_mode_config.json`, which only sets
+  `SLIM_MODE=true` against the plain image, must keep starting (as editor, with a warning), and
+  is part of the alias test. The startup banner and the `ping` tool report the resolved
+  edition and which rule chose it, so a misconfigured deployment is obvious.
 - Docker tags published by [publish.yml](../.github/workflows/publish.yml):
   - `:3.0.0-viewer`, `:3.0-viewer`, `:3-viewer`, `:latest-viewer`, `:stable-viewer`
   - `:3.0.0-editor`, `:3.0-editor`, `:3-editor`, `:latest-editor`, `:stable-editor`
   - `:3.0.0-admin`, `:3.0-admin`, `:3-admin`, `:latest-admin`, `:stable-admin`
   - plain `:3.0.0`, `:3.0`, `:3`, `:latest`, `:stable` are aliases of the viewer image
-  - The edition is baked in via `ENV MCP_EDITION=...` so it works without any extra client
-    configuration, and can still be overridden by the environment.
+  - The edition is baked in via `ENV MCP_EDITION_DEFAULT=...` (never `MCP_EDITION`) so it
+    works without any extra client configuration and can still be overridden by `MCP_EDITION`
+    or selected by the `SLIM_MODE` alias.
 - Helm: new value `edition: viewer|editor|admin` in [helm/values.yaml](../helm/values.yaml).
   It selects the image tag suffix and sets `MCP_EDITION` in the ConfigMap.
   `values-remote-mcp.yaml` and `helm/examples/*` get an explicit `edition:` line.
@@ -172,7 +184,9 @@ Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-
 - `submit_elicitation_response`, `list_elicitation_requests`, `get_elicitation_request`,
   `get_elicitation_status`, `cancel_elicitation_request` and the
   `elicitation://response/{request_id}` resource. These exist only to drive the home-grown
-  elicitation fallback, which multi-round-trip requests replace (section 3.3).
+  elicitation fallback, which multi-round-trip requests replace (section 3.3). They survive
+  as admin-only, deprecated entries in the `3.0.0-beta` catalog until the last three guided
+  workflows are on MRTR (section 5, M2/M3).
 - `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow`. The
   first three read `multi_step_manager.get_active_workflows()`, an in-process dictionary. Once
   workflow state travels in client-carried `request_state` (section 3.3) the server has no
@@ -497,20 +511,34 @@ gantt
   `list_available_workflows`, `abort_workflow`.
 - `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`, default `redis` with
   bundled Valkey); `memory` fails the render when autoscaling is enabled or `replicaCount > 1`.
-- Docker tag matrix in `publish.yml`, `ENV MCP_EDITION` build arg, Helm `edition` value, edition
-  config examples (editor example sets `VIEWONLY` on production registries).
-- Exit: `tests/test_editions.py` snapshots match section 2.4 (38 viewer, 41 editor, 67 admin);
-  CI runs the full suite for all three editions.
+- Docker tag matrix in `publish.yml`, `ARG`/`ENV MCP_EDITION_DEFAULT` per tag, Helm `edition`
+  value, edition config examples (editor example sets `VIEWONLY` on production registries).
+- Edition resolution order (section 2.1) with the alias test covering
+  `claude_desktop_slim_mode_config.json` against the plain image.
+- **Transitional admin catalog.** Until M3, `guided_schema_migration`,
+  `guided_context_reorganization` and `guided_disaster_recovery` still advance through the
+  legacy elicitation path (`kafka_schema_registry_unified_mcp.py` L2212-2216 and
+  `workflow_mcp_integration.py` L958-977 resolve the request ID via
+  `submit_elicitation_response`). So the beta admin catalog keeps
+  `submit_elicitation_response`, `list_elicitation_requests`, `get_elicitation_request`,
+  `get_elicitation_status`, `cancel_elicitation_request` and the
+  `elicitation://response/{request_id}` resource, marked deprecated in their descriptions
+  and `min_edition=ADMIN`. They never appear in viewer or editor, whose only workflow
+  (`guided_schema_evolution`) is already on MRTR in M1.
+- Exit: `tests/test_editions.py` snapshots match section 2.4 for viewer (38) and editor (41);
+  the admin snapshot is the transitional 72 (67 plus the 5 fallback tools) and is marked as
+  such in the test. CI runs the full suite for all three editions.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 
 - Remaining guided workflows (`guided_schema_migration`, `guided_context_reorganization`,
   `guided_disaster_recovery`) on MRTR with `request_state`; `requestStateKey` secret and
   rotation notes in Helm.
-- Remove the elicitation fallback tools and resource.
+- Remove the elicitation fallback tools and resource; admin snapshot drops to the final 67.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
-- Exit: `inspector-tests/` pass against all three editions in both protocol modes.
+- Exit: `tests/test_editions.py` admin snapshot is 67; `inspector-tests/` pass against all
+  three editions in both protocol modes.
 
 ### M4 - Release, ships as `3.0.0` (2 weeks)
 
@@ -565,7 +593,7 @@ gantt
   `READONLY*`, keep `is_viewonly`), `core_registry_tools.py` (drop inline VIEWONLY calls),
   `batch_operations.py`, `migration_tools.py`, `bulk_operations_mcp_integration.py`,
   `workflow_mcp_integration.py` (remove instance-inspection tools and `abort_workflow`),
-  `Dockerfile` (`ARG MCP_EDITION`), `.github/workflows/publish.yml`,
+  `Dockerfile` (`ARG`/`ENV MCP_EDITION_DEFAULT`), `.github/workflows/publish.yml`,
   `.github/workflows/tag-stable.yml`, `helm/values.yaml` (`edition`, `tasks.backend`),
   `helm/values-remote-mcp.yaml`, `helm/templates/configmap.yaml`,
   `helm/templates/deployment.yaml` (`Recreate` strategy for `memory`), `helm/templates/hpa.yaml`,
@@ -576,7 +604,8 @@ gantt
   (new),
   `config-examples/claude_desktop_admin_config.json` (new), `config-examples/README.md`,
   `tests/test_editions.py` (new), `tests/test_viewonly_*.py`, `tests/test_slim_mode_integration.py`
-  (rewritten as alias test), `tests/run_all_tests.sh` (`--edition` flag),
+  (rewritten as alias test, including `claude_desktop_slim_mode_config.json` against the plain
+  image), `tests/run_all_tests.sh` (`--edition` flag),
   `.github/workflows/test.yml` (matrix).
 
 **M3**
@@ -599,7 +628,8 @@ gantt
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4: 38 viewer, 41 editor, 67 admin, unconditional of registry mode). A further
+  (section 2.4: 38 viewer, 41 editor, 67 admin at `3.0.0`; the admin snapshot is a
+  transitional 72 between M2 and M3, see section 5; unconditional of registry mode). A further
   assertion checks the superset property: viewer is a subset of editor, editor of admin, and
   every viewer tool has `mutates=False` and scope `read`. The snapshot is taken
   with `REGISTRY_MODE=multi`; a second case asserts that `single` mode yields the same catalog,
