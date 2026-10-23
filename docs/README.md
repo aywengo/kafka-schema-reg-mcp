@@ -88,6 +88,12 @@ Migration guide for upgrading between major versions:
 - **Breaking Changes**: JSON-RPC batching removal and other changes
 - **Testing Guide**: Validation steps for new versions
 
+### 🗺️ **[v3.0 Design and Roadmap](v3-roadmap.md)** - Next Major Release Plan
+Design, milestones and implementation plan for v3.0:
+- **MCP 2026-07-28**: FastMCP 4 / MCP SDK 2 upgrade with legacy client support
+- **Editions**: `viewer` (read-only), `editor` (read, compatibility, evolution, registration) and `admin` (full access)
+- **Roadmap**: Milestones M0-M4, risk register, backward compatibility matrix
+
 ---
 
 ## 🎉 What's New in v2.1.x (Latest)
