@@ -7,10 +7,11 @@ v3.0 is a major release with two themes:
 
 1. **Latest MCP protocol.** Move from MCP `2025-11-25` on FastMCP 3.x to MCP `2026-07-28` on
    FastMCP 4 / MCP Python SDK 2, while still serving `2025-11-25` clients from the same process.
-2. **Two editions.** Split the server into a `developer` edition (read, compatibility checks,
-   schema evolution, schema registration) and an `admin` edition (full access: configuration,
-   deletion, migration, bulk operations, disaster recovery), selected by one environment variable
-   and shipped as two Docker tags from a single codebase.
+2. **Three editions.** Split the server into a `viewer` edition (strictly read-only: browse,
+   export, compare, compatibility checks), an `editor` edition (viewer plus schema evolution and
+   schema registration) and an `admin` edition (full access: configuration, deletion, migration,
+   bulk operations, disaster recovery), selected by one environment variable and shipped as
+   three Docker tags from a single codebase.
 
 The release also settles accumulated debt that blocks both themes: scattered version strings,
 prompts that are defined but never exposed, resource URIs without handlers, and VIEWONLY
@@ -24,10 +25,10 @@ enforcement with gaps.
 
 - Speak MCP `2026-07-28` (stateless requests, `server/discover`, multi-round-trip requests,
   tasks extension) and keep every `2025-11-25` client working with no configuration.
-- Ship `developer` and `admin` editions with least-privilege defaults. A client connected to a
-  developer edition cannot discover, let alone call, a destructive tool. "Least privilege" here
-  means no destructive or configuration tools; the developer edition still includes
-  `register_schema`, which is a write (see section 2.4).
+- Ship `viewer`, `editor` and `admin` editions with a least-privilege default. A client
+  connected to a viewer edition cannot discover, let alone call, any tool that writes; a client
+  connected to an editor edition cannot discover a destructive or configuration tool. The
+  editor edition does include `register_schema`, which is a write (see section 2.4).
 - One codebase, one Dockerfile, one Helm chart. Editions differ only by a startup setting.
 - Make the tool catalog declarative so edition, OAuth scope, VIEWONLY enforcement, and MCP tool
   annotations come from one table instead of the 41 `if not SLIM_MODE:` blocks in
@@ -52,25 +53,29 @@ enforcement with gaps.
 
 ### 2.1 Selection
 
-- New module `edition.py` reads `MCP_EDITION` once at import time. Valid values: `developer`,
-  `admin`. Unknown values fail fast with a clear error.
-- Default when unset: `developer` (least privilege). The startup banner and the `ping` tool
-  report the active edition so a misconfigured deployment is obvious.
-- `SLIM_MODE=true` becomes a deprecated alias for `MCP_EDITION=developer` (warning on startup,
-  removed in 4.0). `SLIM_MODE` with `MCP_EDITION=admin` is an error.
+- New module `edition.py` reads `MCP_EDITION` once at import time. Valid values, in order of
+  privilege: `viewer` < `editor` < `admin`. Each edition is a strict superset of the one below
+  it. Unknown values fail fast with a clear error.
+- Default when unset: `viewer` (least privilege; a plain image can never write). The startup
+  banner and the `ping` tool report the active edition so a misconfigured deployment is obvious.
+- `SLIM_MODE=true` becomes a deprecated alias for `MCP_EDITION=editor` (its closest match:
+  today's slim set includes `register_schema`; warning on startup, removed in 4.0).
+  `SLIM_MODE` together with an explicit `MCP_EDITION` is an error.
 - Docker tags published by [publish.yml](../.github/workflows/publish.yml):
-  - `:3.0.0-developer`, `:3.0-developer`, `:3-developer`, `:latest-developer`, `:stable-developer`
+  - `:3.0.0-viewer`, `:3.0-viewer`, `:3-viewer`, `:latest-viewer`, `:stable-viewer`
+  - `:3.0.0-editor`, `:3.0-editor`, `:3-editor`, `:latest-editor`, `:stable-editor`
   - `:3.0.0-admin`, `:3.0-admin`, `:3-admin`, `:latest-admin`, `:stable-admin`
-  - plain `:3.0.0`, `:3.0`, `:3`, `:latest`, `:stable` are aliases of the developer image
+  - plain `:3.0.0`, `:3.0`, `:3`, `:latest`, `:stable` are aliases of the viewer image
   - The edition is baked in via `ENV MCP_EDITION=...` so it works without any extra client
     configuration, and can still be overridden by the environment.
-- Helm: new value `edition: developer|admin` in [helm/values.yaml](../helm/values.yaml). It
-  selects the image tag suffix and sets `MCP_EDITION` in the ConfigMap. `values-remote-mcp.yaml`
-  and `helm/examples/*` get an explicit `edition:` line.
-- `config-examples/` gains `claude_desktop_developer_config.json` (with `VIEWONLY=true` on
-  production registries, since the developer edition can still register schemas) and
-  `claude_desktop_admin_config.json`; the existing `viewonly` example is kept and points at the
-  developer edition.
+- Helm: new value `edition: viewer|editor|admin` in [helm/values.yaml](../helm/values.yaml).
+  It selects the image tag suffix and sets `MCP_EDITION` in the ConfigMap.
+  `values-remote-mcp.yaml` and `helm/examples/*` get an explicit `edition:` line.
+- `config-examples/` gains `claude_desktop_viewer_config.json`,
+  `claude_desktop_editor_config.json` (with `VIEWONLY=true` on production registries, since
+  the editor edition can still register schemas) and `claude_desktop_admin_config.json`. The
+  existing `claude_desktop_viewonly_config.json` is replaced by the viewer example, which is
+  the intended way to get a read-only deployment in 3.0.
 
 ### 2.2 Why "not registered" rather than "registered but blocked"
 
@@ -78,22 +83,29 @@ MCP `2026-07-28` removes protocol-level sessions, and with them per-connection l
 "List endpoints (`tools/list`, `resources/list`, `prompts/list`) no longer vary per-connection"
 (SEP-2567); SEP-2549 adds `ttlMs` / `cacheScope` cache hints on those results. A catalog that
 lists admin tools but rejects them per call would either defeat caching or leak the admin
-surface to developer clients. Therefore:
+surface to editor clients. Therefore:
 
 - Tools, prompts and resources outside the active edition are **never registered** with FastMCP.
 - Within an edition, OAuth scopes and VIEWONLY continue to gate individual calls.
-- A smaller catalog also saves model context: the developer edition exposes 41 tools instead of
-  the 75 registered today (44 developer-eligible, 26 admin-only, 5 elicitation fallback).
+- A smaller catalog also saves model context: the viewer edition exposes 38 tools and the
+  editor edition 41, instead of the 75 registered today (44 editor-eligible, 26 admin-only,
+  5 elicitation fallback).
 
 ### 2.3 Declarative tool catalog
 
 New module `tool_catalog.py` holds one entry per tool:
 
 ```python
+class Edition(IntEnum):
+    VIEWER = 1
+    EDITOR = 2
+    ADMIN = 3
+
+
 @dataclass(frozen=True)
 class ToolSpec:
     name: str
-    editions: frozenset[str]        # {"developer", "admin"} or {"admin"}
+    min_edition: Edition            # lowest edition that registers the tool
     scope: str                      # "read" | "write" | "admin"
     mutates: bool                   # subject to VIEWONLY enforcement
     write_targets: tuple[str, ...]  # argument names that resolve to the registries written to,
@@ -103,7 +115,7 @@ class ToolSpec:
 ```
 
 `kafka_schema_registry_unified_mcp.py` iterates the catalog and registers only the entries whose
-`editions` contain the active edition. The same table drives:
+`min_edition` is less than or equal to the active edition. The same table drives:
 
 - `SCOPE_DEFINITIONS[...]["includes"]` in `oauth_provider.py` (generated, no stale names).
 - The centralised VIEWONLY check (section 2.5).
@@ -114,26 +126,36 @@ class ToolSpec:
 
 Names below are the registered MCP tool names as of `2.2.2`, except where a 3.0 rename is noted.
 
-**Developer edition** (also included in admin), 41 tools
+**Viewer edition** (included in editor and admin), 38 tools. Every tool here is `read` scope
+and `mutates=False`; a viewer deployment issues no write to any registry.
 
 | Group | Tools |
 |---|---|
 | Protocol and discovery | `ping`, `get_mcp_compliance_status` (renamed from `get_mcp_compliance_status_tool`), `list_available_resources`, `suggest_resource_for_tool`, `generate_resource_templates`, `get_oauth_scopes_info` (renamed from `get_oauth_scopes_info_tool`), `test_oauth_discovery_endpoints` |
 | Registry info | `list_registries`, `get_registry_info`, `test_registry_connection`, `test_all_registries`, `get_default_registry` |
 | Read | `list_subjects`, `list_contexts`, `get_schema`, `get_schema_versions`, `get_schema_by_id`, `get_subjects_by_schema_id`, `get_global_config`, `get_mode`, `get_subject_config`, `get_subject_mode` |
-| Compatibility and evolution | `check_compatibility`, `check_compatibility_interactive`, `guided_schema_evolution` |
-| Registration | `register_schema`, `register_schema_interactive` |
+| Compatibility | `check_compatibility`, `check_compatibility_interactive` |
 | Export | `export_schema`, `export_subject`, `export_context`, `export_global`, `export_global_interactive` |
 | Comparison | `compare_registries`, `compare_contexts_across_registries`, `find_missing_schemas` |
 | Statistics | `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics` |
 | Workflow definitions | `list_workflows`, `describe_workflow` (static definitions; see "Removed" below for the instance-inspection tools) |
 
-Developer prompts: `schema-getting-started`, `schema-registration`, `schema-compatibility`,
-`schema-evolution`, `schema-export`, `troubleshooting`.
+Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export`,
+`troubleshooting`.
 
-Developer resources: all `registry://`, `schema://` and `subject://` read resources.
+Viewer resources: all `registry://`, `schema://` and `subject://` read resources (the full
+resource set; no edition adds resources).
 
-**Admin edition** (developer set plus the following), 26 additional tools
+**Editor edition** (viewer set plus the following), 3 additional tools, 41 total
+
+| Group | Tools |
+|---|---|
+| Registration | `register_schema`, `register_schema_interactive` |
+| Evolution | `guided_schema_evolution` (its final step registers the next version, so it is not a viewer tool; viewers get the analysis half through `check_compatibility` and the `schema-compatibility` prompt) |
+
+Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (6 total).
+
+**Admin edition** (editor set plus the following), 26 additional tools, 67 total
 
 | Group | Tools |
 |---|---|
@@ -145,7 +167,7 @@ Developer resources: all `registry://`, `schema://` and `subject://` read resour
 
 Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-workflows`).
 
-**Removed in 3.0** (both editions):
+**Removed in 3.0** (all editions):
 
 - `submit_elicitation_response`, `list_elicitation_requests`, `get_elicitation_request`,
   `get_elicitation_status`, `cancel_elicitation_request` and the
@@ -171,14 +193,18 @@ Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-
 
 Boundary decisions worth stating explicitly:
 
-- `register_schema` is in developer because schema evolution ends with registering the next
-  version. It is a `write`-scope, non-destructive, VIEWONLY-gated operation. This means a
-  developer image pointed at a production registry without `VIEWONLY` can register schemas;
-  the developer config example therefore sets `VIEWONLY` on production registries.
+- The viewer edition is the read-only deployment. It is the recommended way to give an AI
+  assistant access to a production registry; `VIEWONLY` is unnecessary there because no
+  registered tool can write (VIEWONLY stays meaningful for editor and admin deployments that
+  mix writable and protected registries).
+- `register_schema` is in editor because schema evolution ends with registering the next
+  version. It is a `write`-scope, non-destructive, VIEWONLY-gated operation. This means an
+  editor image pointed at a production registry without `VIEWONLY` can register schemas;
+  the editor config example therefore sets `VIEWONLY` on production registries.
 - `create_context` is admin. Contexts are a tenancy/organisation boundary, not part of a
-  developer's day-to-day evolution loop. The boundary is soft: Confluent Schema Registry
+  schema author's day-to-day evolution loop. The boundary is soft: Confluent Schema Registry
   creates a context implicitly when a subject is registered with a `:.ctx:` prefix, so
-  `register_schema` in the developer edition can create contexts as a side effect. 3.0 accepts
+  `register_schema` in the editor edition can create contexts as a side effect. 3.0 accepts
   this and documents it; rejecting context-qualified subjects whose context does not exist is
   an opt-in follow-up.
 - `check_compatibility` and all `export_*` stay `read` scope.
@@ -201,8 +227,9 @@ flowchart LR
 ```
 
 - **Edition** decides what the server exposes. Set by the operator per deployment.
-- **OAuth scope** decides what a given user may call inside the edition. Developer edition
-  never requires the `admin` scope. Scope checks move from the custom `require_scopes`
+- **OAuth scope** decides what a given user may call inside the edition. The viewer edition
+  only ever requires `read`; the editor edition never requires `admin`. Scope checks move from
+  the custom `require_scopes`
   decorator (which lacks `functools.wraps` and reimplements token validation) to FastMCP 4's
   native scope checks, so clients receive insufficient-scope challenges naming the missing scope.
 - **VIEWONLY** decides what a given registry accepts. It stays per registry and is enforced at
@@ -315,7 +342,7 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   `mcp.add_extension(TasksExtension())` from `fastmcp-tasks` is called, and the server refuses
   to start otherwise ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)).
   This becomes an unconditional step right after `FastMCP(...)` is constructed, before catalog
-  registration, in both editions: the developer catalog also contains the task-enabled
+  registration, in all three editions: even the viewer catalog contains the task-enabled
   `count_schemas` and `get_registry_statistics`. `tests/test_editions.py` boots each edition
   and asserts the extension is present and that every `ToolSpec.task` tool is listed with a
   task handle.
@@ -410,7 +437,7 @@ gantt
 - Delete the protocol middleware; verify `server/discover` and legacy `initialize` both work.
 - Port the six `*_interactive` tools to `InputRequiredResult`; rewrite `bulk_operations_wizard`
   off the home-grown elicitation manager; port `guided_schema_evolution` as the first multi-step
-  workflow (developer pilot) with state in `request_state`.
+  workflow (editor pilot) with state in `request_state`.
 - Configure `RequestStateSecurity`; wire `REQUEST_STATE_KEY`.
 - Register prompts with `@mcp.prompt`.
 - Resource-not-found error code `-32602`; `iss` validation; advertise CIMD.
@@ -432,9 +459,9 @@ gantt
 - `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`), replica cap for
   `memory`.
 - Docker tag matrix in `publish.yml`, `ENV MCP_EDITION` build arg, Helm `edition` value, edition
-  config examples (developer example sets `VIEWONLY` on production registries).
-- Exit: `tests/test_editions.py` snapshots match section 2.4 (41 developer, 67 admin); CI runs
-  the full suite for both editions.
+  config examples (editor example sets `VIEWONLY` on production registries).
+- Exit: `tests/test_editions.py` snapshots match section 2.4 (38 viewer, 41 editor, 67 admin);
+  CI runs the full suite for all three editions.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 
@@ -444,16 +471,17 @@ gantt
 - Remove the elicitation fallback tools and resource.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
-- Exit: `inspector-tests/` pass against both editions in both protocol modes.
+- Exit: `inspector-tests/` pass against all three editions in both protocol modes.
 
 ### M4 - Release, ships as `3.0.0` (2 weeks)
 
 - `docs/v3-migration-guide.md`, README, `docs/README.md`, `docs/api-reference.md`,
   `docs/mcp-tools-reference.md` updated with per-edition tool tables.
 - CHANGELOG `[3.0.0]` with a Breaking Changes section.
-- Security scans (`security-scan.yml`, `docker-security-scan.yml`) on both images;
+- Security scans (`security-scan.yml`, `docker-security-scan.yml`) on all three images;
   `.trivyignore` review.
-- Helm chart `3.0.0` published; `tag-stable.yml` moves `stable` and `stable-admin`.
+- Helm chart `3.0.0` published; `tag-stable.yml` moves `stable`, `stable-viewer`,
+  `stable-editor` and `stable-admin`.
 - Exit: tag `v3.0.0`, images and chart published, migration guide linked from README.
 
 ### Post-3.0 candidates (3.1)
@@ -502,7 +530,9 @@ gantt
   `helm/values-remote-mcp.yaml`, `helm/templates/configmap.yaml`,
   `helm/templates/deployment.yaml` (replica cap), `helm/templates/valkey.yaml` (new, optional),
   `helm/templates/NOTES.txt`, `helm/examples/*.yaml`,
-  `config-examples/claude_desktop_developer_config.json` (new),
+  `config-examples/claude_desktop_viewer_config.json` (new, replaces
+  `claude_desktop_viewonly_config.json`), `config-examples/claude_desktop_editor_config.json`
+  (new),
   `config-examples/claude_desktop_admin_config.json` (new), `config-examples/README.md`,
   `tests/test_editions.py` (new), `tests/test_viewonly_*.py`, `tests/test_slim_mode_integration.py`
   (rewritten as alias test), `tests/run_all_tests.sh` (`--edition` flag),
@@ -528,12 +558,15 @@ gantt
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4: 41 developer, 67 admin, unconditional of registry mode). The snapshot is taken
+  (section 2.4: 38 viewer, 41 editor, 67 admin, unconditional of registry mode). A further
+  assertion checks the superset property: viewer is a subset of editor, editor of admin, and
+  every viewer tool has `mutates=False` and scope `read`. The snapshot is taken
   with `REGISTRY_MODE=multi`; a second case asserts that `single` mode yields the same catalog,
   since mode-conditional registration is removed with the `SLIM_MODE` blocks. Any catalog change
   must update the snapshot deliberately.
-- CI matrix in `.github/workflows/test.yml`: `edition: [developer, admin]` for `test-quick`,
-  `test-full` and `test-mcp-container`. The `docker-build` job builds both tag variants.
+- CI matrix in `.github/workflows/test.yml`: `edition: [viewer, editor, admin]` for
+  `test-quick`, `test-full` and `test-mcp-container`. The `docker-build` job builds all three
+  tag variants.
 - Compliance tests connect twice: `fastmcp.Client(target)` (negotiates `2026-07-28`) and
   `fastmcp.Client(target, mode="legacy")` (forces `2025-11-25`). They assert identical catalogs
   and identical application-level results, with protocol metadata (`mcp_protocol_version`,
@@ -542,7 +575,7 @@ gantt
   `2025-11-25` on the legacy one.
 - A new `conformance.yml` job runs the official MCP conformance suite against the HTTP
   transport of the admin image.
-- `tests/run_all_tests.sh` gains `--edition developer|admin|both` (default `both`); the
+- `tests/run_all_tests.sh` gains `--edition viewer|editor|admin|all` (default `all`); the
   per-edition results land in `tests/results/<edition>/`.
 - Interactive and workflow tests drive MRTR through the FastMCP client's `elicitation_handler`
   so the same test exercises both eras.
@@ -556,7 +589,7 @@ gantt
 | httpx 2 breaks `requests`/`aiohttp` interplay or SSL options | Medium | Medium | Spike in M1 week 1; consolidate on `httpx.AsyncClient`; pin and test SSL/TLS integration early |
 | Clients (Claude Desktop, Cursor) lag on MRTR support | High | Low | FastMCP 4 dual-era negotiation keeps legacy `elicitation/create` working; structured error for clients with neither |
 | Workflow state too large for sealed `request_state` | Medium | Medium | Store only step cursor and answers; keep registry snapshots server-side keyed by task id |
-| Users on `:latest` lose admin tools after upgrade | High | Medium | Migration guide first, startup banner naming the edition, `:stable-admin` / `:latest-admin` tags, deprecation notice in 2.3.0 |
+| Users on `:latest` lose write and admin tools after upgrade (plain tags become viewer) | High | Medium | Migration guide first, startup banner naming the edition, `-editor` / `-admin` suffixed `stable` and `latest` tags, deprecation notice in 2.3.0 |
 | `fastmcp-tasks` behaviour differs from 3.x tasks | Medium | Medium | Port one task tool first (`count_schemas`), extend `tests/test_statistics_tasks.py` before touching migration |
 | Removing the elicitation fallback breaks `mock` test paths | Medium | Low | Replace with FastMCP in-memory client tests; delete mock-only tests |
 | Scope change for `delete_subject_alias` surprises existing tokens | Low | Low | Call out in Breaking Changes; `admin` already includes `write` |
@@ -570,13 +603,13 @@ gantt
 | Area | 2.x behaviour | 3.0 behaviour |
 |---|---|---|
 | MCP protocol | `2025-11-25` only, custom header middleware | `2026-07-28` negotiated, `2025-11-25` still served |
-| Default tool set | All 75 tools unless `SLIM_MODE` | Developer edition (41 tools); set `MCP_EDITION=admin` or use `-admin` tag for the full 67 |
+| Default tool set | All 75 tools unless `SLIM_MODE` | Viewer edition (38 read-only tools); `MCP_EDITION=editor` or `-editor` tag for 41; `MCP_EDITION=admin` or `-admin` tag for the full 67 |
 | `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |
 | Background task durability | Single process | `tasks.backend: memory` (1 replica) or `redis` (any replicas) |
 | OAuth client registration | DCR | DCR still works; CIMD advertised; `iss` validated |
-| `SLIM_MODE=true` | Reduces to ~20 tools | Deprecated alias for `MCP_EDITION=developer`, warning |
+| `SLIM_MODE=true` | Reduces to ~20 tools | Deprecated alias for `MCP_EDITION=editor`, warning |
 | `VIEWONLY` / `VIEWONLY_{n}` / `viewonly` | Supported | Supported, enforced centrally |
 | `READONLY*` / `readonly` | Deprecated with warning | Removed (startup error with hint) |
 | OAuth scopes `read`/`write`/`admin` | Custom `require_scopes` | Native FastMCP checks with step-up challenges; same scope names |
@@ -586,7 +619,8 @@ gantt
 | Background tasks | FastMCP 3 tasks | `fastmcp-tasks` extension, `tasks/get` polling |
 | Prompts | Defined, not exposed | Nine prompts exposed via `prompts/list`, filtered by edition |
 | `_links` URIs | Some not resolvable | All resolvable |
-| Docker tags | `:x.y.z`, `:latest`, `:stable` | Same tags = developer; add `-developer` / `-admin` suffixed tags |
+| Docker tags | `:x.y.z`, `:latest`, `:stable` | Same tags = viewer; add `-viewer` / `-editor` / `-admin` suffixed tags |
+| `config-examples/claude_desktop_viewonly_config.json` | `VIEWONLY=true` on full server | Replaced by `claude_desktop_viewer_config.json` (viewer edition) |
 | Helm | `image.tag` only | `edition` value selects tag and env |
 | Single/multi registry auto-detection | Unchanged | Unchanged |
 | Python | 3.10+ | 3.10+ (3.11+ if forced by FastMCP 4; recorded in M1) |
@@ -597,16 +631,20 @@ gantt
 
 Each question records the proposed default so work can proceed without blocking.
 
-1. **Default edition for plain `:latest` / `:stable` tags.** Proposed: `developer`. Least
-   privilege by default; admins opt in explicitly. Alternative: keep plain tags as admin for
-   2.x continuity and accept the larger blast radius.
-2. **Does `create_context` belong to developer?** Proposed: admin. Context creation is a
-   tenancy decision. Revisit if developer-edition users regularly need scratch contexts.
+1. **Default edition for plain `:latest` / `:stable` tags.** Proposed: `viewer`. A plain
+   image can then never write, which removes the `register_schema`-on-production caveat from
+   the default path; editors and admins opt in explicitly. Alternatives: `editor` (closest to
+   today's `SLIM_MODE`) or `admin` (2.x continuity, larger blast radius).
+2. **Does `create_context` belong to editor?** Proposed: admin. Context creation is a
+   tenancy decision. Revisit if editor-edition users regularly need scratch contexts.
 3. **Lifetime of the `SLIM_MODE` alias.** Proposed: deprecated alias through 3.x, removed in
    4.0. Alternative: remove at 3.0 since it is a major release anyway.
 4. **Order of porting multi-step workflows to MRTR.** Proposed: `guided_schema_evolution` in
-   M1 as the developer-edition pilot, the remaining three in M3. Alternative: port all four
+   M1 as the editor-edition pilot, the remaining three in M3. Alternative: port all four
    together in M3 and ship M1 with the legacy elicitation path for workflows.
-5. **Scope for `register_schema` in developer edition.** Proposed: keep `write`. Alternative:
+5. **Scope for `register_schema` in editor edition.** Proposed: keep `write`. Alternative:
    introduce a `register` scope so a token can register without touching configuration; this
    would be additive and could land in 3.1.
+6. **Does `guided_schema_evolution` belong to viewer in a plan-only form?** Proposed: no for
+   3.0; the workflow's last step registers. A `dry_run` flag that stops after the plan, making
+   the tool viewer-eligible, is a cheap 3.1 addition once the workflow is on MRTR.
