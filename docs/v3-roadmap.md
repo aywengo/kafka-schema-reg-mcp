@@ -96,6 +96,8 @@ class ToolSpec:
     editions: frozenset[str]        # {"developer", "admin"} or {"admin"}
     scope: str                      # "read" | "write" | "admin"
     mutates: bool                   # subject to VIEWONLY enforcement
+    write_targets: tuple[str, ...]  # argument names that resolve to the registries written to,
+                                    # e.g. ("registry",) or ("target_registry",)
     annotations: ToolAnnotations    # readOnlyHint / destructiveHint / idempotentHint
     task: bool = False              # register with task=True (fastmcp-tasks)
 ```
@@ -131,14 +133,14 @@ Developer prompts: `schema-getting-started`, `schema-registration`, `schema-comp
 
 Developer resources: all `registry://`, `schema://` and `subject://` read resources.
 
-**Admin edition** (developer set plus the following), 28 additional tools
+**Admin edition** (developer set plus the following), 26 additional tools
 
 | Group | Tools |
 |---|---|
 | Context and subject lifecycle | `create_context`, `create_context_interactive`, `delete_context`, `delete_subject` |
 | Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `add_subject_alias`, `delete_subject_alias` |
 | Migration | `migrate_schema`, `migrate_context`, `migrate_context_interactive`, `migrate_schema_interactive` (new registration; function already exists in `interactive_tools.py`) |
-| Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation`, `get_bulk_operation_status`, `cancel_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today) |
+| Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today; backed by `wizard._generate_preview`) |
 | Guided workflows | `start_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
 
 Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-workflows`).
@@ -159,6 +161,13 @@ Admin prompts: all nine (adds `context-management`, `multi-registry`, `advanced-
 - `set_default_registry`. It mutates a process-wide default, so under several replicas it
   changes one replica for every user. The default registry becomes configuration-only
   (`DEFAULT_REGISTRY` / `REGISTRIES_CONFIG`); `get_default_registry` stays as a read.
+- `get_bulk_operation_status` and `cancel_bulk_operation` are **not** registered. Today
+  (`bulk_operations_mcp_integration.py` L282-297) the first returns only a deprecation message
+  and the second reports `cancelled` without cancelling or rolling anything back, so registering
+  them would hand callers false confirmations. Bulk operations run as `fastmcp-tasks` tasks, so
+  status and cancellation come from the tasks extension (`tasks/get`, `tasks/cancel`). The two
+  stub handlers are deleted. If a bulk-specific rollback is wanted later it is a 3.1 item with
+  its own design.
 
 Boundary decisions worth stating explicitly:
 
@@ -196,13 +205,29 @@ flowchart LR
   never requires the `admin` scope. Scope checks move from the custom `require_scopes`
   decorator (which lacks `functools.wraps` and reimplements token validation) to FastMCP 4's
   native scope checks, so clients receive insufficient-scope challenges naming the missing scope.
-- **VIEWONLY** decides what a given registry accepts. It stays per registry and is enforced in
-  one place: a FastMCP middleware (or decorator applied during catalog registration) that reads
-  `ToolSpec.mutates` and the `registry` argument, replacing the ten hand-written
-  `check_viewonly_mode(...)` calls in `core_registry_tools.py` and closing the gaps in
-  `migration_tools.py`, `bulk_operations_wizard.py`, `interactive_tools.py` and
-  `workflow_mcp_integration.py`. `READONLY`, `READONLY_{n}`, the `readonly` JSON key,
-  `is_readonly()` and `check_readonly_mode()` (all deprecated since 2.x) are removed.
+- **VIEWONLY** decides what a given registry accepts. It stays per registry and is enforced at
+  two layers, because reading a single `registry` argument cannot cover every write
+  destination: `migrate_schema` / `migrate_context` write to `target_registry`, bulk tools
+  take registry lists, and the bulk wizard and guided workflows choose their destination during
+  elicitation, possibly after an MRTR resume.
+  - *Early check (friendly error).* A FastMCP middleware applied during catalog registration
+    reads `ToolSpec.mutates` and `ToolSpec.write_targets`, resolves each named argument
+    (including defaults) to a registry, and rejects the call before any work if one of them is
+    VIEWONLY. This replaces the ten hand-written `check_viewonly_mode(...)` calls in
+    `core_registry_tools.py`.
+  - *Definitive check (cannot be bypassed).* `RegistryClient` gains a single write path
+    (`_write(method, path, ...)`) through which the seven current `session.post/put/delete`
+    call sites in `schema_registry_common.py` are routed. It raises `ViewOnlyError` when
+    `self.config.viewonly` is set. Because every mutation, whatever tool or workflow step
+    triggered it and however the destination was chosen, ends in this method, elicited and
+    resumed destinations are covered without each wizard step having to remember to check.
+    Dry-run paths never reach `_write`.
+  - Tests assert both layers: the middleware test is generated from the catalog for every
+    `mutates=True` tool, and a client-level test registers to a VIEWONLY target through the
+    wizard and through `migrate_schema` with an explicit `target_registry`.
+
+  `READONLY`, `READONLY_{n}`, the `readonly` JSON key, `is_readonly()` and
+  `check_readonly_mode()` (all deprecated since 2.x) are removed.
 
 ---
 
@@ -286,6 +311,14 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   `elicitation_mcp_integration.py` request registry, the five `*_elicitation_*` tools and the
   `elicitation://response/{request_id}` resource are deleted. Clients without MRTR or
   elicitation support get a structured error naming the non-interactive tool to use instead.
+- **Register the tasks extension at startup.** In FastMCP 4 `task=True` does nothing until
+  `mcp.add_extension(TasksExtension())` from `fastmcp-tasks` is called, and the server refuses
+  to start otherwise ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177)).
+  This becomes an unconditional step right after `FastMCP(...)` is constructed, before catalog
+  registration, in both editions: the developer catalog also contains the task-enabled
+  `count_schemas` and `get_registry_statistics`. `tests/test_editions.py` boots each edition
+  and asserts the extension is present and that every `ToolSpec.task` tool is listed with a
+  task handle.
 - **Tasks need a shared backend.** `migrate_schema`, `migrate_context`, `clear_context_batch`,
   `clear_multiple_contexts_batch`, `count_schemas`, `get_registry_statistics` keep `task=True`
   via `fastmcp-tasks`. Its Docket engine defaults to an in-memory backend; under the stateless
@@ -372,7 +405,8 @@ gantt
 
 ### M1 - Protocol core, ships as `3.0.0-alpha.1` (4 weeks)
 
-- FastMCP 4 / SDK 2 / `fastmcp-tasks` pins; fix import and snake_case breakages.
+- FastMCP 4 / SDK 2 / `fastmcp-tasks` pins; fix import and snake_case breakages;
+  `mcp.add_extension(TasksExtension())` at startup.
 - Delete the protocol middleware; verify `server/discover` and legacy `initialize` both work.
 - Port the six `*_interactive` tools to `InputRequiredResult`; rewrite `bulk_operations_wizard`
   off the home-grown elicitation manager; port `guided_schema_evolution` as the first multi-step
@@ -388,16 +422,18 @@ gantt
 
 - `edition.py`, `tool_catalog.py`, catalog-driven registration; remove the 41
   `if not SLIM_MODE` blocks.
-- Centralised VIEWONLY enforcement; remove `READONLY*`.
+- Centralised VIEWONLY enforcement at both layers (catalog middleware with `write_targets`,
+  `RegistryClient._write`); remove `READONLY*`.
 - Native FastMCP scope checks; regenerate `SCOPE_DEFINITIONS` from the catalog.
-- Register `migrate_schema_interactive` and the three bulk status/cancel/preview tools; rename
-  the two `_tool`-suffixed tools; remove `set_default_registry`, `workflow_status`,
-  `get_workflow_status`, `list_available_workflows`, `abort_workflow`.
+- Register `migrate_schema_interactive` and `preview_bulk_operation`; delete the
+  `get_bulk_operation_status` / `cancel_bulk_operation` stubs; rename the two `_tool`-suffixed
+  tools; remove `set_default_registry`, `workflow_status`, `get_workflow_status`,
+  `list_available_workflows`, `abort_workflow`.
 - `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`), replica cap for
   `memory`.
 - Docker tag matrix in `publish.yml`, `ENV MCP_EDITION` build arg, Helm `edition` value, edition
   config examples (developer example sets `VIEWONLY` on production registries).
-- Exit: `tests/test_editions.py` snapshots match section 2.4 (41 developer, 69 admin); CI runs
+- Exit: `tests/test_editions.py` snapshots match section 2.4 (41 developer, 67 admin); CI runs
   the full suite for both editions.
 
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
@@ -492,15 +528,18 @@ gantt
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4: 41 developer, 69 admin, unconditional of registry mode). The snapshot is taken
+  (section 2.4: 41 developer, 67 admin, unconditional of registry mode). The snapshot is taken
   with `REGISTRY_MODE=multi`; a second case asserts that `single` mode yields the same catalog,
   since mode-conditional registration is removed with the `SLIM_MODE` blocks. Any catalog change
   must update the snapshot deliberately.
 - CI matrix in `.github/workflows/test.yml`: `edition: [developer, admin]` for `test-quick`,
   `test-full` and `test-mcp-container`. The `docker-build` job builds both tag variants.
 - Compliance tests connect twice: `fastmcp.Client(target)` (negotiates `2026-07-28`) and
-  `fastmcp.Client(target, mode="legacy")` (forces `2025-11-25`), and assert identical catalogs
-  and identical tool results.
+  `fastmcp.Client(target, mode="legacy")` (forces `2025-11-25`). They assert identical catalogs
+  and identical application-level results, with protocol metadata (`mcp_protocol_version`,
+  negotiated version in `ping` and the compliance tool, `_meta` fields) excluded from the
+  comparison and asserted separately per era: `2026-07-28` on the modern connection,
+  `2025-11-25` on the legacy one.
 - A new `conformance.yml` job runs the official MCP conformance suite against the HTTP
   transport of the admin image.
 - `tests/run_all_tests.sh` gains `--edition developer|admin|both` (default `both`); the
@@ -531,7 +570,7 @@ gantt
 | Area | 2.x behaviour | 3.0 behaviour |
 |---|---|---|
 | MCP protocol | `2025-11-25` only, custom header middleware | `2026-07-28` negotiated, `2025-11-25` still served |
-| Default tool set | All 75 tools unless `SLIM_MODE` | Developer edition (41 tools); set `MCP_EDITION=admin` or use `-admin` tag for the full 69 |
+| Default tool set | All 75 tools unless `SLIM_MODE` | Developer edition (41 tools); set `MCP_EDITION=admin` or use `-admin` tag for the full 67 |
 | `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |
