@@ -278,8 +278,14 @@ flowchart LR
     `RegistryClient.check_compatibility()` at `schema_registry_common.py` L590-604 and by
     `core_registry_tools.check_compatibility_tool`) and `POST /subjects/{s}` without
     `/versions` (schema lookup). `GuardedSession` allowlists these two path shapes so the
-    viewer edition's compatibility tools keep working against VIEWONLY registries. Everything
-    else that is POST, PUT or DELETE is a mutation.
+    viewer edition's compatibility tools keep working against VIEWONLY registries. Matching
+    is done on a normalised path: strip the registry base URL (`self.config.url`, which may
+    itself carry a path prefix) and an optional `/contexts/{ctx}` prefix, because
+    `RegistryClient.build_context_url()` (`schema_registry_common.py` L352-363) rewrites
+    `check_compatibility(context="production")` to
+    `/contexts/production/compatibility/subjects/{s}/versions/latest`. Everything else that
+    is POST, PUT or DELETE is a mutation. The regression tests cover the default context,
+    `.` and a named context for both allowlisted shapes.
   - Only after `GuardedSession` is in place and tested are the inline
     `check_viewonly_mode(...)` calls removed.
   - Tests assert both layers: the middleware test is generated from the catalog for every
@@ -410,9 +416,12 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   `fail` when `autoscaling.enabled` is true or `replicaCount` is greater than 1, forces
   `strategy.type: Recreate` so a rollout never has two pods, and the NOTES explain why. The
   default `values.yaml` switches to `tasks.backend: redis` with the bundled Valkey so the
-  shipped autoscaling defaults remain valid.
-  Verify `tasks/get` polling, unsolicited task handles, and encrypted task snapshots; drop any
-  code relying on `tasks/list` or blocking `tasks/result`.
+  shipped autoscaling defaults remain valid. All of this lands in **M1**, together with the
+  `TasksExtension` registration: the alpha is the first release that both uses
+  `fastmcp-tasks` and runs the chart's 2+ pod default, and sharing `REQUEST_STATE_KEY` shares
+  round-trip state, not task records. Verify `tasks/get` polling, unsolicited task handles,
+  and encrypted task snapshots; drop any code relying on `tasks/list` or blocking
+  `tasks/result`.
 - **Prompts.** Register the ten generators in `mcp_prompts.PROMPT_REGISTRY` with
   `@mcp.prompt`, filtered by edition. Add argument completion for prompt arguments and for the
   `{name}`, `{context}` and `{subject}` placeholders in resource templates (completions come
@@ -511,6 +520,10 @@ gantt
 
 - FastMCP 4 / SDK 2 / `fastmcp-tasks` pins; fix import and snake_case breakages;
   `mcp.add_extension(TasksExtension())` at startup.
+- Task storage before the first multi-pod release: Helm `tasks.backend: memory|redis`
+  (default `redis` with bundled Valkey or external URL); `memory` fails the render when
+  autoscaling is enabled or `replicaCount > 1` and forces `Recreate`. M1 exit includes a
+  two-pod check that a task started via pod A can be polled and cancelled via pod B.
 - Delete the protocol middleware; verify `server/discover` and legacy `initialize` both work.
 - Port the six `*_interactive` tools to `InputRequiredResult`; rewrite `bulk_operations_wizard`
   off the home-grown elicitation manager; port `guided_schema_evolution` as the first multi-step
@@ -541,8 +554,6 @@ gantt
   `get_bulk_operation_status` / `cancel_bulk_operation` stubs; rename the two `_tool`-suffixed
   tools; remove `set_default_registry`, `workflow_status`, `get_workflow_status`,
   `list_available_workflows`, `abort_workflow`.
-- `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`, default `redis` with
-  bundled Valkey); `memory` fails the render when autoscaling is enabled or `replicaCount > 1`.
 - Docker tag matrix in `publish.yml`, `ARG`/`ENV MCP_EDITION_DEFAULT` per tag, Helm `edition`
   value, edition config examples (editor example sets `VIEWONLY` on production registries).
 - Edition resolution order (section 2.1) with the alias test covering
@@ -617,7 +628,9 @@ gantt
   upstream AS metadata, CIMD), `tests/test_oauth*.py`,
   `tests/test_bulk_operations_wizard.py`, `remote-mcp-server.py` (`RequestStateSecurity`),
   `helm/templates/secret.yaml` (`requestStateKey`), `helm/templates/deployment.yaml`
-  (`REQUEST_STATE_KEY` env).
+  (`REQUEST_STATE_KEY` env, `Recreate` strategy for `memory`), `helm/values.yaml`
+  (`tasks.backend`), `helm/templates/hpa.yaml`, `helm/templates/_helpers.tpl` (single-pod
+  `fail` guard), `helm/templates/valkey.yaml` (new, optional), `helm/templates/NOTES.txt`.
 
 **M2**
 
@@ -628,11 +641,9 @@ gantt
   `batch_operations.py`, `migration_tools.py`, `bulk_operations_mcp_integration.py`,
   `workflow_mcp_integration.py` (remove instance-inspection tools and `abort_workflow`),
   `Dockerfile` (`ARG`/`ENV MCP_EDITION_DEFAULT`), `.github/workflows/publish.yml`,
-  `.github/workflows/tag-stable.yml`, `helm/values.yaml` (`edition`, `tasks.backend`),
+  `.github/workflows/tag-stable.yml`, `helm/values.yaml` (`edition`),
   `helm/values-remote-mcp.yaml`, `helm/templates/configmap.yaml`,
-  `helm/templates/deployment.yaml` (`Recreate` strategy for `memory`), `helm/templates/hpa.yaml`,
-  `helm/templates/_helpers.tpl` (single-pod `fail` guard), `helm/templates/valkey.yaml` (new, optional),
-  `helm/templates/NOTES.txt`, `helm/examples/*.yaml`,
+  `helm/templates/deployment.yaml`, `helm/templates/NOTES.txt`, `helm/examples/*.yaml`,
   `config-examples/claude_desktop_viewer_config.json` (new, replaces
   `claude_desktop_viewonly_config.json`), `config-examples/claude_desktop_editor_config.json`
   (new),
