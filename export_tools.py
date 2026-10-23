@@ -12,6 +12,7 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 import json
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from _version import __version__
 from resource_linking import add_links_to_response
 from schema_registry_common import export_context as common_export_context
 from schema_registry_common import export_global as common_export_global
@@ -335,7 +336,7 @@ async def export_context_tool(
                     "exported_at": datetime.now().isoformat(),
                     "registry_url": client.config.url,
                     "registry_name": client.config.name,
-                    "export_version": "2.0.0",
+                    "export_version": __version__,
                     "registry_mode": "multi",
                 }
 
@@ -532,7 +533,7 @@ async def export_global_tool(
                     "exported_at": datetime.now().isoformat(),
                     "registry_url": client.config.url,
                     "registry_name": client.config.name,
-                    "export_version": "2.0.0",
+                    "export_version": __version__,
                     "registry_mode": "multi",
                     "total_contexts": len(contexts_data),
                     "total_subjects": sum(len(ctx.get("subjects", [])) for ctx in contexts_data),

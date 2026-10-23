@@ -2,7 +2,7 @@
 """
 MCP-Protocol-Version Header Validation Compliance Tests
 
-Tests for MCP 2025-06-18 specification compliance in the
+Tests for MCP 2025-11-25 specification compliance in the
 Kafka Schema Registry MCP Server.
 
 Tests cover:
@@ -26,7 +26,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 def run_basic_compliance_tests():
     """Run basic MCP compliance tests."""
-    print("🧪 Running MCP 2025-06-18 Compliance Tests")
+    print("🧪 Running MCP 2025-11-25 Compliance Tests")
     print("=" * 60)
 
     try:
@@ -137,8 +137,8 @@ class MCPComplianceTestSuite(unittest.TestCase):
                 SUPPORTED_MCP_VERSIONS,
             )
 
-            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-06-18")
-            self.assertIn("2025-06-18", SUPPORTED_MCP_VERSIONS)
+            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-11-25")
+            self.assertIn("2025-11-25", SUPPORTED_MCP_VERSIONS)
         except ImportError:
             self.fail("MCP constants not available")
 
@@ -171,7 +171,7 @@ class MCPComplianceTestSuite(unittest.TestCase):
             self.assertIn("protocol_version", status)
             self.assertIn("header_validation_enabled", status)
             self.assertIn("compliance_status", status)
-            self.assertEqual(status["protocol_version"], "2025-06-18")
+            self.assertEqual(status["protocol_version"], "2025-11-25")
 
             # Accept either True (middleware enabled) or False (compatibility mode)
             # Both are valid for testing environments
@@ -192,11 +192,11 @@ class MCPComplianceTestSuite(unittest.TestCase):
             )
 
             # Verify protocol version
-            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-06-18")
+            self.assertEqual(MCP_PROTOCOL_VERSION, "2025-11-25")
 
             # Verify supported versions list
             self.assertIsInstance(SUPPORTED_MCP_VERSIONS, list)
-            self.assertIn("2025-06-18", SUPPORTED_MCP_VERSIONS)
+            self.assertIn("2025-11-25", SUPPORTED_MCP_VERSIONS)
 
             # Verify exempt paths
             self.assertIsInstance(EXEMPT_PATHS, list)
@@ -212,7 +212,7 @@ def main():
     """Main test execution."""
     print("🚀 MCP Compliance Test Suite")
     print("   For Kafka Schema Registry MCP Server")
-    print("   MCP 2025-06-18 Specification Compliance")
+    print("   MCP 2025-11-25 Specification Compliance")
     print("")
 
     # Run the compliance tests

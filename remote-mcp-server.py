@@ -39,6 +39,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+from _version import __version__
+
 # Import the unified MCP server
 from kafka_schema_registry_unified_mcp import (
     MCP_PROTOCOL_VERSION,
@@ -822,7 +824,7 @@ async def oauth_authorization_server_metadata(request):
                 "client_secret_post",
             ],
             # MCP-specific extensions
-            "mcp_server_version": "2.0.0",
+            "mcp_server_version": __version__,
             "mcp_protocol_version": MCP_PROTOCOL_VERSION,
             "mcp_transport": "streamable-http",  # Only supported transport
             "mcp_endpoints": {
@@ -964,7 +966,7 @@ async def oauth_protected_resource_metadata(request):
             # MCP-specific resource information
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
-                "version": "2.0.0",
+                "version": __version__,
                 "protocol_version": MCP_PROTOCOL_VERSION,
                 "transport": "streamable-http",  # Only supported transport
                 "tools_count": 70,

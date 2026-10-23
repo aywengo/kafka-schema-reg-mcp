@@ -16,6 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Align current-facing docs and README with FastMCP 3.2.0+ (3.x, capped below 4) and MCP 2025-11-25 (no longer advertise FastMCP 2.8 / MCP 2025-06-18 as current).
 - FastMCP 3.4 compatibility: replace removed `BearerAuthProvider` with `JWTVerifier`, prefer `list_tools()`, and pass host/port/path into `mcp.run()` ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177) Phase 1).
 
+## [2.3.0] - 2026-10-23
+
+Preparation release for v3.0. No behaviour change.
+
+### Added
+
+- Single version source: `_version.py`, consumed by the package build, `ping`, the compliance tool, resource handlers, `remote-mcp-server.py`, HTTP `User-Agent` strings and export metadata. `pyproject.toml` now takes its version from that file.
+- README and CHANGELOG announce the v3.0 `viewer` / `editor` / `admin` editions.
+- Startup deprecation notices for the features removed or renamed in 3.0.0.
+
+### Deprecated
+
+- `SLIM_MODE` (becomes an alias for `MCP_EDITION=editor` in 3.0.0, removed in 4.0.0).
+- `READONLY`, `READONLY_{n}` and the `readonly` JSON key (use `VIEWONLY`).
+- The five elicitation fallback tools: `submit_elicitation_response`, `list_elicitation_requests`, `get_elicitation_request`, `get_elicitation_status`, `cancel_elicitation_request`.
+- `set_default_registry`, `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow`.
+- `get_mcp_compliance_status_tool` and `get_oauth_scopes_info_tool` (the `_tool` suffix is dropped in 3.0.0).
+
+### Changed
+
+- Helm chart and image tag bumped to `2.3.0`; `helm/Chart.yaml` `appVersion` now matches the application version.
+
 ## [2.2.2] - 2026-08-22
 
 ### Security

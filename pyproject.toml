@@ -1,6 +1,6 @@
 [project]
 name = "kafka-schema-registry-mcp"
-version = "2.2.2"
+dynamic = ["version"]
 description = "A Model Context Protocol (MCP) server for Kafka Schema Registry - enables AI assistants to interact with Kafka schemas through a standardized interface"
 authors = [
     {name = "Kafka Schema Registry MCP Team", email = ""},
@@ -43,8 +43,12 @@ Issues = "https://github.com/aywengo/kafka-schema-reg-mcp/issues"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "_version.py"
+
 [tool.hatch.build]
 include = [
+    "_version.py",
     "oauth_provider.py",
     "schema_registry_common.py",
     "core_registry_tools.py",

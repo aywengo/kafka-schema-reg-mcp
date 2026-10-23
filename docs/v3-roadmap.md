@@ -17,6 +17,33 @@ The release also settles accumulated debt that blocks both themes: scattered ver
 prompts that are defined but never exposed, resource URIs without handlers, and VIEWONLY
 enforcement with gaps.
 
+## Status
+
+| Milestone | Status | Issue |
+|---|---|---|
+| M0 prep, deprecations, single version source (`2.3.0`) | ✅ complete | [#186](https://github.com/aywengo/kafka-schema-reg-mcp/issues/186) |
+| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | ⬜ not started | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
+| M2 editions and tool catalog (`3.0.0-beta.1`) | ⬜ not started | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
+| M3 workflows and resources (`3.0.0-rc.1`) | ⬜ not started | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
+| M4 docs and release (`3.0.0`) | ⬜ not started | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
+
+Umbrella tracker: [#191](https://github.com/aywengo/kafka-schema-reg-mcp/issues/191).
+
+### M0 completion notes
+
+- Single version source: `_version.py`; `pyproject.toml` uses `dynamic = ["version"]` with
+  `[tool.hatch.version] path = "_version.py"`.
+- Version consumed by `ping`, the compliance tool, `registry://info`, `remote-mcp-server.py`,
+  the HTTP `User-Agent` strings and export metadata.
+- Helm chart/appVersion/tag bumped to `2.3.0`.
+- Startup deprecation notices added for `SLIM_MODE`, `READONLY*`, the five elicitation
+  fallback tools, `set_default_registry`, the four workflow instance tools and the two
+  `_tool`-suffixed names.
+- Baseline test triage: `tests/test_mcp_compliance.py` now asserts `2025-11-25`;
+  `tests/pytest.ini` uses `asyncio_mode = auto`; prompt structure tests aligned with the
+  shipped prompts.
+- `2.3.0` built and tagged locally. Image/chart publication is the external release step.
+
 ---
 
 ## 1. Goals and non-goals
@@ -506,6 +533,8 @@ gantt
 ```
 
 ### M0 - Prep, ships as `2.3.0` (2 weeks)
+
+**Status: complete.** See the status table at the top of this document.
 
 - Deprecation warnings at startup for `READONLY*`, `SLIM_MODE`, the five `*_elicitation_*`
   tools, `set_default_registry`, `workflow_status`, `get_workflow_status`,

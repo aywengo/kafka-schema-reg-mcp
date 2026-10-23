@@ -40,6 +40,8 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 from dotenv import load_dotenv
 
+from _version import __version__
+
 # Load environment variables
 load_dotenv()
 
@@ -301,7 +303,7 @@ class OAuth21TokenValidator:
                 timeout=timeout,
                 connector=connector,
                 headers={
-                    "User-Agent": "KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)",
+                    "User-Agent": f"KafkaSchemaRegistryMCP-OAuth/{__version__} (Security Enhanced)",
                     "Connection": "close",  # Don't keep connections alive unnecessarily
                 },
             )

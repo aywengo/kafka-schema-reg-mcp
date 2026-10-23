@@ -26,6 +26,8 @@ import urllib3
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
+from _version import __version__
+
 # Environment variables for single registry mode (backward compatibility)
 SINGLE_REGISTRY_URL = os.getenv("SCHEMA_REGISTRY_URL", "")
 SINGLE_REGISTRY_USER = os.getenv("SCHEMA_REGISTRY_USER", "")
@@ -309,7 +311,7 @@ class RegistryClient:
         # Add security headers
         session.headers.update(
             {
-                "User-Agent": "KafkaSchemaRegistryMCP/2.0.0 (Security Enhanced)",
+                "User-Agent": f"KafkaSchemaRegistryMCP/{__version__} (Security Enhanced)",
                 "Connection": "close",  # Don't keep connections alive unnecessarily
             }
         )

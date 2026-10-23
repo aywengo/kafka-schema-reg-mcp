@@ -24,10 +24,12 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 
 > **🎯 True MCP Implementation**: Uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v2.2.2](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v2.3.0](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
+
+> **🔭 v3.0 editions (preview).** v3.0 splits the server into three runtime profiles: `viewer` (read-only: browse, export, compare, compatibility), `editor` (viewer + schema registration and evolution) and `admin` (full access: configuration, deletion, migration, bulk operations, disaster recovery). Plain `:latest` / `:stable` images become `viewer`; `-editor` and `-admin` image tags and the Helm `edition` value opt into more. `SLIM_MODE` becomes a deprecated alias for `editor`. See [docs/v3-roadmap.md](docs/v3-roadmap.md).
 
 ## 📋 Table of Contents
 
@@ -86,8 +88,8 @@ Restart Claude Desktop and try these prompts:
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
-- **🧪 Full MCP Compliance** - 50+ tools following MCP 2025-11-25 specification
-- **🚀 SLIM_MODE** - Reduce tool overhead from 50+ to ~9 essential tools for better LLM performance
+- **🧪 Full MCP Compliance** - 75 tools following MCP 2025-11-25 specification
+- **🚀 SLIM_MODE** - Reduce tool overhead from 75 to ~28 essential tools for better LLM performance
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -220,6 +222,8 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 ### SLIM_MODE Configuration (Performance Optimization)
 
+> **⚠️ Deprecated:** `SLIM_MODE` will become an alias for the v3.0 `editor` edition and will be removed in 4.0.0. New deployments should plan for `MCP_EDITION`.
+
 **SLIM_MODE** reduces the number of exposed MCP tools to an essential subset, significantly reducing LLM overhead and improving response times.
 
 > **💡 Recommendation:** SLIM_MODE is **recommended for most use cases** as it provides all essential schema management capabilities with optimal performance.
@@ -242,7 +246,7 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 #### Enable SLIM_MODE
 ```bash
-export SLIM_MODE="true"  # Reduces tools from 50+ to ~9
+export SLIM_MODE="true"  # Reduces tools from 75 to ~28
 # Enables reduced essential tool set
 ```
 

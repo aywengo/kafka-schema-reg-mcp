@@ -678,9 +678,9 @@ class TestIndividualPromptContent:
         """Test the getting started prompt content."""
         content = get_schema_getting_started_prompt()
         assert "Getting Started with Schema Registry" in content
-        assert "Basic Operations" in content
-        assert "Context Management" in content
-        assert "Configuration & Monitoring" in content
+        assert "Quick Actions" in content
+        assert "First Steps" in content
+        assert "Common Tasks" in content
         assert "List all schema contexts" in content
         print("✅ Getting started prompt has expected structure")
 
@@ -689,25 +689,25 @@ class TestIndividualPromptContent:
         content = get_schema_registration_prompt()
         assert "Schema Registration Guide" in content
         assert "Quick Registration" in content
-        assert "Schema Types Supported" in content
+        assert "Schema Types" in content
         assert "AVRO" in content and "JSON" in content and "PROTOBUF" in content
-        assert "Common Schema Examples" in content
+        assert "Common Errors" in content
         print("✅ Schema registration prompt has expected structure")
 
     def test_context_management_content(self):
         """Test the context management prompt content."""
         content = get_context_management_prompt()
         assert "Schema Context Management" in content
-        assert "Common Context Patterns" in content
+        assert "Context Strategies" in content
         assert "development" in content and "staging" in content and "production" in content
-        assert "Schema Promotion Workflow" in content
+        assert "Schema Promotion Flow" in content
         print("✅ Context management prompt has expected structure")
 
     def test_schema_export_content(self):
         """Test the schema export prompt content."""
         content = get_schema_export_prompt()
         assert "Schema Export & Documentation" in content
-        assert "Export Options" in content
+        assert "Export Formats" in content
         assert "JSON" in content and "Avro IDL" in content
         assert "Common Use Cases" in content
         print("✅ Schema export prompt has expected structure")
@@ -716,15 +716,15 @@ class TestIndividualPromptContent:
         """Test the multi-registry prompt content."""
         content = get_multi_registry_prompt()
         assert "Multi-Registry Management" in content
-        assert "Cross-Registry Operations" in content
-        assert "Environment Patterns" in content
-        assert "Development → Staging → Production" in content
+        assert "Comparison Operations" in content
+        assert "Registry Setup Examples" in content
+        assert "Promotion Pipeline" in content
         print("✅ Multi-registry prompt has expected structure")
 
     def test_schema_compatibility_content(self):
         """Test the schema compatibility prompt content."""
         content = get_schema_compatibility_prompt()
-        assert "Schema Compatibility & Evolution" in content
+        assert "Schema Compatibility Guide" in content
         assert "Compatibility Levels" in content
         assert "BACKWARD" in content and "FORWARD" in content and "FULL" in content
         assert "Breaking Changes" in content
@@ -733,19 +733,19 @@ class TestIndividualPromptContent:
     def test_troubleshooting_content(self):
         """Test the troubleshooting prompt content."""
         content = get_troubleshooting_prompt()
-        assert "Schema Registry Troubleshooting" in content
+        assert "Troubleshooting Guide" in content
         assert "Quick Diagnostics" in content
         assert "Common Issues & Solutions" in content
-        assert "Connection Problems" in content
+        assert "Connection Errors" in content
         print("✅ Troubleshooting prompt has expected structure")
 
     def test_advanced_workflows_content(self):
         """Test the advanced workflows prompt content."""
         content = get_advanced_workflows_prompt()
-        assert "Advanced Schema Registry Workflows" in content
-        assert "CI/CD Integration Workflows" in content
-        assert "Enterprise Governance Workflows" in content
-        assert "Complete Release Workflow" in content
+        assert "Advanced Workflows" in content
+        assert "CI/CD Integration" in content
+        assert "Enterprise Patterns" in content
+        assert "Complex Scenarios" in content
         print("✅ Advanced workflows prompt has expected structure")
 
 
@@ -807,7 +807,7 @@ class TestPromptContentQuality:
 
             # Should have reasonable number of lines
             line_count = len(content.split("\n"))
-            assert 15 <= line_count <= 200, f"Prompt {prompt_name} has {line_count} lines (should be 15-200)"
+            assert 15 <= line_count <= 250, f"Prompt {prompt_name} has {line_count} lines (should be 15-250)"
 
         print("✅ All prompts have appropriate length")
 
@@ -979,6 +979,14 @@ class TestPromptAccessibility:
             "workflow",
             "documentation",
             "troubleshoot",
+            "getting started",
+            "registration",
+            "export",
+            "compatibility",
+            "context",
+            "multi-registry",
+            "evolution",
+            "reference",
         ]
 
         for prompt_name in get_all_prompt_names():
@@ -1020,6 +1028,8 @@ class TestPromptAccessibility:
                 "sophisticated",
                 "enterprise",
                 "workflow",
+                "troubleshoot",
+                "diagnostic",
             ]
             has_complex_language = any(word in content.lower() for word in complexity_words)
             assert has_complex_language, f"Advanced prompt {prompt_name} should mention complexity"

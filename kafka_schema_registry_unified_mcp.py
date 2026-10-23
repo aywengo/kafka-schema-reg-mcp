@@ -69,6 +69,8 @@ from fastmcp import FastMCP
 from fastmcp.dependencies import Progress
 from fastmcp.server.context import Context
 
+from _version import __version__
+
 # Local imports
 from batch_operations import (
     clear_context_batch_tool,
@@ -173,6 +175,48 @@ load_dotenv()
 
 # SLIM MODE Configuration
 SLIM_MODE = os.getenv("SLIM_MODE", "false").lower() == "true"
+
+# Deprecations scheduled for removal or rename in 3.0.0.
+DEPRECATED_TOOL_NAMES = (
+    "submit_elicitation_response",
+    "list_elicitation_requests",
+    "get_elicitation_request",
+    "get_elicitation_status",
+    "cancel_elicitation_request",
+    "set_default_registry",
+    "workflow_status",
+    "get_workflow_status",
+    "list_available_workflows",
+    "abort_workflow",
+)
+DEPRECATED_TOOL_RENAMES = {
+    "get_mcp_compliance_status_tool": "get_mcp_compliance_status",
+    "get_oauth_scopes_info_tool": "get_oauth_scopes_info",
+}
+
+
+def log_deprecation_notices() -> None:
+    """Log the 3.0.0 deprecations once at server startup."""
+    if SLIM_MODE:
+        logger.warning(
+            "DEPRECATED: SLIM_MODE is deprecated and will be removed in 4.0.0. "
+            "In 3.0.0 it becomes an alias for MCP_EDITION=editor."
+        )
+    if os.getenv("READONLY") is not None or any(os.getenv(f"READONLY_{i}") is not None for i in range(1, 10)):
+        logger.warning(
+            "DEPRECATED: READONLY / READONLY_{n} are deprecated and will be removed in 3.0.0. "
+            "Use VIEWONLY / VIEWONLY_{n} instead."
+        )
+    if not SLIM_MODE:
+        logger.warning(
+            "DEPRECATED: these tools will be removed in 3.0.0: %s",
+            ", ".join(DEPRECATED_TOOL_NAMES),
+        )
+    logger.warning(
+        "DEPRECATED: these tools will be renamed in 3.0.0: %s",
+        ", ".join(f"{old} -> {new}" for old, new in DEPRECATED_TOOL_RENAMES.items()),
+    )
+
 
 # Store original urllib opener
 _original_opener = urllib.request.build_opener()
@@ -587,7 +631,7 @@ def ping():
     return {
         "response": "pong",
         "server_name": "Kafka Schema Registry Unified MCP Server",
-        "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
+        "server_version": __version__,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "protocol_version": MCP_PROTOCOL_VERSION,
         "registry_mode": REGISTRY_MODE,
@@ -2378,7 +2422,7 @@ def _internal_get_mcp_compliance_status():
             "last_verified": datetime.now(timezone.utc).isoformat(),
             "server_info": {
                 "name": "Kafka Schema Registry Unified MCP Server",
-                "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
+                "version": __version__,
                 "architecture": "modular",
                 "registry_mode": REGISTRY_MODE,
                 "slim_mode": SLIM_MODE,
@@ -3018,7 +3062,7 @@ def registry_info_resource():
             "registries": all_registries,
             "server_info": {
                 "name": "Kafka Schema Registry Unified MCP Server",
-                "version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
+                "version": __version__,
                 "registry_mode": REGISTRY_MODE,
                 "slim_mode": SLIM_MODE,
                 "mcp_protocol_version": MCP_PROTOCOL_VERSION,
@@ -3723,6 +3767,8 @@ if __name__ == "__main__":
     # Print startup banner to stderr to avoid interfering with MCP JSON protocol on stdout
     import sys
 
+    log_deprecation_notices()
+
     # Check header validation status for startup message
     header_validation_status = "ENABLED"
     try:
@@ -3744,6 +3790,7 @@ if __name__ == "__main__":
     print(
         f"""
 🚀 Kafka Schema Registry Unified MCP Server Starting (Modular + Elicitation + Ping)
+🏷️  Version: {__version__}
 📡 Mode: {REGISTRY_MODE.upper()}
 🚦 SLIM_MODE: {"ENABLED" if SLIM_MODE else "DISABLED"} - {features_status}
 🔧 Registries: {len(registry_manager.list_registries())}
