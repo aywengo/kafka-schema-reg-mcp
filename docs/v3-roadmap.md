@@ -242,16 +242,33 @@ flowchart LR
     (including defaults) to a registry, and rejects the call before any work if one of them is
     VIEWONLY. This replaces the ten hand-written `check_viewonly_mode(...)` calls in
     `core_registry_tools.py`.
-  - *Definitive check (cannot be bypassed).* `RegistryClient` gains a single write path
-    (`_write(method, path, ...)`) through which the seven current `session.post/put/delete`
-    call sites in `schema_registry_common.py` are routed. It raises `ViewOnlyError` when
-    `self.config.viewonly` is set. Because every mutation, whatever tool or workflow step
-    triggered it and however the destination was chosen, ends in this method, elicited and
-    resumed destinations are covered without each wizard step having to remember to check.
-    Dry-run paths never reach `_write`.
+  - *Definitive check (cannot be bypassed).* Direct registry writes are not confined to
+    `schema_registry_common.py`: as of `2.2.2` there are 7 `session.post/put/delete` sites
+    there, about 24 in `core_registry_tools.py`, 4 in `migration_tools.py`
+    (`target_client.session.post/put`, L559-836), 1 in `batch_operations.py` (L320) and one
+    `aiohttp` delete in `core_registry_tools.py` (L1779). A guard that only covers the common
+    module would be bypassed by most of them. The boundary is therefore placed where all of
+    them already pass: `RegistryClient.session` becomes a `GuardedSession` proxy whose
+    `post`, `put` and `delete` consult `self.config.viewonly` and raise `ViewOnlyError`, while
+    `get` passes through. The `aiohttp` path is replaced by the same client. An explicit
+    `_write(method, path, ...)` helper is added and new code uses it, but correctness does not
+    depend on call sites being migrated.
+  - *Mutation semantics, not HTTP verb.* Schema Registry uses POST for two read operations:
+    `POST /compatibility/subjects/{s}/versions/{v}` (compatibility check, used by
+    `RegistryClient.check_compatibility()` at `schema_registry_common.py` L590-604 and by
+    `core_registry_tools.check_compatibility_tool`) and `POST /subjects/{s}` without
+    `/versions` (schema lookup). `GuardedSession` allowlists these two path shapes so the
+    viewer edition's compatibility tools keep working against VIEWONLY registries. Everything
+    else that is POST, PUT or DELETE is a mutation.
+  - Only after `GuardedSession` is in place and tested are the inline
+    `check_viewonly_mode(...)` calls removed.
   - Tests assert both layers: the middleware test is generated from the catalog for every
-    `mutates=True` tool, and a client-level test registers to a VIEWONLY target through the
-    wizard and through `migrate_schema` with an explicit `target_registry`.
+    `mutates=True` tool; a client-level test registers to a VIEWONLY target through the
+    wizard and through `migrate_schema` with an explicit `target_registry`; a regression test
+    runs `check_compatibility` and `check_compatibility_interactive` against a VIEWONLY
+    registry and expects success; and a static test fails if any module other than
+    `schema_registry_common.py` constructs a `requests.Session` or `aiohttp.ClientSession`
+    against a registry URL.
 
   `READONLY`, `READONLY_{n}`, the `readonly` JSON key, `is_readonly()` and
   `check_readonly_mode()` (all deprecated since 2.x) are removed.
@@ -277,7 +294,8 @@ MCP `2026-07-28` (stable 2026-07-28) relative to `2025-11-25`:
   per request via `_meta`.
 - **Deprecated, not removed** (kept for at least 12 months): Roots, Sampling, Logging,
   HTTP+SSE transport, and OAuth Dynamic Client Registration (in favour of Client ID Metadata
-  Documents). Authorization adds `iss` validation (RFC 9207).
+  Documents). Authorization hardening includes RFC 9207 `iss` in authorization responses (a
+  client-side check; see section 3.3).
 - Tasks move to the `io.modelcontextprotocol/tasks` extension (`tasks/get` polling,
   `tasks/update` for client input, unsolicited task handles).
 - Resource-not-found error code changes from `-32002` to `-32602`.
@@ -351,7 +369,14 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   via `fastmcp-tasks`. Its Docket engine defaults to an in-memory backend; under the stateless
   protocol a `tasks/get` poll can land on any replica, so multi-replica deployments need Redis or
   Valkey. Helm gets a `tasks.backend: memory|redis` value with an optional bundled Valkey or an
-  external URL; with `memory` the chart caps `replicaCount` at 1 and the NOTES explain why.
+  external URL. With `memory` the chart must guarantee a single pod, and `replicaCount` alone
+  does not do that: the chart ships with `autoscaling.enabled: true`, `minReplicas: 2`
+  (`helm/values.yaml` L157-160) and `deployment.yaml` omits `replicas` entirely when
+  autoscaling is on (L10-11). So with `tasks.backend: memory` the chart uses a template
+  `fail` when `autoscaling.enabled` is true or `replicaCount` is greater than 1, forces
+  `strategy.type: Recreate` so a rollout never has two pods, and the NOTES explain why. The
+  default `values.yaml` switches to `tasks.backend: redis` with the bundled Valkey so the
+  shipped autoscaling defaults remain valid.
   Verify `tasks/get` polling, unsolicited task handles, and encrypted task snapshots; drop any
   code relying on `tasks/list` or blocking `tasks/result`.
 - **Prompts.** Register the nine generators in `mcp_prompts.PROMPT_REGISTRY` with
@@ -369,10 +394,22 @@ state sealed by `FastMCP(request_state_security=RequestStateSecurity(...))` and 
   `notifications/message` for requests that did not ask for it.
 - **Error codes.** Resource handlers and `tests/test_registry_specific_resources.py` currently
   assume `-32002` for resource-not-found; move to `-32602` and let the SDK map the exception.
-- **Authorization.** Add `iss` validation (RFC 9207) to `oauth_provider.py` token verification
-  and to `test_oauth_discovery_endpoints`. Dynamic Client Registration is deprecated in favour
-  of Client ID Metadata Documents (CIMD); FastMCP 4 supports CIMD, so advertise it in the
-  `.well-known` metadata in M1 and keep DCR working through 3.x.
+- **Authorization.** Two separate items that are easy to conflate:
+  - *JWT issuer verification (resource-server side).* Already implemented:
+    `oauth_provider.py` L556-566 decodes with `issuer=AUTH_ISSUER_URL` and
+    `verify_iss: True`. M1 re-verifies it survives the move to FastMCP 4's `JWTVerifier`
+    (issuer and audience pinned, EdDSA/RS256 as configured) and keeps the existing tests.
+  - *RFC 9207 (`iss` in the authorization response).* This is mix-up protection performed by
+    the OAuth **client** when it receives the authorization code, so it is the MCP host's job
+    (Claude Desktop, Cursor, FastMCP `Client`), not this server's. The server's only part is
+    metadata honesty: `remote-mcp-server.py` currently synthesises
+    `/.well-known/oauth-authorization-server` (L780-795). In 3.0 it must mirror the upstream
+    authorization server's document, including its
+    `authorization_response_iss_parameter_supported` value, rather than inventing one.
+    `test_oauth_discovery_endpoints` checks that mirrored fields match upstream.
+  - *Client registration.* Dynamic Client Registration is deprecated in favour of Client ID
+    Metadata Documents (CIMD); FastMCP 4 supports CIMD, so advertise it in the `.well-known`
+    metadata in M1 and keep DCR working through 3.x.
 - **Deferred.** Identity assertion (SEP-990, beta in FastMCP 4) and client-credentials auth are
   3.1 candidates once the OAuth provider tests exist for them.
 
@@ -440,7 +477,8 @@ gantt
   workflow (editor pilot) with state in `request_state`.
 - Configure `RequestStateSecurity`; wire `REQUEST_STATE_KEY`.
 - Register prompts with `@mcp.prompt`.
-- Resource-not-found error code `-32602`; `iss` validation; advertise CIMD.
+- Resource-not-found error code `-32602`; re-verify JWT issuer checks under `JWTVerifier`;
+  mirror upstream AS metadata; advertise CIMD.
 - MCP conformance suite green for both protocol eras; `tests/test_fastmcp3_compat.py` replaced
   by `tests/test_fastmcp4_compat.py`.
 - Exit: alpha image published, all `tests/run_all_tests.sh --quick` categories pass.
@@ -450,14 +488,15 @@ gantt
 - `edition.py`, `tool_catalog.py`, catalog-driven registration; remove the 41
   `if not SLIM_MODE` blocks.
 - Centralised VIEWONLY enforcement at both layers (catalog middleware with `write_targets`,
-  `RegistryClient._write`); remove `READONLY*`.
+  `GuardedSession` with read-semantic POST allowlist, static no-raw-session test); then remove
+  inline `check_viewonly_mode` calls and `READONLY*`.
 - Native FastMCP scope checks; regenerate `SCOPE_DEFINITIONS` from the catalog.
 - Register `migrate_schema_interactive` and `preview_bulk_operation`; delete the
   `get_bulk_operation_status` / `cancel_bulk_operation` stubs; rename the two `_tool`-suffixed
   tools; remove `set_default_registry`, `workflow_status`, `get_workflow_status`,
   `list_available_workflows`, `abort_workflow`.
-- `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`), replica cap for
-  `memory`.
+- `fastmcp-tasks` Redis/Valkey backend option in Helm (`tasks.backend`, default `redis` with
+  bundled Valkey); `memory` fails the render when autoscaling is enabled or `replicaCount > 1`.
 - Docker tag matrix in `publish.yml`, `ENV MCP_EDITION` build arg, Helm `edition` value, edition
   config examples (editor example sets `VIEWONLY` on production registries).
 - Exit: `tests/test_editions.py` snapshots match section 2.4 (38 viewer, 41 editor, 67 admin);
@@ -514,7 +553,8 @@ gantt
   literal), `mcp_prompts.py`, `tests/test_fastmcp4_compat.py` (new), `tests/test_mcp_compliance.py`,
   `tests/test_mcp_header_validation.py` (delete), `tests/test_elicitation*.py`,
   `tests/test_prompts.py`, `tests/test_registry_specific_resources.py` (error code),
-  `oauth_provider.py` (`iss` validation, CIMD metadata), `tests/test_oauth*.py`,
+  `oauth_provider.py` (`JWTVerifier` issuer/audience re-verification), `remote-mcp-server.py` (mirror
+  upstream AS metadata, CIMD), `tests/test_oauth*.py`,
   `tests/test_bulk_operations_wizard.py`.
 
 **M2**
@@ -528,7 +568,8 @@ gantt
   `Dockerfile` (`ARG MCP_EDITION`), `.github/workflows/publish.yml`,
   `.github/workflows/tag-stable.yml`, `helm/values.yaml` (`edition`, `tasks.backend`),
   `helm/values-remote-mcp.yaml`, `helm/templates/configmap.yaml`,
-  `helm/templates/deployment.yaml` (replica cap), `helm/templates/valkey.yaml` (new, optional),
+  `helm/templates/deployment.yaml` (`Recreate` strategy for `memory`), `helm/templates/hpa.yaml`,
+  `helm/templates/_helpers.tpl` (single-pod `fail` guard), `helm/templates/valkey.yaml` (new, optional),
   `helm/templates/NOTES.txt`, `helm/examples/*.yaml`,
   `config-examples/claude_desktop_viewer_config.json` (new, replaces
   `claude_desktop_viewonly_config.json`), `config-examples/claude_desktop_editor_config.json`
@@ -593,7 +634,7 @@ gantt
 | `fastmcp-tasks` behaviour differs from 3.x tasks | Medium | Medium | Port one task tool first (`count_schemas`), extend `tests/test_statistics_tasks.py` before touching migration |
 | Removing the elicitation fallback breaks `mock` test paths | Medium | Low | Replace with FastMCP in-memory client tests; delete mock-only tests |
 | Scope change for `delete_subject_alias` surprises existing tokens | Low | Low | Call out in Breaking Changes; `admin` already includes `write` |
-| `tasks/get` poll lands on a replica without the task (in-memory Docket backend) | High for multi-replica | High | Helm `tasks.backend: redis` with bundled Valkey or external URL; `memory` caps replicas at 1; documented in NOTES and deployment guide |
+| `tasks/get` poll lands on a replica without the task (in-memory Docket backend) | High for multi-replica | High | Helm `tasks.backend: redis` with bundled Valkey or external URL; `memory` fails the Helm render unless autoscaling is off and `replicaCount` is 1, and forces `Recreate`; documented in NOTES and deployment guide |
 | Bulk wizard rewrite (13 home-grown elicitation calls) overruns M1 | Medium | Medium | Start it in M1 week 1 alongside the httpx spike; if it slips, ship alpha.1 with the wizard admin-only and legacy-era only, finish in M2 |
 | Removing `set_default_registry` breaks clients that switch registries per session | Low | Medium | Deprecation warning in 2.3.0; all tools already accept an explicit `registry` argument |
 | `REQUEST_STATE_KEY` lost or rotated mid-workflow invalidates in-flight workflows | Low | Low | Key list rotation procedure (section 3.3); workflows are short and restartable |
@@ -607,8 +648,8 @@ gantt
 | `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |
-| Background task durability | Single process | `tasks.backend: memory` (1 replica) or `redis` (any replicas) |
-| OAuth client registration | DCR | DCR still works; CIMD advertised; `iss` validated |
+| Background task durability | Single process | `tasks.backend: memory` (single pod enforced by the chart) or `redis` (any replicas, chart default) |
+| OAuth client registration | DCR | DCR still works; CIMD advertised; AS metadata mirrored from upstream |
 | `SLIM_MODE=true` | Reduces to ~20 tools | Deprecated alias for `MCP_EDITION=editor`, warning |
 | `VIEWONLY` / `VIEWONLY_{n}` / `viewonly` | Supported | Supported, enforced centrally |
 | `READONLY*` / `readonly` | Deprecated with warning | Removed (startup error with hint) |
