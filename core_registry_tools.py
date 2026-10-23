@@ -1736,8 +1736,11 @@ async def delete_subject_tool(
 
             url = client.build_context_url(f"/subjects/{subject}", context)
 
-            # Add permanent parameter if specified
+            # Schema Registry requires a soft delete before a permanent delete.
             if permanent:
+                soft = client.session.delete(url, auth=client.auth, headers=client.headers)
+                if soft.status_code not in (200, 404):
+                    soft.raise_for_status()
                 url += "?permanent=true"
 
             response = client.session.delete(url, auth=client.auth, headers=client.headers)
@@ -1771,8 +1774,17 @@ async def delete_subject_tool(
 
             url = client.build_context_url(f"/subjects/{subject}", context)
 
-            # Add permanent parameter if specified
+            # Schema Registry requires a soft delete before a permanent delete.
             if permanent:
+                soft = await asyncio.to_thread(
+                    client.session.delete,
+                    url,
+                    headers=client.headers,
+                    auth=client.auth,
+                    timeout=30,
+                )
+                if soft.status_code not in (200, 404):
+                    soft.raise_for_status()
                 url += "?permanent=true"
 
             # Go through the guarded requests session so VIEWONLY is enforced.

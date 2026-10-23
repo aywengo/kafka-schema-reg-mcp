@@ -146,13 +146,14 @@ services:
       # Single registry mode (default for backward compatibility)
       - SCHEMA_REGISTRY_URL=http://schema-registry-dev:8081
       # Multi-registry mode configuration
-      - SCHEMA_REGISTRY_1_NAME=dev
-      - SCHEMA_REGISTRY_1_URL=http://schema-registry-dev:8081
-      - SCHEMA_REGISTRY_2_NAME=prod
-      - SCHEMA_REGISTRY_2_URL=http://schema-registry-prod:8082
+      - SCHEMA_REGISTRY_NAME_1=dev
+      - SCHEMA_REGISTRY_URL_1=http://schema-registry-dev:8081
+      - SCHEMA_REGISTRY_NAME_2=prod
+      - SCHEMA_REGISTRY_URL_2=http://schema-registry-prod:8082
       # MCP configuration
+      - MCP_EDITION=admin
       - MCP_SERVER_NAME=kafka-schema-registry
-      - MCP_SERVER_VERSION=1.0.0
+      - MCP_SERVER_VERSION=3.0.0
       - PYTHONUNBUFFERED=1
       # Allow localhost URLs for testing
       - ALLOW_LOCALHOST=true
