@@ -54,6 +54,7 @@ Features:
 
 # Standard library imports
 import base64
+import functools
 import json
 import logging
 import os
@@ -67,7 +68,10 @@ from typing import Any, Dict, Optional, Union
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.dependencies import Progress
+from fastmcp.exceptions import INVALID_PARAMS, MCPError
 from fastmcp.server.context import Context
+from fastmcp_tasks import TasksExtension
+from mcp.types.version import KNOWN_PROTOCOL_VERSIONS
 
 from _version import __version__
 
@@ -127,6 +131,7 @@ from interactive_tools import check_compatibility_interactive as check_compatibi
 from interactive_tools import create_context_interactive as create_context_interactive_impl
 from interactive_tools import export_global_interactive as export_global_interactive_impl
 from interactive_tools import migrate_context_interactive as migrate_context_interactive_impl
+from interactive_tools import migrate_schema_interactive as migrate_schema_interactive_impl
 from interactive_tools import register_schema_interactive as register_schema_interactive_impl
 from migration_tools import (
     migrate_context_tool,
@@ -138,6 +143,7 @@ from oauth_provider import (
     get_oauth_scopes_info,
     require_scopes,
 )
+from protocol_version import current_protocol_version
 from registry_management_tools import list_registries_tool  # Still needed for resource handlers
 from registry_management_tools import (
     get_registry_info_tool,
@@ -325,147 +331,23 @@ try:
 except ImportError:
     pass  # requests not available
 
-# MCP 2025-06-18 Protocol Version Support
-MCP_PROTOCOL_VERSION = "2025-11-25"
-SUPPORTED_MCP_VERSIONS = ["2025-11-25"]
-
-# Paths that are exempt from MCP-Protocol-Version header validation
-EXEMPT_PATHS = [
-    "/health",
-    "/metrics",
-    "/ready",
-    "/.well-known",  # This will match all paths starting with /.well-known
-]
-
-
-def is_exempt_path(path: str) -> bool:
-    """Check if a request path is exempt from MCP-Protocol-Version header validation."""
-    for exempt_path in EXEMPT_PATHS:
-        if path.startswith(exempt_path):
-            return True
-    return False
-
-
-async def validate_mcp_protocol_version_middleware(request, call_next):
-    """
-    Middleware to validate MCP-Protocol-Version header on all requests.
-
-    Per MCP 2025-06-18 specification, all HTTP requests after initialization
-    must include the MCP-Protocol-Version header.
-
-    Exempt paths: /health, /metrics, /ready, /.well-known/*
-    """
-    # Import FastAPI components only when needed to avoid dependency issues
-    try:
-        from fastapi.responses import JSONResponse
-    except ImportError:
-        # If FastAPI is not available, skip validation (for compatibility)
-        response = await call_next(request)
-        return response
-
-    # Handle different request types - some may not have a url attribute
-    try:
-        # Try to get the path from the request
-        if hasattr(request, "url") and hasattr(request.url, "path"):
-            path = request.url.path
-        elif hasattr(request, "path"):
-            path = request.path
-        else:
-            # If we can't determine the path, skip validation
-            response = await call_next(request)
-            return response
-    except AttributeError:
-        # If request doesn't have expected attributes, skip validation
-        response = await call_next(request)
-        return response
-
-    # Skip validation for exempt paths
-    if is_exempt_path(path):
-        response = await call_next(request)
-        # Still add the header to exempt responses for consistency
-        if hasattr(response, "headers"):
-            response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
-        return response
-
-    # Check for MCP-Protocol-Version header
-    try:
-        if hasattr(request, "headers"):
-            protocol_version = request.headers.get("MCP-Protocol-Version")
-        else:
-            # If request doesn't have headers, skip validation
-            response = await call_next(request)
-            return response
-    except (AttributeError, TypeError):
-        # If we can't access headers, skip validation
-        response = await call_next(request)
-        return response
-
-    if not protocol_version:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": "Missing MCP-Protocol-Version header",
-                "details": "The MCP-Protocol-Version header is required for all MCP requests per MCP 2025-11-25 spec",
-                "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "example": "MCP-Protocol-Version: 2025-11-25",
-            },
-            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION},
-        )
-
-    # Validate protocol version
-    if protocol_version not in SUPPORTED_MCP_VERSIONS:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": "Unsupported MCP-Protocol-Version",
-                "details": f"Received version '{protocol_version}' is not supported",
-                "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "received_version": protocol_version,
-            },
-            headers={"MCP-Protocol-Version": MCP_PROTOCOL_VERSION},
-        )
-
-    # Process the request
-    response = await call_next(request)
-
-    # Add MCP-Protocol-Version header to all responses
-    if hasattr(response, "headers"):
-        response.headers["MCP-Protocol-Version"] = MCP_PROTOCOL_VERSION
-
-    return response
-
-
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
 mcp: FastMCP = FastMCP(**mcp_config)
 
-# Add MCP-Protocol-Version validation middleware (with error handling)
-MIDDLEWARE_ENABLED = False
-try:
-    # Check if we're in an HTTP context where middleware makes sense
-    # For MCP clients using stdio or in-memory transport, middleware isn't needed
-
-    # Try different middleware installation approaches for different FastMCP versions
-    if hasattr(mcp, "app") and hasattr(mcp.app, "middleware"):
-        mcp.app.middleware("http")(validate_mcp_protocol_version_middleware)
-        MIDDLEWARE_ENABLED = True
-        logger = logging.getLogger(__name__)
-        logger.info("✅ MCP-Protocol-Version header validation middleware enabled")
-    elif hasattr(mcp, "add_middleware"):
-        # Alternative method for newer FastMCP versions
-        mcp.add_middleware(validate_mcp_protocol_version_middleware)
-        MIDDLEWARE_ENABLED = True
-        logger = logging.getLogger(__name__)
-        logger.info("✅ MCP-Protocol-Version header validation middleware enabled (alternative method)")
-    else:
-        logger = logging.getLogger(__name__)
-        logger.info(
-            "ℹ️ FastMCP middleware interface not available - running in compatibility mode (normal for MCP clients)"
-        )
-except Exception as e:
-    # If middleware fails to install, log warning but continue
-    logger = logging.getLogger(__name__)
-    logger.info(f"ℹ️ MCP header validation middleware not installed: {e} (normal for MCP clients and testing)")
+# SEP-2663 tasks extension. FastMCP 4 refuses to serve a task=True tool without it.
+TASKS_BACKEND = os.getenv("TASKS_BACKEND", "memory").strip().lower()
+TASKS_BACKEND_URL = os.getenv("TASKS_BACKEND_URL")
+if TASKS_BACKEND == "redis":
+    if not TASKS_BACKEND_URL:
+        raise RuntimeError("TASKS_BACKEND=redis requires TASKS_BACKEND_URL (for example redis://valkey:6379/0)")
+    mcp.add_extension(TasksExtension(url=TASKS_BACKEND_URL))
+    logging.getLogger(__name__).info("📋 Task storage: redis (%s)", TASKS_BACKEND_URL)
+elif TASKS_BACKEND == "memory":
+    mcp.add_extension(TasksExtension())
+    logging.getLogger(__name__).info("📋 Task storage: in-memory (single process only)")
+else:
+    raise RuntimeError(f"Unsupported TASKS_BACKEND={TASKS_BACKEND!r}; use 'memory' or 'redis'")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -633,7 +515,7 @@ def ping():
         "server_name": "Kafka Schema Registry Unified MCP Server",
         "server_version": __version__,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "protocol_version": MCP_PROTOCOL_VERSION,
+        "protocol_version": current_protocol_version(),
         "registry_mode": REGISTRY_MODE,
         "slim_mode": SLIM_MODE,
         "status": "healthy",
@@ -812,7 +694,7 @@ def list_available_resources():
             ]
         ),
         "registry_mode": REGISTRY_MODE,
-        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        "mcp_protocol_version": current_protocol_version(),
     }
 
 
@@ -940,7 +822,7 @@ data = json.loads(result.contents[0].text)""",
                 "More predictable response format",
             ],
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
     else:
         return {
@@ -949,7 +831,7 @@ data = json.loads(result.contents[0].text)""",
             "message": f"Tool '{tool_name}' is still available as an MCP tool",
             "suggestion": "Use list_available_resources() to see all available resources",
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
 
@@ -1024,7 +906,7 @@ except Exception as e:
     return {
         "templates": templates,
         "registry_mode": REGISTRY_MODE,
-        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+        "mcp_protocol_version": current_protocol_version(),
         "note": "Replace {registry_name}, {context}, and {subject} with your actual values",
     }
 
@@ -1346,6 +1228,7 @@ if not SLIM_MODE:
         schema_type: str = "AVRO",
         context: Optional[str] = None,
         registry: Optional[str] = None,
+        ctx: Context = None,
     ):
         """
         Interactive schema registration with elicitation for missing field definitions.
@@ -1366,6 +1249,7 @@ if not SLIM_MODE:
             headers=headers,
             schema_registry_url=SCHEMA_REGISTRY_URL,
             multi_step_manager=multi_step_manager,
+            ctx=ctx,
         )
 
 
@@ -1404,6 +1288,7 @@ if not SLIM_MODE:
         schema_type: str = "AVRO",
         context: Optional[str] = None,
         registry: Optional[str] = None,
+        ctx: Context = None,
     ):
         """
         Interactive compatibility checking with elicitation for resolution options.
@@ -1423,6 +1308,7 @@ if not SLIM_MODE:
             auth=auth,
             headers=headers,
             schema_registry_url=SCHEMA_REGISTRY_URL,
+            ctx=ctx,
         )
 
 
@@ -1587,6 +1473,7 @@ if not SLIM_MODE:
         owner: Optional[str] = None,
         environment: Optional[str] = None,
         tags: Optional[list] = None,
+        ctx: Context = None,
     ):
         """
         Interactive context creation with elicitation for metadata.
@@ -1607,6 +1494,7 @@ if not SLIM_MODE:
             auth=auth,
             headers=headers,
             schema_registry_url=SCHEMA_REGISTRY_URL,
+            ctx=ctx,
         )
 
 
@@ -1752,6 +1640,7 @@ if not SLIM_MODE:
         # Backward compatibility parameters
         output_format: Optional[str] = None,
         schemas_per_file: Optional[str] = None,
+        ctx: Context = None,
     ):
         """
         Interactive global export with elicitation for export preferences.
@@ -1777,6 +1666,7 @@ if not SLIM_MODE:
             export_global_tool=export_global_tool,
             registry_manager=registry_manager,
             registry_mode=REGISTRY_MODE,
+            ctx=ctx,
         )
 
 
@@ -1848,6 +1738,43 @@ if not SLIM_MODE:
 
     @mcp.tool()
     @require_scopes("admin")
+    async def migrate_schema_interactive(
+        subject: str,
+        source_registry: str,
+        target_registry: str,
+        source_context: str = ".",
+        target_context: str = ".",
+        versions: Optional[list] = None,
+        migrate_all_versions: Optional[bool] = None,
+        preserve_ids: Optional[bool] = None,
+        dry_run: Optional[bool] = None,
+        ctx: Context = None,
+    ):
+        """Interactive schema migration that asks for missing preferences.
+
+        Modern clients get a multi-round-trip form; legacy clients get
+        ``elicitation/create``. Declining returns a structured error.
+        """
+        return await migrate_schema_interactive_impl(
+            subject=subject,
+            source_registry=source_registry,
+            target_registry=target_registry,
+            source_context=source_context,
+            target_context=target_context,
+            versions=versions,
+            migrate_all_versions=migrate_all_versions,
+            preserve_ids=preserve_ids,
+            dry_run=dry_run,
+            migrate_schema_tool=migrate_schema_tool,
+            get_schema_tool=get_schema_tool,
+            export_schema_tool=export_schema_tool,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            ctx=ctx,
+        )
+
+    @mcp.tool()
+    @require_scopes("admin")
     async def migrate_context_interactive(
         source_registry: str,
         target_registry: str,
@@ -1856,6 +1783,7 @@ if not SLIM_MODE:
         preserve_ids: Optional[bool] = None,
         dry_run: Optional[bool] = None,
         migrate_all_versions: Optional[bool] = None,
+        ctx: Context = None,
     ):
         """
         Interactive context migration with elicitation for missing preferences.
@@ -1874,6 +1802,7 @@ if not SLIM_MODE:
             migrate_context_tool=migrate_context_tool,
             registry_manager=registry_manager,
             registry_mode=REGISTRY_MODE,
+            ctx=ctx,
         )
 
 
@@ -1945,7 +1874,11 @@ if not SLIM_MODE:
         # Add tools to MCP server
         @mcp.tool()
         @require_scopes("admin")
-        async def bulk_operations_wizard(operation_type: Optional[str] = None, dry_run: bool = True):
+        async def bulk_operations_wizard(
+            operation_type: Optional[str] = None,
+            dry_run: bool = True,
+            ctx: Context = None,
+        ):
             """
             Start the interactive Bulk Operations Wizard for admin tasks.
 
@@ -1958,7 +1891,7 @@ if not SLIM_MODE:
             if operation_type:
                 op_type = BulkOperationType(operation_type)
 
-            return await bulk_wizard.start_wizard(op_type)
+            return await bulk_wizard.start_wizard(op_type, ctx=ctx)
 
         @mcp.tool()
         @require_scopes("admin")
@@ -2134,7 +2067,7 @@ if not SLIM_MODE:
                 "pending_requests": [req.to_dict() for req in requests],
                 "total_pending": len(requests),
                 "elicitation_supported": is_elicitation_supported(),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
         except Exception as e:
             return create_error_response(
@@ -2162,7 +2095,7 @@ if not SLIM_MODE:
                 "request": request.to_dict(),
                 "response": response.to_dict() if response else None,
                 "status": ("completed" if response else ("expired" if request.is_expired() else "pending")),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
         except Exception as e:
             return create_error_response(
@@ -2219,7 +2152,7 @@ if not SLIM_MODE:
                     }
                     for req in pending_requests
                 ],
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
                 "registry_mode": REGISTRY_MODE,
             }
         except Exception as e:
@@ -2268,7 +2201,7 @@ if not SLIM_MODE:
                             "message": "Workflow completed successfully",
                             "execution_plan": execution_plan,
                             "next_action": "Execute the generated plan using appropriate tools",
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": current_protocol_version(),
                         }
                     elif workflow_result.get("workflow_continuing"):
                         # More steps needed
@@ -2276,7 +2209,7 @@ if not SLIM_MODE:
                             "status": "workflow_continuing",
                             "message": f"Proceeding to: {workflow_result.get('next_step')}",
                             "request_id": workflow_result.get("request_id"),
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": current_protocol_version(),
                         }
                     else:
                         # Error in workflow
@@ -2296,7 +2229,7 @@ if not SLIM_MODE:
                         "status": "success",
                         "message": "Response submitted successfully",
                         "values": result.values,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": current_protocol_version(),
                     }
 
             return create_error_response(
@@ -2341,7 +2274,7 @@ if not SLIM_MODE:
                 "workflows": workflow_list,
                 "total": len(workflow_list),
                 "message": "Use 'start_workflow' tool to begin any workflow",
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
 
         except Exception as e:
@@ -2369,7 +2302,7 @@ if not SLIM_MODE:
                     return {
                         "workflow_id": workflow_id,
                         "status": workflow_info,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": current_protocol_version(),
                     }
                 else:
                     return create_error_response(
@@ -2382,7 +2315,7 @@ if not SLIM_MODE:
             return {
                 "active_workflows": active_workflows,
                 "total_active": len(active_workflows),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
 
         except Exception as e:
@@ -2408,15 +2341,12 @@ def _internal_get_mcp_compliance_status():
     This function can be called directly for testing purposes.
     """
     try:
-        # Check if header validation middleware is active
-        header_validation_active = MIDDLEWARE_ENABLED
-
-        # Get FastMCP configuration details
+        # FastMCP 4 / MCP SDK 2 negotiate the protocol per connection.
         config_details = {
             "slim_mode": SLIM_MODE,
-            "protocol_version": MCP_PROTOCOL_VERSION,
-            "supported_versions": SUPPORTED_MCP_VERSIONS,
-            "header_validation_enabled": header_validation_active,
+            "protocol_version": current_protocol_version(),
+            "supported_versions": list(KNOWN_PROTOCOL_VERSIONS),
+            "protocol_negotiation": "sdk-managed",
             "jsonrpc_batching_disabled": True,
             "compliance_status": "COMPLIANT",
             "last_verified": datetime.now(timezone.utc).isoformat(),
@@ -2432,12 +2362,11 @@ def _internal_get_mcp_compliance_status():
                 ),
                 "ping_support": "Enabled - MCP ping/pong protocol",
             },
-            "header_validation": {
-                "required_header": "MCP-Protocol-Version",
-                "supported_versions": SUPPORTED_MCP_VERSIONS,
-                "exempt_paths": EXEMPT_PATHS,
-                "validation_active": header_validation_active,
-                "error_response_code": 400,
+            "protocol_negotiation_details": {
+                "managed_by": "FastMCP 4 / MCP SDK 2",
+                "supported_versions": list(KNOWN_PROTOCOL_VERSIONS),
+                "server_discover": True,
+                "legacy_initialize": True,
             },
             "batching_configuration": {
                 "jsonrpc_batching": "DISABLED - Per MCP 2025-06-18 specification",
@@ -2458,7 +2387,7 @@ def _internal_get_mcp_compliance_status():
                 "total_tools": "70+" if not SLIM_MODE else "~20 (SLIM_MODE)",
                 "tools_with_structured_output": "All tools",
                 "completion_percentage": 100.0,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
                 "validation_framework": "JSON Schema with fallback support",
                 "features": [
                     "Type-safe responses for all tools",
@@ -2578,14 +2507,12 @@ def _internal_get_mcp_compliance_status():
                 "ping_support": "Standard MCP ping/pong protocol for health checking",
             },
             "compliance_verification": {
-                "fastmcp_version": "2.8.0+",
-                "mcp_specification": "2025-06-18",
+                "fastmcp_version": "4.1+",
+                "mcp_specification": "2026-07-28",
                 "validation_date": datetime.now(timezone.utc).isoformat(),
                 "compliance_notes": [
-                    (
-                        f"MCP-Protocol-Version header validation "
-                        f"{'enabled' if header_validation_active else 'disabled (compatibility mode)'}"
-                    ),
+                    "Protocol version negotiated per connection by FastMCP 4 / MCP SDK 2",
+                    "Legacy initialize handshake and modern server/discover are both served",
                     "JSON-RPC batching explicitly disabled in FastMCP configuration",
                     (
                         "Application-level batching uses individual requests"
@@ -2598,12 +2525,11 @@ def _internal_get_mcp_compliance_status():
                         if not SLIM_MODE
                         else "Simplified operations in SLIM_MODE"
                     ),
-                    f"Exempt paths: {EXEMPT_PATHS}",
                     "Structured tool output implemented for all tools (100% complete)",
                     "Type-safe responses with JSON Schema validation",
                     "Graceful fallback on validation failures",
                     (
-                        "Elicitation capability implemented per MCP 2025-06-18 specification"
+                        "Elicitation capability implemented per MCP 2026-07-28 specification"
                         if not SLIM_MODE
                         else "Elicitation disabled in SLIM_MODE"
                     ),
@@ -2622,7 +2548,7 @@ def _internal_get_mcp_compliance_status():
                 ],
             },
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return config_details
@@ -2721,7 +2647,7 @@ def get_default_registry_tool():
                 "default_registry": default,
                 "registry_mode": "single",
                 "info": (registry_manager.get_registry_info(default) if default else None),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
         else:
             default = registry_manager.get_default_registry()
@@ -2731,7 +2657,7 @@ def get_default_registry_tool():
                     "registry_mode": "multi",
                     "info": registry_manager.get_registry_info(default),
                     "available_registries": registry_manager.list_registries(),
-                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                    "mcp_protocol_version": current_protocol_version(),
                 }
             else:
                 return create_error_response(
@@ -2764,7 +2690,7 @@ def check_viewonly_mode_tool(registry: Optional[str] = None):
         if isinstance(result, dict) and "error" in result:
             # Add structured output metadata to error response
             result["registry_mode"] = REGISTRY_MODE
-            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+            result["mcp_protocol_version"] = current_protocol_version()
             return result
 
         # If it returns a boolean or other simple result, structure it
@@ -2773,13 +2699,13 @@ def check_viewonly_mode_tool(registry: Optional[str] = None):
                 "viewonly": result,
                 "registry": registry or "default",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             }
 
         # If it's already a dict (successful response), add metadata
         if isinstance(result, dict):
             result["registry_mode"] = REGISTRY_MODE
-            result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+            result["mcp_protocol_version"] = current_protocol_version()
             return result
 
         # Default case
@@ -2787,7 +2713,7 @@ def check_viewonly_mode_tool(registry: Optional[str] = None):
             "viewonly": False,
             "registry": registry or "default",
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
     except Exception as e:
@@ -2807,14 +2733,14 @@ if not SLIM_MODE:
             if isinstance(result, dict):
                 # Add structured output metadata
                 result["registry_mode"] = REGISTRY_MODE
-                result["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+                result["mcp_protocol_version"] = current_protocol_version()
                 return result
             else:
                 # If result is not a dict, structure it
                 return {
                     "oauth_scopes": result,
                     "registry_mode": REGISTRY_MODE,
-                    "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                    "mcp_protocol_version": current_protocol_version(),
                 }
 
         except Exception as e:
@@ -2851,7 +2777,7 @@ if not SLIM_MODE:
             "test_time": datetime.now(timezone.utc).isoformat(),
             "server_url": server_url,
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
             "endpoints": {},
         }
 
@@ -2980,11 +2906,13 @@ if not SLIM_MODE:
 
         # Check MCP-Protocol-Version header presence
         headers_present = sum(
-            1 for ep in results["endpoints"].values() if ep.get("mcp_protocol_version_header") == MCP_PROTOCOL_VERSION
+            1
+            for ep in results["endpoints"].values()
+            if ep.get("mcp_protocol_version_header") == current_protocol_version()
         )
         if headers_present == total_endpoints:
             results["summary"]["recommendations"].append(
-                f"✅ MCP-Protocol-Version header correctly added to all responses ({MCP_PROTOCOL_VERSION})"
+                f"✅ MCP-Protocol-Version header correctly added to all responses ({current_protocol_version()})"
             )
         else:
             results["summary"]["recommendations"].append("⚠️ MCP-Protocol-Version header missing from some responses")
@@ -3001,7 +2929,30 @@ if not SLIM_MODE:
 
 
 # Global registry resources
+def resource_not_found(fn):
+    """Raise JSON-RPC -32602 when a resource payload reports a missing object."""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        payload = fn(*args, **kwargs)
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload)
+            except ValueError:
+                return payload
+            code = str(data.get("error_code", ""))
+            if "NOT_FOUND" in code:
+                raise MCPError(
+                    code=INVALID_PARAMS,
+                    message=data.get("error") or f"Resource not found ({code})",
+                )
+        return payload
+
+    return wrapper
+
+
 @mcp.resource("registry://names")
+@resource_not_found
 @require_scopes("read")
 def registry_names_resource():
     """Get list of all configured registry names."""
@@ -3018,7 +2969,7 @@ def registry_names_resource():
             "resource_info": {
                 "resource_uri": "registry://names",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
                 "replaces_tool": "list_registries",
                 "migration_hint": "This resource replaces the list_registries tool for better performance",
                 "related_resources": [
@@ -3036,13 +2987,14 @@ def registry_names_resource():
             "resource_info": {
                 "resource_uri": "registry://names",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://info")
+@resource_not_found
 @require_scopes("read")
 def registry_info_resource():
     """Get detailed server configuration and capabilities."""
@@ -3065,12 +3017,12 @@ def registry_info_resource():
                 "version": __version__,
                 "registry_mode": REGISTRY_MODE,
                 "slim_mode": SLIM_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
             "resource_info": {
                 "resource_uri": "registry://info",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
 
@@ -3081,13 +3033,14 @@ def registry_info_resource():
             "resource_info": {
                 "resource_uri": "registry://info",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://info/{name}")
+@resource_not_found
 @require_scopes("read")
 def registry_info_specific_resource(name: str):
     """Get detailed information about a specific registry."""
@@ -3102,7 +3055,7 @@ def registry_info_specific_resource(name: str):
             "resource_uri": f"registry://info/{name}",
             "registry_name": name,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3113,13 +3066,14 @@ def registry_info_specific_resource(name: str):
                 "resource_uri": f"registry://info/{name}",
                 "registry_name": name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://status")
+@resource_not_found
 @require_scopes("read")
 def registry_status_resource():
     """Get connection status for all registries."""
@@ -3133,7 +3087,7 @@ def registry_status_resource():
         result["resource_info"] = {
             "resource_uri": "registry://status",
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3143,13 +3097,14 @@ def registry_status_resource():
             "resource_info": {
                 "resource_uri": "registry://status",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://status/{name}")
+@resource_not_found
 @require_scopes("read")
 def registry_status_specific_resource(name: str):
     """Get connection status for a specific registry."""
@@ -3164,7 +3119,7 @@ def registry_status_specific_resource(name: str):
             "resource_uri": f"registry://status/{name}",
             "registry_name": name,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3175,13 +3130,14 @@ def registry_status_specific_resource(name: str):
                 "resource_uri": f"registry://status/{name}",
                 "registry_name": name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://mode")
+@resource_not_found
 @require_scopes("read")
 def registry_mode_resource():
     """Get operational mode for all registries."""
@@ -3210,7 +3166,7 @@ def registry_mode_resource():
             "resource_info": {
                 "resource_uri": "registry://mode",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
 
@@ -3221,13 +3177,14 @@ def registry_mode_resource():
             "resource_info": {
                 "resource_uri": "registry://mode",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://mode/{name}")
+@resource_not_found
 @require_scopes("read")
 def registry_mode_specific_resource(name: str):
     """Get operational mode for a specific registry."""
@@ -3250,7 +3207,7 @@ def registry_mode_specific_resource(name: str):
             "resource_uri": f"registry://mode/{name}",
             "registry_name": name,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3261,7 +3218,7 @@ def registry_mode_specific_resource(name: str):
                 "resource_uri": f"registry://mode/{name}",
                 "registry_name": name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
@@ -3269,6 +3226,7 @@ def registry_mode_specific_resource(name: str):
 
 # Registry-specific resources for read-only operations
 @mcp.resource("registry://{name}/subjects")
+@resource_not_found
 @require_scopes("read")
 def registry_subjects_resource(name: str, context: Optional[str] = None):
     """Get all subjects for a specific registry, optionally filtered by context."""
@@ -3292,7 +3250,7 @@ def registry_subjects_resource(name: str, context: Optional[str] = None):
             "registry_name": name,
             "context": context,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3304,13 +3262,14 @@ def registry_subjects_resource(name: str, context: Optional[str] = None):
                 "registry_name": name,
                 "context": context,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://{name}/contexts")
+@resource_not_found
 @require_scopes("read")
 def registry_contexts_resource(name: str):
     """Get all contexts for a specific registry."""
@@ -3332,7 +3291,7 @@ def registry_contexts_resource(name: str):
             "resource_uri": f"registry://{name}/contexts",
             "registry_name": name,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3343,13 +3302,14 @@ def registry_contexts_resource(name: str):
                 "resource_uri": f"registry://{name}/contexts",
                 "registry_name": name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("registry://{name}/config")
+@resource_not_found
 @require_scopes("read")
 def registry_config_resource(name: str, context: Optional[str] = None):
     """Get global configuration for a specific registry, optionally filtered by context."""
@@ -3373,7 +3333,7 @@ def registry_config_resource(name: str, context: Optional[str] = None):
             "registry_name": name,
             "context": context,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3385,7 +3345,7 @@ def registry_config_resource(name: str, context: Optional[str] = None):
                 "registry_name": name,
                 "context": context,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
@@ -3393,6 +3353,7 @@ def registry_config_resource(name: str, context: Optional[str] = None):
 
 # Schema-specific resources for direct schema content access
 @mcp.resource("schema://{name}/{context}/{subject}")
+@resource_not_found
 @require_scopes("read")
 def schema_content_resource(name: str, context: str, subject: str, version: str = "latest"):
     """Get schema content for a specific subject in a specific context and registry."""
@@ -3420,7 +3381,7 @@ def schema_content_resource(name: str, context: str, subject: str, version: str 
             "subject": subject,
             "version": version,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3434,13 +3395,14 @@ def schema_content_resource(name: str, context: str, subject: str, version: str 
                 "subject": subject,
                 "version": version,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("schema://{name}/{subject}")
+@resource_not_found
 @require_scopes("read")
 def schema_content_default_context_resource(name: str, subject: str, version: str = "latest"):
     """Get schema content for a specific subject in the default context of a registry."""
@@ -3468,7 +3430,7 @@ def schema_content_default_context_resource(name: str, subject: str, version: st
             "subject": subject,
             "version": version,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3482,13 +3444,14 @@ def schema_content_default_context_resource(name: str, subject: str, version: st
                 "subject": subject,
                 "version": version,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("schema://{name}/{context}/{subject}/versions")
+@resource_not_found
 @require_scopes("read")
 def schema_versions_resource(name: str, context: str, subject: str):
     """Get all versions of a schema for a specific subject in a specific context and registry."""
@@ -3514,7 +3477,7 @@ def schema_versions_resource(name: str, context: str, subject: str):
             "context": context,
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3527,13 +3490,14 @@ def schema_versions_resource(name: str, context: str, subject: str):
                 "context": context,
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("schema://{name}/{subject}/versions")
+@resource_not_found
 @require_scopes("read")
 def schema_versions_default_context_resource(name: str, subject: str):
     """Get all versions of a schema for a specific subject in the default context of a registry."""
@@ -3559,7 +3523,7 @@ def schema_versions_default_context_resource(name: str, subject: str):
             "context": "default",
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3572,7 +3536,7 @@ def schema_versions_default_context_resource(name: str, subject: str):
                 "context": "default",
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
@@ -3582,6 +3546,7 @@ def schema_versions_default_context_resource(name: str, subject: str):
 
 
 @mcp.resource("subject://{name}/{context}/{subject}/config")
+@resource_not_found
 @require_scopes("read")
 def subject_config_resource(name: str, context: str, subject: str):
     """Get configuration settings for a specific subject with explicit context."""
@@ -3607,7 +3572,7 @@ def subject_config_resource(name: str, context: str, subject: str):
             "context": context,
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3620,13 +3585,14 @@ def subject_config_resource(name: str, context: str, subject: str):
                 "context": context,
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("subject://{name}/{subject}/config")
+@resource_not_found
 @require_scopes("read")
 def subject_config_default_context_resource(name: str, subject: str):
     """Get configuration settings for a specific subject in the default context."""
@@ -3652,7 +3618,7 @@ def subject_config_default_context_resource(name: str, subject: str):
             "context": "default",
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3665,13 +3631,14 @@ def subject_config_default_context_resource(name: str, subject: str):
                 "context": "default",
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("subject://{name}/{context}/{subject}/mode")
+@resource_not_found
 @require_scopes("read")
 def subject_mode_resource(name: str, context: str, subject: str):
     """Get the mode for a specific subject with explicit context."""
@@ -3697,7 +3664,7 @@ def subject_mode_resource(name: str, context: str, subject: str):
             "context": context,
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3710,13 +3677,14 @@ def subject_mode_resource(name: str, context: str, subject: str):
                 "context": context,
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
 
 
 @mcp.resource("subject://{name}/{subject}/mode")
+@resource_not_found
 @require_scopes("read")
 def subject_mode_default_context_resource(name: str, subject: str):
     """Get the mode for a specific subject in the default context."""
@@ -3742,7 +3710,7 @@ def subject_mode_default_context_resource(name: str, subject: str):
             "context": "default",
             "subject": subject,
             "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         return json.dumps(result, indent=2)
@@ -3755,10 +3723,19 @@ def subject_mode_default_context_resource(name: str, subject: str):
                 "context": "default",
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": current_protocol_version(),
             },
         }
         return json.dumps(error_response, indent=2)
+
+
+# ===== PROMPTS =====
+# Register the markdown guides as real MCP prompts (previously only importable helpers).
+from mcp_prompts import PROMPT_REGISTRY as _PROMPT_REGISTRY
+
+for _prompt_name, _prompt_fn in _PROMPT_REGISTRY.items():
+    _description = (_prompt_fn.__doc__ or _prompt_name).strip().splitlines()[0]
+    mcp.prompt(name=_prompt_name, description=_description)(_prompt_fn)
 
 
 # ===== SERVER ENTRY POINT =====
@@ -3769,19 +3746,9 @@ if __name__ == "__main__":
 
     log_deprecation_notices()
 
-    # Check header validation status for startup message
-    header_validation_status = "ENABLED"
-    try:
-        if hasattr(mcp, "app") and hasattr(mcp.app, "middleware_stack"):
-            header_validation_status = "ENABLED"
-        else:
-            header_validation_status = "DISABLED (compatibility mode)"
-    except (AttributeError, TypeError):
-        header_validation_status = "UNKNOWN"
-
     # Calculate tool count based on SLIM_MODE
     if SLIM_MODE:
-        tool_count = "~9 (SLIM_MODE)"
+        tool_count = "~28 (SLIM_MODE)"
         features_status = "Essential tools only"
     else:
         tool_count = "75+"
@@ -3796,7 +3763,7 @@ if __name__ == "__main__":
 🔧 Registries: {len(registry_manager.list_registries())}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 🚫 JSON-RPC Batching: DISABLED (MCP 2025-06-18 Compliance)
-✅ MCP-Protocol-Version Header Validation: {header_validation_status} ({MCP_PROTOCOL_VERSION})
+🔌 MCP Protocol: FastMCP 4 / MCP SDK 2 (negotiated per connection; {current_protocol_version()})
 💼 Application Batching: {"DISABLED (SLIM_MODE)" if SLIM_MODE else "ENABLED (clear_context_batch, etc.)"}
 📦 Architecture: Modular (12 specialized modules)
 🔧 Tools: {tool_count}
@@ -3813,10 +3780,7 @@ if __name__ == "__main__":
     logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation and ping)")
     logger.info(f"SLIM_MODE: {'ENABLED' if SLIM_MODE else 'DISABLED'} - {features_status}")
     logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
-    logger.info(
-        f"✅ MCP-Protocol-Version header validation {header_validation_status.lower()} ({MCP_PROTOCOL_VERSION})"
-    )
-    logger.info(f"🚫 Exempt paths from header validation: {EXEMPT_PATHS}")
+    logger.info(f"🔌 MCP protocol negotiation managed by FastMCP 4 / MCP SDK 2 ({current_protocol_version()})")
     logger.info("🚫 JSON-RPC batching DISABLED per MCP 2025-06-18 specification compliance")
     if not SLIM_MODE:
         logger.info("💼 Application-level batch operations ENABLED with individual requests")

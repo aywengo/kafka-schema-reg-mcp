@@ -22,7 +22,7 @@ enforcement with gaps.
 | Milestone | Status | Issue |
 |---|---|---|
 | M0 prep, deprecations, single version source (`2.3.0`) | ✅ complete | [#186](https://github.com/aywengo/kafka-schema-reg-mcp/issues/186) |
-| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | ⬜ not started | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
+| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | 🟡 in progress | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
 | M2 editions and tool catalog (`3.0.0-beta.1`) | ⬜ not started | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
 | M3 workflows and resources (`3.0.0-rc.1`) | ⬜ not started | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
 | M4 docs and release (`3.0.0`) | ⬜ not started | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
@@ -570,6 +570,39 @@ gantt
 - MCP conformance suite green for both protocol eras; `tests/test_fastmcp3_compat.py` replaced
   by `tests/test_fastmcp4_compat.py`.
 - Exit: alpha image published, all `tests/run_all_tests.sh --quick` categories pass.
+
+### M1 progress (2026-10-23)
+
+Implemented on `release/3.0`:
+
+- Dependencies: `fastmcp[tasks]>=4.1,<5`, `fastmcp-tasks>=4.1,<5`,
+  `pydocket>=0.26`, `mcp>=2.2,<3`; `uv.lock` upgraded (FastMCP 4.1.3, MCP 2.3.0).
+  Python floor stays 3.10; `httpx2` resolves to 2.14 on 3.10 and 2.16 on 3.11+.
+- `TasksExtension` registered at startup; `TASKS_BACKEND=memory|redis` and
+  `TASKS_BACKEND_URL` select the docket backend.
+- Protocol middleware removed. `server/discover` and legacy `initialize` both
+  work; tool responses use `current_protocol_version()` and report the
+  negotiated version. The old header-validation test file is deleted.
+- Six `*_interactive` tools (including the newly registered
+  `migrate_schema_interactive`) use the SEP-2322 guard: modern clients get
+  `InputRequiredResult`, legacy clients get `ctx.elicit`, and declining returns
+  a structured error. `guided_schema_evolution` is a state-driven planner.
+- `bulk_operations_wizard` collects options over one MRTR form and returns a
+  plan; the dedicated bulk tools remain the execution path.
+- `RequestStateSecurity` reads `REQUEST_STATE_KEY`; Helm generates a shared
+  Secret and maps it into the Deployment. Helm also adds `tasks.backend`
+  (redis default, bundled Valkey or external URL) and fails the render when
+  `memory` is combined with autoscaling or `replicaCount > 1`.
+- Prompts registered with `@mcp.prompt` (10 prompts visible).
+- Missing resources now raise JSON-RPC `-32602` instead of `-32603`.
+- `tests/test_fastmcp3_compat.py` replaced by `tests/test_fastmcp4_compat.py`
+  with an issuer-mismatch test.
+
+Still open for M1 exit:
+
+- Publish `3.0.0-alpha.1`; run the two-replica task and request-state checks.
+- Run the full `tests/run_all_tests.sh --quick` suite and triage the remaining
+  elicitation integration tests that still assume the old mock manager.
 
 ### M2 - Editions, ships as `3.0.0-beta.1` (4 weeks)
 

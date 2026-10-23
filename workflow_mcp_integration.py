@@ -13,8 +13,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
+from fastmcp.server.context import Context
 
 from elicitation import ElicitationManager, ElicitationResponse
+from mrtr import ask
 from multi_step_elicitation import MultiStepElicitationManager
 from workflow_definitions import get_all_workflows, get_workflow_by_id
 
@@ -198,48 +200,82 @@ class WorkflowMCPTools:
         async def guided_schema_evolution(
             subject: Optional[str] = None,
             current_schema: Optional[str] = None,
-        ) -> str:
-            """Start the Schema Evolution Assistant workflow."""
-            initial_context = {}
-            if subject:
-                initial_context["subject"] = subject
-            if current_schema:
-                try:
-                    initial_context["current_schema"] = json.loads(current_schema)
-                except json.JSONDecodeError:
-                    initial_context["current_schema"] = current_schema
+            proposed_schema: Optional[str] = None,
+            strategy: Optional[str] = None,
+            ctx: Context = None,
+        ) -> Any:
+            """Plan a safe schema evolution, asking for missing input over MRTR."""
+            if (subject is None or proposed_schema is None) and ctx is not None:
+                form = {
+                    "type": "object",
+                    "properties": {
+                        "subject": {"type": "string", "title": "Subject"},
+                        "current_schema": {"type": "string", "title": "Current schema (JSON)"},
+                        "proposed_schema": {"type": "string", "title": "Proposed schema (JSON)"},
+                        "strategy": {
+                            "type": "string",
+                            "title": "Compatibility strategy",
+                            "enum": ["BACKWARD", "FORWARD", "FULL", "NONE"],
+                            "default": "BACKWARD",
+                        },
+                    },
+                    "required": ["subject", "proposed_schema"],
+                }
+                status, values = await ask(
+                    ctx,
+                    message="Describe the schema change to plan",
+                    schema=form,
+                    state="guided_schema_evolution:v1",
+                )
+                if status == "suspend":
+                    return values
+                if status == "declined":
+                    return json.dumps({"error": "Schema evolution input was declined"})
+                subject = values.get("subject") or subject
+                current_schema = values.get("current_schema") or current_schema
+                proposed_schema = values.get("proposed_schema") or proposed_schema
+                strategy = values.get("strategy") or strategy
 
-            workflow_id = "schema_evolution_assistant"
+            if not subject or not proposed_schema:
+                return json.dumps({"error": "subject and proposed_schema are required"})
 
             try:
-                request = await self.multi_step_manager.start_workflow(
-                    workflow_id=workflow_id, initial_context=initial_context
-                )
+                proposed = json.loads(proposed_schema) if isinstance(proposed_schema, str) else proposed_schema
+                current = json.loads(current_schema) if isinstance(current_schema, str) and current_schema else None
+            except json.JSONDecodeError as exc:
+                return json.dumps({"error": f"Invalid schema JSON: {exc}"})
 
-                if request:
-                    return json.dumps(
-                        {
-                            "status": "started",
-                            "workflow_id": workflow_id,
-                            "workflow_name": "Schema Evolution Assistant",
-                            "request_id": request.id,
-                            "first_step": request.title,
-                            "description": request.description,
-                            "message": (
-                                "Schema Evolution Assistant started. This workflow will guide you through:\n"
-                                "1. Analyzing schema changes\n"
-                                "2. Detecting breaking changes\n"
-                                "3. Selecting evolution strategy\n"
-                                "4. Planning consumer coordination\n"
-                                "5. Setting up rollback procedures"
-                            ),
-                        }
-                    )
-                else:
-                    return json.dumps({"error": "Failed to start Schema Evolution workflow"})
-            except Exception as e:
-                logger.error(f"Error starting Schema Evolution workflow: {str(e)}")
-                return json.dumps({"error": f"Failed to start workflow: {str(e)}"})
+            def field_map(schema):
+                fields = (schema or {}).get("fields", [])
+                return {f["name"]: f for f in fields if isinstance(f, dict) and f.get("name")}
+
+            current_fields = field_map(current)
+            proposed_fields = field_map(proposed)
+            added = sorted(set(proposed_fields) - set(current_fields))
+            removed = sorted(set(current_fields) - set(proposed_fields))
+            changed = sorted(
+                name
+                for name in set(current_fields) & set(proposed_fields)
+                if current_fields[name] != proposed_fields[name]
+            )
+
+            return json.dumps(
+                {
+                    "status": "plan",
+                    "workflow_id": "schema_evolution_assistant",
+                    "subject": subject,
+                    "strategy": strategy or "BACKWARD",
+                    "changes": {"added": added, "removed": removed, "changed": changed},
+                    "has_breaking_changes": bool(removed or changed),
+                    "steps": [
+                        "Review the detected changes and choose a compatibility strategy.",
+                        "Update producers to emit the proposed schema.",
+                        "Coordinate consumers and verify compatibility.",
+                        "Roll back by re-registering the previous schema if needed.",
+                    ],
+                    "note": "This pilot returns a plan; registration still goes through register_schema.",
+                }
+            )
 
         @self.mcp.tool(description="Start the Schema Migration Wizard workflow for guided schema migration")
         async def guided_schema_migration() -> str:

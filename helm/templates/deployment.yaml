@@ -1,3 +1,6 @@
+{{- if and (eq .Values.tasks.backend "memory") (or .Values.autoscaling.enabled (gt (int .Values.replicaCount) 1)) }}
+{{- fail "tasks.backend=memory requires autoscaling.enabled=false and replicaCount=1; use tasks.backend=redis for multi-pod deployments" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,6 +22,9 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if and .Values.auth.enabled .Values.auth.createSecret.enabled (not .Values.auth.existingSecret.enabled) }}
         checksum/oauth2-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if not .Values.requestStateKey.existingSecret }}
+        checksum/request-state-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.monitoring.enabled }}
         {{- with .Values.monitoring.annotations }}
@@ -103,6 +109,19 @@ spec:
             {{- end }}
             {{- end }}
             
+            # Multi-round-trip state sealing and task storage
+            - name: REQUEST_STATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-request-state" (include "kafka-schema-registry-mcp.fullname" .)) .Values.requestStateKey.existingSecret }}
+                  key: {{ .Values.requestStateKey.secretKey }}
+            - name: TASKS_BACKEND
+              value: {{ .Values.tasks.backend | quote }}
+            {{- if eq .Values.tasks.backend "redis" }}
+            - name: TASKS_BACKEND_URL
+              value: {{ if .Values.tasks.redis.url }}{{ .Values.tasks.redis.url | quote }}{{ else }}{{ printf "redis://%s-valkey:6379/0" (include "kafka-schema-registry-mcp.fullname" .) | quote }}{{ end }}
+            {{- end }}
+
             # Additional environment variables from secrets
             {{- with .Values.extraEnvVarsSecret }}
             {{- range . }}

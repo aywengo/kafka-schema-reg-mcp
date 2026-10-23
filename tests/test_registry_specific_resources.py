@@ -32,9 +32,8 @@ try:
     # Import elicitation support check
     from elicitation import is_elicitation_supported
 
-    # Import MCP_PROTOCOL_VERSION and other variables from the main MCP module
+    # Import shared server variables from the main MCP module
     from kafka_schema_registry_unified_mcp import (
-        MCP_PROTOCOL_VERSION,
         REGISTRY_MODE,
         SCHEMA_REGISTRY_URL,
         VIEWONLY,
@@ -42,6 +41,7 @@ try:
         registry_manager,
         standard_headers,
     )
+    from protocol_version import DEFAULT_PROTOCOL_VERSION
 
 except ImportError as e:
     print(f"❌ Failed to import MCP server components: {e}")
@@ -104,7 +104,7 @@ def get_registry_status_by_name(name: str):
             "registry_info": registry_info,
             "viewonly_mode": viewonly_status,
             "server_info": {
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
                 "structured_output": "100% Complete",
                 "elicitation_capability": "Enabled",
@@ -170,7 +170,7 @@ def get_registry_info_by_name(name: str):
             "registry_mode": REGISTRY_MODE,
             "configuration": registry_info,
             "server_integration": {
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "structured_output": {
                     "implementation_status": "100% Complete",
                     "total_tools": "53+",
@@ -278,7 +278,7 @@ def get_registry_mode_by_name(name: str):
             },
             "viewonly_mode": {"enabled": False, "description": "Server-level protection preventing write operations"},
             "mcp_server_capabilities": {
-                "protocol_version": MCP_PROTOCOL_VERSION,
+                "protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "structured_output": {"implementation_status": "100% Complete", "all_tools_validated": True},
                 "elicitation_capability": {
                     "implementation_status": "Complete - MCP 2025-06-18 Specification",
@@ -390,7 +390,7 @@ def get_schema_by_uri_with_context(name: str, context: str, subject_name: str):
                 "subject_name": subject_name,
                 "version": "latest",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             }
 
             # Add navigation links to related resources
@@ -411,7 +411,7 @@ def get_schema_by_uri_with_context(name: str, context: str, subject_name: str):
                 "context": context,
                 "subject_name": subject_name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             }
             return json.dumps(schema_result, indent=2)
 
@@ -427,7 +427,7 @@ def get_schema_by_uri_with_context(name: str, context: str, subject_name: str):
                         "subject_name": subject_name,
                         "version": "latest",
                         "registry_mode": REGISTRY_MODE,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                     },
                     "related_resources": {
                         "registry_status": f"registry://status/{name}",
@@ -448,7 +448,7 @@ def get_schema_by_uri_with_context(name: str, context: str, subject_name: str):
                 "context": context,
                 "subject_name": subject_name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             },
             indent=2,
         )
@@ -499,7 +499,7 @@ def get_schema_by_uri_default_context(name: str, subject_name: str):
                 "subject_name": subject_name,
                 "version": "latest",
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             }
 
             # Add navigation links to related resources
@@ -521,7 +521,7 @@ def get_schema_by_uri_default_context(name: str, subject_name: str):
                 "context_description": "Default context",
                 "subject_name": subject_name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             }
             return json.dumps(schema_result, indent=2)
 
@@ -538,7 +538,7 @@ def get_schema_by_uri_default_context(name: str, subject_name: str):
                         "subject_name": subject_name,
                         "version": "latest",
                         "registry_mode": REGISTRY_MODE,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                     },
                     "related_resources": {
                         "registry_status": f"registry://status/{name}",
@@ -560,7 +560,7 @@ def get_schema_by_uri_default_context(name: str, subject_name: str):
                 "context_description": "Default context",
                 "subject_name": subject_name,
                 "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             },
             indent=2,
         )
@@ -634,7 +634,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
             self.assertIn("status_message", result)
             self.assertIn("Connected to", result["status_message"])
             self.assertEqual(result["registry_info"], self.mock_registry_info)
-            self.assertEqual(result["server_info"]["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(result["server_info"]["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
     def test_registry_status_connection_failure(self):
         """Test registry status with connection failure."""
@@ -718,7 +718,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
 
             # Validate server integration
             server_integration = result["server_integration"]
-            self.assertEqual(server_integration["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(server_integration["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
             self.assertIn("structured_output", server_integration)
             self.assertIn("elicitation_capability", server_integration)
             self.assertIn("ping_support", server_integration)
@@ -777,7 +777,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
 
                 # Validate MCP server capabilities
                 mcp_capabilities = result["mcp_server_capabilities"]
-                self.assertEqual(mcp_capabilities["protocol_version"], MCP_PROTOCOL_VERSION)
+                self.assertEqual(mcp_capabilities["protocol_version"], DEFAULT_PROTOCOL_VERSION)
                 self.assertIn("structured_output", mcp_capabilities)
                 self.assertIn("elicitation_capability", mcp_capabilities)
                 self.assertIn("ping_support", mcp_capabilities)
@@ -982,19 +982,19 @@ class TestRegistrySpecificResources(unittest.TestCase):
             result_json = get_registry_status_by_name(self.test_registry_name)
             result = json.loads(result_json)
             self.assertIn("server_info", result)
-            self.assertEqual(result["server_info"]["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(result["server_info"]["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
             # Test info resource
             result_json = get_registry_info_by_name(self.test_registry_name)
             result = json.loads(result_json)
             self.assertIn("server_integration", result)
-            self.assertEqual(result["server_integration"]["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(result["server_integration"]["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
             # Test mode resource
             result_json = get_registry_mode_by_name(self.test_registry_name)
             result = json.loads(result_json)
             self.assertIn("mcp_server_capabilities", result)
-            self.assertEqual(result["mcp_server_capabilities"]["protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(result["mcp_server_capabilities"]["protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
     def test_registry_names_resource_success(self):
         """Test registry names resource returns list of configured registries."""
@@ -1017,7 +1017,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                     "registry_mode": REGISTRY_MODE,
                     "default_registry": default_registry,
                     "server_info": {
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                         "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
                         "structured_output": "100% Complete",
                         "elicitation_capability": "Enabled",
@@ -1066,7 +1066,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                     {
                         "error": f"Error getting registry names: {str(e)}",
                         "registry_mode": REGISTRY_MODE,
-                        "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                        "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                     },
                     indent=2,
                 )
@@ -1089,7 +1089,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
 
         # Check server info
         server_info = result["server_info"]
-        self.assertEqual(server_info["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+        self.assertEqual(server_info["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
         self.assertEqual(server_info["structured_output"], "100% Complete")
         self.assertEqual(server_info["elicitation_capability"], "Enabled")
         self.assertEqual(server_info["ping_support"], "Enabled")
@@ -1133,7 +1133,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                         "registry_mode": REGISTRY_MODE,
                         "default_registry": default_registry,
                         "server_info": {
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                             "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
                             "structured_output": "100% Complete",
                             "elicitation_capability": "Enabled",
@@ -1184,7 +1184,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                         {
                             "error": f"Error getting registry names: {str(e)}",
                             "registry_mode": REGISTRY_MODE,
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                         },
                         indent=2,
                     )
@@ -1222,7 +1222,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                         "registry_mode": REGISTRY_MODE,
                         "default_registry": default_registry,
                         "server_info": {
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                             "server_version": "2.0.0-mcp-2025-06-18-compliant-with-elicitation-and-ping",
                             "structured_output": "100% Complete",
                             "elicitation_capability": "Enabled",
@@ -1273,7 +1273,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
                         {
                             "error": f"Error getting registry names: {str(e)}",
                             "registry_mode": REGISTRY_MODE,
-                            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                         },
                         indent=2,
                     )
@@ -1285,7 +1285,7 @@ class TestRegistrySpecificResources(unittest.TestCase):
             self.assertIn("error", result)
             self.assertIn("Test exception", result["error"])
             self.assertEqual(result["registry_mode"], REGISTRY_MODE)
-            self.assertEqual(result["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(result["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
 
 class TestSchemaResources(unittest.TestCase):
@@ -1330,7 +1330,7 @@ class TestSchemaResources(unittest.TestCase):
             self.assertEqual(resource_info["subject_name"], self.test_subject)
             self.assertEqual(resource_info["version"], "latest")
             self.assertEqual(resource_info["registry_mode"], REGISTRY_MODE)
-            self.assertEqual(resource_info["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(resource_info["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
             # Check related resources
             related = result["related_resources"]
@@ -1373,7 +1373,7 @@ class TestSchemaResources(unittest.TestCase):
             self.assertEqual(resource_info["subject_name"], self.test_subject)
             self.assertEqual(resource_info["version"], "latest")
             self.assertEqual(resource_info["registry_mode"], REGISTRY_MODE)
-            self.assertEqual(resource_info["mcp_protocol_version"], MCP_PROTOCOL_VERSION)
+            self.assertEqual(resource_info["mcp_protocol_version"], DEFAULT_PROTOCOL_VERSION)
 
             # Check related resources
             related = result["related_resources"]
@@ -1504,7 +1504,7 @@ if __name__ == "__main__":
     print("🧪 Testing Registry-Specific Resources")
     print(f"📡 Current registry mode: {REGISTRY_MODE}")
     print(f"🔧 Available registries: {registry_manager.list_registries()}")
-    print(f"🏓 MCP Protocol Version: {MCP_PROTOCOL_VERSION}")
+    print(f"🏓 MCP Protocol Version: {DEFAULT_PROTOCOL_VERSION}")
 
     # Run tests
     unittest.main(verbosity=2)

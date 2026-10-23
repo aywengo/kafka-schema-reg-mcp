@@ -1,0 +1,52 @@
+{{- if and (eq .Values.tasks.backend "redis") .Values.tasks.redis.bundled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: valkey
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: "{{ .Values.tasks.redis.image.repository }}:{{ .Values.tasks.redis.image.tag }}"
+          args: ["valkey-server", "--appendonly", "yes"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  selector:
+    {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+{{- end }}

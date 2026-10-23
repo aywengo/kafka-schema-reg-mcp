@@ -1127,12 +1127,25 @@ def get_oauth_provider_configs():
 
 
 def get_fastmcp_config(server_name: str):
-    """Get FastMCP configuration with OAuth 2.1 authentication and MCP 2025-06-18 compliance."""
+    """Get FastMCP configuration with OAuth 2.1 authentication and request-state sealing."""
     config = {
         "name": server_name,
-        # Note: MCP 2025-06-18 compliance is handled at the application level,
-        # not through FastMCP configuration parameters
+        # Protocol compliance is handled by FastMCP 4 / MCP SDK 2.
     }
+
+    request_state_key = os.getenv("REQUEST_STATE_KEY")
+    if request_state_key:
+        if len(request_state_key.encode()) < 32:
+            raise RuntimeError(
+                "REQUEST_STATE_KEY must be at least 32 bytes of secret randomness. "
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        from mcp.server.request_state import RequestStateSecurity
+
+        config["request_state_security"] = RequestStateSecurity(keys=[request_state_key])
+        logger.info("🔐 Request-state sealing enabled with a shared REQUEST_STATE_KEY")
+    else:
+        logger.info("🔐 Request-state sealing uses a process-local ephemeral key (single-pod only)")
 
     if ENABLE_AUTH and oauth_provider:
         config["auth"] = oauth_provider

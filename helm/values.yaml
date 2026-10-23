@@ -161,6 +161,23 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
+# Seals multi-round-trip request state so a retry can land on another pod.
+# Leave value empty to generate a random 64-character key on first install.
+requestStateKey:
+  existingSecret: ""
+  secretKey: request-state-key
+  value: ""
+
+# SEP-2663 task storage. Redis is required when more than one replica runs.
+tasks:
+  backend: redis
+  redis:
+    bundled: true
+    url: ""
+    image:
+      repository: valkey/valkey
+      tag: "8-alpine"
+
 # Node selector
 nodeSelector: {}
 
