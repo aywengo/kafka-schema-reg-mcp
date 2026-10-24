@@ -23,6 +23,7 @@ from elicitation import (
     elicitation_manager,
     mock_elicit,
 )
+from protocol_version import current_protocol_version
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ async def real_mcp_elicit(request: ElicitationRequest) -> Optional[ElicitationRe
         elicitation_data = {
             "type": "elicitation_request",
             "request": request.to_dict(),
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         try:
@@ -272,15 +273,6 @@ def register_elicitation_handlers(mcp):
 
         # Method 2: Tool registration is handled in the main MCP server
         # to avoid duplicate registrations
-
-        # Method 3: Register resource handler if supported
-        if hasattr(mcp, "resource"):
-
-            @mcp.resource("elicitation://response/{request_id}")
-            async def elicitation_response_resource(request_id: str):
-                """Handle elicitation responses via resource mechanism."""
-                # This would be implemented based on the specific resource pattern
-                pass
 
         logger.info("✅ Elicitation handlers registered with MCP server")
         return True

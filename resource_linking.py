@@ -53,72 +53,72 @@ class RegistryURI:
     # ===== CONTEXT URIS =====
 
     def context_uri(self, context: Optional[str] = None) -> str:
-        """Build URI for a context resource."""
-        if context and context != ".":
-            encoded_context = self._encode_component(context)
-            return self._build_base_uri(f"/contexts/{encoded_context}")
-        return self._build_base_uri("/contexts/default")
+        """Build URI for a context resource (registered contexts collection)."""
+        return self.contexts_list_uri()
 
     def contexts_list_uri(self) -> str:
         """Build URI for the contexts collection."""
         return self._build_base_uri("/contexts")
 
     def context_config_uri(self, context: Optional[str] = None) -> str:
-        """Build URI for context configuration."""
-        base = self.context_uri(context)
-        return f"{base}/config"
+        """Build URI for registry configuration (the only registered config resource)."""
+        return self._build_base_uri("/config")
 
     def context_mode_uri(self, context: Optional[str] = None) -> str:
-        """Build URI for context mode."""
-        base = self.context_uri(context)
-        return f"{base}/mode"
+        """Build URI for registry mode (the only registered mode resource)."""
+        return f"registry://mode/{self.registry_name}"
 
     # ===== SUBJECT URIS =====
 
     def subject_uri(self, subject: str, context: Optional[str] = None) -> str:
         """Build URI for a subject resource."""
-        context_base = self.context_uri(context)
         encoded_subject = self._encode_component(subject)
-        return f"{context_base}/subjects/{encoded_subject}"
+        if context and context != ".":
+            encoded_context = self._encode_component(context)
+            return f"schema://{self.registry_name}/{encoded_context}/{encoded_subject}"
+        return f"schema://{self.registry_name}/{encoded_subject}"
 
     def subjects_list_uri(self, context: Optional[str] = None) -> str:
-        """Build URI for the subjects collection in a context."""
-        context_base = self.context_uri(context)
-        return f"{context_base}/subjects"
+        """Build URI for the subjects collection, preserving a named context."""
+        if context and context != ".":
+            return self._build_base_uri(f"/contexts/{self._encode_component(context)}/subjects")
+        return self._build_base_uri("/subjects")
 
     def subject_config_uri(self, subject: str, context: Optional[str] = None) -> str:
         """Build URI for subject configuration."""
-        base = self.subject_uri(subject, context)
-        return f"{base}/config"
+        encoded_subject = self._encode_component(subject)
+        if context and context != ".":
+            encoded_context = self._encode_component(context)
+            return f"subject://{self.registry_name}/{encoded_context}/{encoded_subject}/config"
+        return f"subject://{self.registry_name}/{encoded_subject}/config"
 
     def subject_mode_uri(self, subject: str, context: Optional[str] = None) -> str:
         """Build URI for subject mode."""
-        base = self.subject_uri(subject, context)
-        return f"{base}/mode"
+        encoded_subject = self._encode_component(subject)
+        if context and context != ".":
+            encoded_context = self._encode_component(context)
+            return f"subject://{self.registry_name}/{encoded_context}/{encoded_subject}/mode"
+        return f"subject://{self.registry_name}/{encoded_subject}/mode"
 
     def subject_compatibility_uri(self, subject: str, context: Optional[str] = None) -> str:
-        """Build URI for subject compatibility checking."""
-        base = self.subject_uri(subject, context)
-        return f"{base}/compatibility"
+        """Build URI for the schema versions used by compatibility checks."""
+        return self.schema_versions_uri(subject, context)
 
     # ===== SCHEMA VERSION URIS =====
 
     def schema_versions_uri(self, subject: str, context: Optional[str] = None) -> str:
         """Build URI for all versions of a schema."""
-        base = self.subject_uri(subject, context)
-        return f"{base}/versions"
+        return f"{self.subject_uri(subject, context)}/versions"
 
     def schema_version_uri(self, subject: str, version: Union[str, int], context: Optional[str] = None) -> str:
-        """Build URI for a specific schema version."""
-        versions_base = self.schema_versions_uri(subject, context)
-        return f"{versions_base}/{version}"
+        """Build URI for the subject schema (the registered read returns the latest version)."""
+        return self.subject_uri(subject, context)
 
     # ===== MIGRATION URIS =====
 
     def migration_uri(self, migration_id: str) -> str:
-        """Build URI for a migration task."""
-        encoded_id = self._encode_component(migration_id)
-        return self._build_base_uri(f"/migrations/{encoded_id}")
+        """Build URI for the migrations collection (migration history is not persisted)."""
+        return self.migrations_list_uri()
 
     def migrations_list_uri(self) -> str:
         """Build URI for the migrations collection."""
@@ -127,9 +127,8 @@ class RegistryURI:
     # ===== TASK URIS =====
 
     def task_uri(self, task_id: str) -> str:
-        """Build URI for a task."""
-        encoded_id = self._encode_component(task_id)
-        return self._build_base_uri(f"/tasks/{encoded_id}")
+        """Build URI for the tasks collection."""
+        return self.tasks_list_uri()
 
     def tasks_list_uri(self) -> str:
         """Build URI for the tasks collection."""
@@ -138,12 +137,12 @@ class RegistryURI:
     # ===== REGISTRY ROOT URIS =====
 
     def registry_uri(self) -> str:
-        """Build URI for the registry root."""
-        return self._build_base_uri("")
+        """Build URI for registry information."""
+        return f"registry://info/{self.registry_name}"
 
     def registry_info_uri(self) -> str:
         """Build URI for registry information."""
-        return self._build_base_uri("/info")
+        return f"registry://info/{self.registry_name}"
 
 
 class ResourceLinker:

@@ -1,91 +1,22 @@
 # MCP Tools Reference
 
-This document provides a complete reference for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**, including all 70+ tools and their usage with Claude Desktop.
+This document describes the Kafka Schema Registry MCP Server v3.0 on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients.
 
-## 🏃 SLIM_MODE: Performance Optimization
+## 🎛️ Editions
 
-**SLIM_MODE** is a performance optimization feature that reduces the number of exposed MCP tools from **70+ to ~11 essential tools**, significantly improving LLM response times and reducing token usage.
+v3.0 replaces `SLIM_MODE` with three editions. The edition decides which tools are registered:
 
-### **Enabling SLIM_MODE**
-```bash
-# Docker
-docker run -e SLIM_MODE=true -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+| Edition | Tools | Docker tag | Use case |
+|---|---|---|---|
+| `viewer` | 39 | `:<version>-viewer` | Browse, export, compare, compatibility |
+| `editor` | 42 | `:<version>-editor` | Viewer plus schema registration and evolution |
+| `admin` | 66 | `:<version>-admin` | Configuration, deletion, migration, bulk operations |
 
-# Environment Variable
-export SLIM_MODE=true
+Set `MCP_EDITION=viewer|editor|admin`; the default is `viewer`. `SLIM_MODE=true` is a deprecated alias for `editor`. The generated per-edition tables are in [editions.md](editions.md).
 
-# Claude Desktop Configuration
-"env": {
-  "SLIM_MODE": "true",
-  "SCHEMA_REGISTRY_URL": "http://localhost:8081"
-}
-```
+Every tool below is annotated with its scope. A tool that is not in the active edition is not listed and returns `-32602` if called.
 
-### **Benefits of SLIM_MODE**
-- 🚀 **Faster LLM Response**: ~85% reduction in tool processing overhead
-- 💰 **Lower Token Usage**: Fewer tools to parse means reduced costs
-- 🎯 **Focused Functionality**: Essential read-only operations for production
-- 🔍 **Better Tool Discovery**: LLMs can more easily find the right tool
-- 📊 **Resource-First Approach**: Uses MCP resources instead of tools for read-only operations
-
-### **Tools Available in SLIM_MODE** (~11 tools)
-✅ **Core Connectivity**
-- `ping` - Server health check
-
-✅ **Registry Management** (Read-only)
-- `get_default_registry` - Get current default registry
-- `set_default_registry` - Set default registry (single-registry mode only)
-- **REMOVED**: `list_registries`, `get_registry_info`, `test_registry_connection`, `test_all_registries` - Use resources instead:
-  - `registry://names` - List all configured registries
-  - `registry://info/{name}` - Get detailed registry information
-  - `registry://status/{name}` - Test specific registry connection
-  - `registry://status` - Test all registry connections
-
-✅ **Schema Operations**
-- `get_schema` - Retrieve schema versions
-- `get_schema_versions` - List all versions of a schema
-- `register_schema` - Register new schemas
-- `check_compatibility` - Check schema compatibility
-- **REMOVED**: `list_subjects` - Use `registry://{name}/subjects` resource instead
-- **REMOVED**: `list_contexts` - Use `registry://{name}/contexts` resource instead
-
-✅ **Configuration Reading**
-- `get_subject_config` - Get subject configuration  
-- `get_subject_mode` - Get subject mode
-- **REMOVED**: `get_mode` - Use `registry://mode` resource instead
-- **REMOVED**: `get_global_config` - Use `registry://{name}/config` resource instead
-
-✅ **Context Management**
-- `create_context` - Create new contexts
-
-✅ **Statistics** (Lightweight)
-- `count_contexts` - Count contexts
-- `count_schemas` - Count schemas
-- `count_schema_versions` - Count schema versions
-- **REMOVED**: `check_viewonly_mode` - Use `registry://mode/{name}` resource instead
-
-### **Tools EXCLUDED in SLIM_MODE** (~50 tools)
-❌ **Heavy Operations**
-- All migration tools (`migrate_schema`, `migrate_context`, etc.)
-- All batch operations (`clear_context_batch`, etc.)
-- All export/import tools
-- All interactive/elicitation tools (`*_interactive` variants)
-- Delete operations (`delete_subject`, `delete_context`)
-- Configuration updates (`update_*` tools)
-- Task management tools
-- Comparison tools
-- Heavy statistics with async operations
-
-### **When to Use SLIM_MODE**
-- ✅ Production environments with read-heavy workloads
-- ✅ When experiencing slow LLM responses
-- ✅ Cost-sensitive deployments
-- ✅ Simple schema viewing and compatibility checking
-- ❌ Not suitable for: migrations, bulk operations, or administrative tasks
-
----
-
-## 🔍 Registry Metadata Integration
+## 🔍 Registry Metadata Integration## 🔍 Registry Metadata Integration
 
 **All test and statistics methods now automatically include comprehensive Schema Registry metadata** using the `/v1/metadata/*` endpoints. This provides enhanced traceability and debugging capabilities without requiring separate calls.
 
@@ -96,11 +27,11 @@ export SLIM_MODE=true
 - **Schema Registry Cluster ID**: Registry cluster identifier
 
 **Enhanced Methods:**
-- `get_registry_info` - **Primary method for complete registry information with metadata** *(Available in SLIM_MODE)*
-- `test_registry_connection` - Connection testing with metadata *(Available in SLIM_MODE)*
-- `test_all_registries` - Multi-registry testing with metadata *(Available in SLIM_MODE)*
-- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context *(Available in SLIM_MODE)*
-- `get_registry_statistics` - Comprehensive stats with metadata *(NOT in SLIM_MODE - heavy operation)*
+- `get_registry_info` - **Primary method for complete registry information with metadata**
+- `test_registry_connection` - Connection testing with metadata
+- `test_all_registries` - Multi-registry testing with metadata
+- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context
+- `get_registry_statistics` - Comprehensive stats with metadata
 
 ## 🤖 MCP Integration Overview
 
@@ -109,16 +40,16 @@ The Kafka Schema Registry MCP Server provides **70+ comprehensive MCP tools** th
 ### **Key Features:**
 - ✅ **Natural Language Interface**: Interact using plain English commands
 - ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **70+ MCP Tools**: Complete schema operations without API knowledge (or ~20 in SLIM_MODE)
+- ✅ **66 MCP tools** at the admin edition (39 viewer / 42 editor)
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
 - ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
-- ✅ **SLIM_MODE**: Reduce tools to ~20 for better LLM performance
+- ✅ **Editions**: Select 39, 42 or 66 tools with `MCP_EDITION`
 
 ### **Tool Categories:**
-- **Schema Management** (4 tools): register, retrieve, versions, compatibility - *3 available in SLIM_MODE*
+- **Schema Management** (4 tools): register, retrieve, versions, compatibility
 - **Context Management** (3 tools): list, create, delete contexts - *2 available in SLIM_MODE*
 - **Subject Management** (2 tools): list, delete subjects - *1 available in SLIM_MODE*
 - **Configuration Management** (5 tools): global and subject-specific settings - *2 read-only in SLIM_MODE*
@@ -136,7 +67,7 @@ The Kafka Schema Registry MCP Server provides **70+ comprehensive MCP tools** th
 
 ## 🔧 Schema Management Tools
 
-### 1. register_schema ✅ *(Available in SLIM_MODE)*
+### 1. register_schema
 
 Register a new schema version under a specified subject.
 
@@ -171,7 +102,7 @@ Claude: I'll create a comprehensive order schema for production.
 
 ---
 
-### 2. get_schema ✅ *(Available in SLIM_MODE)*
+### 2. get_schema
 
 Retrieve a specific version of a schema.
 
@@ -208,7 +139,7 @@ Claude: I'll get version 2 of the order schema for comparison.
 
 ---
 
-### 3. get_schema_versions ✅ *(Available in SLIM_MODE)*
+### 3. get_schema_versions
 
 Get all versions of a schema subject.
 
@@ -244,7 +175,7 @@ Claude: I'll get the version history for payment schemas in production.
 
 ---
 
-### 4. check_compatibility ✅ *(Available in SLIM_MODE)*
+### 4. check_compatibility
 
 Check if a schema is compatible with existing versions.
 
@@ -285,7 +216,7 @@ Claude: I'll check that type change for compatibility.
 
 ## 🗂️ Context Management Tools
 
-### 5. list_contexts ✅ *(Available in SLIM_MODE)*
+### 5. list_contexts
 
 List all available schema contexts.
 
@@ -309,7 +240,7 @@ Claude: I'll show you all available schema contexts.
 
 ---
 
-### 6. create_context ✅ *(Available in SLIM_MODE)*
+### 6. create_context
 
 Create a new schema context.
 
@@ -345,7 +276,7 @@ Claude: I'll create isolated contexts for each of your clients.
 
 ---
 
-### 7. delete_context ❌ *(NOT in SLIM_MODE)*
+### 7. delete_context
 
 Delete a schema context.
 
@@ -372,7 +303,7 @@ Claude: I'll clean up the feature context for you.
 
 ## 📄 Subject Management Tools
 
-### 8. list_subjects ✅ *(Available in SLIM_MODE)*
+### 8. list_subjects
 
 List all subjects, optionally filtered by context.
 
@@ -413,7 +344,7 @@ Claude: I'll list all schemas from every context.
 
 ---
 
-### 9. delete_subject ❌ *(NOT in SLIM_MODE)*
+### 9. delete_subject
 
 Delete a subject and all its versions.
 
@@ -442,7 +373,7 @@ Claude: I'll delete the test user schema for you.
 
 ## ⚙️ Configuration Management Tools
 
-### 10. get_global_config ✅ *(Available in SLIM_MODE)*
+### 10. get_global_config
 
 Get global configuration settings.
 
@@ -466,7 +397,7 @@ Claude: I'll check the global compatibility settings.
 
 ---
 
-### 11. update_global_config ❌ *(NOT in SLIM_MODE)*
+### 11. update_global_config
 
 Update global configuration settings.
 
@@ -493,7 +424,7 @@ Claude: I'll set production to the strictest compatibility mode.
 
 ---
 
-### 12. get_subject_config ✅ *(Available in SLIM_MODE)*
+### 12. get_subject_config
 
 Get configuration for a specific subject.
 
@@ -518,7 +449,7 @@ Claude: I'll check the payment-events compatibility configuration.
 
 ---
 
-### 13. update_subject_config ❌ *(NOT in SLIM_MODE)*
+### 13. update_subject_config
 
 Update configuration for a specific subject.
 
@@ -570,7 +501,7 @@ Claude: I'll check the current operational mode.
 
 ---
 
-### 15. update_mode ❌ *(NOT in SLIM_MODE)*
+### 15. update_mode
 
 Update the operational mode.
 
@@ -597,7 +528,7 @@ Claude: I'll switch the registry to read-only mode for maintenance.
 
 ---
 
-### 16. get_subject_mode ✅ *(Available in SLIM_MODE)*
+### 16. get_subject_mode
 
 Get the mode for a specific subject.
 
@@ -621,7 +552,7 @@ Claude: I'll check the operational mode for user-events.
 
 ---
 
-### 17. update_subject_mode ❌ *(NOT in SLIM_MODE)*
+### 17. update_subject_mode
 
 Update the mode for a specific subject.
 
@@ -1079,7 +1010,7 @@ Set the default registry for operations.
 
 ---
 
-### 27. get_default_registry ✅ *(Available in SLIM_MODE)*
+### 27. get_default_registry
 
 Get the current default registry.
 
@@ -1181,7 +1112,7 @@ All task management tools are excluded from SLIM_MODE as they're primarily used 
 
 The following tools provide comprehensive statistics and counting capabilities for Schema Registry instances.
 
-### Count Contexts ✅ *(Available in SLIM_MODE)*
+### Count Contexts
 ```python
 @mcp.tool()
 def count_contexts(registry: Optional[str] = None) -> Dict[str, Any]:
@@ -1210,7 +1141,7 @@ result = count_contexts(registry="production")
 print(f"Found {result['total_contexts']} contexts in production")
 ```
 
-### Count Schemas ✅ *(Available in SLIM_MODE)*
+### Count Schemas
 ```python
 @mcp.tool()
 def count_schemas(
@@ -1248,7 +1179,7 @@ result = count_schemas(context="staging", registry="development")
 print(f"Found {result['total_schemas']} schemas in staging context of development registry")
 ```
 
-### Count Schema Versions ✅ *(Available in SLIM_MODE)*
+### Count Schema Versions
 ```python
 @mcp.tool()
 def count_schema_versions(
@@ -1293,7 +1224,7 @@ result = count_schema_versions(
 print(f"Found {result['total_versions']} versions in staging context of development registry")
 ```
 
-### Get Registry Statistics ❌ *(NOT in SLIM_MODE)*
+### Get Registry Statistics
 ```python
 @mcp.tool()
 def get_registry_statistics(

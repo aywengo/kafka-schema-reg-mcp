@@ -2,7 +2,7 @@
 
 Create an alias subject that points to an existing subject.
 
-- Availability: Not available in SLIM_MODE or VIEWONLY mode
+- Availability: `add_subject_alias` in editor and admin editions; `delete_subject_alias` is admin-only.
 - Scope: Requires write scope (OAuth enabled environments)
 
 Request semantics (Schema Registry API):
@@ -50,7 +50,7 @@ Notes:
 
 Remove an existing subject alias.
 
-- Availability: Not available in SLIM_MODE or VIEWONLY mode
+- Availability: editor and admin editions; blocked in VIEWONLY mode
 - Scope: Requires write scope
 
 Registry API semantics:

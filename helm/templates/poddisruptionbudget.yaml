@@ -17,4 +17,5 @@ spec:
   selector:
     matchLabels:
       {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp
 {{- end }} 

@@ -92,8 +92,8 @@ To publish to GitHub Pages, follow these steps:
    git push origin main
    
 3. Create a release tag:
-   git tag v1.8.0
-   git push origin v1.8.0
+   git tag v2.3.0
+   git push origin v2.3.0
 
 4. The GitHub Action will automatically:
    - Package your chart
@@ -307,7 +307,7 @@ main() {
             2)
                 validate_chart
                 read -p "Enter OCI registry URL (e.g., ghcr.io/username): " registry
-                read -p "Enter chart version (e.g., 1.8.0): " version
+                read -p "Enter chart version (e.g., 2.3.0): " version
                 publish_oci "$registry" "$version"
                 ;;
             3)
@@ -315,14 +315,14 @@ main() {
                 ;;
             4)
                 read -p "Enter custom repository URL: " repo_url
-                read -p "Enter chart version (e.g., 1.8.0): " version
+                read -p "Enter chart version (e.g., 2.3.0): " version
                 publish_custom "$repo_url" "$version"
                 ;;
             5)
                 validate_chart
                 ;;
             6)
-                read -p "Enter chart version (e.g., 1.8.0) or press Enter for current: " version
+                read -p "Enter chart version (e.g., 2.3.0) or press Enter for current: " version
                 package_chart "$version"
                 ;;
             7)

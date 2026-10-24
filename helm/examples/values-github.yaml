@@ -10,6 +10,9 @@ global:
 # Application configuration
 replicaCount: 2
 
+# Tool catalog edition: viewer, editor, or admin.
+edition: admin
+
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always

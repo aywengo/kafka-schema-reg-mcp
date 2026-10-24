@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional
 from fastmcp.dependencies import Progress
 
 from elicitation import ElicitationField, ElicitationManager, ElicitationRequest, ElicitationType
+from mrtr import as_bool, ask
 
 # from batch_operations import BatchOperations  # Not needed for now
 
@@ -108,27 +109,79 @@ class BulkOperationsWizard:
             BulkOperationType.CONFIGURATION: self._handle_bulk_configuration,
         }
 
-    async def start_wizard(self, operation_type: Optional[BulkOperationType] = None) -> Dict[str, Any]:
-        """
-        Start the bulk operations wizard
+    async def start_wizard(
+        self,
+        operation_type: Optional[BulkOperationType] = None,
+        ctx: Any = None,
+    ) -> Dict[str, Any]:
+        """Start the wizard, using MRTR when a request context is available."""
+        if ctx is not None:
+            return await self._start_wizard_mrtr(ctx, operation_type)
 
-        Args:
-            operation_type: Pre-selected operation type, or None to prompt user
-
-        Returns:
-            Operation result
-        """
-        # Select operation type if not provided
+        # Legacy path for direct unit tests without a request context.
         if not operation_type:
             operation_type = await self._elicit_operation_type()
 
-        # Get operation handler
         handler = self._operation_handlers.get(operation_type)
         if not handler:
             raise ValueError(f"Unknown operation type: {operation_type}")
 
-        # Execute the operation workflow
         return await handler()  # type: ignore
+
+    async def _start_wizard_mrtr(self, ctx: Any, operation_type: Optional[BulkOperationType]) -> Dict[str, Any]:
+        """Gather wizard options in one round-trip and return an execution plan."""
+        if operation_type is None:
+            form = {
+                "type": "object",
+                "properties": {
+                    "operation_type": {
+                        "type": "string",
+                        "title": "Operation",
+                        "enum": [op.value for op in BulkOperationType],
+                    },
+                    "dry_run": {"type": "boolean", "title": "Dry run", "default": True},
+                    "batch_size": {"type": "integer", "title": "Batch size", "default": 10},
+                    "pattern": {"type": "string", "title": "Subject pattern (optional)"},
+                },
+                "required": ["operation_type"],
+            }
+            status, values = await ask(
+                ctx,
+                message="Choose the bulk operation and its safety options",
+                schema=form,
+                state="bulk_operations_wizard:v1",
+            )
+            if status == "suspend":
+                return values
+            if status == "declined":
+                return {"status": "cancelled", "message": "Bulk operation cancelled"}
+
+            selected = values.get("operation_type")
+            operation_type = BulkOperationType(selected) if selected else None
+            dry_run = as_bool(values.get("dry_run"), True)
+            batch_size = int(values.get("batch_size") or 10)
+            pattern = values.get("pattern") or None
+        else:
+            dry_run, batch_size, pattern = True, 10, None
+
+        if operation_type is None:
+            return {"status": "error", "message": "No operation type selected"}
+
+        next_tool = {
+            BulkOperationType.SCHEMA_UPDATE: "bulk_schema_update",
+            BulkOperationType.MIGRATION: "bulk_schema_migration",
+            BulkOperationType.CLEANUP: "bulk_schema_cleanup",
+            BulkOperationType.CONFIGURATION: "bulk_configuration_update",
+        }[operation_type]
+        return {
+            "status": "plan",
+            "operation_type": operation_type.value,
+            "dry_run": dry_run,
+            "batch_size": batch_size,
+            "pattern": pattern,
+            "next": f"call {next_tool} with explicit parameters",
+            "note": "The wizard collects options over MRTR; execution stays in the dedicated bulk tool.",
+        }
 
     async def _elicit_operation_type(self) -> BulkOperationType:
         """Elicit operation type from user"""

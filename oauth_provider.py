@@ -40,6 +40,8 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 from dotenv import load_dotenv
 
+from _version import __version__
+
 # Load environment variables
 load_dotenv()
 
@@ -78,6 +80,9 @@ AUTH_REVOCATION_ENABLED = os.getenv("AUTH_REVOCATION_ENABLED", "true").lower() i
 
 # OAuth 2.1 Configuration (generic approach)
 AUTH_AUDIENCE = os.getenv("AUTH_AUDIENCE", "")  # Client ID or API identifier
+# FastMCP 3 JWTVerifier requires public_key or jwks_uri (BearerAuthProvider was removed).
+AUTH_JWKS_URI = os.getenv("AUTH_JWKS_URI", "")
+AUTH_PUBLIC_KEY = os.getenv("AUTH_PUBLIC_KEY", "")
 
 # Legacy GitHub OAuth Configuration (for backward compatibility)
 AUTH_GITHUB_CLIENT_ID = os.getenv("AUTH_GITHUB_CLIENT_ID", "")
@@ -298,7 +303,7 @@ class OAuth21TokenValidator:
                 timeout=timeout,
                 connector=connector,
                 headers={
-                    "User-Agent": "KafkaSchemaRegistryMCP-OAuth/2.0.0 (Security Enhanced)",
+                    "User-Agent": f"KafkaSchemaRegistryMCP-OAuth/{__version__} (Security Enhanced)",
                     "Connection": "close",  # Don't keep connections alive unnecessarily
                 },
             )
@@ -736,14 +741,38 @@ class OAuth21TokenValidator:
 # Global token validator instance
 token_validator = OAuth21TokenValidator() if JWT_AVAILABLE else None
 
+
+def _fastmcp_jwt_verifier_kwargs() -> Dict[str, Any]:
+    """Build FastMCP 3 JWTVerifier kwargs (replaces removed BearerAuthProvider)."""
+    audience: Union[str, List[str], None]
+    if AUTH_AUDIENCE:
+        audience = AUTH_AUDIENCE
+    elif RESOURCE_INDICATORS:
+        audience = RESOURCE_INDICATORS
+    else:
+        audience = None
+
+    kwargs: Dict[str, Any] = {
+        "issuer": AUTH_ISSUER_URL,
+        "audience": audience,
+        "required_scopes": AUTH_REQUIRED_SCOPES,
+    }
+    if AUTH_PUBLIC_KEY:
+        kwargs["public_key"] = AUTH_PUBLIC_KEY
+    else:
+        issuer = AUTH_ISSUER_URL.rstrip("/")
+        kwargs["jwks_uri"] = AUTH_JWKS_URI or f"{issuer}/.well-known/jwks.json"
+    return kwargs
+
+
 if ENABLE_AUTH:
     try:
-        from fastmcp.server.auth import BearerAuthProvider
+        from fastmcp.server.auth import JWTVerifier
         from fastmcp.server.dependencies import AccessToken, get_access_token
 
-        class OAuth21BearerAuthProvider(BearerAuthProvider):
+        class OAuth21BearerAuthProvider(JWTVerifier):
             """
-            OAuth 2.1 compliant Bearer Auth Provider for MCP Server.
+            OAuth 2.1 JWT verifier for the MCP server (FastMCP 3 JWTVerifier).
 
             Implements comprehensive OAuth 2.1 features:
             - PKCE enforcement (mandatory)
@@ -756,21 +785,18 @@ if ENABLE_AUTH:
             """
 
             def __init__(self, **kwargs):
-                # Use standard OAuth 2.1 configuration - let discovery handle the details
-                super().__init__(
-                    issuer=AUTH_ISSUER_URL,
-                    audience=AUTH_AUDIENCE or RESOURCE_INDICATORS,
-                    required_scopes=AUTH_REQUIRED_SCOPES,
-                    **kwargs,
-                )
+                init_kwargs = _fastmcp_jwt_verifier_kwargs()
+                init_kwargs.update(kwargs)
+                super().__init__(**init_kwargs)
 
                 self.valid_scopes = set(AUTH_VALID_SCOPES)
                 self.required_scopes = set(AUTH_REQUIRED_SCOPES)
-                logger.info(f"OAuth 2.1 Bearer Auth Provider initialized with scopes: {self.valid_scopes}")
+                logger.info(f"OAuth 2.1 JWT verifier initialized with scopes: {self.valid_scopes}")
                 logger.info(f"JWT validation available: {JWT_AVAILABLE}")
                 logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
                 logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
                 logger.info(f"OAuth 2.1 Issuer: {AUTH_ISSUER_URL}")
+                logger.info(f"JWKS URI: {self.jwks_uri}")
                 logger.info(f"SSL/TLS verification: {ENFORCE_SSL_TLS_VERIFICATION}")
                 logger.info(
                     "🚀 Using generic OAuth 2.1 discovery (RFC 8414) - no provider-specific configuration needed"
@@ -792,7 +818,8 @@ if ENABLE_AUTH:
                 """Check if user has required scopes, considering scope hierarchy."""
                 if token_validator:
                     return token_validator.check_scopes(user_scopes, required_scopes)
-                return super().check_scopes(user_scopes, required_scopes)
+                expanded = self.expand_scopes(list(user_scopes))
+                return required_scopes.issubset(expanded)
 
             def expand_scopes(self, scopes: list) -> Set[str]:
                 """Expand scopes to include inherited scopes based on hierarchy."""
@@ -813,9 +840,9 @@ if ENABLE_AUTH:
         if JWT_AVAILABLE:
             try:
                 oauth_provider = OAuth21BearerAuthProvider()
-                logger.info("OAuth 2.1 Bearer Auth Provider initialized successfully")
+                logger.info("OAuth 2.1 JWT verifier initialized successfully")
             except Exception as e:
-                logger.warning(f"Failed to initialize OAuth 2.1 Bearer Auth Provider: {e}")
+                logger.warning(f"Failed to initialize OAuth 2.1 JWT verifier: {e}")
                 oauth_provider = None
         else:
             oauth_provider = None
@@ -1100,12 +1127,28 @@ def get_oauth_provider_configs():
 
 
 def get_fastmcp_config(server_name: str):
-    """Get FastMCP configuration with OAuth 2.1 authentication and MCP 2025-06-18 compliance."""
+    """Get FastMCP configuration with OAuth 2.1 authentication and request-state sealing."""
     config = {
         "name": server_name,
-        # Note: MCP 2025-06-18 compliance is handled at the application level,
-        # not through FastMCP configuration parameters
+        # SEP-2549 cache hints for list results (tools/resources/prompts).
+        "cache_ttl": 60,
+        "cache_scope": "private",
+        # Protocol compliance is handled by FastMCP 4 / MCP SDK 2.
     }
+
+    request_state_key = os.getenv("REQUEST_STATE_KEY")
+    if request_state_key:
+        if len(request_state_key.encode()) < 32:
+            raise RuntimeError(
+                "REQUEST_STATE_KEY must be at least 32 bytes of secret randomness. "
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        from mcp.server.request_state import RequestStateSecurity
+
+        config["request_state_security"] = RequestStateSecurity(keys=[request_state_key])
+        logger.info("🔐 Request-state sealing enabled with a shared REQUEST_STATE_KEY")
+    else:
+        logger.info("🔐 Request-state sealing uses a process-local ephemeral key (single-pod only)")
 
     if ENABLE_AUTH and oauth_provider:
         config["auth"] = oauth_provider
@@ -1121,6 +1164,21 @@ def get_fastmcp_config(server_name: str):
     logger.info(f"🔐 SSL/TLS verification: {'ENABLED' if ENFORCE_SSL_TLS_VERIFICATION else 'DISABLED'}")
 
     return config
+
+
+# Regenerate the advertised scope contents from the tool catalog so renamed or
+# removed tools cannot linger in discovery documents.
+try:
+    from tool_catalog import TOOL_CATALOG
+
+    _read_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "read")
+    _write_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "write")
+    _admin_tools = sorted(name for name, spec in TOOL_CATALOG.items() if spec.scope == "admin")
+    SCOPE_DEFINITIONS["read"]["includes"] = _read_tools
+    SCOPE_DEFINITIONS["write"]["includes"] = _read_tools + _write_tools
+    SCOPE_DEFINITIONS["admin"]["includes"] = _read_tools + _write_tools + _admin_tools
+except ImportError:
+    pass
 
 
 # Export main components

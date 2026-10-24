@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 
 from fastmcp.dependencies import Progress
 
+from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
@@ -179,7 +180,7 @@ async def migrate_schema_tool(
                     "target_context": target_context,
                     "dry_run": dry_run,
                     "registry_mode": "multi",
-                    "mcp_protocol_version": "2025-11-25",
+                    "mcp_protocol_version": current_protocol_version(),
                 }
             )
 
@@ -204,7 +205,7 @@ async def migrate_schema_tool(
                 "target_context": target_context,
                 "dry_run": dry_run,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-11-25",
+                "mcp_protocol_version": current_protocol_version(),
             }
         )
 
@@ -333,7 +334,7 @@ async def confirm_migration_without_ids_tool(
                 "preserve_ids": False,
                 "confirmed_without_id_preservation": True,
                 "registry_mode": "multi",
-                "mcp_protocol_version": "2025-11-25",
+                "mcp_protocol_version": current_protocol_version(),
             }
         )
 
@@ -1054,7 +1055,7 @@ async def migrate_context_tool(
             "target_registry": target_registry,
             "dry_run": dry_run,
             "registry_mode": "multi",
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Add resource links

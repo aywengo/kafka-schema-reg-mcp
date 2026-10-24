@@ -22,12 +22,14 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 </td>
 <td width="67%" style="vertical-align: top; padding-left: 20px;">
 
-> **🎯 True MCP Implementation**: Uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25** specification compliance. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
+> **🎯 True MCP Implementation**: Uses **FastMCP 4.1+** on **MCP Python SDK 2** with **MCP 2026-07-28** compliance. The same process negotiates `2025-11-25` with older clients. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v2.2.2](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v3.0.0](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
+
+> **🎛️ v3.0 editions.** The server runs as `viewer` (read-only: browse, export, compare, compatibility), `editor` (viewer + schema registration and evolution) or `admin` (full access: configuration, deletion, migration, bulk operations, disaster recovery). Plain `:latest` / `:stable` images are `viewer`; `-editor` and `-admin` tags and the Helm `edition` value opt into more. `SLIM_MODE` is a deprecated alias for `editor`. See [docs/editions.md](docs/editions.md) and [docs/v3-migration-guide.md](docs/v3-migration-guide.md).
 
 ## 📋 Table of Contents
 
@@ -51,11 +53,11 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 # Latest stable release
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Recommended: Run with SLIM_MODE for optimal performance (reduced essential tool set)
-docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
+# Viewer is the default; choose editor or admin explicitly when you need writes
+docker run -e MCP_EDITION=editor -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 
-# OR run with full feature set for administrators/SRE
-docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+# OR run with the full admin surface for administrators/SRE
+docker run -e MCP_EDITION=admin -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 ```
 
 ### 2. Configure Claude Desktop
@@ -86,8 +88,8 @@ Restart Claude Desktop and try these prompts:
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
-- **🧪 Full MCP Compliance** - 50+ tools following MCP 2025-11-25 specification
-- **🚀 SLIM_MODE** - Reduce tool overhead from 50+ to ~9 essential tools for better LLM performance
+- **🧪 MCP 2026-07-28** - FastMCP 4 / MCP SDK 2; one process also serves `2025-11-25` clients
+- **🎛️ Three editions** - `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -143,29 +145,36 @@ This project includes **5 specialized Claude Code skills** – 4 for automated s
 
 ### Option A: Docker (Recommended)
 ```bash
-# Production stable
+# Viewer (default, 39 tools)
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Latest development  
-docker pull aywengo/kafka-schema-reg-mcp:latest
+# Editor (42 tools) and admin (66 tools)
+docker pull aywengo/kafka-schema-reg-mcp:stable-editor
+docker pull aywengo/kafka-schema-reg-mcp:stable-admin
 
-# Specific version
-docker pull aywengo/kafka-schema-reg-mcp:2.1.3
+# Pin the release candidate and edition
+docker pull aywengo/kafka-schema-reg-mcp:3.0.0-admin
 ```
 
-#### Running with SLIM_MODE
-To reduce LLM overhead, run with SLIM_MODE enabled:
+#### Choosing an edition
+`MCP_EDITION` selects the tool surface at startup. Plain tags run `viewer`.
 ```bash
-# Run with a reduced essential tool set
-docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 -e SLIM_MODE=true aywengo/kafka-schema-reg-mcp:stable
+# Read-only browsing
+docker run -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+
+# Schema registration and evolution
+docker run -e MCP_EDITION=editor -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
+
+# Full surface, including deletion and migration
+docker run -e MCP_EDITION=admin -e SCHEMA_REGISTRY_URL=http://localhost:8081 aywengo/kafka-schema-reg-mcp:stable
 ```
 
-> **💡 SLIM_MODE Benefits:**
-> - Reduces tool count to an essential subset
-> - Significantly faster LLM response times
-> - Lower token usage and reduced costs
-> - Ideal for production read-only operations
-> - Maintains full remote deployment support
+> **⚠️ `SLIM_MODE` is deprecated.** It is an alias for `MCP_EDITION=editor`
+> and will be removed in 4.0.0. Do not set both variables.
+>
+> See [docs/editions.md](docs/editions.md) for the complete per-edition tool
+> list and [docs/v3-migration-guide.md](docs/v3-migration-guide.md) for the
+> upgrade path.
 
 ### Option B: Local Python
 ```bash
@@ -190,7 +199,7 @@ export SCHEMA_REGISTRY_URL="http://localhost:8081"
 export SCHEMA_REGISTRY_USER=""           # Optional
 export SCHEMA_REGISTRY_PASSWORD=""       # Optional
 export VIEWONLY="false"                  # Production safety
-export SLIM_MODE="false"                 # Optional: Enable to reduce tool overhead (default: false)
+export MCP_EDITION="viewer"              # viewer | editor | admin (default: viewer)
 ```
 
 ### Multi-Registry Mode (Up to 8 Registries)
@@ -218,165 +227,46 @@ Pre-configured examples available in [`config-examples/`](config-examples/):
 
 > **📖 Complete configuration guide**: [config-examples/README.md](config-examples/README.md)
 
-### SLIM_MODE Configuration (Performance Optimization)
+### Edition Configuration
 
-**SLIM_MODE** reduces the number of exposed MCP tools to an essential subset, significantly reducing LLM overhead and improving response times.
+An edition decides which tools are registered. Tools outside the active edition
+are not listed and cannot be called, so they cost no context and cannot be
+invoked by mistake.
 
-> **💡 Recommendation:** SLIM_MODE is **recommended for most use cases** as it provides all essential schema management capabilities with optimal performance.
+| Edition | Tools | Use case |
+|---|---|---|
+| `viewer` (default) | 39 | Browse, export, compare, compatibility checks |
+| `editor` | 42 | Viewer plus schema registration and evolution |
+| `admin` | 66 | Full surface: configuration, deletion, migration, bulk operations |
 
-#### When to Use SLIM_MODE (Recommended)
-- **Default choice** for most users and day-to-day operations
-- When experiencing slow LLM responses due to too many tools
-- For production environments focused on read-only operations
-- When you only need basic schema management capabilities
-- To reduce token usage and improve performance
-
-#### When to Use Non-SLIM Mode
-- **For administrators or SRE teams** performing long-running operations
-- When you need advanced operations like:
-  - Schema migrations across registries
-  - Bulk schema removals and cleanup operations
-  - Complex batch operations and workflows
-  - Interactive guided wizards for complex tasks
-  - Comprehensive export/import operations
-
-#### Enable SLIM_MODE
 ```bash
-export SLIM_MODE="true"  # Reduces tools from 50+ to ~9
-# Enables reduced essential tool set
+export MCP_EDITION="admin"
 ```
 
-#### Tools Available in SLIM_MODE
-**Essential Read-Only Tools:**
-- `ping` - Server health check
-- `set_default_registry`, `get_default_registry` - Registry management
-- `count_contexts`, `count_schemas`, `count_schema_versions` - Statistics
+Precedence: `MCP_EDITION` > `SLIM_MODE` alias > `MCP_EDITION_DEFAULT` >
+`viewer`. Setting `MCP_EDITION` and `SLIM_MODE` together is a startup error.
 
-**Basic Write Operations:**
-- `register_schema` - Register new schemas
-- `check_compatibility` - Schema compatibility checking
-- `create_context` - Create new contexts
+**Resources are shared by every edition.** Read-only access stays available in
+`viewer` through the `registry://`, `schema://` and `subject://` resources.
 
-**Essential Export Operations:**
-- `export_schema` - Export single schema
-- `export_subject` - Export all subject versions
-
-**Resources Available (All Modes):**
-- All 19 resources remain available in SLIM_MODE
-- `registry://`, `schema://`, `subject://` resource URIs
-- Full read access through resource-first approach
-
-**Tools Hidden in SLIM_MODE:**
-- All migration tools (`migrate_schema`, `migrate_context`)
-- All batch operations (`clear_context_batch`)
-- Advanced export/import tools (`export_context`, `export_global`)
-- All interactive/elicitation tools (`*_interactive` variants)
-- Heavy statistics tools with async operations
-- Workflow tools
-- Configuration update tools
-- Delete operations
-
-> **Note:** Task status tracking is now handled by FastMCP's built-in Docket system. Custom task management tools have been removed in favor of FastMCP's native task tracking.
-
-> **Note:** You can switch between modes by restarting with `SLIM_MODE=false` to access the full tool set.
+**VIEWONLY** is enforced at the HTTP session boundary. A read-only registry
+rejects `PUT`, `DELETE` and non-read `POST` requests even if a write tool is
+exposed by the edition.
 
 ## 📊 MCP Tools and Resources
 
-This section provides a comprehensive analysis of all MCP tools and resources exposed by the Kafka Schema Registry MCP Server.
+The tool surface is generated from `tool_catalog.py`; the tables in
+[docs/editions.md](docs/editions.md) are generated from the same catalog.
 
-### Backward Compatibility Wrapper Tools
-These tools are maintained for backward compatibility with existing clients. They internally use efficient implementations but are exposed as tools to prevent "Tool not listed" errors. Consider migrating to the corresponding resources for better performance.
+| Edition | Tools | Highlights |
+|---|---|---|
+| `viewer` | 39 | Registry info, subjects, schemas, compatibility, export, comparison, statistics, resources |
+| `editor` | +3 | `register_schema`, `check_compatibility`, interactive schema registration |
+| `admin` | +26 | Configuration, deletion, contexts, migration, bulk operations, workflows |
 
-| **Tool Name** | **SLIM_MODE** | **Scope** | **Recommended Resource** | **Description** |
-|---------------|---------------|-----------|--------------------------|-----------------|
-| `list_registries` | ✅ | read | `registry://names` | List all configured registries |
-| `get_registry_info` | ✅ | read | `registry://info/{name}` | Get registry information |
-| `test_registry_connection` | ✅ | read | `registry://status/{name}` | Test registry connection |
-| `test_all_registries` | ✅ | read | `registry://status` | Test all registry connections |
-| `list_subjects` | ✅ | read | `registry://{name}/subjects` | List all subjects |
-| `get_schema` | ✅ | read | `schema://{name}/{context}/{subject}` | Get schema content |
-| `get_schema_versions` | ✅ | read | `schema://{name}/{context}/{subject}/versions` | Get schema versions |
-| `get_global_config` | ✅ | read | `registry://{name}/config` | Get global configuration |
-| `get_mode` | ✅ | read | `registry://mode` | Get registry mode |
-| `list_contexts` | ✅ | read | `registry://{name}/contexts` | List all contexts |
-| `get_subject_config` | ✅ | read | `subject://{name}/{context}/{subject}/config` | Get subject configuration |
-| `get_subject_mode` | ✅ | read | `subject://{name}/{context}/{subject}/mode` | Get subject mode |
-
-### Core MCP Tools
-
-| **Category** | **Name** | **Type** | **SLIM_MODE** | **Scope** | **Description** |
-|--------------|----------|----------|---------------|-----------|-----------------|
-| **Core** | `ping` | Tool | ✅ | read | MCP ping/pong health check |
-| **Registry Management** | `set_default_registry` | Tool | ✅ | admin | Set default registry |
-| **Registry Management** | `get_default_registry` | Tool | ✅ | read | Get current default registry |
-| **Schema Operations** | `register_schema` | Tool | ✅ | write | Register new schema version |
-| **Schema Operations** | `check_compatibility` | Tool | ✅ | read | Check schema compatibility |
-| **Context Management** | `create_context` | Tool | ✅ | write | Create new context |
-| **Context Management** | `delete_context` | Tool | ❌ | admin | Delete context |
-| **Subject Management** | `delete_subject` | Tool | ❌ | admin | Delete subject and versions |
-| **Configuration** | `update_global_config` | Tool | ❌ | admin | Update global configuration |
-| **Configuration** | `update_subject_config` | Tool | ❌ | admin | Update subject configuration |
-| **Configuration** | `add_subject_alias` | Tool | ❌ | write | Create alias subject pointing to an existing subject |
-| **Configuration** | `delete_subject_alias` | Tool | ❌ | write | Remove an alias subject |
-| **Mode Management** | `update_mode` | Tool | ❌ | admin | Update registry mode |
-| **Mode Management** | `update_subject_mode` | Tool | ❌ | admin | Update subject mode |
-| **Statistics** | `count_contexts` | Tool | ✅ | read | Count contexts |
-| **Statistics** | `count_schemas` | Tool | ✅ | read | Count schemas |
-| **Statistics** | `count_schema_versions` | Tool | ✅ | read | Count schema versions |
-| **Statistics** | `get_registry_statistics` | Tool | ❌ | read | Get comprehensive registry stats |
-| **Export** | `export_schema` | Tool | ✅ | read | Export single schema |
-| **Export** | `export_subject` | Tool | ✅ | read | Export all subject versions |
-| **Export** | `export_context` | Tool | ❌ | read | Export all context subjects |
-| **Export** | `export_global` | Tool | ❌ | read | Export all contexts/schemas |
-| **Export** | `export_global_interactive` | Tool | ❌ | read | Interactive global export |
-| **Migration** | `migrate_schema` | Tool | ❌ | admin | Migrate schema between registries |
-| **Migration** | `migrate_context` | Tool | ❌ | admin | Migrate context between registries |
-| **Migration** | `migrate_context_interactive` | Tool | ❌ | admin | Interactive context migration |
-| **Comparison** | `compare_registries` | Tool | ❌ | read | Compare two registries |
-| **Comparison** | `compare_contexts_across_registries` | Tool | ❌ | read | Compare contexts across registries |
-| **Comparison** | `find_missing_schemas` | Tool | ❌ | read | Find missing schemas |
-| **Batch Operations** | `clear_context_batch` | Tool | ❌ | admin | Clear context with batch operations |
-| **Batch Operations** | `clear_multiple_contexts_batch` | Tool | ❌ | admin | Clear multiple contexts |
-| **Interactive** | `register_schema_interactive` | Tool | ❌ | write | Interactive schema registration |
-| **Interactive** | `check_compatibility_interactive` | Tool | ❌ | read | Interactive compatibility check |
-| **Interactive** | `create_context_interactive` | Tool | ❌ | write | Interactive context creation |
-| **Resource Discovery** | `list_available_resources` | Tool | ✅ | read | List all available resources |
-| **Resource Discovery** | `suggest_resource_for_tool` | Tool | ✅ | read | Get resource migration suggestions |
-| **Resource Discovery** | `generate_resource_templates` | Tool | ✅ | read | Generate resource URI templates |
-| **Elicitation** | `submit_elicitation_response` | Tool | ❌ | write | Submit elicitation response |
-| **Elicitation** | `list_elicitation_requests` | Tool | ❌ | read | List elicitation requests |
-| **Elicitation** | `get_elicitation_request` | Tool | ❌ | read | Get elicitation request details |
-| **Elicitation** | `cancel_elicitation_request` | Tool | ❌ | admin | Cancel elicitation request |
-| **Elicitation** | `get_elicitation_status` | Tool | ❌ | read | Get elicitation system status |
-| **Workflows** | `list_available_workflows` | Tool | ❌ | read | List available workflows |
-| **Workflows** | `get_workflow_status` | Tool | ❌ | read | Get workflow status |
-| **Workflows** | `guided_schema_migration` | Tool | ❌ | admin | Start schema migration wizard |
-| **Workflows** | `guided_context_reorganization` | Tool | ❌ | admin | Start context reorganization wizard |
-| **Workflows** | `guided_disaster_recovery` | Tool | ❌ | admin | Start disaster recovery wizard |
-| **Utility** | `get_mcp_compliance_status_tool` | Tool | ❌ | read | Get MCP compliance status |
-| **Utility** | `get_oauth_scopes_info_tool` | Tool | ❌ | read | Get OAuth scopes information |
-| **Utility** | `test_oauth_discovery_endpoints` | Tool | ❌ | read | Test OAuth discovery endpoints |
-| **Utility** | `get_operation_info_tool` | Tool | ❌ | read | Get operation metadata |
-| **Utility** | `check_viewonly_mode` | Tool | ❌ | read | Check if registry is in viewonly mode |
-| **RESOURCES** | `registry://status` | Resource | ✅ | read | Overall registry connection status |
-| **RESOURCES** | `registry://info` | Resource | ✅ | read | Detailed server configuration |
-| **RESOURCES** | `registry://mode` | Resource | ✅ | read | Registry mode detection |
-| **RESOURCES** | `registry://names` | Resource | ✅ | read | List of configured registry names |
-| **RESOURCES** | `registry://status/{name}` | Resource | ✅ | read | Specific registry connection status |
-| **RESOURCES** | `registry://info/{name}` | Resource | ✅ | read | Specific registry configuration |
-| **RESOURCES** | `registry://mode/{name}` | Resource | ✅ | read | Specific registry mode |
-| **RESOURCES** | `registry://{name}/subjects` | Resource | ✅ | read | List subjects for registry |
-| **RESOURCES** | `registry://{name}/contexts` | Resource | ✅ | read | List contexts for registry |
-| **RESOURCES** | `registry://{name}/config` | Resource | ✅ | read | Global config for registry |
-| **RESOURCES** | `schema://{name}/{context}/{subject}` | Resource | ✅ | read | Schema content with context |
-| **RESOURCES** | `schema://{name}/{subject}` | Resource | ✅ | read | Schema content default context |
-| **RESOURCES** | `schema://{name}/{context}/{subject}/versions` | Resource | ✅ | read | Schema versions with context |
-| **RESOURCES** | `schema://{name}/{subject}/versions` | Resource | ✅ | read | Schema versions default context |
-| **RESOURCES** | `subject://{name}/{context}/{subject}/config` | Resource | ✅ | read | Subject config with context |
-| **RESOURCES** | `subject://{name}/{subject}/config` | Resource | ✅ | read | Subject config default context |
-| **RESOURCES** | `subject://{name}/{context}/{subject}/mode` | Resource | ✅ | read | Subject mode with context |
-| **RESOURCES** | `subject://{name}/{subject}/mode` | Resource | ✅ | read | Subject mode default context |
-| **RESOURCES** | `elicitation://response/{request_id}` | Resource | ❌ | write | Elicitation response handling |
+The server also exposes prompts (10) and resources (18, including templates).
+See [docs/mcp-tools-reference.md](docs/mcp-tools-reference.md) for parameter
+details.
 
 ## 💬 Usage Examples
 
@@ -521,9 +411,12 @@ python kafka_schema_registry_unified_mcp.py
 
 ## 🆕 What's New
 
-### v2.2.x (Latest)
-- **📋 MCP 2025-11-25** - Protocol compliance with FastMCP native background tasks
-- **🔒 FastMCP 3.2.0+** - 3.x, capped below 4 until FastMCP 4 GA ([#177](https://github.com/aywengo/kafka-schema-reg-mcp/issues/177))
+### v3.0.0 (Latest)
+- **🎛️ Editions** - `viewer` (39 tools), `editor` (42) and `admin` (66) from one image; `SLIM_MODE` is a deprecated alias for `editor`
+- **📋 MCP 2026-07-28** - Dual-era protocol support with FastMCP native background tasks
+- **🔒 FastMCP 4.1+** - Current MCP SDK 2 stack with the 2026 security fixes
+- **🧭 MRTR workflows** - Guided schema evolution, migration, context reorganisation and disaster recovery
+- **🚚 Migration guide** - [docs/v3-migration-guide.md](docs/v3-migration-guide.md)
 
 ### v2.1.x
 - **🧭 Subject Aliasing** - New tools `add_subject_alias` and `delete_subject_alias`

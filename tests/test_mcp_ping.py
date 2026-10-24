@@ -74,7 +74,8 @@ async def test_ping_tool_directly():
 
     try:
         # Import the ping function directly
-        from kafka_schema_registry_unified_mcp import MCP_PROTOCOL_VERSION, ping
+        from kafka_schema_registry_unified_mcp import ping
+        from protocol_version import DEFAULT_PROTOCOL_VERSION
 
         print("✅ Successfully imported ping function")
 
@@ -135,8 +136,8 @@ async def test_ping_tool_directly():
             return False
 
         assert (
-            response["protocol_version"] == MCP_PROTOCOL_VERSION
-        ), f"Expected protocol version {MCP_PROTOCOL_VERSION!r}, got {response['protocol_version']!r}"
+            response["protocol_version"] == DEFAULT_PROTOCOL_VERSION
+        ), f"Expected protocol version {DEFAULT_PROTOCOL_VERSION!r}, got {response['protocol_version']!r}"
         print("✅ Protocol version validation passed")
 
         print("🎉 Direct ping tool test completed successfully!")
@@ -363,10 +364,11 @@ class MCPPingTestSuite(unittest.TestCase):
     def test_constants_defined(self):
         """Test that required constants for ping are defined."""
         try:
-            from kafka_schema_registry_unified_mcp import MCP_PROTOCOL_VERSION, REGISTRY_MODE
+            from kafka_schema_registry_unified_mcp import REGISTRY_MODE
+            from protocol_version import DEFAULT_PROTOCOL_VERSION
 
             # Validate constants used by ping function (dated MCP revision evolves with the server)
-            self.assertRegex(MCP_PROTOCOL_VERSION, r"^2025-\d{2}-\d{2}$")
+            self.assertRegex(DEFAULT_PROTOCOL_VERSION, r"^20\d{2}-\d{2}-\d{2}$")
             self.assertIn(REGISTRY_MODE, ["single", "multi"])
             print("✅ Required constants for ping are properly defined")
 

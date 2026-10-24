@@ -1,3 +1,6 @@
+{{- if and (eq .Values.tasks.backend "memory") (or .Values.autoscaling.enabled (gt (int .Values.replicaCount) 1)) }}
+{{- fail "tasks.backend=memory requires autoscaling.enabled=false and replicaCount=1; use tasks.backend=redis for multi-pod deployments" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,18 +10,26 @@ metadata:
     {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
   {{- include "kafka-schema-registry-mcp.annotations" . | nindent 4 }}
 spec:
+  {{- if eq .Values.tasks.backend "memory" }}
+  strategy:
+    type: Recreate
+  {{- end }}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
       {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp
   template:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if and .Values.auth.enabled .Values.auth.createSecret.enabled (not .Values.auth.existingSecret.enabled) }}
         checksum/oauth2-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (not .Values.requestStateKey.existingSecret) (or .Values.requestStateKey.value .Values.requestStateKey.disallowGenerated) }}
+        checksum/request-state-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.monitoring.enabled }}
         {{- with .Values.monitoring.annotations }}
@@ -28,6 +39,7 @@ spec:
         {{- include "kafka-schema-registry-mcp.annotations" . | nindent 8 }}
       labels:
         {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp
         {{- if .Values.monitoring.enabled }}
         # Instance identification for metrics
         instanceId: {{ .Release.Name }}
@@ -49,7 +61,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "%s-%s" .Chart.AppVersion .Values.edition) }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -103,6 +115,19 @@ spec:
             {{- end }}
             {{- end }}
             
+            # Multi-round-trip state sealing and task storage
+            - name: REQUEST_STATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-request-state" (include "kafka-schema-registry-mcp.fullname" .)) .Values.requestStateKey.existingSecret }}
+                  key: {{ .Values.requestStateKey.secretKey }}
+            - name: TASKS_BACKEND
+              value: {{ .Values.tasks.backend | quote }}
+            {{- if eq .Values.tasks.backend "redis" }}
+            - name: TASKS_BACKEND_URL
+              value: {{ if .Values.tasks.redis.url }}{{ .Values.tasks.redis.url | quote }}{{ else }}{{ printf "redis://%s-valkey:6379/0" (include "kafka-schema-registry-mcp.fullname" .) | quote }}{{ end }}
+            {{- end }}
+
             # Additional environment variables from secrets
             {{- with .Values.extraEnvVarsSecret }}
             {{- range . }}

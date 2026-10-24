@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional
 
 from fastmcp.dependencies import Progress
 
+from protocol_version import current_protocol_version
 from schema_registry_common import get_default_client
 from schema_validation import (
     create_error_response,
@@ -66,7 +67,7 @@ def count_contexts_tool(registry_manager, registry_mode: str, registry: Optional
             "contexts": contexts,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Add metadata information, but preserve the scope field
@@ -129,7 +130,7 @@ def count_schemas_tool(
             "schemas": subjects,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Add metadata information, but preserve the scope field
@@ -198,7 +199,7 @@ def count_schema_versions_tool(
             "versions": versions,
             "counted_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Add metadata information, but preserve the scope field
@@ -319,7 +320,7 @@ def get_registry_statistics_tool(
             "contexts": context_stats if include_context_details else None,
             "generated_at": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Add metadata information

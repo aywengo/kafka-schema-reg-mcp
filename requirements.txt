@@ -1,14 +1,16 @@
-# FastMCP 3.2.0+ for CVE-2026-32871 (SSRF) and CVE-2026-27124 (OAuthProxy); cap <4 until FastMCP 4 GA (#177)
-fastmcp[tasks]>=3.2.0,<4
-# Explicit pydocket: FastMCP 3.x gates task=True on import docket (tasks extra); ensures Docker/pip edge cases install it
-pydocket>=0.18.0
+# FastMCP 4 / MCP 2026-07-28 (v3.0, #187)
+fastmcp[tasks]>=4.1,<5
+# SEP-2663 tasks extension, registered at startup
+fastmcp-tasks>=4.1,<5
+# Explicit pydocket: fastmcp-tasks requires >=0.26; ensures Docker/pip edge cases install it
+pydocket>=0.26.0
 # Transitive via fastmcp -> py-key-value-aio[keyring] -> keyring; GHSA-58pv-8j8x-9vj2 path traversal fixed in 6.1.0+
 jaraco-context>=6.1.2
 # Transitive via pydocket/redis stack; GHSA-6v7p-g79w-8964 out-of-bounds read fixed in 1.2.1+
 msgpack>=1.2.1
 
-# MCP Python SDK - CVE-2025-66416: DNS rebinding protection requires >=1.23.0
-mcp>=1.23.0
+# MCP Python SDK 2.x; FastMCP 4 needs >=2.2 for client/server extras
+mcp>=2.2,<3
 
 # FastAPI for MCP-Protocol-Version header validation middleware
 fastapi>=0.141.1

@@ -12,6 +12,7 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
@@ -85,7 +86,7 @@ async def compare_registries_tool(
             "timestamp": datetime.now().isoformat(),
             "differences": {},
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Compare subjects (10-30%)
@@ -374,7 +375,7 @@ async def compare_contexts_across_registries_tool(
             },
             "timestamp": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         if context:
@@ -526,7 +527,7 @@ async def find_missing_schemas_tool(
             "details": [],
             "timestamp": datetime.now().isoformat(),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # Ensure details is treated as a list

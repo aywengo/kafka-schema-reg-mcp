@@ -11,6 +11,7 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 
 from typing import Any, Dict, Optional
 
+from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_validation import (
     create_error_response,
@@ -47,7 +48,7 @@ def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]
             if info:
                 # Add structured output metadata
                 info["registry_mode"] = registry_mode
-                info["mcp_protocol_version"] = "2025-11-25"
+                info["mcp_protocol_version"] = current_protocol_version()
 
                 # Add resource links for each registry
                 info = add_links_to_response(info, "registry", name)
@@ -59,7 +60,7 @@ def list_registries_tool(registry_manager, registry_mode: str) -> Dict[str, Any]
             "registries": registries_list,
             "total_count": len(registries_list),
             "registry_mode": registry_mode,
-            "mcp_protocol_version": "2025-11-25",
+            "mcp_protocol_version": current_protocol_version(),
         }
 
         # If no registries found, add helpful message
@@ -107,7 +108,7 @@ def get_registry_info_tool(registry_manager, registry_mode: str, registry: Optio
 
         # Add structured output metadata
         info["registry_mode"] = registry_mode
-        info["mcp_protocol_version"] = "2025-11-25"
+        info["mcp_protocol_version"] = current_protocol_version()
 
         # Add additional metadata for better context
         info["_metadata"] = {
@@ -157,7 +158,7 @@ def test_registry_connection_tool(
 
         # Add structured output metadata
         result["registry_mode"] = registry_mode
-        result["mcp_protocol_version"] = "2025-11-25"
+        result["mcp_protocol_version"] = current_protocol_version()
         result["test_timestamp"] = __import__("datetime").datetime.now().isoformat()
 
         # Add comprehensive metadata
@@ -239,7 +240,7 @@ async def test_all_registries_tool(registry_manager, registry_mode: str) -> Dict
                         "failed": 0 if result.get("status") == "connected" else 1,
                         "test_timestamp": __import__("datetime").datetime.now().isoformat(),
                         "registry_mode": "single",
-                        "mcp_protocol_version": "2025-11-25",
+                        "mcp_protocol_version": current_protocol_version(),
                     }
 
                     # Add resource links
@@ -259,7 +260,7 @@ async def test_all_registries_tool(registry_manager, registry_mode: str) -> Dict
 
             # Add structured output metadata
             result["registry_mode"] = "multi"
-            result["mcp_protocol_version"] = "2025-11-25"
+            result["mcp_protocol_version"] = current_protocol_version()
             result["test_timestamp"] = __import__("datetime").datetime.now().isoformat()
 
             # Add metadata to each registry test result

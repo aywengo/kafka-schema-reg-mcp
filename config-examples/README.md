@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.0 with **FastMCP 4.1+** and **MCP 2026-07-28**.
 
 ## 📂 Available Configurations
 
@@ -9,7 +9,9 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
-- **`claude_desktop_slim_mode_config.json`** - SLIM_MODE enabled for reduced LLM overhead (~15 tools)
+- **`claude_desktop_viewer_config.json`** - Viewer edition (39 tools, default)
+- **`claude_desktop_editor_config.json`** - Editor edition (42 tools)
+- **`claude_desktop_admin_config.json`** - Admin edition (66 tools)
 
 ### Version-Specific Configurations
 
@@ -41,46 +43,23 @@ This directory contains example Claude Desktop configuration files for different
 - **`docker-compose.mcp.yml`** - Complete MCP development environment
 - **`setup-ide-mcp.sh`** - Automated setup script for all IDE integrations
 
-## 🏪 SLIM_MODE Configuration
+## 🎛️ Edition Configuration
 
-**SLIM_MODE** reduces the number of exposed tools from 70+ to ~20 essential tools, significantly improving LLM performance.
+`MCP_EDITION` selects the tool surface. The default is `viewer`.
 
-### When to Use SLIM_MODE
-- 🚀 When experiencing slow LLM responses due to too many tools
-- 📦 For production environments focused on read-only operations
-- 💰 To reduce token usage and costs
-- 🎯 When you only need basic schema management capabilities
+| File | Edition | Tools |
+|---|---|---|
+| `claude_desktop_viewer_config.json` | viewer | 39 |
+| `claude_desktop_editor_config.json` | editor | 42 |
+| `claude_desktop_admin_config.json` | admin | 66 |
 
-### How to Enable SLIM_MODE
-
-#### Option 1: Use the Pre-configured File
 ```bash
-# Use the ready-made SLIM_MODE configuration
-cp config-examples/claude_desktop_slim_mode_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+cp config-examples/claude_desktop_admin_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-#### Option 2: Add to Existing Configuration
-Add `SLIM_MODE` to your existing configuration:
-```json
-"env": {
-  "SCHEMA_REGISTRY_URL": "http://localhost:38081",
-  "SLIM_MODE": "true"  // Add this line
-}
-```
-
-### Tools Available in SLIM_MODE
-- **Essential Read-Only**: `get_schema`, `list_subjects`, `list_contexts`, `check_compatibility`
-- **Basic Write**: `register_schema`, `create_context`
-- **Statistics**: `count_contexts`, `count_schemas`
-- **Configuration**: `get_global_config`, `get_mode`
-
-### Tools Hidden in SLIM_MODE
-- ❌ Migration tools (`migrate_schema`, `migrate_context`)
-- ❌ Batch operations (`clear_context_batch`)
-- ❌ Export/import tools
-- ❌ Interactive/elicitation tools
-- ❌ Workflow and task management
-- ❌ Delete operations
+`SLIM_MODE=true` is a deprecated alias for `editor`. Do not set it together
+with `MCP_EDITION`; the server refuses to start. See
+[../docs/editions.md](../docs/editions.md) for the full tool list.
 
 ## 🚀 Quick Start
 

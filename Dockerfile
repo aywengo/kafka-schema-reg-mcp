@@ -37,9 +37,13 @@ ARG TARGETARCH
 ARG VERSION="dev"
 ARG BUILD_DATE
 ARG VCS_REF
+ARG MCP_EDITION_DEFAULT="viewer"
 
 # Log production platform information
 RUN echo "Production stage on $BUILDPLATFORM for $TARGETPLATFORM ($TARGETARCH)"
+
+# The edition is baked in as a default; operators override it with MCP_EDITION.
+ENV MCP_EDITION_DEFAULT=${MCP_EDITION_DEFAULT}
 
 # Metadata
 LABEL org.opencontainers.image.title="Kafka Schema Registry MCP Server" \
@@ -91,6 +95,12 @@ RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* \
     && rm -f /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.14 2>/dev/null || true
 
 # Copy core application modules with proper ownership
+COPY --chown=mcp:mcp _version.py .
+COPY --chown=mcp:mcp protocol_version.py .
+COPY --chown=mcp:mcp edition.py .
+COPY --chown=mcp:mcp tool_catalog.py .
+COPY --chown=mcp:mcp edition_gate.py .
+COPY --chown=mcp:mcp mrtr.py .
 COPY --chown=mcp:mcp oauth_provider.py .
 COPY --chown=mcp:mcp schema_registry_common.py .
 COPY --chown=mcp:mcp schema_definitions.py .

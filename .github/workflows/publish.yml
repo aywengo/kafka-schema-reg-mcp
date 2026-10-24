@@ -14,6 +14,16 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - edition: viewer
+            suffix: "-viewer"
+          - edition: editor
+            suffix: "-editor"
+          - edition: admin
+            suffix: "-admin"
     permissions:
       contents: read
       packages: write
@@ -38,14 +48,16 @@ jobs:
           images: aywengo/kafka-schema-reg-mcp
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') }}
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          flavor: |
+            suffix=${{ matrix.suffix }}
           labels: |
-            org.opencontainers.image.title=Kafka Schema Registry MCP Server
-            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), 70+ tools, multi-registry support, Kubernetes deployment, and Claude Desktop integration. Use SLIM_MODE=true to reduce tools from 70+ to ~20.
+            org.opencontainers.image.title=Kafka Schema Registry MCP Server (${{ matrix.edition }} edition)
+            org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), ${{ matrix.edition }} edition, multi-registry support, Kubernetes deployment, and Claude Desktop integration.
             org.opencontainers.image.vendor=aywengo
             org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
@@ -66,6 +78,7 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: false  # Disable provenance for multi-platform compatibility
           build-args: |
+            MCP_EDITION_DEFAULT=${{ matrix.edition }}
             VERSION=${{ steps.meta.outputs.version }}
             BUILD_DATE=${{ steps.meta.outputs.created }}
             VCS_REF=${{ github.sha }}
@@ -73,7 +86,8 @@ jobs:
       - name: Verify multi-platform build 
         run: |
           echo "Verifying multi-platform manifest..."
-          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }} > manifest.txt
+          TAG="${{ steps.meta.outputs.version }}${{ matrix.suffix }}"
+          docker buildx imagetools inspect aywengo/kafka-schema-reg-mcp:$TAG > manifest.txt
           cat manifest.txt
           
           echo "Checking available platforms..."
@@ -89,13 +103,29 @@ jobs:
             exit 1
           fi
 
+      - name: Add unsuffixed viewer aliases
+        if: matrix.edition == 'viewer'
+        run: |
+          # Keep the historical plain tags pointing at the viewer image while
+          # every edition also has an explicit -viewer/-editor/-admin tag.
+          while IFS= read -r ref; do
+            [ -n "$ref" ] || continue
+            case "$ref" in
+              *-viewer)
+                plain="${ref%-viewer}"
+                echo "  ${ref} -> ${plain}"
+                docker buildx imagetools create -t "$plain" "$ref"
+                ;;
+            esac
+          done <<< "${{ steps.meta.outputs.tags }}"
+
       - name: Wait for Docker Hub to sync image
         run: sleep 120
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
+          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}${{ matrix.suffix }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -212,4 +242,4 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.changelog_content }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

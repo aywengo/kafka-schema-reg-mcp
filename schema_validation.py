@@ -32,6 +32,7 @@ except ImportError:
     JSONSCHEMA_AVAILABLE = False
     ValidationError = Exception
 
+from protocol_version import current_protocol_version
 from schema_definitions import get_tool_schema
 
 # Configure logging
@@ -421,7 +422,7 @@ def validate_registry_response(data: Any, registry_mode: str = "unknown") -> Any
         if "registry_mode" not in data:
             data["registry_mode"] = registry_mode
         if "mcp_protocol_version" not in data:
-            data["mcp_protocol_version"] = "2025-11-25"
+            data["mcp_protocol_version"] = current_protocol_version()
 
     return data
 
@@ -433,7 +434,7 @@ def create_success_response(
     response = {
         "message": message,
         "registry_mode": registry_mode,
-        "mcp_protocol_version": "2025-11-25",
+        "mcp_protocol_version": current_protocol_version(),
     }
 
     if data:
@@ -452,7 +453,7 @@ def create_error_response(
     response = {
         "error": error,
         "registry_mode": registry_mode,
-        "mcp_protocol_version": "2025-11-25",
+        "mcp_protocol_version": current_protocol_version(),
     }
 
     if error_code:

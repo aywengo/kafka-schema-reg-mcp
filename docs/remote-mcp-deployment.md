@@ -59,6 +59,54 @@ helm upgrade --install kafka-schema-registry-remote-mcp . \
 # Server accessible at: https://mcp-schema-registry.your-domain.com/mcp
 ```
 
+## 🚦 Gateway routing by tool name
+
+MCP 2026-07-28 clients send `Mcp-Method` and `Mcp-Name` headers with each
+Streamable HTTP request. `Mcp-Method` is the JSON-RPC method (`tools/call`,
+`resources/read`, and so on); `Mcp-Name` is the tool or resource name. An API
+gateway can use these headers to send admin tools to the admin deployment while
+viewer traffic stays on the viewer deployment.
+
+Rules of thumb:
+
+- Route on `Mcp-Name` only for `Mcp-Method: tools/call`; other methods carry a
+  resource URI or no name.
+- Match the exact public tool name. Edition suffixes are not part of the name.
+- Keep `GET /health`, `GET /ready`, `GET /metrics` and `/.well-known/*` on a
+  single deployment; they are not MCP requests.
+- Do not let a client choose an edition header. The deployment, not the caller,
+  decides which edition runs.
+
+A complete nginx ingress example is in
+[`kubernetes/ingress-gateway.yaml`](../kubernetes/ingress-gateway.yaml). It
+routes a small allowlist of admin tools to `kafka-schema-registry-mcp-admin`
+and everything else to `kafka-schema-registry-mcp-viewer`.
+
+```yaml
+# Viewer Ingress: normal backend for every request.
+# Admin Ingress: a second Ingress with the same host/path and these annotations.
+nginx.ingress.kubernetes.io/canary: "true"
+nginx.ingress.kubernetes.io/canary-by-header: "Mcp-Name"
+nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(delete_subject|delete_context|update_global_config|update_subject_config|set_default_registry|create_context|migrate_context|delete_subject_alias)$"
+```
+
+The canary header match sends only matching tool calls to the admin service.
+Requests without `Mcp-Name`, including `/health` and `/.well-known/*`, stay on
+the viewer service.
+
+Verify the headers before relying on them:
+
+```bash
+curl -sS -D - https://mcp.example.com/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ping","arguments":{}}}'
+```
+
+The response headers include the negotiated `Mcp-Session-Id`; the request
+headers are what the gateway sees. If a proxy strips unknown headers, disable
+that behaviour or terminate MCP at the proxy.
+
 ## 🔐 OAuth Authentication Setup
 
 Remote MCP servers require authentication. Choose your OAuth provider:

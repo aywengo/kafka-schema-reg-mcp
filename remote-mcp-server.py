@@ -39,13 +39,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+from mcp.types.version import KNOWN_PROTOCOL_VERSIONS
+
+from _version import __version__
+
 # Import the unified MCP server
 from kafka_schema_registry_unified_mcp import (
-    MCP_PROTOCOL_VERSION,
     REGISTRY_MODE,
     mcp,
     registry_manager,
 )
+from protocol_version import DEFAULT_PROTOCOL_VERSION
 
 # Configure logging for remote deployment
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -349,7 +353,7 @@ class RemoteMCPMetrics:
                 "",
                 "# HELP mcp_protocol_version_info MCP Protocol Version information",
                 "# TYPE mcp_protocol_version_info gauge",
-                f'mcp_protocol_version_info{{version="{MCP_PROTOCOL_VERSION}"}} 1',
+                f'mcp_protocol_version_info{{version="{DEFAULT_PROTOCOL_VERSION}"}} 1',
             ]
         )
 
@@ -520,7 +524,7 @@ def get_security_headers() -> dict:
             "max-age=31536000; includeSubDomains" if os.getenv("TLS_ENABLED", "false").lower() == "true" else ""
         ),
         "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none';",
-        "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
+        "MCP-Protocol-Version": DEFAULT_PROTOCOL_VERSION,
         "OAuth-Version": "2.1",
         "MCP-Specification": "MCP 2025-06-18",
     }
@@ -541,7 +545,7 @@ async def health_check(request):
             "oauth_enabled": os.getenv("ENABLE_AUTH", "false").lower() == "true",
             "oauth_2_1_compliant": True,
             "transport": "streamable-http",  # Only supported transport
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             "mcp_compliance": {
                 "header_validation_enabled": True,
                 "jsonrpc_batching_disabled": True,
@@ -637,7 +641,7 @@ async def health_check(request):
                 "status": "unhealthy",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
             },
             status_code=503,
@@ -695,7 +699,7 @@ async def readiness_check(request):
                 "status": "ready",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "uptime_seconds": metrics.get_uptime(),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
             },
             headers=security_headers,
@@ -709,7 +713,7 @@ async def readiness_check(request):
             {
                 "status": "not_ready",
                 "error": str(e),
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
             },
             status_code=503,
@@ -822,8 +826,8 @@ async def oauth_authorization_server_metadata(request):
                 "client_secret_post",
             ],
             # MCP-specific extensions
-            "mcp_server_version": "2.0.0",
-            "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+            "mcp_server_version": __version__,
+            "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
             "mcp_transport": "streamable-http",  # Only supported transport
             "mcp_endpoints": {
                 "mcp": f"{base_url}/mcp",
@@ -964,8 +968,8 @@ async def oauth_protected_resource_metadata(request):
             # MCP-specific resource information
             "mcp_server_info": {
                 "name": "Kafka Schema Registry MCP Server",
-                "version": "2.0.0",
-                "protocol_version": MCP_PROTOCOL_VERSION,
+                "version": __version__,
+                "protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "transport": "streamable-http",  # Only supported transport
                 "tools_count": 70,
                 "supported_registries": ["confluent", "apicurio", "hortonworks"],
@@ -997,7 +1001,7 @@ async def oauth_protected_resource_metadata(request):
             # MCP Protocol Version requirements
             "mcp_protocol_requirements": {
                 "required_header": "MCP-Protocol-Version",
-                "supported_versions": [MCP_PROTOCOL_VERSION],
+                "supported_versions": list(KNOWN_PROTOCOL_VERSIONS),
                 "header_validation": "Enforced for all MCP endpoints",
             },
             # Security policies
@@ -1091,7 +1095,7 @@ async def jwks_endpoint(request):
 
                             # Add OAuth 2.1 compliance information
                             jwks_data["oauth_2_1_compliant"] = True
-                            jwks_data["mcp_protocol_version"] = MCP_PROTOCOL_VERSION
+                            jwks_data["mcp_protocol_version"] = DEFAULT_PROTOCOL_VERSION
 
                             security_headers = get_security_headers()
                             security_headers.update(
@@ -1122,7 +1126,7 @@ async def jwks_endpoint(request):
             {
                 "keys": [],
                 "note": f"JWKS available at provider endpoint: {jwks_url}",
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": True,
                 "provider": ("github" if "github.com" in issuer_url else "oauth2.1"),
             },
@@ -1138,7 +1142,7 @@ async def jwks_endpoint(request):
         return JSONResponse(
             {
                 "keys": [],
-                "mcp_protocol_version": MCP_PROTOCOL_VERSION,
+                "mcp_protocol_version": DEFAULT_PROTOCOL_VERSION,
                 "oauth_2_1_compliant": False,
                 "error": str(e),
             },
@@ -1163,7 +1167,7 @@ def main():
     logger.info(f"📍 Path: {path}")
     logger.info(f"🔐 OAuth Enabled: {os.getenv('ENABLE_AUTH', 'false')}")
     logger.info(f"🏷️  OAuth Provider: {os.getenv('AUTH_PROVIDER', 'auto')}")
-    logger.info(f"✅ MCP Protocol Version: {MCP_PROTOCOL_VERSION}")
+    logger.info(f"✅ MCP Protocol Version: {DEFAULT_PROTOCOL_VERSION}")
     logger.info("✅ MCP-Protocol-Version Header Validation: ENABLED")
     logger.info("✅ OAuth 2.1 Compliance: ENABLED")
     logger.info("✅ PKCE Enforcement: MANDATORY")
@@ -1191,7 +1195,7 @@ def main():
 
         # Only streamable-http transport is supported (SSE deprecated per MCP 2025-06-18)
         logger.info("🚀 Starting MCP server with streamable-http transport")
-        mcp.run(transport="streamable-http")
+        mcp.run(transport="streamable-http", host=host, port=port, path=path)
 
     except Exception as e:
         logger.error(f"Failed to start remote MCP server: {e}")

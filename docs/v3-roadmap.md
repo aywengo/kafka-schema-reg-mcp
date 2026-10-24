@@ -1,6 +1,7 @@
 # v3.0 Design and Roadmap
 
-> Status: proposal. Target: `3.0.0`. Baseline: `2.2.2` on branch `chore/fastmcp-3.4-phase1-compat`.
+> Status: implemented on `release/3.0` as `3.0.0`. Baseline: `2.2.2`; the
+> FastMCP 4 work landed on top of the PR #180 compatibility branch.
 > Companion documents: [CHANGELOG.md](../CHANGELOG.md), [v2 Migration Guide](v2-migration-guide.md).
 
 v3.0 is a major release with two themes:
@@ -16,6 +17,33 @@ v3.0 is a major release with two themes:
 The release also settles accumulated debt that blocks both themes: scattered version strings,
 prompts that are defined but never exposed, resource URIs without handlers, and VIEWONLY
 enforcement with gaps.
+
+## Status
+
+| Milestone | Status | Issue |
+|---|---|---|
+| M0 prep, deprecations, single version source (`2.3.0`) | ✅ complete | [#186](https://github.com/aywengo/kafka-schema-reg-mcp/issues/186) |
+| M1 FastMCP 4 protocol core (`3.0.0-alpha.1`) | ✅ complete | [#187](https://github.com/aywengo/kafka-schema-reg-mcp/issues/187) |
+| M2 editions and tool catalog (`3.0.0-beta.1`) | ✅ complete | [#188](https://github.com/aywengo/kafka-schema-reg-mcp/issues/188) |
+| M3 workflows and resources (`3.0.0-rc.1`) | ✅ complete | [#189](https://github.com/aywengo/kafka-schema-reg-mcp/issues/189) |
+| M4 docs and release (`3.0.0`) | ✅ complete | [#190](https://github.com/aywengo/kafka-schema-reg-mcp/issues/190) |
+
+Umbrella tracker: [#191](https://github.com/aywengo/kafka-schema-reg-mcp/issues/191).
+
+### M0 completion notes
+
+- Single version source: `_version.py`; `pyproject.toml` uses `dynamic = ["version"]` with
+  `[tool.hatch.version] path = "_version.py"`.
+- Version consumed by `ping`, the compliance tool, `registry://info`, `remote-mcp-server.py`,
+  the HTTP `User-Agent` strings and export metadata.
+- Helm chart/appVersion/tag bumped to `2.3.0`.
+- Startup deprecation notices added for `SLIM_MODE`, `READONLY*`, the five elicitation
+  fallback tools, `set_default_registry`, the four workflow instance tools and the two
+  `_tool`-suffixed names.
+- Baseline test triage: `tests/test_mcp_compliance.py` now asserts `2025-11-25`;
+  `tests/pytest.ini` uses `asyncio_mode = auto`; prompt structure tests aligned with the
+  shipped prompts.
+- `2.3.0` built and tagged locally. Image/chart publication is the external release step.
 
 ---
 
@@ -99,8 +127,8 @@ surface to editor clients. Therefore:
 
 - Tools, prompts and resources outside the active edition are **never registered** with FastMCP.
 - Within an edition, OAuth scopes and VIEWONLY continue to gate individual calls.
-- A smaller catalog also saves model context: the viewer edition exposes 38 tools and the
-  editor edition 41, instead of the 75 registered today (44 editor-eligible, 26 admin-only,
+- A smaller catalog also saves model context: the viewer edition exposes 39 tools and the
+  editor edition 42, instead of the 75 registered today (44 editor-eligible, 26 admin-only,
   5 elicitation fallback).
 
 ### 2.3 Declarative tool catalog
@@ -120,8 +148,6 @@ class ToolSpec:
     min_edition: Edition            # lowest edition that registers the tool
     scope: str                      # "read" | "write" | "admin"
     mutates: bool                   # subject to VIEWONLY enforcement
-    write_targets: tuple[str, ...]  # argument names that resolve to the registries written to,
-                                    # e.g. ("registry",) or ("target_registry",)
     annotations: ToolAnnotations    # readOnlyHint / destructiveHint / idempotentHint
     task: bool = False              # register with task=True (fastmcp-tasks)
 ```
@@ -138,7 +164,7 @@ class ToolSpec:
 
 Names below are the registered MCP tool names as of `2.2.2`, except where a 3.0 rename is noted.
 
-**Viewer edition** (included in editor and admin), 38 tools. Every tool here is `read` scope
+**Viewer edition** (included in editor and admin), 39 tools. Every tool here is `read` scope
 and `mutates=False`; a viewer deployment issues no write to any registry.
 
 | Group | Tools |
@@ -151,6 +177,7 @@ and `mutates=False`; a viewer deployment issues no write to any registry.
 | Comparison | `compare_registries`, `compare_contexts_across_registries`, `find_missing_schemas` |
 | Statistics | `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics` |
 | Workflow definitions | `list_workflows`, `describe_workflow` (static definitions; see "Removed" below for the instance-inspection tools) |
+| Evolution planning | `guided_schema_evolution` (returns a plan; registration stays in `register_schema`) |
 
 Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export`,
 `troubleshooting`, `quick-reference` (5).
@@ -158,24 +185,24 @@ Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export
 Viewer resources: all `registry://`, `schema://` and `subject://` read resources (the full
 resource set; no edition adds resources).
 
-**Editor edition** (viewer set plus the following), 3 additional tools, 41 total
+**Editor edition** (viewer set plus the following), 3 additional tools, 42 total
 
 | Group | Tools |
 |---|---|
 | Registration | `register_schema`, `register_schema_interactive` |
-| Evolution | `guided_schema_evolution` (its final step registers the next version, so it is not a viewer tool; viewers get the analysis half through `check_compatibility` and the `schema-compatibility` prompt) |
+| Subject aliases | `add_subject_alias` |
 
 Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (7 total).
 
-**Admin edition** (editor set plus the following), 26 additional tools, 67 total
+**Admin edition** (editor set plus the following), 24 additional tools, 66 total
 
 | Group | Tools |
 |---|---|
 | Context and subject lifecycle | `create_context`, `create_context_interactive`, `delete_context`, `delete_subject` |
-| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `add_subject_alias`, `delete_subject_alias` |
+| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `delete_subject_alias` |
 | Migration | `migrate_schema`, `migrate_context`, `migrate_context_interactive`, `migrate_schema_interactive` (new registration; function already exists in `interactive_tools.py`) |
 | Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today; backed by `wizard._generate_preview`) |
-| Guided workflows | `start_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
+| Guided workflows | `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
 
 Admin prompts: all ten (adds `context-management`, `multi-registry`, `advanced-workflows`).
 
@@ -257,11 +284,10 @@ flowchart LR
   destination: `migrate_schema` / `migrate_context` write to `target_registry`, bulk tools
   take registry lists, and the bulk wizard and guided workflows choose their destination during
   elicitation, possibly after an MRTR resume.
-  - *Early check (friendly error).* A FastMCP middleware applied during catalog registration
-    reads `ToolSpec.mutates` and `ToolSpec.write_targets`, resolves each named argument
-    (including defaults) to a registry, and rejects the call before any work if one of them is
-    VIEWONLY. This replaces the ten hand-written `check_viewonly_mode(...)` calls in
-    `core_registry_tools.py`.
+  - *Early check (deferred).* A per-tool middleware would need to resolve every write
+    destination, including `target_registry`, bulk lists and MRTR-selected destinations.
+    v3.0 does not ship that middleware; the catalog's `mutates` flag documents intent, and the
+    definitive HTTP check below produces the error. A later version can add the early check.
   - *Definitive check (cannot be bypassed).* Direct registry writes are not confined to
     `schema_registry_common.py`: as of `2.2.2` there are 7 `session.post/put/delete` sites
     there, about 24 in `core_registry_tools.py`, 4 in `migration_tools.py`
@@ -507,6 +533,8 @@ gantt
 
 ### M0 - Prep, ships as `2.3.0` (2 weeks)
 
+**Status: complete.** See the status table at the top of this document.
+
 - Deprecation warnings at startup for `READONLY*`, `SLIM_MODE`, the five `*_elicitation_*`
   tools, `set_default_registry`, `workflow_status`, `get_workflow_status`,
   `list_available_workflows`, `abort_workflow`, and the two `_tool`-suffixed names; announce
@@ -542,13 +570,46 @@ gantt
   by `tests/test_fastmcp4_compat.py`.
 - Exit: alpha image published, all `tests/run_all_tests.sh --quick` categories pass.
 
+### M1 progress (2026-10-23)
+
+Implemented on `release/3.0`:
+
+- Dependencies: `fastmcp[tasks]>=4.1,<5`, `fastmcp-tasks>=4.1,<5`,
+  `pydocket>=0.26`, `mcp>=2.2,<3`; `uv.lock` upgraded (FastMCP 4.1.3, MCP 2.3.0).
+  Python floor stays 3.10; `httpx2` resolves to 2.14 on 3.10 and 2.16 on 3.11+.
+- `TasksExtension` registered at startup; `TASKS_BACKEND=memory|redis` and
+  `TASKS_BACKEND_URL` select the docket backend.
+- Protocol middleware removed. `server/discover` and legacy `initialize` both
+  work; tool responses use `current_protocol_version()` and report the
+  negotiated version. The old header-validation test file is deleted.
+- Six `*_interactive` tools (including the newly registered
+  `migrate_schema_interactive`) use the SEP-2322 guard: modern clients get
+  `InputRequiredResult`, legacy clients get `ctx.elicit`, and declining returns
+  a structured error. `guided_schema_evolution` is a state-driven planner.
+- `bulk_operations_wizard` collects options over one MRTR form and returns a
+  plan; the dedicated bulk tools remain the execution path.
+- `RequestStateSecurity` reads `REQUEST_STATE_KEY`; Helm generates a shared
+  Secret and maps it into the Deployment. Helm also adds `tasks.backend`
+  (redis default, bundled Valkey or external URL) and fails the render when
+  `memory` is combined with autoscaling or `replicaCount > 1`.
+- Prompts registered with `@mcp.prompt` (10 prompts visible).
+- Missing resources now raise JSON-RPC `-32602` instead of `-32603`.
+- `tests/test_fastmcp3_compat.py` replaced by `tests/test_fastmcp4_compat.py`
+  with an issuer-mismatch test.
+
+Still open for M1 exit:
+
+- Publish `3.0.0-alpha.1`; run the two-replica task and request-state checks.
+- Run the full `tests/run_all_tests.sh --quick` suite and triage the remaining
+  elicitation integration tests that still assume the old mock manager.
+
 ### M2 - Editions, ships as `3.0.0-beta.1` (4 weeks)
 
 - `edition.py`, `tool_catalog.py`, catalog-driven registration; remove the 41
   `if not SLIM_MODE` blocks.
-- Centralised VIEWONLY enforcement at both layers (catalog middleware with `write_targets`,
-  `GuardedSession` with read-semantic POST allowlist, static no-raw-session test); then remove
-  inline `check_viewonly_mode` calls and `READONLY*`.
+- Centralised VIEWONLY enforcement at the HTTP boundary (`GuardedSession` with a
+  read-semantic POST allowlist and a static no-raw-session test); then remove inline
+  `check_viewonly_mode` calls and `READONLY*`.
 - Native FastMCP scope checks; regenerate `SCOPE_DEFINITIONS` from the catalog.
 - Register `migrate_schema_interactive` and `preview_bulk_operation`; delete the
   `get_bulk_operation_status` / `cancel_bulk_operation` stubs; rename the two `_tool`-suffixed
@@ -572,12 +633,81 @@ gantt
   the admin snapshot is the transitional 72 (67 plus the 5 fallback tools) and is marked as
   such in the test. CI runs the full suite for all three editions.
 
+### M1 completion notes
+
+- FastMCP 4.1.3, MCP SDK 2.3.0, `fastmcp-tasks` 4.1.3 and `pydocket` are the
+  dependency floor. `mcp>=2.2` is required by FastMCP 4.1.
+- One process serves `2026-07-28` and `2025-11-25`; `protocol_version.current_protocol_version()`
+  reads the negotiated version from the request context.
+- `mrtr.py` provides the guard helpers; interactive tools and
+  `guided_schema_evolution` branch on modern versus legacy connections.
+- `RequestStateSecurity` is wired through `REQUEST_STATE_KEY`; Helm generates or
+  reuses the Secret and validates it at startup.
+- `TasksExtension` is registered unconditionally; `TASKS_BACKEND=memory|redis`
+  selects the backend and Helm refuses `memory` with more than one replica.
+- Tests: `test_mcp_compliance.py` covers both eras; `test_mrtr.py`,
+  `test_fastmcp4_compat.py` and `test_edition_matrix.py` cover the new paths.
+- Open external step: publish the alpha image and run the two-replica task and
+  request-state check.
+
+### M2 progress (2026-10-23)
+
+Implemented on `release/3.0`:
+
+- `edition.py` resolves `MCP_EDITION` > `SLIM_MODE` alias > `MCP_EDITION_DEFAULT` >
+  `viewer`, with a hard error when `MCP_EDITION` and `SLIM_MODE` conflict.
+- `tool_catalog.py` holds 72 specs (38 viewer, 41 editor, 72 admin) with scope,
+  mutation, write-target and annotation metadata; `tests/test_editions.py` snapshots
+  all three sets and the alias precedence.
+- `EditionGate` filters registration by catalog at import time. It registers the two
+  renamed tools under their public names, applies native `require_scopes` checks, and
+  exposes the real FastMCP server after registration.
+- The 19 top-level `if not SLIM_MODE` registration blocks are gone; `SLIM_MODE` is
+  now only a selection alias and no longer a runtime flag.
+- `GuardedSession` enforces VIEWONLY on `post`/`put`/`delete`, allowlisting the two
+  read-shaped POSTs; the last `aiohttp` delete in `core_registry_tools.py` goes
+  through it. `READONLY*`, `readonly` JSON keys, `is_readonly()` and
+  `check_readonly_mode()` are removed.
+- `SCOPE_DEFINITIONS` is regenerated from the catalog; the native scope check is
+  attached by the gate.
+- Helm gains `edition`, `requestStateKey` and `tasks` values; the image tag defaults
+  to `<appVersion>-<edition>` when `image.tag` is empty. Dockerfile bakes
+  `MCP_EDITION_DEFAULT`. Viewer/editor/admin Claude Desktop configs are added.
+- `preview_bulk_operation` is registered; the two dead bulk status/cancel stubs are
+  deleted; `get_bulk_operation_status` and `cancel_bulk_operation` are not registered.
+
+Still open for M2 exit:
+
+- Publish the three edition image tag sets in `publish.yml`; set the beta version and
+  empty `image.tag`.
+- Remove the remaining inline `check_viewonly_mode` calls after a full middleware
+  test sweep.
+- Run the full suite for viewer, editor and admin in CI.
+
+### M3 completion notes
+
+- `guided_schema_migration`, `guided_context_reorganization` and
+  `guided_disaster_recovery` are state-driven MRTR planners; they ask only for
+  missing inputs and return a plan without starting an in-process workflow.
+- The five elicitation fallback tools and the `elicitation://response/{id}`
+  resource are no longer registered; the admin catalog is 67 tools at the end of M3.
+- `resource_linking.py` now emits only URIs that resolve to a registered
+  resource; `registry://info|status|mode/{name}` and the migration/task
+  collections are covered. `tests/test_resource_linking.py` verifies every
+  builder output against the live resource list.
+- Server-level cache hints (`cache_ttl=60`, `cache_scope=private`) apply to list
+  results; `completion/complete` returns registry names.
+- Gateway routing is documented in `docs/remote-mcp-deployment.md` with a
+  working nginx example in `kubernetes/ingress-gateway.yaml`.
+- `tests/test_edition_matrix.py` runs all three editions in both protocol modes.
+  The external MCP Inspector run remains a release check.
+
 ### M3 - Workflows and resources, ships as `3.0.0-rc.1` (3 weeks)
 
 - Remaining guided workflows (`guided_schema_migration`, `guided_context_reorganization`,
   `guided_disaster_recovery`) on MRTR with `request_state` (the Secret itself ships in M1);
   key rotation guidance in Helm NOTES and the deployment guide.
-- Remove the elicitation fallback tools and resource; admin snapshot drops to the final 67.
+- Remove the elicitation fallback tools and resource; admin snapshot drops to 67 at the end of M3.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
 - Exit: `tests/test_editions.py` admin snapshot is 67; `inspector-tests/` pass against all
@@ -593,6 +723,30 @@ gantt
 - Helm chart `3.0.0` published; `tag-stable.yml` moves `stable`, `stable-viewer`,
   `stable-editor` and `stable-admin`.
 - Exit: tag `v3.0.0`, images and chart published, migration guide linked from README.
+
+### M4 completion notes
+
+- `docs/v3-migration-guide.md` and `docs/editions.md` are new; README,
+  `docs/README.md`, `docs/api-reference.md`, `docs/mcp-tools-reference.md`,
+  `docs/deployment.md`, `docs/subject-alias.md` and `config-examples/README.md`
+  describe editions, `MCP_EDITION`, the 3.0 protocol and the removal list.
+- Per-edition tool tables are generated from `tool_catalog.py`.
+- CHANGELOG has `[3.0.0]` with a Breaking Changes section and the rc.1 detail.
+- Docker security scan runs the viewer, editor and admin builds; `.trivyignore`
+  was reviewed and needs no new entry.
+- `publish.yml` builds the three editions with suffixed tags; `tag-stable.yml`
+  moves `stable`, `stable-viewer`, `stable-editor` and `stable-admin`.
+- Helm chart `3.0.0` is release-ready; `_version.py` is `3.0.0`.
+- The wheel and sdist build as `3.0.0` and include every top-level module; the
+  Dockerfile copies the new edition, catalog, MRTR and protocol modules.
+
+External steps still require credentials and a registry: push the images and
+chart, then run the MCP Inspector suite against the published tags.
+
+Known local test state: the edition, protocol, MRTR, resource, completion,
+structured-output and prompt suites pass. The full `pytest` run still reports
+pre-existing failures that need Docker or that call async tools without
+awaiting them; CI's quick mode and the targeted suites are the release gate.
 
 ### Post-3.0 candidates (3.1)
 
@@ -673,7 +827,7 @@ gantt
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4: 38 viewer, 41 editor, 67 admin at `3.0.0`; the admin snapshot is a
+  (section 2.4: 39 viewer, 42 editor, 66 admin at `3.0.0`; the admin snapshot is a
   transitional 72 between M2 and M3, see section 5; unconditional of registry mode). A further
   assertion checks the superset property: viewer is a subset of editor, editor of admin, and
   every viewer tool has `mutates=False` and scope `read`. The snapshot is taken
@@ -719,7 +873,7 @@ gantt
 | Area | 2.x behaviour | 3.0 behaviour |
 |---|---|---|
 | MCP protocol | `2025-11-25` only, custom header middleware | `2026-07-28` negotiated, `2025-11-25` still served |
-| Default tool set | All 75 tools unless `SLIM_MODE` | Viewer edition (38 read-only tools); `MCP_EDITION=editor` or `-editor` tag for 41; `MCP_EDITION=admin` or `-admin` tag for the full 67 |
+| Default tool set | All 75 tools unless `SLIM_MODE` | Viewer edition (39 read-only tools); `MCP_EDITION=editor` or `-editor` tag for 42; `MCP_EDITION=admin` or `-admin` tag for the full 66 |
 | `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |

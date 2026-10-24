@@ -9,10 +9,13 @@ global:
 # Application configuration
 replicaCount: 2
 
+# Tool catalog edition: viewer, editor, or admin.
+edition: viewer
+
 image:
   repository: aywengo/kafka-schema-reg-mcp
   pullPolicy: Always
-  tag: "1.8.0"
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -160,6 +163,33 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
+
+# Seals multi-round-trip request state so a retry can land on another pod.
+# Leave value empty to generate a random 64-character key on first install.
+requestStateKey:
+  existingSecret: ""
+  secretKey: request-state-key
+  value: ""
+  # Set true for GitOps renderers that cannot use Helm lookup. The chart then
+  # refuses to generate a fresh key on every render.
+  disallowGenerated: false
+
+# SEP-2663 task storage. Redis is required when more than one replica runs.
+tasks:
+  backend: redis
+  redis:
+    bundled: true
+    url: ""
+    image:
+      repository: valkey/valkey
+      tag: "8-alpine"
+    # Keep task state across pod restarts. Set enabled=false only for
+    # disposable development clusters; production should use a durable volume
+    # or an external Redis/Valkey service.
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: ""
 
 # Node selector
 nodeSelector: {}

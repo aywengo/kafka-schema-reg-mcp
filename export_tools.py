@@ -12,6 +12,8 @@ with JSON Schema validation, type-safe responses, and HATEOAS navigation links.
 import json
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
+from _version import __version__
+from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_registry_common import export_context as common_export_context
 from schema_registry_common import export_global as common_export_global
@@ -80,7 +82,7 @@ def export_schema_tool(
         if isinstance(result, dict):
             # Add structured output metadata
             result["registry_mode"] = registry_mode
-            result["mcp_protocol_version"] = "2025-11-25"
+            result["mcp_protocol_version"] = current_protocol_version()
 
             # Ensure required fields for export schema
             if "subject" not in result:
@@ -159,7 +161,7 @@ def export_subject_tool(
 
         # Add structured output metadata
         result["registry_mode"] = registry_mode
-        result["mcp_protocol_version"] = "2025-11-25"
+        result["mcp_protocol_version"] = current_protocol_version()
 
         # Ensure required fields for export subject
         if "subject" not in result:
@@ -222,7 +224,7 @@ async def export_context_tool(
 
             result = common_export_context(client, context, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-11-25"
+            result["mcp_protocol_version"] = current_protocol_version()
 
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
@@ -302,7 +304,7 @@ async def export_context_tool(
                 "subject_count": len(subjects_data),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-11-25",
+                "mcp_protocol_version": current_protocol_version(),
             }
 
             # Add configuration data if requested (80-90%)
@@ -335,7 +337,7 @@ async def export_context_tool(
                     "exported_at": datetime.now().isoformat(),
                     "registry_url": client.config.url,
                     "registry_name": client.config.name,
-                    "export_version": "2.0.0",
+                    "export_version": __version__,
                     "registry_mode": "multi",
                 }
 
@@ -401,7 +403,7 @@ async def export_global_tool(
 
             result = common_export_global(client, include_metadata, include_config, include_versions)
             result["registry_mode"] = "single"
-            result["mcp_protocol_version"] = "2025-11-25"
+            result["mcp_protocol_version"] = current_protocol_version()
 
             # Add resource links
             registry_name = _get_registry_name_for_linking(registry_mode, client, registry)
@@ -499,7 +501,7 @@ async def export_global_tool(
                 "default_context": (default_export if "error" not in default_export else None),
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
-                "mcp_protocol_version": "2025-11-25",
+                "mcp_protocol_version": current_protocol_version(),
             }
 
             # Add configuration data if requested (80-90%)
@@ -532,7 +534,7 @@ async def export_global_tool(
                     "exported_at": datetime.now().isoformat(),
                     "registry_url": client.config.url,
                     "registry_name": client.config.name,
-                    "export_version": "2.0.0",
+                    "export_version": __version__,
                     "registry_mode": "multi",
                     "total_contexts": len(contexts_data),
                     "total_subjects": sum(len(ctx.get("subjects", [])) for ctx in contexts_data),

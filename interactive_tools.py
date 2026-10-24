@@ -22,6 +22,7 @@ Each tool follows the pattern:
 """
 
 import asyncio
+import inspect
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -35,7 +36,16 @@ from elicitation import (
     create_schema_field_elicitation,
     elicit_with_fallback,
 )
+from mrtr import as_bool, ask_request
 from schema_validation import create_error_response
+
+
+async def _maybe_await(value: Any) -> Any:
+    """Resolve injected tools that may be sync or async."""
+    if inspect.isawaitable(value):
+        return await value
+    return value
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +64,7 @@ async def register_schema_interactive(
     headers=None,
     schema_registry_url=None,
     multi_step_manager=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive schema registration with elicitation for missing field definitions.
@@ -98,17 +109,18 @@ async def register_schema_interactive(
 
             elicitation_request = create_schema_field_elicitation(context=context, existing_fields=existing_fields)
 
-            # Store the request for processing
-            await elicitation_manager.create_request(elicitation_request)
+            if ctx is None:
+                response = await elicit_with_fallback(elicitation_request)
+                values = response.values if response and response.complete else None
+            else:
+                status, payload = await ask_request(ctx, elicitation_request, state="register_schema_interactive")
+                if status == "suspend":
+                    return payload
+                values = payload if status == "answered" else None
 
-            # Attempt elicitation with fallback
-            response = await elicit_with_fallback(elicitation_request)
-
-            if response and response.complete:
+            if values is not None:
                 # Build schema from elicited information
-                schema_definition = await _build_schema_from_elicitation(
-                    response.values, schema_definition, schema_type
-                )
+                schema_definition = await _build_schema_from_elicitation(values, schema_definition, schema_type)
 
                 logger.info(
                     f"Built schema definition from elicitation: {len(schema_definition.get('fields', []))} fields"
@@ -118,7 +130,7 @@ async def register_schema_interactive(
                     "Unable to obtain complete schema definition",
                     details={
                         "missing_info": missing_info,
-                        "elicitation_status": ("failed" if response is None else "incomplete"),
+                        "elicitation_status": "declined or incomplete",
                         "suggestion": "Please provide a complete schema definition with field specifications",
                     },
                     error_code="INCOMPLETE_SCHEMA_DEFINITION",
@@ -127,20 +139,54 @@ async def register_schema_interactive(
         # Check if schema already exists and if we should trigger evolution workflow
         from core_registry_tools import check_compatibility_tool, get_schema_tool
 
-        existing_schema_result = get_schema_tool(
-            subject=subject,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            version="latest",
-            context=context,
-            registry=registry,
+        existing_schema_result = await _maybe_await(
+            get_schema_tool(
+                subject=subject,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                version="latest",
+                context=context,
+                registry=registry,
+            )
         )
 
         # If schema exists, check compatibility
         if "error" not in existing_schema_result:
             logger.info(f"Existing schema found for '{subject}', checking compatibility")
 
-            compatibility_result = check_compatibility_tool(
+            compatibility_result = await _maybe_await(
+                check_compatibility_tool(
+                    subject=subject,
+                    schema_definition=schema_definition,
+                    registry_manager=registry_manager,
+                    registry_mode=registry_mode,
+                    schema_type=schema_type,
+                    context=context,
+                    registry=registry,
+                )
+            )
+
+            is_compatible = compatibility_result.get("is_compatible", False)
+
+            # If not compatible, return actionable guidance. The old multi-step
+            # workflow relied on in-process pending requests and is not reachable
+            # from a tool call, so do not start it here.
+            if not is_compatible:
+                logger.info(f"Breaking changes detected for '{subject}'; registration blocked")
+                return {
+                    "status": "compatibility_error",
+                    "message": "Schema registration blocked due to breaking changes",
+                    "is_compatible": False,
+                    "compatibility_errors": compatibility_result.get("messages", []),
+                    "suggestion": (
+                        "Call guided_schema_evolution with the current and proposed schemas to plan a safe "
+                        "change, then register the revised schema or update compatibility settings."
+                    ),
+                }
+
+        # Now proceed with the actual schema registration
+        result = await _maybe_await(
+            register_schema_tool(
                 subject=subject,
                 schema_definition=schema_definition,
                 registry_manager=registry_manager,
@@ -148,78 +194,21 @@ async def register_schema_interactive(
                 schema_type=schema_type,
                 context=context,
                 registry=registry,
+                auth=auth,
+                headers=headers,
+                schema_registry_url=schema_registry_url,
             )
-
-            is_compatible = compatibility_result.get("is_compatible", False)
-
-            # If not compatible, trigger Schema Evolution Assistant
-            if not is_compatible:
-                logger.info(f"Breaking changes detected for '{subject}', triggering Schema Evolution Assistant")
-
-                # Import schema evolution helpers
-                from schema_evolution_helpers import evolve_schema_with_workflow
-
-                # Use the provided multi_step_manager or create a new one as fallback
-                if multi_step_manager is None:
-                    logger.warning(
-                        "No multi_step_manager provided, creating a new one (workflows may not be available)"
-                    )
-                    from multi_step_elicitation import MultiStepElicitationManager
-
-                    multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-
-                # Start the evolution workflow
-                evolution_result = await evolve_schema_with_workflow(
-                    subject=subject,
-                    proposed_schema=schema_definition,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    elicitation_manager=elicitation_manager,
-                    multi_step_manager=multi_step_manager,
-                    context=context,
-                    registry=registry,
-                )
-
-                if evolution_result.get("workflow_started"):
-                    return {
-                        "status": "evolution_workflow_started",
-                        "message": f"Schema evolution workflow started for '{subject}' due to breaking changes",
-                        "workflow_request_id": evolution_result["request_id"],
-                        "changes_detected": evolution_result["changes_detected"],
-                        "has_breaking_changes": evolution_result["has_breaking_changes"],
-                        "compatibility_messages": evolution_result["compatibility_messages"],
-                        "note": "Complete the evolution workflow to safely update your schema",
-                    }
-                else:
-                    # Workflow failed to start, provide compatibility error details
-                    return {
-                        "status": "compatibility_error",
-                        "message": "Schema registration blocked due to breaking changes",
-                        "is_compatible": False,
-                        "compatibility_errors": compatibility_result.get("messages", []),
-                        "suggestion": "Use the Schema Evolution Assistant workflow or modify your schema to maintain compatibility",
-                        "workflow_error": evolution_result.get("error", "Unknown error"),
-                    }
-
-        # Now proceed with the actual schema registration
-        result = register_schema_tool(
-            subject=subject,
-            schema_definition=schema_definition,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            schema_type=schema_type,
-            context=context,
-            registry=registry,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=schema_registry_url,
         )
 
         # Add elicitation metadata to successful result
         if isinstance(result, dict) and "error" not in result:
             result["elicitation_used"] = needs_elicitation
             if needs_elicitation:
-                result["elicited_fields"] = list(response.values.keys()) if response else []
+                result["elicited_fields"] = [
+                    field.get("name")
+                    for field in schema_definition.get("fields", [])
+                    if isinstance(field, dict) and field.get("name")
+                ]
 
         return result
 
@@ -243,6 +232,7 @@ async def migrate_context_interactive(
     migrate_context_tool=None,
     registry_manager=None,
     registry_mode=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive context migration with elicitation for missing preferences.
@@ -279,20 +269,23 @@ async def migrate_context_interactive(
                 context=context,
             )
 
-            # Store the request for processing
-            await elicitation_manager.create_request(elicitation_request)
+            if ctx is None:
+                response = await elicit_with_fallback(elicitation_request)
+                values = response.values if response and response.complete else None
+            else:
+                status, payload = await ask_request(ctx, elicitation_request, state="migrate_context_interactive")
+                if status == "suspend":
+                    return payload
+                values = payload if status == "answered" else None
 
-            # Attempt elicitation with fallback
-            response = await elicit_with_fallback(elicitation_request)
-
-            if response and response.complete:
+            if values is not None:
                 # Apply elicited preferences
                 if preserve_ids is None:
-                    preserve_ids = response.values.get("preserve_ids", "true").lower() == "true"
+                    preserve_ids = as_bool(values.get("preserve_ids"), True)
                 if dry_run is None:
-                    dry_run = response.values.get("dry_run", "true").lower() == "true"
+                    dry_run = as_bool(values.get("dry_run"), True)
                 if migrate_all_versions is None:
-                    migrate_all_versions = response.values.get("migrate_all_versions", "false").lower() == "true"
+                    migrate_all_versions = as_bool(values.get("migrate_all_versions"), False)
 
                 logger.info(
                     f"Applied migration preferences from elicitation: preserve_ids={preserve_ids}, "
@@ -303,23 +296,25 @@ async def migrate_context_interactive(
                     "Unable to obtain migration preferences",
                     details={
                         "missing_preferences": missing_preferences,
-                        "elicitation_status": ("failed" if response is None else "incomplete"),
+                        "elicitation_status": "declined or incomplete",
                         "suggestion": "Please specify migration preferences or enable elicitation support",
                     },
                     error_code="INCOMPLETE_MIGRATION_PREFERENCES",
                 )
 
         # Now proceed with the actual context migration
-        result = migrate_context_tool(
-            source_registry=source_registry,
-            target_registry=target_registry,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            context=context,
-            target_context=target_context,
-            preserve_ids=preserve_ids,
-            dry_run=dry_run,
-            migrate_all_versions=migrate_all_versions,
+        result = await _maybe_await(
+            migrate_context_tool(
+                source_registry=source_registry,
+                target_registry=target_registry,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                context=context,
+                target_context=target_context,
+                preserve_ids=preserve_ids,
+                dry_run=dry_run,
+                migrate_all_versions=migrate_all_versions,
+            )
         )
 
         # Add elicitation metadata to successful result
@@ -355,6 +350,7 @@ async def check_compatibility_interactive(
     auth=None,
     headers=None,
     schema_registry_url=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive compatibility checking with elicitation for resolution options.
@@ -390,24 +386,27 @@ async def check_compatibility_interactive(
                     subject=subject, compatibility_errors=compatibility_errors
                 )
 
-                # Store the request for processing
-                await elicitation_manager.create_request(elicitation_request)
+                if ctx is None:
+                    response = await elicit_with_fallback(elicitation_request)
+                    values = response.values if response and response.complete else None
+                else:
+                    status, payload = await ask_request(
+                        ctx, elicitation_request, state="check_compatibility_interactive"
+                    )
+                    if status == "suspend":
+                        return payload
+                    values = payload if status == "answered" else None
 
-                # Attempt elicitation with fallback
-                response = await elicit_with_fallback(elicitation_request)
-
-                if response and response.complete:
+                if values is not None:
                     # Add resolution guidance to the result
                     compatibility_result["resolution_guidance"] = {
-                        "strategy": response.values.get("resolution_strategy"),
-                        "compatibility_level": response.values.get("compatibility_level"),
-                        "notes": response.values.get("notes"),
+                        "strategy": values.get("resolution_strategy"),
+                        "compatibility_level": values.get("compatibility_level"),
+                        "notes": values.get("notes"),
                         "elicitation_used": True,
                     }
 
-                    logger.info(
-                        f"Added compatibility resolution guidance: {response.values.get('resolution_strategy')}"
-                    )
+                    logger.info(f"Added compatibility resolution guidance: {values.get('resolution_strategy')}")
                 else:
                     # Add default guidance
                     compatibility_result["resolution_guidance"] = {
@@ -449,6 +448,7 @@ async def create_context_interactive(
     auth=None,
     headers=None,
     schema_registry_url=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive context creation with elicitation for metadata.
@@ -468,19 +468,25 @@ async def create_context_interactive(
             # Create elicitation request for context metadata
             elicitation_request = create_context_metadata_elicitation(context_name=context)
 
-            # Store the request for processing
-            await elicitation_manager.create_request(elicitation_request)
+            if ctx is None:
+                response = await elicit_with_fallback(elicitation_request)
+                values = response.values if response and response.complete else None
+            else:
+                status, payload = await ask_request(ctx, elicitation_request, state="create_context_interactive")
+                if status == "suspend":
+                    return payload
+                values = payload if status == "answered" else None
 
-            # Attempt elicitation with fallback
-            response = await elicit_with_fallback(elicitation_request)
-
-            if response and response.complete:
+            if values is not None:
                 # Extract metadata from response
+                tags_value = values.get("tags")
                 elicited_metadata = {
-                    "description": response.values.get("description") or description,
-                    "owner": response.values.get("owner") or owner,
-                    "environment": response.values.get("environment") or environment,
-                    "tags": (response.values.get("tags", "").split(",") if response.values.get("tags") else tags),
+                    "description": values.get("description") or description,
+                    "owner": values.get("owner") or owner,
+                    "environment": values.get("environment") or environment,
+                    "tags": (
+                        tags_value.split(",") if isinstance(tags_value, str) and tags_value else tags_value or tags
+                    ),
                 }
 
                 # Filter out empty values
@@ -489,14 +495,16 @@ async def create_context_interactive(
                 logger.info(f"Collected context metadata from elicitation: {list(elicited_metadata.keys())}")
 
         # Now proceed with the actual context creation
-        result = create_context_tool(
-            context=context,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            registry=registry,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=schema_registry_url,
+        result = await _maybe_await(
+            create_context_tool(
+                context=context,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                registry=registry,
+                auth=auth,
+                headers=headers,
+                schema_registry_url=schema_registry_url,
+            )
         )
 
         # Add metadata to successful result
@@ -530,6 +538,7 @@ async def export_global_interactive(
     export_global_tool=None,
     registry_manager=None,
     registry_mode=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive global export with elicitation for export preferences.
@@ -555,26 +564,27 @@ async def export_global_interactive(
             # Create elicitation request for export preferences
             elicitation_request = create_export_preferences_elicitation(operation_type="global_export")
 
-            # Store the request for processing
-            await elicitation_manager.create_request(elicitation_request)
+            if ctx is None:
+                response = await elicit_with_fallback(elicitation_request)
+                values = response.values if response and response.complete else None
+            else:
+                status, payload = await ask_request(ctx, elicitation_request, state="export_global_interactive")
+                if status == "suspend":
+                    return payload
+                values = payload if status == "answered" else None
 
-            # Attempt elicitation with fallback
-            response = await elicit_with_fallback(elicitation_request)
-
-            if response and response.complete:
+            if values is not None:
                 # Apply elicited preferences
                 if include_metadata is None:
-                    include_metadata = response.values.get("include_metadata", "true").lower() == "true"
+                    include_metadata = as_bool(values.get("include_metadata"), True)
                 if include_config is None:
-                    include_config = (
-                        response.values.get("include_metadata", "true").lower() == "true"
-                    )  # Use same setting
+                    include_config = as_bool(values.get("include_metadata"), True)  # Use same setting
                 if include_versions is None:
-                    include_versions = response.values.get("include_versions", "latest")
+                    include_versions = values.get("include_versions", "latest")
                 if format is None:
-                    format = response.values.get("format", "json")
+                    format = values.get("format", "json")
                 if compression is None:
-                    compression = response.values.get("compression", "none")
+                    compression = values.get("compression", "none")
 
                 logger.info(
                     f"Applied export preferences from elicitation: format={format}, versions={include_versions}"
@@ -588,14 +598,16 @@ async def export_global_interactive(
                 compression = compression or "none"
 
         # Now proceed with the actual global export
-        result = await export_global_tool(
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            registry=registry,
-            include_metadata=include_metadata,
-            include_config=include_config,
-            include_versions=include_versions,
-            mcp_context=None,  # Don't pass MCP context to avoid nested progress reporting
+        result = await _maybe_await(
+            export_global_tool(
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                registry=registry,
+                include_metadata=include_metadata,
+                include_config=include_config,
+                include_versions=include_versions,
+                mcp_context=None,  # Don't pass MCP context to avoid nested progress reporting
+            )
         )
 
         # Add elicitation and format metadata to successful result
@@ -639,6 +651,7 @@ async def migrate_schema_interactive(
     export_schema_tool=None,
     registry_manager=None,
     registry_mode=None,
+    ctx: Any = None,
 ) -> Dict[str, Any]:
     """
     Interactive schema migration with elicitation for migration preferences.
@@ -709,25 +722,28 @@ async def migrate_schema_interactive(
                 context=source_context,
             )
 
-            # Store the request for processing
-            await elicitation_manager.create_request(elicitation_request)
+            if ctx is None:
+                response = await elicit_with_fallback(elicitation_request)
+                values = response.values if response and response.complete else None
+            else:
+                status, payload = await ask_request(ctx, elicitation_request, state="migrate_schema_interactive")
+                if status == "suspend":
+                    return payload
+                values = payload if status == "answered" else None
 
-            # Attempt elicitation with fallback
-            response = await elicit_with_fallback(elicitation_request)
-
-            if response and response.complete:
+            if values is not None:
                 # Process elicited values
-                replace_existing = response.values.get("replace_existing", "false").lower() == "true"
-                backup_before_replace = response.values.get("backup_before_replace", "true").lower() == "true"
-                compare_after_migration = response.values.get("compare_after_migration", "true").lower() == "true"
+                replace_existing = as_bool(values.get("replace_existing"), False)
+                backup_before_replace = as_bool(values.get("backup_before_replace"), True)
+                compare_after_migration = as_bool(values.get("compare_after_migration"), True)
 
                 # Apply migration preferences
                 if preserve_ids is None:
-                    preserve_ids = response.values.get("preserve_ids", "true").lower() == "true"
+                    preserve_ids = as_bool(values.get("preserve_ids"), True)
                 if dry_run is None:
-                    dry_run = response.values.get("dry_run", "true").lower() == "true"
+                    dry_run = as_bool(values.get("dry_run"), True)
                 if migrate_all_versions is None:
-                    migrate_all_versions = response.values.get("migrate_all_versions", "false").lower() == "true"
+                    migrate_all_versions = as_bool(values.get("migrate_all_versions"), False)
 
                 # Check if we should proceed with replacement
                 if schema_exists_in_target and not replace_existing:
@@ -752,7 +768,7 @@ async def migrate_schema_interactive(
                     "Unable to obtain migration preferences",
                     details={
                         "schema_exists_in_target": schema_exists_in_target,
-                        "elicitation_status": ("failed" if response is None else "incomplete"),
+                        "elicitation_status": "declined or incomplete",
                         "suggestion": "Please specify migration preferences or enable elicitation support",
                     },
                     error_code="INCOMPLETE_MIGRATION_PREFERENCES",
@@ -768,13 +784,15 @@ async def migrate_schema_interactive(
         if schema_exists_in_target and backup_before_replace and export_schema_tool:
             try:
                 logger.info(f"Creating backup of existing schema '{subject}' in target registry")
-                backup_result = export_schema_tool(
-                    subject=subject,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    registry=target_registry,
-                    context=target_context,
-                    include_metadata=True,
+                backup_result = await _maybe_await(
+                    export_schema_tool(
+                        subject=subject,
+                        registry_manager=registry_manager,
+                        registry_mode=registry_mode,
+                        registry=target_registry,
+                        context=target_context,
+                        include_metadata=True,
+                    )
                 )
                 if "error" not in backup_result:
                     logger.info("✅ Schema backup completed successfully")
@@ -785,18 +803,20 @@ async def migrate_schema_interactive(
                 backup_result = {"error": f"Backup failed: {str(e)}"}
 
         # Now proceed with the actual schema migration
-        migration_result = migrate_schema_tool(
-            subject=subject,
-            source_registry=source_registry,
-            target_registry=target_registry,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            dry_run=dry_run,
-            preserve_ids=preserve_ids,
-            source_context=source_context,
-            target_context=target_context,
-            versions=versions,
-            migrate_all_versions=migrate_all_versions,
+        migration_result = await _maybe_await(
+            migrate_schema_tool(
+                subject=subject,
+                source_registry=source_registry,
+                target_registry=target_registry,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                dry_run=dry_run,
+                preserve_ids=preserve_ids,
+                source_context=source_context,
+                target_context=target_context,
+                versions=versions,
+                migrate_all_versions=migrate_all_versions,
+            )
         )
 
         # Perform post-migration comparison if requested and migration was successful

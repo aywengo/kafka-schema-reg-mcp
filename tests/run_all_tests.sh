@@ -170,25 +170,12 @@ check_prerequisites() {
         print_color $YELLOW "⚠️  MCP compliance test file not found in tests directory"
     fi
     
-    if [[ -f "$SCRIPT_DIR/test_mcp_header_validation.py" ]]; then
-        print_color $GREEN "✅ MCP header validation test file found (tests directory)"
-    else
-        print_color $YELLOW "⚠️  MCP header validation test file not found in tests directory"
-    fi
-    
     if [[ -f "$SCRIPT_DIR/test_structured_output.py" ]]; then
         print_color $GREEN "✅ MCP structured output test file found (tests directory)"
     else
         print_color $YELLOW "⚠️  MCP structured output test file not found in tests directory"
     fi
     
-    # Check SLIM_MODE test file
-    if [[ -f "$SCRIPT_DIR/test_slim_mode_integration.py" ]]; then
-        print_color $GREEN "✅ SLIM_MODE integration test file found"
-    else
-        print_color $YELLOW "⚠️  SLIM_MODE integration test file not found"
-    fi
-
     # Check smart defaults test files
     if [[ -f "$SCRIPT_DIR/test_smart_defaults.py" ]]; then
         print_color $GREEN "✅ Smart defaults test file found"
@@ -342,7 +329,6 @@ run_test_category() {
             run_mcp_compliance_tests
             ;;
         "slim_mode_tests")
-            run_slim_mode_tests
             ;;
         "advanced_features")
             run_advanced_feature_tests
@@ -449,26 +435,14 @@ run_multi_registry_tests() {
 
 # Run MCP compliance tests (UPDATED CATEGORY)
 run_mcp_compliance_tests() {
-    print_color $CYAN "🛡️  MCP 2025-06-18 Compliance Tests"
+    print_color $CYAN "🛡️  MCP Protocol Negotiation Tests"
     
     # All MCP compliance tests are now in the tests directory
     local tests=(
         "test_mcp_compliance.py:MCP-Protocol-Version header validation and compliance verification"
-        "test_mcp_header_validation.py:MCP header validation middleware and exempt path functionality"
         "test_structured_output.py:Structured output schema validation and MCP tool response compliance"
         "test_mcp_ping.py:MCP ping/pong protocol support and server health checking"
         "test_registry_specific_resources.py:Registry-specific resources (registry://status/{name}, registry://info/{name}, registry://mode/{name}, registry://names, schema://{name}/{context}/{subject}, schema://{name}/{subject})"
-    )
-    
-    run_test_list "${tests[@]}"
-}
-
-# Run SLIM_MODE tests (NEW CATEGORY)
-run_slim_mode_tests() {
-    print_color $CYAN "🏃 SLIM_MODE Integration Tests"
-    
-    local tests=(
-        "test_slim_mode_integration.py:SLIM_MODE functionality - tool reduction from 53+ to ~15 for improved LLM performance"
     )
     
     run_test_list "${tests[@]}"
