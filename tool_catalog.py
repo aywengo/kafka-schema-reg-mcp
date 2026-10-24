@@ -67,7 +67,7 @@ def _admin_read(name: str) -> ToolSpec:
     return ToolSpec(
         name=name,
         min_edition=Edition.ADMIN,
-        scope="read",
+        scope="admin",
         mutates=False,
         annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True),
     )
