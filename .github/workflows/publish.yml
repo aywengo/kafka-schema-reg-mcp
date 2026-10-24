@@ -51,7 +51,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
             type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') }}
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ matrix.edition == 'viewer' && github.ref_type == 'tag' }}
+            type=raw,value=latest,enable=${{ matrix.edition == 'viewer' && github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           flavor: |
             suffix=${{ matrix.suffix }}

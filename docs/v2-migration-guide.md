@@ -1,14 +1,18 @@
-# v2.x Migration Guide - Current Stable Versions
+# v2.x Migration Guide - Historical
 
-This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**.
+> **Historical guide.** This document describes the v1 → v2 upgrade and the
+> v2.x releases. It is kept for teams still running v2.x. For the current
+> release, use the [v3.0 migration guide](v3-migration-guide.md).
 
-## 🚀 Current Version Information
+This guide helps teams migrate from v1.x versions to the v2.x release series with **FastMCP 3.2.0+** and **MCP 2025-11-25**.
 
-- **Latest Stable**: v2.2.2 (`:stable` tag)
+## 🚀 v2 Version Information
+
+- **Last v2 release**: v2.2.2 (`:2.2.2` tag)
 - **Previous Stable**: v1.8.3 (deprecated)
 - **Upgrade Path**: v1.x → v2.2.2 (direct upgrade supported)
 
-> **✅ Production Ready**: v2.2.x series is stable and production-ready. Use `:stable` tag for automatic updates to latest stable version.
+> **Note:** The `:stable` tag now follows the current 3.x release. Pin `:2.2.2` if you need the last v2 image.
 
 ## 🔄 Migration Overview
 

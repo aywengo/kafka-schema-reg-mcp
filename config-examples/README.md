@@ -15,11 +15,12 @@ This directory contains example Claude Desktop configuration files for different
 
 ### Version-Specific Configurations
 
-#### Current Stable (v2.2.2)
-- **`claude_desktop_stable_config.json`** - Current stable release (v2.2.2)
-- **`claude_desktop_docker_config.json`** - Latest Docker image (may be pre-release)
+#### Current Stable (v3.0.0)
+- **`claude_desktop_stable_config.json`** - Current stable release, viewer edition
+- **`claude_desktop_docker_config.json`** - Latest Docker image, viewer edition
 
-#### FastMCP 2.x Configurations (v2.0.0+)
+#### Historical FastMCP 2.x Configurations (v2.0.0)
+These files are kept for older deployments; use the 3.0 configurations for new work.
 - **`claude_desktop_v2_config.json`** - FastMCP 2.x framework (v2.0.0)
 - **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth 2.1 generic discovery
 - **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
@@ -63,18 +64,18 @@ with `MCP_EDITION`; the server refuses to start. See
 
 ## 🚀 Quick Start
 
-### For Production (Recommended - Current Stable v1.8.3)
+### For Production (Recommended - Current Stable v3.0.0)
 ```bash
-# Copy stable configuration (v1.8.3)
+# Copy stable configuration (v3.0.0)
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
 cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-### For FastMCP 2.8.0+ Testing (v2.0.0)
+### For Historical FastMCP 2.8.0 Deployments (v2.0.0)
 ```bash
-# Copy v2.0.0 configuration for testing FastMCP 2.8.0+ features
+# Copy the v2.0.0 configuration for an older deployment
 cp config-examples/claude_desktop_v2_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
@@ -137,7 +138,7 @@ Before using any configuration, test that the MCP server works properly:
 ### Quick Diagnostic
 ```bash
 # Run comprehensive environment check
-python tests/diagnose_test_environment.py
+cd tests && ./run_all_tests.sh --quick
 
 # Test MCP server functionality
 cd tests && python test_mcp_server.py
@@ -155,7 +156,7 @@ cd tests
 ./run_all_tests.sh                      # Comprehensive test suite
 ```
 
-**📖 Complete Testing Guide**: [`tests/TEST_ENVIRONMENT_SUMMARY.md`](../tests/TEST_ENVIRONMENT_SUMMARY.md)
+**📖 Complete Testing Guide**: [`TESTING_SETUP_GUIDE.md`](../TESTING_SETUP_GUIDE.md)
 
 ## 🔧 Configuration Selection Guide
 
@@ -178,21 +179,18 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Current Production (Stable v2.2.2)
-**Recommended:** `claude_desktop_stable_config.json`
-- ✅ Battle-tested stable release
-- ✅ Proven in production environments
-- ✅ Full MCP functionality with 48 tools
-- ✅ Multi-registry and async operations support
+### Use Case: Current Production (Stable v3.0.0)
+**Recommended:** `claude_desktop_stable_config.json` for read-only, or `claude_desktop_admin_config.json` for full access
+- ✅ 3.0 stable release
+- ✅ `viewer` by default; choose `editor` or `admin` explicitly
+- ✅ 39 / 42 / 66 tools by edition
+- ✅ Multi-registry, background tasks and MRTR workflows
 
-### Use Case: FastMCP 2.8.0+ Framework Testing (v2.0.0)
-**Recommended:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
-- ✅ Modern FastMCP 2.8.0+ framework
-- ✅ MCP 2025-06-18 specification compliance
-- ✅ Enhanced authentication with OAuth 2.0 support
-- ✅ Better performance and reliability
-- ✅ Improved client API and error handling
-- ⚠️ **Pre-release**: Use for testing only until promoted to stable
+### Use Case: Historical FastMCP 2.x Deployment (v2.0.0)
+**Recommended only for existing v2.0.0 deployments:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
+- FastMCP 2.8.0 and MCP 2025-06-18
+- OAuth 2.1 generic discovery
+- Use the [v3.0 migration guide](../docs/v3-migration-guide.md) to upgrade
 
 ### Use Case: Production Safety
 **Recommended:** `claude_desktop_viewonly_config.json`
@@ -253,11 +251,11 @@ ENFORCE_SSL_TLS_VERIFICATION=false
 
 ## 🔗 Related Documentation
 
-- **[v2.x Migration Guide](../docs/v2-migration-guide.md)** - FastMCP 3.2.0+ testing and migration
-- **[TEST_ENVIRONMENT_SUMMARY.md](../tests/TEST_ENVIRONMENT_SUMMARY.md)** - Complete testing and troubleshooting guide
+- **[v3.0 Migration Guide](../docs/v3-migration-guide.md)** - Upgrade to FastMCP 4, editions and MRTR
+- **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Complete testing and troubleshooting guide
 - **[TESTING_SETUP_GUIDE.md](../TESTING_SETUP_GUIDE.md)** - Testing environment setup
 - **[tests/README.md](../tests/README.md)** - Testing infrastructure details
-- **[tests/diagnose_test_environment.py](../tests/diagnose_test_environment.py)** - Environment diagnostic tool
+- **[tests/README.md](../tests/README.md)** - Test suite layout and runners
 
 ## 📊 Port Configurations
 
@@ -271,7 +269,7 @@ All configurations in this directory use the updated port scheme:
 ## ✅ Configuration Validation
 
 ### Before Deploying to Claude Desktop
-1. **Environment Check**: `python tests/diagnose_test_environment.py`
+1. **Environment Check**: `cd tests && ./run_all_tests.sh --quick`
 2. **MCP Server Test**: `cd tests && python test_mcp_server.py`
 3. **Configuration Test**: `cd tests && python test_simple_config.py`
 4. **Schema Registry Check**: `curl http://localhost:38081/subjects`
@@ -311,7 +309,7 @@ cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/co
 ## 🚨 Troubleshooting
 
 ### Configuration Not Working?
-1. **Run diagnostic**: `python tests/diagnose_test_environment.py`
+1. **Run diagnostic**: `cd tests && ./run_all_tests.sh --quick`
 2. **Check Schema Registry**: `curl http://localhost:38081/subjects`
 3. **Test MCP server**: `cd tests && python test_mcp_server.py`
 4. **Verify paths**: Ensure file paths in configuration are correct
@@ -323,4 +321,4 @@ cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/co
 - **Docker not running**: Start Docker Desktop or daemon
 - **Permission denied**: `chmod +x tests/*.sh`
 
-**📖 Complete Troubleshooting**: [`tests/TEST_ENVIRONMENT_SUMMARY.md`](../tests/TEST_ENVIRONMENT_SUMMARY.md) 
+**📖 Complete Troubleshooting**: [`TESTING_SETUP_GUIDE.md`](../TESTING_SETUP_GUIDE.md)

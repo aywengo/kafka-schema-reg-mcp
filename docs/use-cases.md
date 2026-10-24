@@ -1,16 +1,16 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines various real-world use cases and scenarios for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ Framework**, **MCP 2025-11-25 Specification Compliance**, **Enhanced Authentication**, **Claude Desktop Integration**, **Async Task Management**, and **Multi-Registry Support**.
+This document outlines real-world use cases and scenarios for Kafka Schema Registry MCP Server **3.0.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three editions, **OAuth 2.1**, **Claude Desktop integration**, **background tasks** and **multi-registry support**.
 
 ## 🤖 MCP Integration Overview
 
-The Kafka Schema Registry MCP Server uses **FastMCP 3.2.0+** (3.x, capped below 4) with **MCP 2025-11-25 specification compliance**, integrating seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance, reliability, and authentication capabilities.
+The Kafka Schema Registry MCP Server uses **FastMCP 4.1+** on **MCP Python SDK 2** with **MCP 2026-07-28** compliance and `2025-11-25` fallback, integrating with Claude Desktop and other MCP clients. Users interact with schema management through natural language commands.
 
 ### **Key MCP Features:**
-- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with enhanced performance
-- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
-- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.0 support for 5 providers
-- ✅ **48 MCP Tools**: Complete schema operations via natural language  
+- ✅ **FastMCP 4.1+ Framework**: Modern MCP architecture with dual-era protocol support
+- ✅ **MCP 2026-07-28 Compliance**: Modern protocol with `2025-11-25` client fallback
+- ✅ **Enhanced Authentication**: FastMCP 4 `JWTVerifier` with OAuth 2.1 discovery for multiple providers
+- ✅ **39 / 42 / 66 MCP Tools**: Complete schema operations by edition via natural language
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Real-time Interaction**: Immediate feedback through Claude Desktop
@@ -74,7 +74,7 @@ Human: "Create separate contexts for our clients: ACME Corp, Globex Industries, 
 Claude: I'll set up isolated contexts for each of your clients.
 
 [Uses create_context MCP tool for each client]
-✅ Created context: client-acme  
+✅ Created context: client-acme
 ✅ Created context: client-globex
 ✅ Created context: client-initech
 ```
@@ -97,7 +97,7 @@ Human: "Register a similar user profile schema for Globex but with HIPAA complia
 Claude: I'll create a HIPAA-compliant version for Globex Industries.
 
 [Uses register_schema MCP tool]
-✅ Registered schema: user-profile in client-globex context  
+✅ Registered schema: user-profile in client-globex context
    Fields: userId, email, hipaaCompliant, encryptionLevel (default: AES256)
 ```
 
@@ -237,7 +237,7 @@ Claude: I'll export your production schemas in human-readable Avro IDL format.
 **Example Generated Documentation:**
 ```idl
 @namespace("com.company.events")
-/** User event tracking schema */  
+/** User event tracking schema */
 record UserEvent {
   /** Unique user identifier */
   string userId;
@@ -360,7 +360,7 @@ Claude: I'll apply subject-specific compatibility settings.
 
 [Uses update_subject_config MCP tool]
 ✅ payment-events: Set to FULL compatibility
-✅ payment-processed: Set to FULL compatibility  
+✅ payment-processed: Set to FULL compatibility
 ✅ internal-events: Kept at BACKWARD compatibility
 🔒 Critical payments now have maximum safety
 ```
@@ -532,7 +532,7 @@ Claude: I'll check the health of all your regional registries.
    ✅ eu-central: Connected (120ms) - EU GDPR-compliant registry
    ✅ apac-tokyo: Connected (180ms) - APAC regional registry
    ⚠️ us-west: Degraded (850ms) - High latency detected
-   
+
    Overall: 3/4 healthy, 1 degraded
 ```
 
@@ -562,12 +562,12 @@ Claude: I'll identify and migrate only GDPR-compliant schemas.
    Source: us-east/customer
    Target: eu-central/customer
    Filter: GDPR-compliant schemas only
-   
+
    Identified schemas:
    ✅ customer-profile-v3 (has consent fields)
    ✅ customer-preferences-v2 (has retention policy)
    ❌ customer-analytics-v1 (missing GDPR fields)
-   
+
    Migrating: 2/3 schemas
 ```
 
@@ -597,7 +597,7 @@ Claude: I'll identify all feature branch contexts for cleanup.
    • feature-mobile-api (15 schemas)
    • feature-analytics-beta (6 schemas)
    • feature-notifications (4 schemas)
-   
+
    Total: 5 contexts with 45 schemas
 ```
 
@@ -610,22 +610,22 @@ Claude: I'll preview the batch cleanup operation for you.
 [Uses clear_multiple_contexts_batch MCP tool with dry_run=true]
 🔍 Batch Cleanup Preview:
    Task ID: clean-20240531-features (DRY RUN)
-   
+
    Will delete:
    📁 feature-user-dashboard:
       • user-dashboard-events
       • dashboard-preferences
       • dashboard-widgets
       ... and 9 more schemas
-   
+
    📁 feature-payment-v2:
       • payment-flow-v2
       • payment-confirmation-v2
       ... and 6 more schemas
-   
+
    Total: 5 contexts, 45 schemas
    Estimated time: ~15 seconds
-   
+
    No changes made (dry run mode)
 ```
 
@@ -640,10 +640,10 @@ Claude: I'll execute the batch cleanup of all feature contexts.
    Task ID: clean-20240531-features
    Mode: Parallel deletion (10 concurrent operations)
    Status: Running
-   
+
    Progress:
    ✅ feature-notifications: Completed (4/4 schemas deleted)
-   ✅ feature-payment-v2: Completed (8/8 schemas deleted) 
+   ✅ feature-payment-v2: Completed (8/8 schemas deleted)
    🔄 feature-user-dashboard: In progress (7/12 schemas deleted)
    ⏳ feature-mobile-api: Pending
    ⏳ feature-analytics-beta: Pending
@@ -659,12 +659,12 @@ Claude: Let me check the cleanup progress.
 📊 Cleanup Progress: clean-20240531-features
    Overall: 78% complete
    Duration: 8 seconds elapsed
-   
+
    Completed: 3/5 contexts
    Schemas deleted: 35/45
    Current: Deleting feature-mobile-api schemas
    Rate: 4.4 schemas/second
-   
+
    Estimated completion: ~3 seconds
 ```
 
@@ -740,7 +740,7 @@ Claude: I'll verify the recovery was successful.
    Schemas matched: 127/127
    Versions matched: 100%
    Configurations matched: 100%
-   
+
    Disaster recovery successful!
 ```
 
@@ -766,9 +766,9 @@ Claude: I'll queue up all your maintenance operations.
 [Uses multiple async tools]
 📋 Maintenance Tasks Queued:
    1. Task ID: clean-maint-001 - Cleanup test contexts
-   2. Task ID: mig-maint-002 - Staging→Production migration  
+   2. Task ID: mig-maint-002 - Staging→Production migration
    3. Task ID: config-maint-003 - Update compatibility settings
-   
+
    Total estimated time: 15-20 minutes
    Status: Queued (will start in sequence)
 ```
@@ -781,19 +781,19 @@ Claude: I'll display all your maintenance operations.
 
 [Uses list_all_active_tasks MCP tool]
 📊 Maintenance Window Status:
-   
+
    ✅ clean-maint-001: Completed (2m 15s)
       - Deleted 8 test contexts
       - Removed 67 test schemas
-   
+
    🔄 mig-maint-002: Running (67% - 5m elapsed)
       - Migrating production schemas
       - 89/132 schemas complete
-   
+
    ⏳ config-maint-003: Queued
       - Will start after migration
       - Estimated duration: 30s
-   
+
    System load: Moderate
    Expected completion: 11:45 PM
 ```

@@ -215,7 +215,7 @@ mcp_schema_registry_response_time_seconds_avg{registry="production"} / mcp_schem
 
 ### **Integration Points**
 - **Health checks**: Registry connectivity tested and exposed
-- **MCP tools**: All 48 tools automatically instrumented
+- **MCP tools**: All edition tools automatically instrumented (39 / 42 / 66)
 - **Context awareness**: Operations tracked per Schema Registry context
 - **Multi-registry**: Separate metrics for each configured registry
 

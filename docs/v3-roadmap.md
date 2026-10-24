@@ -1,8 +1,9 @@
 # v3.0 Design and Roadmap
 
-> Status: implemented on `release/3.0` as `3.0.0`. Baseline: `2.2.2`; the
-> FastMCP 4 work landed on top of the PR #180 compatibility branch.
-> Companion documents: [CHANGELOG.md](../CHANGELOG.md), [v2 Migration Guide](v2-migration-guide.md).
+> Status: released as `3.0.0` on `main` (PR #192, tag `v3.0.0`). Baseline:
+> `2.2.2`; the FastMCP 4 work landed on top of the PR #180 compatibility branch.
+> Companion documents: [CHANGELOG.md](../CHANGELOG.md),
+> [v3 migration guide](v3-migration-guide.md), [v2 migration guide](v2-migration-guide.md).
 
 v3.0 is a major release with two themes:
 

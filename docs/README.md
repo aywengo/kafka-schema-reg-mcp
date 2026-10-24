@@ -4,22 +4,22 @@ Welcome to the Kafka Schema Registry MCP Server v3.0 documentation! This folder 
 
 ## 🤖 **MCP Implementation Overview**
 
-This project uses **FastMCP 3.2.0+** (3.x, capped below 4) for **MCP 2025-11-25 specification compliance**, providing a **true Model Context Protocol (MCP) server** that integrates seamlessly with Claude Desktop and other MCP clients. Users interact with schema management through **natural language commands** with enhanced performance and reliability.
+This project uses **FastMCP 4.1+** on **MCP Python SDK 2** for **MCP 2026-07-28** compliance, while still serving `2025-11-25` clients from the same process. It integrates with Claude Desktop and other MCP clients. Users interact with schema management through natural language commands.
 
 ### **Key MCP Features:**
-- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with enhanced performance (3.x, capped below 4)
-- ✅ **MCP 2025-11-25 Compliance**: Full support for the current Model Context Protocol specification
-- ✅ **70+ MCP Tools**: Complete schema operations via natural language with async task management
-- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth with OAuth 2.1 support for any provider
-- ✅ **Interactive Operations**: Smart migration with user preference elicitation (v2.0.2+)
-- ✅ **Advanced Security**: Credential protection and secure logging (v2.0.2+)
-- ✅ **Subject Aliasing (NEW in v2.1.x)**: `add_subject_alias` and `delete_subject_alias` tools
+- ✅ **FastMCP 4.1+ / MCP SDK 2**: Dual-era protocol negotiation in one process
+- ✅ **MCP 2026-07-28 Compliance**: Modern sessionless protocol with `2025-11-25` fallback
+- ✅ **Three editions**: `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
+- ✅ **Enhanced Authentication**: OAuth 2.1 discovery with scope-based tool permissions
+- ✅ **MRTR workflows**: Guided schema evolution, migration, context reorganization and disaster recovery
+- ✅ **Advanced Security**: Credential protection, secure logging and VIEWONLY enforcement at the HTTP boundary
+- ✅ **Subject Aliasing**: `add_subject_alias` and `delete_subject_alias` tools
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Export Capabilities**: JSON and Avro IDL formats with comprehensive metadata
-- ✅ **Async Task Management**: Non-blocking operations with real-time progress tracking
-- ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
+- ✅ **Background Tasks**: Non-blocking operations with progress tracking
+- ✅ **Multi-Registry Support**: Manage up to 8 Schema Registry instances
 
 ---
 
@@ -32,7 +32,7 @@ Real-world scenarios using Claude Desktop integration:
 - **Export & Documentation**: Human-readable schema documentation generation
 - **Compliance & Governance**: AI-assisted regulatory compliance checking
 - **Configuration Management**: Natural language configuration commands
-- **Interactive Migration**: Smart schema migration with user guidance (v2.0.2+)
+- **MRTR Workflows**: Guided schema evolution, migration, context reorganization and disaster recovery
 - **Complete Development Lifecycle**: End-to-end workflows with Claude Desktop
 - **Async Operations**: Long-running migrations with progress monitoring
 
@@ -46,22 +46,14 @@ Comprehensive deployment instructions covering:
 - **Claude Desktop Configuration**: Best practices and troubleshooting
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
-Comprehensive reference for all 70+ MCP tools and 7 MCP resources:
-- **Schema Management Tools** (4): register, retrieve, versions, compatibility
-- **Context Management Tools** (3): list, create, delete contexts
-- **Subject Management Tools** (2): list, delete subjects  
-- **Configuration Management Tools** (5): global, subject-specific, and subject aliasing
-- **Mode Management Tools** (4): operational mode control
-- **Export Tools** (4): comprehensive schema export capabilities
-- **Multi-Registry Tools** (6): cross-registry operations
-- **Migration Tools** (5): schema and context migration with interactive features
-- **Task Management Tools** (8): progress tracking and monitoring
-- **Statistics Tools** (4): counting and analysis tools
-- **MCP Resources** (7): Real-time information access via URIs
-  - **Global Resources**: `registry://status`, `registry://info`, `registry://mode`, `registry://names`
-  - **Registry-Specific**: `registry://status/{name}`, `registry://info/{name}`, `registry://mode/{name}`
-  - **Schema Resources**: `schema://{name}/{context}/{subject}`, `schema://{name}/{subject}`
-- **Natural Language Examples**: Claude Desktop usage patterns for each tool and resource
+Generated reference for the full edition-dependent MCP surface:
+- **Edition summary**: `viewer` (39 tools), `editor` (42) and `admin` (66)
+- **Tool inventory**: scope, read-only/destructive annotations and parameters for every tool
+- **Resources**: 4 concrete resources and 17 resource templates
+- **Prompts**: 10 built-in prompts
+- **Natural Language Examples**: Claude Desktop usage patterns
+
+The catalog is defined in `tool_catalog.py`; the tables in [editions.md](editions.md) are generated from the same source.
 
 ### 🔐 **[OAuth Providers Guide](oauth-providers-guide.md)** - Universal Authentication
 OAuth 2.1 generic discovery setup guide:
@@ -71,7 +63,7 @@ OAuth 2.1 generic discovery setup guide:
 - **Security Features**: PKCE enforcement, Resource Indicators, Audience validation
 - **Discovery Endpoints**: RFC 8414 compliance and automatic endpoint detection
 
-### 📖 **[API Reference](api-reference.md)** - Legacy REST API Documentation
+### 📖 **[API Reference](api-reference.md)** - REST API and Tool Inventory
 *Note: This document is maintained for reference but the **MCP Tools Reference** is the primary documentation for the current implementation.*
 
 ### 🔧 **[IDE Integration](ide-integration.md)** - Development Environment Setup
@@ -83,26 +75,43 @@ Development environment setup guides (updated for MCP):
 
 ### 🎛️ **[Editions](editions.md)** - Per-edition tool tables and selection
 
+### 🧭 **[Elicitation and MRTR Workflows](elicitation-guide.md)** - Interactive tools on both protocol eras
+
 ### 🚚 **[v3.0 Migration Guide](v3-migration-guide.md)** - Upgrade from 2.x
 
 ### 🏷️ **[Release Process](release-process.md)** - Candidates, tags and stable promotion
 
-### 📋 **[v2 Migration Guide](v2-migration-guide.md)** - Version Upgrade Guide
-Migration guide for upgrading between major versions:
+### 📋 **[v2 Migration Guide](v2-migration-guide.md)** - Historical v1 → v2 Guide
+Migration guide for the v1 → v2 upgrade. For the current release, use the [v3.0 migration guide](v3-migration-guide.md):
 - **v1.x to v2.x Migration**: FastMCP framework upgrade
 - **OAuth Migration**: From provider-specific to generic OAuth 2.1
 - **Breaking Changes**: JSON-RPC batching removal and other changes
 - **Testing Guide**: Validation steps for new versions
 
-### 🗺️ **[v3.0 Design and Roadmap](v3-roadmap.md)** - Next Major Release Plan
-Design, milestones and implementation plan for v3.0:
+### 🗺️ **[v3.0 Design and Roadmap](v3-roadmap.md)** - Implementation Notes
+Design, milestones and implementation record for v3.0:
 - **MCP 2026-07-28**: FastMCP 4 / MCP SDK 2 upgrade with legacy client support
 - **Editions**: `viewer` (read-only), `editor` (read, compatibility, evolution, registration) and `admin` (full access)
 - **Roadmap**: Milestones M0-M4, risk register, backward compatibility matrix
 
 ---
 
-## 🎉 What's New in v2.1.x (Latest)
+## 🎉 What's New in v3.0.0 (Latest)
+
+### **🎛️ Editions**
+- `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
+- `SLIM_MODE` is a deprecated alias for `editor`
+
+### **🚀 FastMCP 4 / MCP 2026-07-28**
+- Dual-era protocol negotiation in one process
+- Native background tasks through `fastmcp-tasks`
+- MRTR workflows for schema evolution, migration, context reorganization and disaster recovery
+
+### **📚 Release Notes**
+- [CHANGELOG](../CHANGELOG.md)
+- [v3.0 migration guide](v3-migration-guide.md)
+
+## 🎉 What's New in v2.1.x
 
 ### **🧭 Subject Aliasing**
 - New tools for managing subject aliases: `add_subject_alias`, `delete_subject_alias`
@@ -142,7 +151,7 @@ Design, milestones and implementation plan for v3.0:
 ### **📊 New MCP Resources (7 Total)**
 - **Global Resources**: Real-time server and registry information via URIs
   - `registry://status` - Overall registry connection status and health
-  - `registry://info` - Detailed server configuration and capabilities  
+  - `registry://info` - Detailed server configuration and capabilities
   - `registry://mode` - Registry mode detection and MCP compliance info
   - `registry://names` - List of all configured registry names with status
 - **Registry-Specific Resources**: Individual registry information
@@ -169,7 +178,7 @@ Design, milestones and implementation plan for v3.0:
 
 ### **🚀 FastMCP 2.8.0+ Framework Migration**
 - **✅ Modern MCP Architecture**: Complete migration from legacy `mcp[cli]==1.9.4` to FastMCP 2.8.0+
-- **✅ MCP 2025-06-18 Compliance**: Full support for latest Message Control Protocol specification
+- **✅ MCP 2025-06-18 Compliance**: Protocol version supported at the time of the v2.0 release
 - **✅ Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.1 integration
 - **✅ Improved Client API**: Modern FastMCP client interface replacing legacy `mcp.ClientSession`
 - **✅ Better Performance**: Enhanced reliability and performance with modern framework

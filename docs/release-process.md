@@ -23,8 +23,12 @@ version. Update `_version.py`, `helm/Chart.yaml`, `README.md`, and
 2. Push the tag. The workflow builds the three edition images and creates a
    non-prerelease GitHub Release.
 3. Optionally run the `Tag as Stable` workflow with `v3.1.0` to move `stable`
-   and `stable-viewer|editor|admin`.
+   and `stable-viewer|editor|admin`. It re-tags the published images; it does
+   not rebuild them.
 4. Publish the Helm chart with the matching `appVersion`.
+
+The `latest` alias moves only for a non-prerelease tag. Prerelease tags keep
+their versioned and suffixed tags without moving `latest`, `3`, or `3.1`.
 
 ## Required credentials
 

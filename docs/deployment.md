@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers various deployment scenarios for the Kafka Schema Registry MCP Server v2.2.2 with **FastMCP 3.2.0+ framework**, **MCP 2025-11-25 specification compliance**, **Interactive Schema Migration**, and **Enhanced Security Features**, from local development to production environments.
+This guide covers deployment scenarios for the Kafka Schema Registry MCP Server **3.0.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three runtime editions, MRTR workflows and the 3.0 security model, from local development to production environments.
 
 ## 🐳 Docker Deployment
 
@@ -32,14 +32,17 @@ docker run -p 38000:8000 \
 ```
 
 **Available DockerHub Tags:**
-- `aywengo/kafka-schema-reg-mcp:stable` - **Current stable release (v2.0.2) - Recommended**
-- `aywengo/kafka-schema-reg-mcp:latest` - Latest build (may be pre-release)
-- `aywengo/kafka-schema-reg-mcp:2.0.2` - Specific stable version
-- `aywengo/kafka-schema-reg-mcp:2.0.1` - Previous stable version
-- `aywengo/kafka-schema-reg-mcp:2.0.0` - FastMCP 2.8.0+ initial release
-- **Multi-Platform Support**: Automatically detects `linux/amd64` or `linux/arm64`
+- `aywengo/kafka-schema-reg-mcp:stable` - Current stable release, `viewer` edition
+- `aywengo/kafka-schema-reg-mcp:stable-editor` - Stable `editor` edition
+- `aywengo/kafka-schema-reg-mcp:stable-admin` - Stable `admin` edition
+- `aywengo/kafka-schema-reg-mcp:3.0.0` - Pinned 3.0.0 `viewer` image
+- `aywengo/kafka-schema-reg-mcp:3.0.0-viewer` - Explicit 3.0.0 `viewer` image
+- `aywengo/kafka-schema-reg-mcp:3.0.0-editor` - Pinned 3.0.0 `editor` image
+- `aywengo/kafka-schema-reg-mcp:3.0.0-admin` - Pinned 3.0.0 `admin` image
+- `aywengo/kafka-schema-reg-mcp:latest` - Latest release, `viewer` edition
+- **Multi-Platform Support**: `linux/amd64` and `linux/arm64`
 
-> **💡 Recommendation**: Use `:stable` tag for production deployments to automatically receive stable updates.
+> **💡 Recommendation**: Use `:stable-admin`, `:stable-editor` or `:stable` deliberately. Plain tags are `viewer`; writes and administrative tools require an `editor` or `admin` image or `MCP_EDITION`.
 
 ### Local Development
 
@@ -116,29 +119,29 @@ services:
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
       SCHEMA_REGISTRY_USER: ${SCHEMA_REGISTRY_USER:-}
       SCHEMA_REGISTRY_PASSWORD: ${SCHEMA_REGISTRY_PASSWORD:-}
-      
+
       # Multi-Registry Configuration (v1.5.0+)
       SCHEMA_REGISTRY_NAME_1: "production"
       SCHEMA_REGISTRY_URL_1: "http://schema-registry:8081"
       SCHEMA_REGISTRY_USER_1: "${PROD_REGISTRY_USER}"
       SCHEMA_REGISTRY_PASSWORD_1: "${PROD_REGISTRY_PASSWORD}"
       VIEWONLY_1: "false"
-      
+
       SCHEMA_REGISTRY_NAME_2: "backup"
       SCHEMA_REGISTRY_URL_2: "http://backup-registry:8081"
       SCHEMA_REGISTRY_USER_2: "${BACKUP_REGISTRY_USER}"
       SCHEMA_REGISTRY_PASSWORD_2: "${BACKUP_REGISTRY_PASSWORD}"
       VIEWONLY_2: "true"
-      
-      # Security Configuration (v2.0.x)
+
+      # Security Configuration
       ENABLE_AUTH: "${ENABLE_AUTH:-false}"
       AUTH_ISSUER_URL: "${AUTH_ISSUER_URL:-}"
       AUTH_AUDIENCE: "${AUTH_AUDIENCE:-}"
-      
+
       # SSL/TLS Security Configuration (v2.0.0+)
       ENFORCE_SSL_TLS_VERIFICATION: "${ENFORCE_SSL_TLS_VERIFICATION:-true}"
       CUSTOM_CA_BUNDLE_PATH: "${CUSTOM_CA_BUNDLE_PATH:-}"
-      
+
       PYTHONUNBUFFERED: 1
     ports:
       - "38000:8000"
@@ -187,22 +190,22 @@ metadata:
 data:
   SCHEMA_REGISTRY_URL: "http://schema-registry-service:8081"
   PYTHONUNBUFFERED: "1"
-  
+
   # Multi-Registry Configuration (v1.5.0+)
   SCHEMA_REGISTRY_NAME_1: "default"
   SCHEMA_REGISTRY_URL_1: "http://schema-registry-service:8081"
   VIEWONLY_1: "false"
-  
+
   SCHEMA_REGISTRY_NAME_2: "backup"
   SCHEMA_REGISTRY_URL_2: "http://backup-registry-service:8081"
   VIEWONLY_2: "true"
-  
+
   # SSL/TLS Security Configuration (v2.0.0+)
   ENFORCE_SSL_TLS_VERIFICATION: "true"
   CUSTOM_CA_BUNDLE_PATH: ""
 ```
 
-### MCP Server Deployment (v2.0.2)
+### MCP Server Deployment
 
 ```yaml
 # k8s/mcp-server-deployment.yaml
@@ -213,7 +216,7 @@ metadata:
   namespace: kafka-schema-registry
   labels:
     app: mcp-server
-    version: "2.0.2"
+    version: "3.0.0"
 spec:
   replicas: 3
   selector:
@@ -223,7 +226,7 @@ spec:
     metadata:
       labels:
         app: mcp-server
-        version: "2.0.2"
+        version: "3.0.0"
     spec:
       containers:
       - name: mcp-server
@@ -247,8 +250,8 @@ spec:
               name: schema-registry-auth
               key: password
               optional: true
-        
-        # MCP Server Authentication (v2.0.x)
+
+        # MCP Server Authentication
         - name: ENABLE_AUTH
           valueFrom:
             configMapRef:
@@ -267,7 +270,7 @@ spec:
               name: oauth-config
               key: audience
               optional: true
-        
+
         resources:
           requests:
             memory: "512Mi"
@@ -335,7 +338,7 @@ spec:
 
 ## 🔧 Configuration Options
 
-### Environment Variables (v2.0.2)
+### Environment Variables
 
 #### Core Configuration
 | Variable | Description | Default | Since |
@@ -382,7 +385,7 @@ The bundled Valkey task store uses a PersistentVolumeClaim by default
 (`tasks.redis.persistence.enabled=true`). Set it to `false` only for disposable
 development clusters; queued tasks are lost when the pod is replaced.
 
-#### Authentication & Authorization (v2.0.x)
+#### Authentication & Authorization
 | Variable | Description | Default | Applies To |
 |----------|-------------|---------|------------|
 | `ENABLE_AUTH` | Enable OAuth 2.1 authentication | `false` | MCP Server (frontend) |
@@ -394,7 +397,7 @@ development clusters; queued tasks are lost when the pod is replaced.
 
 ### OAuth 2.1 Configuration Examples
 
-#### Universal Provider Setup (v2.0.x)
+#### Universal Provider Setup
 ```bash
 # Enable OAuth 2.1 authentication
 export ENABLE_AUTH=true
@@ -451,7 +454,7 @@ export VIEWONLY_3="false"
 
 ## 📊 Resource Requirements
 
-### Recommended Resources (v2.0.2)
+### Recommended Resources
 
 | Component | CPU | Memory | Storage | Use Case |
 |-----------|-----|--------|---------|----------|
@@ -461,13 +464,13 @@ export VIEWONLY_3="false"
 | **Schema Registry** | 0.5 | 1GB | 20GB | Per instance |
 | **Kafka Broker** | 1.0 | 2GB | 100GB | Per broker, 3 minimum |
 
-### Performance Considerations (v2.0.2)
+### Performance Considerations
 
-The v2.0.2 release includes significant performance improvements:
-- **Code Optimization**: 2,442 lines of redundant code removed
-- **Memory Efficiency**: Enhanced resource management
-- **Local Schema Validation**: Zero network dependencies for validation
-- **Secure Logging**: No performance impact from credential masking
+The 3.0 architecture keeps the read path lightweight:
+- **Edition registration**: out-of-edition tools are never registered, reducing client context
+- **Catalog-driven annotations**: scope and safety metadata come from one table
+- **Background tasks**: long operations run through the `fastmcp-tasks` extension
+- **Shared resources**: reads remain available in every edition
 
 ---
 
@@ -485,7 +488,7 @@ The v2.0.2 release includes significant performance improvements:
 - [ ] Regular security scanning of images
 - [ ] Implement rate limiting on ingress
 
-### 🔑 Authentication Layers (v2.0.x)
+### 🔑 Authentication Layers
 
 **Two distinct authentication layers:**
 
@@ -499,7 +502,7 @@ The v2.0.2 release includes significant performance improvements:
    - Enable with `ENABLE_AUTH=true` and configure OAuth 2.1 settings
    - Optional - defaults to open access if not configured
 
-### Security Features (v2.0.2)
+### Security Features
 
 - **🔒 Credential Protection**: Secure header management prevents credential exposure
 - **📝 Secure Logging**: Automatic masking of authorization headers and sensitive data
@@ -549,11 +552,11 @@ spec:
 # Basic health check
 curl http://localhost:38000/
 
-# OAuth discovery endpoints (v2.0.x)
+# OAuth discovery endpoints
 curl http://localhost:38000/.well-known/oauth-authorization-server
 curl http://localhost:38000/.well-known/oauth-protected-resource
 
-# Test MCP compliance (v2.0.x)
+# Test MCP compliance
 curl http://localhost:38000/mcp/compliance-status
 ```
 
@@ -572,12 +575,13 @@ healthcheck:
 
 ## 🔄 Upgrade Guide
 
-### Upgrading to v2.0.2
+### Upgrading to 3.0.0
 
-1. **Review Breaking Changes**: None between v2.0.1 and v2.0.2
-2. **Update Image Tags**: Change to `aywengo/kafka-schema-reg-mcp:stable`
-3. **Test New Features**: Interactive migration and enhanced security
-4. **Verify Performance**: Check for improvements from code optimization
+1. **Review breaking changes**: See the [v3.0 migration guide](v3-migration-guide.md).
+2. **Choose an edition**: plain tags are `viewer`; set `MCP_EDITION=editor|admin` or use a suffixed image.
+3. **Replace `READONLY*`**: use `VIEWONLY` / `VIEWONLY_<n>` and the edition model.
+4. **Update Helm values**: set `edition` instead of `SLIM_MODE`; see the chart README.
+5. **Verify workflows**: interactive tools now use MRTR on modern clients and `elicitation/create` on legacy clients.
 
 ```bash
 # Rolling update in Kubernetes
@@ -632,7 +636,7 @@ See the comprehensive [v2.x Migration Guide](v2-migration-guide.md) for detailed
         "run", "--rm", "-i", "--network", "host",
         "-e", "SCHEMA_REGISTRY_NAME_1",
         "-e", "SCHEMA_REGISTRY_URL_1",
-        "-e", "SCHEMA_REGISTRY_NAME_2", 
+        "-e", "SCHEMA_REGISTRY_NAME_2",
         "-e", "SCHEMA_REGISTRY_URL_2",
         "aywengo/kafka-schema-reg-mcp:stable"
       ],
@@ -679,12 +683,12 @@ The project includes production-ready workflows:
 
 2. **Create Version Tag**:
    ```bash
-   git tag v2.0.3
-   git push origin v2.0.3
+   git tag v3.0.0
+   git push origin v3.0.0
    ```
 
 3. **Automated Process**: GitHub Actions handles building, testing, and publishing
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying the Kafka Schema Registry MCP Server v2.2.2 with FastMCP 3.2.0+ framework, enhanced security features, and interactive migration capabilities across various production environments.
+This deployment guide provides instructions for deploying Kafka Schema Registry MCP Server 3.0.0 with FastMCP 4.1+, the three editions, MRTR workflows and the 3.0 security model across production environments.

@@ -382,8 +382,8 @@ python examples/multi_step_workflow_example.py
 The integration includes:
 
 1. **Automatic Initialization**: Multi-step workflow manager is created when the server starts
-2. **Workflow Tools**: All workflow management tools are available as MCP tools
-3. **Enhanced Response Handling**: The `submit_elicitation_response` tool handles workflow progression
+2. **Workflow Planners**: The four MRTR planner tools return plans; instance workflow tools were removed
+3. **Response Handling**: Modern clients resume with `inputResponses`; legacy clients use `elicitation/create`
 4. **Pre-defined Workflows**: Three workflows are ready to use:
    - Schema Migration Wizard (6 steps)
    - Context Reorganization (9 steps) 
