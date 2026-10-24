@@ -12,7 +12,7 @@ from typing import Any, Awaitable, Callable, Literal, Mapping
 
 import mcp_types
 from fastmcp.server.context import Context
-from pydantic import create_model
+from pydantic import create_model, field_validator
 
 from protocol_version import current_protocol_version
 
@@ -155,6 +155,7 @@ def _legacy_response_model(schema: dict[str, Any]):
     defaults = {"string": "", "number": 0.0, "integer": 0, "boolean": False, "array": [], "object": {}}
 
     fields: dict[str, Any] = {}
+    validators: dict[str, Any] = {}
     for name, prop in properties.items():
         json_type = prop.get("type", "string")
         if prop.get("enum"):
@@ -163,12 +164,19 @@ def _legacy_response_model(schema: dict[str, Any]):
             field_type = type_map.get(json_type, str)
         if name in required:
             fields[name] = (field_type, ...)
-        else:
-            default = prop.get("default")
-            if default is None:
-                default = prop["enum"][0] if prop.get("enum") else defaults.get(json_type, "")
-            fields[name] = (field_type, default)
-    return create_model("ElicitationResponse", **fields)
+            continue
+
+        default = prop.get("default")
+        if default is None:
+            default = prop["enum"][0] if prop.get("enum") else defaults.get(json_type, "")
+        fields[name] = (field_type, default)
+
+        def _none_to_default(value: Any, _default: Any = default) -> Any:
+            return _default if value is None else value
+
+        validators[f"{name}_none_to_default"] = field_validator(name, mode="before")(_none_to_default)
+
+    return create_model("ElicitationResponse", __validators__=validators, **fields)
 
 
 def as_bool(value: Any, default: bool = False) -> bool:

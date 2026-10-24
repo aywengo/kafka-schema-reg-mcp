@@ -94,3 +94,14 @@ async def test_legacy_ask_passes_model_to_elicit():
         )
     assert kind == "answered"
     assert value == {"subject": "x"}
+
+
+def test_legacy_response_model_accepts_null_optional_field():
+    model = _legacy_response_model(
+        {
+            "type": "object",
+            "properties": {"subject": {"type": "string"}, "current_schema": {"type": "string"}},
+            "required": ["subject"],
+        }
+    )
+    assert model(subject="x", current_schema=None).current_schema == ""
