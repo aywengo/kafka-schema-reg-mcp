@@ -39,7 +39,8 @@ docker run -p 38000:8000 \
 - `aywengo/kafka-schema-reg-mcp:3.0.0-viewer` - Explicit 3.0.0 `viewer` image
 - `aywengo/kafka-schema-reg-mcp:3.0.0-editor` - Pinned 3.0.0 `editor` image
 - `aywengo/kafka-schema-reg-mcp:3.0.0-admin` - Pinned 3.0.0 `admin` image
-- `aywengo/kafka-schema-reg-mcp:latest` - Latest release, `viewer` edition
+- `aywengo/kafka-schema-reg-mcp:latest-viewer` - Latest release, `viewer` edition
+- `aywengo/kafka-schema-reg-mcp:latest` - Alias of `:latest-viewer`
 - **Multi-Platform Support**: `linux/amd64` and `linux/arm64`
 
 > **💡 Recommendation**: Use `:stable-admin`, `:stable-editor` or `:stable` deliberately. Plain tags are `viewer`; writes and administrative tools require an `editor` or `admin` image or `MCP_EDITION`.

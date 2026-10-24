@@ -202,7 +202,7 @@ Count the number of schemas in a context or registry.
 - Edition: `viewer`
 - Scope: `read`
 - Kind: read-only
-- Background task: No.
+- Background task: Yes.
 
 | Parameter | Type | Required | Default / values |
 |---|---|---|---|
@@ -421,7 +421,7 @@ Get comprehensive statistics about a registry.
 - Edition: `viewer`
 - Scope: `read`
 - Kind: read-only
-- Background task: No.
+- Background task: Yes.
 
 | Parameter | Type | Required | Default / values |
 |---|---|---|---|

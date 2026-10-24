@@ -22,11 +22,15 @@ These tools ask for missing information:
 | Tool | Edition | Asks for |
 |---|---|---|
 | `register_schema_interactive` | editor | Missing schema fields, types, nullability and defaults |
-| `migrate_schema_interactive` | admin | Source/target registry, context and migration preferences |
-| `migrate_context_interactive` | admin | Context, registry and conflict-resolution preferences |
+| `migrate_schema_interactive` | admin | Migration preferences (dry-run, preserve IDs, version selection) |
+| `migrate_context_interactive` | admin | Migration preferences (dry-run, preserve IDs, version selection) |
 | `check_compatibility_interactive` | viewer | Resolution strategy when schemas are incompatible |
 | `create_context_interactive` | admin | Context description, owner, environment and tags |
 | `export_global_interactive` | viewer | Export format and inclusion options |
+
+Registry and context selection are tool arguments, not elicitation fields. Supply
+`source_registry`, `target_registry` and any context values in the initial call;
+the forms only collect missing preferences.
 
 The admin planners (`guided_schema_evolution`, `guided_schema_migration`,
 `guided_context_reorganization`, `guided_disaster_recovery` and
@@ -40,6 +44,7 @@ return a plan. They do not mutate the registry.
 
    ```json
    {
+     "resultType": "input_required",
      "inputRequests": {
        "form": {
          "method": "elicitation/create",

@@ -138,7 +138,7 @@ Before using any configuration, test that the MCP server works properly:
 ### Quick Diagnostic
 ```bash
 # Run comprehensive environment check
-cd tests && ./run_all_tests.sh --quick
+(cd tests && ./run_all_tests.sh --quick)
 
 # Test MCP server functionality
 cd tests && python test_mcp_server.py

@@ -113,6 +113,13 @@ def test_scope_definitions_are_generated_from_catalog():
     assert SCOPE_DEFINITIONS["admin"]["includes"] == read + write + admin
 
 
+def test_statistics_tools_are_catalogued_as_tasks():
+    from tool_catalog import TOOL_CATALOG
+
+    assert TOOL_CATALOG["count_schemas"].task
+    assert TOOL_CATALOG["get_registry_statistics"].task
+
+
 def test_unknown_edition_fails_fast():
     result = _run("import kafka_schema_registry_unified_mcp", {"MCP_EDITION": "superuser"})
     assert result.returncode != 0
