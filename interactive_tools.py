@@ -22,6 +22,7 @@ Each tool follows the pattern:
 """
 
 import asyncio
+import inspect
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -37,6 +38,14 @@ from elicitation import (
 )
 from mrtr import as_bool, ask_request
 from schema_validation import create_error_response
+
+
+async def _maybe_await(value: Any) -> Any:
+    """Resolve injected tools that may be sync or async."""
+    if inspect.isawaitable(value):
+        return await value
+    return value
+
 
 logger = logging.getLogger(__name__)
 
@@ -130,20 +139,54 @@ async def register_schema_interactive(
         # Check if schema already exists and if we should trigger evolution workflow
         from core_registry_tools import check_compatibility_tool, get_schema_tool
 
-        existing_schema_result = get_schema_tool(
-            subject=subject,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            version="latest",
-            context=context,
-            registry=registry,
+        existing_schema_result = await _maybe_await(
+            get_schema_tool(
+                subject=subject,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                version="latest",
+                context=context,
+                registry=registry,
+            )
         )
 
         # If schema exists, check compatibility
         if "error" not in existing_schema_result:
             logger.info(f"Existing schema found for '{subject}', checking compatibility")
 
-            compatibility_result = check_compatibility_tool(
+            compatibility_result = await _maybe_await(
+                check_compatibility_tool(
+                    subject=subject,
+                    schema_definition=schema_definition,
+                    registry_manager=registry_manager,
+                    registry_mode=registry_mode,
+                    schema_type=schema_type,
+                    context=context,
+                    registry=registry,
+                )
+            )
+
+            is_compatible = compatibility_result.get("is_compatible", False)
+
+            # If not compatible, return actionable guidance. The old multi-step
+            # workflow relied on in-process pending requests and is not reachable
+            # from a tool call, so do not start it here.
+            if not is_compatible:
+                logger.info(f"Breaking changes detected for '{subject}'; registration blocked")
+                return {
+                    "status": "compatibility_error",
+                    "message": "Schema registration blocked due to breaking changes",
+                    "is_compatible": False,
+                    "compatibility_errors": compatibility_result.get("messages", []),
+                    "suggestion": (
+                        "Call guided_schema_evolution with the current and proposed schemas to plan a safe "
+                        "change, then register the revised schema or update compatibility settings."
+                    ),
+                }
+
+        # Now proceed with the actual schema registration
+        result = await _maybe_await(
+            register_schema_tool(
                 subject=subject,
                 schema_definition=schema_definition,
                 registry_manager=registry_manager,
@@ -151,71 +194,10 @@ async def register_schema_interactive(
                 schema_type=schema_type,
                 context=context,
                 registry=registry,
+                auth=auth,
+                headers=headers,
+                schema_registry_url=schema_registry_url,
             )
-
-            is_compatible = compatibility_result.get("is_compatible", False)
-
-            # If not compatible, trigger Schema Evolution Assistant
-            if not is_compatible:
-                logger.info(f"Breaking changes detected for '{subject}', triggering Schema Evolution Assistant")
-
-                # Import schema evolution helpers
-                from schema_evolution_helpers import evolve_schema_with_workflow
-
-                # Use the provided multi_step_manager or create a new one as fallback
-                if multi_step_manager is None:
-                    logger.warning(
-                        "No multi_step_manager provided, creating a new one (workflows may not be available)"
-                    )
-                    from multi_step_elicitation import MultiStepElicitationManager
-
-                    multi_step_manager = MultiStepElicitationManager(elicitation_manager)
-
-                # Start the evolution workflow
-                evolution_result = await evolve_schema_with_workflow(
-                    subject=subject,
-                    proposed_schema=schema_definition,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    elicitation_manager=elicitation_manager,
-                    multi_step_manager=multi_step_manager,
-                    context=context,
-                    registry=registry,
-                )
-
-                if evolution_result.get("workflow_started"):
-                    return {
-                        "status": "evolution_workflow_started",
-                        "message": f"Schema evolution workflow started for '{subject}' due to breaking changes",
-                        "workflow_request_id": evolution_result["request_id"],
-                        "changes_detected": evolution_result["changes_detected"],
-                        "has_breaking_changes": evolution_result["has_breaking_changes"],
-                        "compatibility_messages": evolution_result["compatibility_messages"],
-                        "note": "Complete the evolution workflow to safely update your schema",
-                    }
-                else:
-                    # Workflow failed to start, provide compatibility error details
-                    return {
-                        "status": "compatibility_error",
-                        "message": "Schema registration blocked due to breaking changes",
-                        "is_compatible": False,
-                        "compatibility_errors": compatibility_result.get("messages", []),
-                        "suggestion": "Use the Schema Evolution Assistant workflow or modify your schema to maintain compatibility",
-                        "workflow_error": evolution_result.get("error", "Unknown error"),
-                    }
-
-        # Now proceed with the actual schema registration
-        result = register_schema_tool(
-            subject=subject,
-            schema_definition=schema_definition,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            schema_type=schema_type,
-            context=context,
-            registry=registry,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=schema_registry_url,
         )
 
         # Add elicitation metadata to successful result
@@ -321,16 +303,18 @@ async def migrate_context_interactive(
                 )
 
         # Now proceed with the actual context migration
-        result = migrate_context_tool(
-            source_registry=source_registry,
-            target_registry=target_registry,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            context=context,
-            target_context=target_context,
-            preserve_ids=preserve_ids,
-            dry_run=dry_run,
-            migrate_all_versions=migrate_all_versions,
+        result = await _maybe_await(
+            migrate_context_tool(
+                source_registry=source_registry,
+                target_registry=target_registry,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                context=context,
+                target_context=target_context,
+                preserve_ids=preserve_ids,
+                dry_run=dry_run,
+                migrate_all_versions=migrate_all_versions,
+            )
         )
 
         # Add elicitation metadata to successful result
@@ -511,14 +495,16 @@ async def create_context_interactive(
                 logger.info(f"Collected context metadata from elicitation: {list(elicited_metadata.keys())}")
 
         # Now proceed with the actual context creation
-        result = create_context_tool(
-            context=context,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            registry=registry,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=schema_registry_url,
+        result = await _maybe_await(
+            create_context_tool(
+                context=context,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                registry=registry,
+                auth=auth,
+                headers=headers,
+                schema_registry_url=schema_registry_url,
+            )
         )
 
         # Add metadata to successful result
@@ -612,14 +598,16 @@ async def export_global_interactive(
                 compression = compression or "none"
 
         # Now proceed with the actual global export
-        result = await export_global_tool(
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            registry=registry,
-            include_metadata=include_metadata,
-            include_config=include_config,
-            include_versions=include_versions,
-            mcp_context=None,  # Don't pass MCP context to avoid nested progress reporting
+        result = await _maybe_await(
+            export_global_tool(
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                registry=registry,
+                include_metadata=include_metadata,
+                include_config=include_config,
+                include_versions=include_versions,
+                mcp_context=None,  # Don't pass MCP context to avoid nested progress reporting
+            )
         )
 
         # Add elicitation and format metadata to successful result
@@ -796,13 +784,15 @@ async def migrate_schema_interactive(
         if schema_exists_in_target and backup_before_replace and export_schema_tool:
             try:
                 logger.info(f"Creating backup of existing schema '{subject}' in target registry")
-                backup_result = export_schema_tool(
-                    subject=subject,
-                    registry_manager=registry_manager,
-                    registry_mode=registry_mode,
-                    registry=target_registry,
-                    context=target_context,
-                    include_metadata=True,
+                backup_result = await _maybe_await(
+                    export_schema_tool(
+                        subject=subject,
+                        registry_manager=registry_manager,
+                        registry_mode=registry_mode,
+                        registry=target_registry,
+                        context=target_context,
+                        include_metadata=True,
+                    )
                 )
                 if "error" not in backup_result:
                     logger.info("✅ Schema backup completed successfully")
@@ -813,18 +803,20 @@ async def migrate_schema_interactive(
                 backup_result = {"error": f"Backup failed: {str(e)}"}
 
         # Now proceed with the actual schema migration
-        migration_result = migrate_schema_tool(
-            subject=subject,
-            source_registry=source_registry,
-            target_registry=target_registry,
-            registry_manager=registry_manager,
-            registry_mode=registry_mode,
-            dry_run=dry_run,
-            preserve_ids=preserve_ids,
-            source_context=source_context,
-            target_context=target_context,
-            versions=versions,
-            migrate_all_versions=migrate_all_versions,
+        migration_result = await _maybe_await(
+            migrate_schema_tool(
+                subject=subject,
+                source_registry=source_registry,
+                target_registry=target_registry,
+                registry_manager=registry_manager,
+                registry_mode=registry_mode,
+                dry_run=dry_run,
+                preserve_ids=preserve_ids,
+                source_context=source_context,
+                target_context=target_context,
+                versions=versions,
+                migrate_all_versions=migrate_all_versions,
+            )
         )
 
         # Perform post-migration comparison if requested and migration was successful

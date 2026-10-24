@@ -372,6 +372,16 @@ Rotate it deliberately:
 4. Keep the old key available for one deployment cycle if you must drain
    long-running suspensions.
 
+GitOps renderers such as Argo CD and `helm template` cannot read a live Secret
+with Helm `lookup`. Set `requestStateKey.value` from an external secret, or set
+`requestStateKey.existingSecret` to a pre-created Secret, and set
+`requestStateKey.disallowGenerated=true` so a render fails instead of rotating
+the key.
+
+The bundled Valkey task store uses a PersistentVolumeClaim by default
+(`tasks.redis.persistence.enabled=true`). Set it to `false` only for disposable
+development clusters; queued tasks are lost when the pod is replaced.
+
 #### Authentication & Authorization (v2.0.x)
 | Variable | Description | Default | Applies To |
 |----------|-------------|---------|------------|

@@ -31,6 +31,8 @@ class EditionGate:
                 options["task"] = True
             if self.auth_enabled and spec.scope and "auth" not in options:
                 options["auth"] = require_scopes(spec.scope)
+            if spec.annotations is not None and "annotations" not in options:
+                options["annotations"] = spec.annotations
             return self._server.tool(*args, **options)(fn)
 
         return decorator

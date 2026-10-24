@@ -8,9 +8,9 @@ v3.0 replaces `SLIM_MODE` with three editions. The edition decides which tools a
 
 | Edition | Tools | Docker tag | Use case |
 |---|---|---|---|
-| `viewer` | 38 | `:<version>-viewer` | Browse, export, compare, compatibility |
-| `editor` | 41 | `:<version>-editor` | Viewer plus schema registration and evolution |
-| `admin` | 67 | `:<version>-admin` | Configuration, deletion, migration, bulk operations |
+| `viewer` | 39 | `:<version>-viewer` | Browse, export, compare, compatibility |
+| `editor` | 42 | `:<version>-editor` | Viewer plus schema registration and evolution |
+| `admin` | 66 | `:<version>-admin` | Configuration, deletion, migration, bulk operations |
 
 Set `MCP_EDITION=viewer|editor|admin`; the default is `viewer`. `SLIM_MODE=true` is a deprecated alias for `editor`. The generated per-edition tables are in [editions.md](editions.md).
 
@@ -40,13 +40,13 @@ The Kafka Schema Registry MCP Server provides **70+ comprehensive MCP tools** th
 ### **Key Features:**
 - ✅ **Natural Language Interface**: Interact using plain English commands
 - ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **67 MCP tools** at the admin edition (38 viewer / 41 editor)
+- ✅ **66 MCP tools** at the admin edition (39 viewer / 42 editor)
 - ✅ **Context-Aware Operations**: All tools support schema contexts
 - ✅ **Real-time Feedback**: Immediate results and validation
 - ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
 - ✅ **Async Task Management**: Non-blocking operations with progress tracking
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
-- ✅ **Editions**: Select 38, 41 or 67 tools with `MCP_EDITION`
+- ✅ **Editions**: Select 39, 42 or 66 tools with `MCP_EDITION`
 
 ### **Tool Categories:**
 - **Schema Management** (4 tools): register, retrieve, versions, compatibility

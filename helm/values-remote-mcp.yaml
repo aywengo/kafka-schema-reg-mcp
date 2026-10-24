@@ -11,7 +11,7 @@ global:
 # Application configuration
 app:
   name: "kafka-schema-registry-remote-mcp"
-  version: "2.0.0"
+  version: "3.0.0"
   
 image:
   repository: "aywengo/kafka-schema-reg-mcp"
@@ -114,12 +114,12 @@ ingress:
       hosts:
         - mcp-schema-registry.your-domain.com
 
+# Tool catalog edition: viewer, editor, or admin.
+edition: admin
+
 # Deployment configuration
 deployment:
   replicaCount: 2
-
-# Tool catalog edition: viewer, editor, or admin.
-edition: admin
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -167,28 +167,13 @@ securityContext:
 # Network policies
 networkPolicy:
   enabled: true
-  policyTypes:
-    - Ingress
-    - Egress
   ingress:
-    - from:
-        - namespaceSelector: {}
-      ports:
-        - protocol: TCP
-          port: 8000
+    enabled: true
+    from:
+      - namespaceSelector: {}
   egress:
-    # Allow OAuth provider access
-    - to: []
-      ports:
-        - protocol: TCP
-          port: 443  # HTTPS for OAuth providers
-    # Allow Schema Registry access
-    - to: []
-      ports:
-        - protocol: TCP
-          port: 8081  # Schema Registry
-        - protocol: TCP
-          port: 8082
+    enabled: true
+    to: []
 
 # Secrets for OAuth credentials
 secrets:
@@ -210,7 +195,7 @@ configMaps:
         server:
           name: "Kafka Schema Registry Remote MCP Server"
           description: "Remote MCP server for Kafka Schema Registry operations with OAuth authentication"
-          version: "2.0.0"
+          version: "3.0.0"
           
         endpoints:
           mcp: "https://mcp-schema-registry.your-domain.com/mcp"
@@ -221,7 +206,7 @@ configMaps:
           issuer: "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0"
           
         features:
-          - "48 MCP Tools"
+          - "Editions: 39 viewer / 42 editor / 66 admin tools"
           - "Multi-Registry Support"
           - "OAuth Authentication"
           - "Real-time Operations"

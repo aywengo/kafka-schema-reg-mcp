@@ -89,7 +89,7 @@ Restart Claude Desktop and try these prompts:
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
 - **🧪 MCP 2026-07-28** - FastMCP 4 / MCP SDK 2; one process also serves `2025-11-25` clients
-- **🎛️ Three editions** - `viewer` (38 tools), `editor` (41) and `admin` (67) from one codebase
+- **🎛️ Three editions** - `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -145,10 +145,10 @@ This project includes **5 specialized Claude Code skills** – 4 for automated s
 
 ### Option A: Docker (Recommended)
 ```bash
-# Viewer (default, 38 tools)
+# Viewer (default, 39 tools)
 docker pull aywengo/kafka-schema-reg-mcp:stable
 
-# Editor (41 tools) and admin (67 tools)
+# Editor (42 tools) and admin (66 tools)
 docker pull aywengo/kafka-schema-reg-mcp:stable-editor
 docker pull aywengo/kafka-schema-reg-mcp:stable-admin
 
@@ -235,9 +235,9 @@ invoked by mistake.
 
 | Edition | Tools | Use case |
 |---|---|---|
-| `viewer` (default) | 38 | Browse, export, compare, compatibility checks |
-| `editor` | 41 | Viewer plus schema registration and evolution |
-| `admin` | 67 | Full surface: configuration, deletion, migration, bulk operations |
+| `viewer` (default) | 39 | Browse, export, compare, compatibility checks |
+| `editor` | 42 | Viewer plus schema registration and evolution |
+| `admin` | 66 | Full surface: configuration, deletion, migration, bulk operations |
 
 ```bash
 export MCP_EDITION="admin"
@@ -260,7 +260,7 @@ The tool surface is generated from `tool_catalog.py`; the tables in
 
 | Edition | Tools | Highlights |
 |---|---|---|
-| `viewer` | 38 | Registry info, subjects, schemas, compatibility, export, comparison, statistics, resources |
+| `viewer` | 39 | Registry info, subjects, schemas, compatibility, export, comparison, statistics, resources |
 | `editor` | +3 | `register_schema`, `check_compatibility`, interactive schema registration |
 | `admin` | +26 | Configuration, deletion, contexts, migration, bulk operations, workflows |
 
@@ -412,7 +412,7 @@ python kafka_schema_registry_unified_mcp.py
 ## 🆕 What's New
 
 ### v3.0.0 (Latest)
-- **🎛️ Editions** - `viewer` (38 tools), `editor` (41) and `admin` (67) from one image; `SLIM_MODE` is a deprecated alias for `editor`
+- **🎛️ Editions** - `viewer` (39 tools), `editor` (42) and `admin` (66) from one image; `SLIM_MODE` is a deprecated alias for `editor`
 - **📋 MCP 2026-07-28** - Dual-era protocol support with FastMCP native background tasks
 - **🔒 FastMCP 4.1+** - Current MCP SDK 2 stack with the 2026 security fixes
 - **🧭 MRTR workflows** - Guided schema evolution, migration, context reorganisation and disaster recovery

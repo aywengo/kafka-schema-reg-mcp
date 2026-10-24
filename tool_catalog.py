@@ -8,7 +8,6 @@ never registered (and therefore never listed or cached by clients).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from mcp_types import ToolAnnotations
 
@@ -118,7 +117,7 @@ _SPECS.extend(
     [
         _write("register_schema"),
         _write("register_schema_interactive"),
-        _write("guided_schema_evolution"),
+        _read("guided_schema_evolution"),
     ]
 )
 
@@ -133,7 +132,7 @@ _SPECS.extend(
         _write("update_subject_config", Edition.ADMIN),
         _write("update_mode", Edition.ADMIN),
         _write("update_subject_mode", Edition.ADMIN),
-        _admin("add_subject_alias"),
+        _write("add_subject_alias"),
         _admin("delete_subject_alias", destructive=True),
         _admin("migrate_schema", targets=("target_registry",), destructive=True, task=True),
         _admin("migrate_context", targets=("target_registry",), destructive=True, task=True),
@@ -153,7 +152,6 @@ _SPECS.extend(
             mutates=False,
             annotations=ToolAnnotations(readOnlyHint=True),
         ),
-        _admin("start_workflow"),
         _admin("guided_schema_migration", targets=("target_registry",), destructive=True),
         _admin("guided_context_reorganization", targets=("target_registry",), destructive=True),
         _admin("guided_disaster_recovery", targets=("target_registry",), destructive=True),

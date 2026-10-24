@@ -65,7 +65,7 @@ jobs:
           
           # Debug: Show filtered results count
           echo "Filtered SARIF results:"
-          jq '.runs[].results | length' trivy-results.sarif
+          jq '.runs[].results | length' trivy-results-${{ matrix.edition }}.sarif
 
       - name: Upload Trivy scan results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4

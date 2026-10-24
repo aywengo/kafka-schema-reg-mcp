@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import mcp_types
 import pytest
 
-from mrtr import MODERN_PROTOCOL_VERSION, elicitation_request, guard, input_required
+from mrtr import MODERN_PROTOCOL_VERSION, _legacy_response_model, ask, elicitation_request, guard, input_required
 
 
 class FakeContext:
@@ -64,3 +64,33 @@ async def test_retry_returns_responses():
     assert kind == "responses"
     assert value is responses
     legacy.assert_not_awaited()
+
+
+def test_legacy_response_model_uses_object_schema():
+    model = _legacy_response_model(
+        {
+            "type": "object",
+            "properties": {"subject": {"type": "string"}},
+            "required": ["subject"],
+        }
+    )
+    schema = model.model_json_schema()
+    assert schema["type"] == "object"
+    assert schema["properties"]["subject"]["type"] == "string"
+
+
+@pytest.mark.asyncio
+async def test_legacy_ask_passes_model_to_elicit():
+    class ElicitContext(FakeContext):
+        async def elicit(self, message, response_type):
+            assert response_type.model_json_schema()["type"] == "object"
+            return type("Response", (), {"action": "accept", "data": response_type(subject="x")})()
+
+    with patch("mrtr.current_protocol_version", return_value="2025-11-25"):
+        kind, value = await ask(
+            ElicitContext(),
+            message="Subject?",
+            schema={"type": "object", "properties": {"subject": {"type": "string"}}, "required": ["subject"]},
+        )
+    assert kind == "answered"
+    assert value == {"subject": "x"}

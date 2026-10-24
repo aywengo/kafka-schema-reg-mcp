@@ -11,6 +11,7 @@ spec:
   podSelector:
     matchLabels:
       {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp
   policyTypes:
     {{- if .Values.networkPolicy.ingress.enabled }}
     - Ingress
@@ -41,6 +42,8 @@ spec:
           port: 443  # HTTPS to OAuth provider
         - protocol: TCP
           port: 8081  # Schema Registry
+        - protocol: TCP
+          port: 6379  # Bundled Valkey task backend
         - protocol: TCP
           port: 53   # DNS
         - protocol: UDP

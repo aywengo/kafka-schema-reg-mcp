@@ -127,8 +127,8 @@ surface to editor clients. Therefore:
 
 - Tools, prompts and resources outside the active edition are **never registered** with FastMCP.
 - Within an edition, OAuth scopes and VIEWONLY continue to gate individual calls.
-- A smaller catalog also saves model context: the viewer edition exposes 38 tools and the
-  editor edition 41, instead of the 75 registered today (44 editor-eligible, 26 admin-only,
+- A smaller catalog also saves model context: the viewer edition exposes 39 tools and the
+  editor edition 42, instead of the 75 registered today (44 editor-eligible, 26 admin-only,
   5 elicitation fallback).
 
 ### 2.3 Declarative tool catalog
@@ -166,7 +166,7 @@ class ToolSpec:
 
 Names below are the registered MCP tool names as of `2.2.2`, except where a 3.0 rename is noted.
 
-**Viewer edition** (included in editor and admin), 38 tools. Every tool here is `read` scope
+**Viewer edition** (included in editor and admin), 39 tools. Every tool here is `read` scope
 and `mutates=False`; a viewer deployment issues no write to any registry.
 
 | Group | Tools |
@@ -179,6 +179,7 @@ and `mutates=False`; a viewer deployment issues no write to any registry.
 | Comparison | `compare_registries`, `compare_contexts_across_registries`, `find_missing_schemas` |
 | Statistics | `count_contexts`, `count_schemas`, `count_schema_versions`, `get_registry_statistics` |
 | Workflow definitions | `list_workflows`, `describe_workflow` (static definitions; see "Removed" below for the instance-inspection tools) |
+| Evolution planning | `guided_schema_evolution` (returns a plan; registration stays in `register_schema`) |
 
 Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export`,
 `troubleshooting`, `quick-reference` (5).
@@ -186,24 +187,24 @@ Viewer prompts: `schema-getting-started`, `schema-compatibility`, `schema-export
 Viewer resources: all `registry://`, `schema://` and `subject://` read resources (the full
 resource set; no edition adds resources).
 
-**Editor edition** (viewer set plus the following), 3 additional tools, 41 total
+**Editor edition** (viewer set plus the following), 3 additional tools, 42 total
 
 | Group | Tools |
 |---|---|
 | Registration | `register_schema`, `register_schema_interactive` |
-| Evolution | `guided_schema_evolution` (its final step registers the next version, so it is not a viewer tool; viewers get the analysis half through `check_compatibility` and the `schema-compatibility` prompt) |
+| Subject aliases | `add_subject_alias` |
 
 Editor prompts: viewer set plus `schema-registration`, `schema-evolution` (7 total).
 
-**Admin edition** (editor set plus the following), 26 additional tools, 67 total
+**Admin edition** (editor set plus the following), 24 additional tools, 66 total
 
 | Group | Tools |
 |---|---|
 | Context and subject lifecycle | `create_context`, `create_context_interactive`, `delete_context`, `delete_subject` |
-| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `add_subject_alias`, `delete_subject_alias` |
+| Configuration and mode | `update_global_config`, `update_subject_config`, `update_mode`, `update_subject_mode`, `delete_subject_alias` |
 | Migration | `migrate_schema`, `migrate_context`, `migrate_context_interactive`, `migrate_schema_interactive` (new registration; function already exists in `interactive_tools.py`) |
 | Batch and bulk | `clear_context_batch`, `clear_multiple_contexts_batch`, `bulk_operations_wizard`, `bulk_schema_update`, `bulk_schema_cleanup`, `bulk_schema_migration`, `bulk_configuration_update`, plus `preview_bulk_operation` (declared in `bulk_operations_mcp_integration.py` but never registered today; backed by `wizard._generate_preview`) |
-| Guided workflows | `start_workflow`, `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
+| Guided workflows | `guided_schema_migration`, `guided_context_reorganization`, `guided_disaster_recovery` |
 
 Admin prompts: all ten (adds `context-management`, `multi-registry`, `advanced-workflows`).
 
@@ -692,7 +693,7 @@ Still open for M2 exit:
   `guided_disaster_recovery` are state-driven MRTR planners; they ask only for
   missing inputs and return a plan without starting an in-process workflow.
 - The five elicitation fallback tools and the `elicitation://response/{id}`
-  resource are no longer registered; the admin catalog is the final 67 tools.
+  resource are no longer registered; the admin catalog is 67 tools at the end of M3.
 - `resource_linking.py` now emits only URIs that resolve to a registered
   resource; `registry://info|status|mode/{name}` and the migration/task
   collections are covered. `tests/test_resource_linking.py` verifies every
@@ -709,7 +710,7 @@ Still open for M2 exit:
 - Remaining guided workflows (`guided_schema_migration`, `guided_context_reorganization`,
   `guided_disaster_recovery`) on MRTR with `request_state` (the Secret itself ships in M1);
   key rotation guidance in Helm NOTES and the deployment guide.
-- Remove the elicitation fallback tools and resource; admin snapshot drops to the final 67.
+- Remove the elicitation fallback tools and resource; admin snapshot drops to 67 at the end of M3.
 - Resource URI unification, cache hints, argument completion.
 - Gateway routing header documentation and ingress example.
 - Exit: `tests/test_editions.py` admin snapshot is 67; `inspector-tests/` pass against all
@@ -829,7 +830,7 @@ awaiting them; CI's quick mode and the targeted suites are the release gate.
 
 - `tests/test_editions.py`: imports the server with `MCP_EDITION` set to each value and asserts
   the exact sorted list of tool, prompt and resource names against a committed snapshot
-  (section 2.4: 38 viewer, 41 editor, 67 admin at `3.0.0`; the admin snapshot is a
+  (section 2.4: 39 viewer, 42 editor, 66 admin at `3.0.0`; the admin snapshot is a
   transitional 72 between M2 and M3, see section 5; unconditional of registry mode). A further
   assertion checks the superset property: viewer is a subset of editor, editor of admin, and
   every viewer tool has `mutates=False` and scope `read`. The snapshot is taken
@@ -875,7 +876,7 @@ awaiting them; CI's quick mode and the targeted suites are the release gate.
 | Area | 2.x behaviour | 3.0 behaviour |
 |---|---|---|
 | MCP protocol | `2025-11-25` only, custom header middleware | `2026-07-28` negotiated, `2025-11-25` still served |
-| Default tool set | All 75 tools unless `SLIM_MODE` | Viewer edition (38 read-only tools); `MCP_EDITION=editor` or `-editor` tag for 41; `MCP_EDITION=admin` or `-admin` tag for the full 67 |
+| Default tool set | All 75 tools unless `SLIM_MODE` | Viewer edition (39 read-only tools); `MCP_EDITION=editor` or `-editor` tag for 42; `MCP_EDITION=admin` or `-admin` tag for the full 66 |
 | `set_default_registry` | Mutates process default | Removed; default registry is configuration-only |
 | `workflow_status`, `get_workflow_status`, `list_available_workflows`, `abort_workflow` | Present | Removed; progress is in each MRTR result |
 | `get_mcp_compliance_status_tool`, `get_oauth_scopes_info_tool` | Present | Renamed without `_tool` suffix |

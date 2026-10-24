@@ -13,7 +13,7 @@ records the release decisions.
 ### Breaking Changes
 
 - `MCP_EDITION` replaces `SLIM_MODE` as the supported selection flag. Plain
-  image tags now run the `viewer` edition (38 tools), not the full surface.
+  image tags now run the `viewer` edition (39 tools), not the full surface.
 - Removed `set_default_registry`, the workflow status/abort tools and the five
   elicitation fallback tools. See `docs/v3-migration-guide.md`.
 - `READONLY`, `READONLY_X` and the `readonly` JSON key are removed; use
@@ -39,7 +39,7 @@ Release candidate for v3.0. See `docs/v3-migration-guide.md` for the upgrade pat
   `2025-11-25` eras and negotiates per connection. The server no longer installs
   its own protocol-version middleware.
 - **Editions replace `SLIM_MODE`.** `MCP_EDITION=viewer|editor|admin` selects a
-  catalog of 38, 41 or 67 tools. `SLIM_MODE` remains a deprecated alias for
+  catalog of 39, 42 or 66 tools. `SLIM_MODE` remains a deprecated alias for
   `editor` and conflicts with an explicit `MCP_EDITION`.
 - **MRTR workflows.** Interactive tools and the four guided workflows return
   `InputRequiredResult` on modern connections and use `ctx.elicit()` on legacy

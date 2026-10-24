@@ -8,10 +8,11 @@ result, so the same tool falls back to the in-request ``ctx.elicit`` handshake.
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable, Mapping
+from typing import Any, Awaitable, Callable, Literal, Mapping
 
 import mcp_types
 from fastmcp.server.context import Context
+from pydantic import create_model
 
 from protocol_version import current_protocol_version
 
@@ -125,10 +126,49 @@ async def ask(
         return "declined", None
     if is_modern_connection(ctx):
         return "suspend", input_required({"form": elicitation_request(message, schema)}, state)
-    response = await ctx.elicit(message, response_type=schema.get("properties", {}))
+    response = await ctx.elicit(message, response_type=_legacy_response_model(schema))
     if response.action == "accept":
-        return "answered", response.data or {}
+        data = response.data
+        if hasattr(data, "model_dump"):
+            data = data.model_dump()
+        return "answered", data or {}
     return "declined", None
+
+
+def _legacy_response_model(schema: dict[str, Any]):
+    """Build a flat pydantic model for the legacy in-request elicitation path.
+
+    FastMCP derives the wire schema from the model. A raw properties mapping is
+    not a response type, and optional unions are rejected by strict clients, so
+    every field gets one concrete primitive type and a default when optional.
+    """
+    type_map = {
+        "string": str,
+        "number": float,
+        "integer": int,
+        "boolean": bool,
+        "array": list,
+        "object": dict,
+    }
+    properties = schema.get("properties", {})
+    required = set(schema.get("required", []))
+    defaults = {"string": "", "number": 0.0, "integer": 0, "boolean": False, "array": [], "object": {}}
+
+    fields: dict[str, Any] = {}
+    for name, prop in properties.items():
+        json_type = prop.get("type", "string")
+        if prop.get("enum"):
+            field_type = Literal.__getitem__(tuple(prop["enum"]))
+        else:
+            field_type = type_map.get(json_type, str)
+        if name in required:
+            fields[name] = (field_type, ...)
+        else:
+            default = prop.get("default")
+            if default is None:
+                default = prop["enum"][0] if prop.get("enum") else defaults.get(json_type, "")
+            fields[name] = (field_type, default)
+    return create_model("ElicitationResponse", **fields)
 
 
 def as_bool(value: Any, default: bool = False) -> bool:

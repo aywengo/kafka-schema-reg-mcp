@@ -9,9 +9,9 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
-- **`claude_desktop_viewer_config.json`** - Viewer edition (38 tools, default)
-- **`claude_desktop_editor_config.json`** - Editor edition (41 tools)
-- **`claude_desktop_admin_config.json`** - Admin edition (67 tools)
+- **`claude_desktop_viewer_config.json`** - Viewer edition (39 tools, default)
+- **`claude_desktop_editor_config.json`** - Editor edition (42 tools)
+- **`claude_desktop_admin_config.json`** - Admin edition (66 tools)
 
 ### Version-Specific Configurations
 
@@ -49,9 +49,9 @@ This directory contains example Claude Desktop configuration files for different
 
 | File | Edition | Tools |
 |---|---|---|
-| `claude_desktop_viewer_config.json` | viewer | 38 |
-| `claude_desktop_editor_config.json` | editor | 41 |
-| `claude_desktop_admin_config.json` | admin | 67 |
+| `claude_desktop_viewer_config.json` | viewer | 39 |
+| `claude_desktop_editor_config.json` | editor | 42 |
+| `claude_desktop_admin_config.json` | admin | 66 |
 
 ```bash
 cp config-examples/claude_desktop_admin_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json

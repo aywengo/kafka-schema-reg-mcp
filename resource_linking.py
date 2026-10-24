@@ -79,7 +79,9 @@ class RegistryURI:
         return f"schema://{self.registry_name}/{encoded_subject}"
 
     def subjects_list_uri(self, context: Optional[str] = None) -> str:
-        """Build URI for the subjects collection."""
+        """Build URI for the subjects collection, preserving a named context."""
+        if context and context != ".":
+            return self._build_base_uri(f"/contexts/{self._encode_component(context)}/subjects")
         return self._build_base_uri("/subjects")
 
     def subject_config_uri(self, subject: str, context: Optional[str] = None) -> str:

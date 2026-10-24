@@ -10,12 +10,17 @@ metadata:
     {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
   {{- include "kafka-schema-registry-mcp.annotations" . | nindent 4 }}
 spec:
+  {{- if eq .Values.tasks.backend "memory" }}
+  strategy:
+    type: Recreate
+  {{- end }}
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
       {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp
   template:
     metadata:
       annotations:
@@ -34,6 +39,7 @@ spec:
         {{- include "kafka-schema-registry-mcp.annotations" . | nindent 8 }}
       labels:
         {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp
         {{- if .Values.monitoring.enabled }}
         # Instance identification for metrics
         instanceId: {{ .Release.Name }}

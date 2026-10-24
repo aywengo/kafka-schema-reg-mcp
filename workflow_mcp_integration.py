@@ -259,14 +259,28 @@ class WorkflowMCPTools:
                 if current_fields[name] != proposed_fields[name]
             )
 
+            strategy_name = (strategy or "BACKWARD").upper()
+            breaking_reasons = []
+            for field_name in added:
+                field = proposed_fields[field_name]
+                if strategy_name in {"BACKWARD", "FULL"} and "default" not in field:
+                    breaking_reasons.append(f"added field '{field_name}' has no default")
+            for field_name in removed:
+                if strategy_name in {"FORWARD", "FULL"}:
+                    breaking_reasons.append(f"removed field '{field_name}'")
+            for field_name in changed:
+                if strategy_name != "NONE":
+                    breaking_reasons.append(f"changed field '{field_name}'")
+
             return json.dumps(
                 {
                     "status": "plan",
                     "workflow_id": "schema_evolution_assistant",
                     "subject": subject,
-                    "strategy": strategy or "BACKWARD",
+                    "strategy": strategy_name,
                     "changes": {"added": added, "removed": removed, "changed": changed},
-                    "has_breaking_changes": bool(removed or changed),
+                    "has_breaking_changes": bool(breaking_reasons),
+                    "breaking_reasons": breaking_reasons,
                     "steps": [
                         "Review the detected changes and choose a compatibility strategy.",
                         "Update producers to emit the proposed schema.",

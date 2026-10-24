@@ -1,4 +1,5 @@
 {{- if and (eq .Values.tasks.backend "redis") .Values.tasks.redis.bundled }}
+{{- $persistence := .Values.tasks.redis.persistence | default dict }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -9,6 +10,8 @@ metadata:
     app.kubernetes.io/component: valkey
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
@@ -22,7 +25,11 @@ spec:
       containers:
         - name: valkey
           image: "{{ .Values.tasks.redis.image.repository }}:{{ .Values.tasks.redis.image.tag }}"
-          args: ["valkey-server", "--appendonly", "yes"]
+          {{- if $persistence.enabled }}
+          args: ["valkey-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+          {{- else }}
+          args: ["valkey-server", "--appendonly", "no", "--save", ""]
+          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
@@ -31,7 +38,32 @@ spec:
               mountPath: /data
       volumes:
         - name: data
+          {{- if $persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "kafka-schema-registry-mcp.fullname" . }}-valkey
+          {{- else }}
           emptyDir: {}
+          {{- end }}
+{{- if $persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $persistence.size | default "1Gi" }}
+{{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -49,4 +81,31 @@ spec:
     - name: redis
       port: 6379
       targetPort: redis
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kafka-schema-registry-mcp.fullname" . }}-valkey
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kafka-schema-registry-mcp.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: valkey
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: mcp
+      ports:
+        - protocol: TCP
+          port: 6379
+{{- end }}
 {{- end }}

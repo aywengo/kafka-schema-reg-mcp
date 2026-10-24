@@ -4,6 +4,8 @@
 
 This feature implements multi-step elicitation flows that enable complex workflows and conditional logic based on user responses, as described in issue #73. It allows the MCP server to guide users through sophisticated operations using interactive, wizard-like experiences.
 
+> **3.0 note:** The `start_workflow` MCP tool and the instance workflow resources were removed. The multi-step manager remains an internal implementation detail. MCP clients use the four MRTR planner tools below, and execute the resulting plan with the normal registry tools.
+
 ## Key Features
 
 - **Conditional Questions**: Dynamic flow based on previous answers
@@ -87,11 +89,9 @@ Configure disaster recovery strategies:
 ### Starting a Workflow
 
 ```python
-# Using MCP tools
-result = await start_workflow(
-    workflow_id="schema_migration_wizard",
-    initial_context={"environment": "production"}
-)
+# MCP 2026-07-28 client: the first call suspends and asks for missing input.
+result = await client.call_tool("guided_schema_migration", {})
+# The client retries the same call with the elicited answers and request state.
 ```
 
 ### Workflow Response Structure
@@ -245,44 +245,30 @@ The multi-step elicitation system integrates seamlessly with existing MCP tools:
 
 ### Available MCP Tools
 
-The following MCP tools are available after integration:
+The following MRTR planner tools are registered:
 
-#### Core Workflow Management
-1. **start_workflow**: Begin a new workflow instance
-2. **list_available_workflows**: Show all available workflows
-3. **get_workflow_status**: Check workflow progress and active workflows
-4. **submit_elicitation_response**: Submit responses (enhanced for workflows)
+1. **guided_schema_evolution**: Plan a schema change and report breaking changes
+2. **guided_schema_migration**: Plan a schema migration
+3. **guided_context_reorganization**: Plan a context move
+4. **guided_disaster_recovery**: Plan a recovery strategy
 
-#### Guided Workflow Shortcuts
-5. **guided_schema_migration**: Start the schema migration wizard
-6. **guided_context_reorganization**: Start the context reorganization wizard
-7. **guided_disaster_recovery**: Start the disaster recovery wizard
-
-#### Integration Status
-The workflows are automatically integrated into the main MCP server (`kafka_schema_registry_unified_mcp.py`) with:
-- 3 pre-defined workflows (Schema Migration, Context Reorganization, Disaster Recovery)
-- Enhanced elicitation response handling for workflow progression
-- Automatic workflow status tracking and management
+Each tool returns a plan. Execution stays in the normal tools, such as
+`register_schema`, `migrate_schema`, and `migrate_context`.
 
 ### Example Tool Usage
 
 ```python
-# List available workflows
-workflows = await list_available_workflows()
-
-# Start a workflow
-result = await start_workflow(
-    workflow_id="disaster_recovery_setup",
-    initial_context={"priority": "high"}
+# Ask for the migration endpoints, then return a plan.
+result = await client.call_tool(
+    "guided_schema_migration",
+    {"source_registry": "dev", "target_registry": "prod", "subject": "orders-value"},
 )
 
-# Check status
-status = await workflow_status(
-    instance_id="workflow_instance_123"
+# Execute the plan with the normal tool.
+await client.call_tool(
+    "migrate_schema",
+    {"subject": "orders-value", "source_registry": "dev", "target_registry": "prod"},
 )
-
-# Abort if needed
-await abort_workflow(instance_id="workflow_instance_123")
 ```
 
 ## Best Practices

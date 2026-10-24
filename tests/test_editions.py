@@ -50,7 +50,7 @@ def test_viewer_edition_snapshot():
     from tool_catalog import TOOL_CATALOG
 
     expected = sorted(s.name for s in TOOL_CATALOG.values() if s.min_edition <= Edition.VIEWER)
-    assert len(expected) == 38
+    assert len(expected) == 39
     assert _tools({"MCP_EDITION": "viewer"}) == expected
 
 
@@ -59,7 +59,7 @@ def test_editor_edition_snapshot():
     from tool_catalog import TOOL_CATALOG
 
     expected = sorted(s.name for s in TOOL_CATALOG.values() if s.min_edition <= Edition.EDITOR)
-    assert len(expected) == 41
+    assert len(expected) == 42
     assert _tools({"MCP_EDITION": "editor"}) == expected
 
 
@@ -68,31 +68,31 @@ def test_admin_final_snapshot():
     from tool_catalog import TOOL_CATALOG
 
     expected = sorted(s.name for s in TOOL_CATALOG.values() if s.min_edition <= Edition.ADMIN)
-    assert len(expected) == 67
+    assert len(expected) == 66
     assert _tools({"MCP_EDITION": "admin"}) == expected
 
 
 def test_default_edition_is_viewer():
-    assert len(_tools({})) == 38
+    assert len(_tools({})) == 39
 
 
 def test_image_default_applies_when_operator_is_silent():
-    assert len(_tools({"MCP_EDITION_DEFAULT": "editor"})) == 41
+    assert len(_tools({"MCP_EDITION_DEFAULT": "editor"})) == 42
 
 
 def test_slim_mode_alias_selects_editor():
-    assert len(_tools({"SLIM_MODE": "true"})) == 41
+    assert len(_tools({"SLIM_MODE": "true"})) == 42
 
 
 def test_explicit_edition_wins_over_image_default():
-    assert len(_tools({"MCP_EDITION": "admin", "MCP_EDITION_DEFAULT": "viewer"})) == 67
+    assert len(_tools({"MCP_EDITION": "admin", "MCP_EDITION_DEFAULT": "viewer"})) == 66
 
 
 def test_editor_config_example_selects_editor():
     config = json.loads((ROOT / "config-examples/claude_desktop_editor_config.json").read_text())
     env = config["mcpServers"]["kafka-schema-registry"]["env"]
     assert env["MCP_EDITION"] == "editor"
-    assert len(_tools({"MCP_EDITION": env["MCP_EDITION"]})) == 41
+    assert len(_tools({"MCP_EDITION": env["MCP_EDITION"]})) == 42
 
 
 def test_explicit_edition_and_slim_mode_conflict():

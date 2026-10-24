@@ -26,11 +26,11 @@ jobs:
           echo "🔍 Verifying that source image exists..."
           SOURCE_TAG="${{ github.event.inputs.source_tag }}"
           
-          # Pull the source image to verify it exists
-          if docker pull aywengo/kafka-schema-reg-mcp:${SOURCE_TAG}; then
-            echo "✅ Source image aywengo/kafka-schema-reg-mcp:${SOURCE_TAG} exists"
+          # Pull the viewer source image to verify it exists.
+          if docker pull aywengo/kafka-schema-reg-mcp:${SOURCE_TAG}-viewer; then
+            echo "✅ Source image aywengo/kafka-schema-reg-mcp:${SOURCE_TAG}-viewer exists"
           else
-            echo "❌ Source image aywengo/kafka-schema-reg-mcp:${SOURCE_TAG} does not exist"
+            echo "❌ Source image aywengo/kafka-schema-reg-mcp:${SOURCE_TAG}-viewer does not exist"
             echo "Available tags can be found at: https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp/tags"
             exit 1
           fi
@@ -41,17 +41,18 @@ jobs:
           SOURCE_TAG="${{ github.event.inputs.source_tag }}"
 
           for edition in viewer editor admin; do
-            if [ "$edition" = "viewer" ]; then
-              SOURCE="${SOURCE_TAG}"
-              TARGET="stable"
-            else
-              SOURCE="${SOURCE_TAG}-${edition}"
-              TARGET="stable-${edition}"
-            fi
+            SOURCE="${SOURCE_TAG}-${edition}"
+            TARGET="stable-${edition}"
             echo "  ${SOURCE} -> ${TARGET}"
             docker pull aywengo/kafka-schema-reg-mcp:${SOURCE}
             docker tag aywengo/kafka-schema-reg-mcp:${SOURCE} aywengo/kafka-schema-reg-mcp:${TARGET}
             docker push aywengo/kafka-schema-reg-mcp:${TARGET}
+
+            if [ "$edition" = "viewer" ]; then
+              echo "  ${SOURCE} -> stable"
+              docker tag aywengo/kafka-schema-reg-mcp:${SOURCE} aywengo/kafka-schema-reg-mcp:stable
+              docker push aywengo/kafka-schema-reg-mcp:stable
+            fi
           done
 
           echo "✅ Successfully promoted ${SOURCE_TAG} edition tags to stable!"

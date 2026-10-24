@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - edition: viewer
-            suffix: ""
+            suffix: "-viewer"
           - edition: editor
             suffix: "-editor"
           - edition: admin
@@ -48,8 +48,8 @@ jobs:
           images: aywengo/kafka-schema-reg-mcp
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') }}
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
@@ -103,13 +103,29 @@ jobs:
             exit 1
           fi
 
+      - name: Add unsuffixed viewer aliases
+        if: matrix.edition == 'viewer'
+        run: |
+          # Keep the historical plain tags pointing at the viewer image while
+          # every edition also has an explicit -viewer/-editor/-admin tag.
+          while IFS= read -r ref; do
+            [ -n "$ref" ] || continue
+            case "$ref" in
+              *-viewer)
+                plain="${ref%-viewer}"
+                echo "  ${ref} -> ${plain}"
+                docker buildx imagetools create -t "$plain" "$ref"
+                ;;
+            esac
+          done <<< "${{ steps.meta.outputs.tags }}"
+
       - name: Wait for Docker Hub to sync image
         run: sleep 120
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}'
+          image-ref: 'aywengo/kafka-schema-reg-mcp:${{ steps.meta.outputs.version }}${{ matrix.suffix }}'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -226,4 +242,4 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: ${{ steps.changelog.outputs.changelog_content }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

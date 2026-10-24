@@ -33,6 +33,7 @@ async def test_every_builder_uri_resolves():
         builder.context_uri(),
         builder.context_uri("production"),
         builder.subjects_list_uri(),
+        builder.subjects_list_uri("production"),
         builder.subject_uri("user-events"),
         builder.subject_uri("user-events", "production"),
         builder.subject_config_uri("user-events"),
@@ -76,3 +77,7 @@ def test_links_added_to_registry_response():
     assert enhanced["_links"]["self"] == "registry://info/test-registry"
     assert enhanced["_links"]["migrations"] == "registry://test-registry/migrations"
     assert enhanced["_links"]["tasks"] == "registry://test-registry/tasks"
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__]))

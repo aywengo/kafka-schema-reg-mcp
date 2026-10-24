@@ -85,6 +85,8 @@ Development environment setup guides (updated for MCP):
 
 ### 🚚 **[v3.0 Migration Guide](v3-migration-guide.md)** - Upgrade from 2.x
 
+### 🏷️ **[Release Process](release-process.md)** - Candidates, tags and stable promotion
+
 ### 📋 **[v2 Migration Guide](v2-migration-guide.md)** - Version Upgrade Guide
 Migration guide for upgrading between major versions:
 - **v1.x to v2.x Migration**: FastMCP framework upgrade
@@ -104,7 +106,7 @@ Design, milestones and implementation plan for v3.0:
 
 ### **🧭 Subject Aliasing**
 - New tools for managing subject aliases: `add_subject_alias`, `delete_subject_alias`
-- Available in the editor and admin editions; blocked in VIEWONLY mode
+- `add_subject_alias` is available in the editor and admin editions; `delete_subject_alias` is admin-only.
 - Requires write scope in OAuth-enabled environments
 
 ### **Fixes and Enhancements**

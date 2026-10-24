@@ -3,7 +3,7 @@
 v3.0 moves the server to FastMCP 4 / MCP SDK 2 and replaces `SLIM_MODE` with
 editions. The protocol change is backward compatible for clients that still use
 the `2025-11-25` handshake. The tool surface change is not: a deployment now
-exposes 38, 41 or 67 tools instead of all 75.
+exposes 39, 42 or 66 tools instead of all 75.
 
 ## Before you upgrade
 

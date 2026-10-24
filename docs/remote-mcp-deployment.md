@@ -83,13 +83,16 @@ routes a small allowlist of admin tools to `kafka-schema-registry-mcp-admin`
 and everything else to `kafka-schema-registry-mcp-viewer`.
 
 ```yaml
-nginx.ingress.kubernetes.io/server-snippet: |
-  set $backend "kafka-schema-registry-mcp-viewer";
-  if ($http_mcp_name ~ "^(delete_subject|delete_context|update_global_config|set_default_registry)$") {
-    set $backend "kafka-schema-registry-mcp-admin";
-  }
-  proxy_pass http://$backend;
+# Viewer Ingress: normal backend for every request.
+# Admin Ingress: a second Ingress with the same host/path and these annotations.
+nginx.ingress.kubernetes.io/canary: "true"
+nginx.ingress.kubernetes.io/canary-by-header: "Mcp-Name"
+nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(delete_subject|delete_context|update_global_config|update_subject_config|set_default_registry|create_context|migrate_context|delete_subject_alias)$"
 ```
+
+The canary header match sends only matching tool calls to the admin service.
+Requests without `Mcp-Name`, including `/health` and `/.well-known/*`, stay on
+the viewer service.
 
 Verify the headers before relying on them:
 

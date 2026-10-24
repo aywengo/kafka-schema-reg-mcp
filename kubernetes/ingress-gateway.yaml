@@ -5,24 +5,20 @@
 #   helm upgrade --install mcp-admin  helm -f helm/values.yaml --set edition=admin
 #
 # Replace the service names below with the services created by those releases.
+# The chart's service listens on port 80 and forwards to the MCP container.
+#
+# This uses the ingress-nginx canary header match. Requests with
+# Mcp-Method: tools/call and an admin tool name in Mcp-Name go to the admin
+# release; everything else stays on the viewer release. Non-MCP requests do not
+# carry Mcp-Name, so they never match the canary rule.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: kafka-schema-registry-mcp-gateway
+  name: kafka-schema-registry-mcp-viewer
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    # The MCP 2026-07-28 routing headers are Mcp-Method and Mcp-Name.
-    # nginx lowercases and maps them to $http_mcp_method / $http_mcp_name.
-    nginx.ingress.kubernetes.io/server-snippet: |
-      set $mcp_backend "mcp-viewer-kafka-schema-registry-mcp";
-      if ($http_mcp_method = "tools/call") {
-        if ($http_mcp_name ~ "^(delete_subject|delete_context|update_global_config|update_subject_config|set_default_registry|create_context|migrate_context)$") {
-          set $mcp_backend "mcp-admin-kafka-schema-registry-mcp";
-        }
-      }
-      proxy_pass http://$mcp_backend;
 spec:
   ingressClassName: nginx
   rules:
@@ -35,36 +31,61 @@ spec:
               service:
                 name: mcp-viewer-kafka-schema-registry-mcp
                 port:
-                  number: 8000
+                  number: 80
           - path: /health
             pathType: Prefix
             backend:
               service:
                 name: mcp-viewer-kafka-schema-registry-mcp
                 port:
-                  number: 8000
+                  number: 80
           - path: /ready
             pathType: Prefix
             backend:
               service:
                 name: mcp-viewer-kafka-schema-registry-mcp
                 port:
-                  number: 8000
+                  number: 80
           - path: /metrics
             pathType: Prefix
             backend:
               service:
                 name: mcp-viewer-kafka-schema-registry-mcp
                 port:
-                  number: 8000
+                  number: 80
           - path: /.well-known
             pathType: Prefix
             backend:
               service:
                 name: mcp-viewer-kafka-schema-registry-mcp
                 port:
-                  number: 8000
+                  number: 80
   tls:
     - hosts:
         - mcp.example.com
       secretName: mcp-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kafka-schema-registry-mcp-admin-canary
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-by-header: "Mcp-Name"
+    nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(delete_subject|delete_context|update_global_config|update_subject_config|set_default_registry|create_context|migrate_context|delete_subject_alias)$"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: mcp.example.com
+      http:
+        paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: mcp-admin-kafka-schema-registry-mcp
+                port:
+                  number: 80

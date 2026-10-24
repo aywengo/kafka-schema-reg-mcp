@@ -99,8 +99,10 @@ To rotate the key:
 Tasks:
 {{- if eq .Values.tasks.backend "memory" }}
 Backend: memory (single replica only).
+{{- else if .Values.tasks.redis.url }}
+Backend: {{ .Values.tasks.backend }} at {{ .Values.tasks.redis.url }}.
 {{- else }}
-Backend: {{ .Values.tasks.backend }} at {{ .Values.tasks.url }}.
+Backend: {{ .Values.tasks.backend }} at redis://{{ include "kafka-schema-registry-mcp.fullname" . }}-valkey:6379/0.
 {{- end }}
 
 For more information, visit: https://github.com/aywengo/kafka-schema-reg-mcp 

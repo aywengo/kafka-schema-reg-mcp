@@ -3259,6 +3259,47 @@ def registry_subjects_resource(name: str, context: Optional[str] = None):
         return json.dumps(error_response, indent=2)
 
 
+@mcp.resource("registry://{name}/contexts/{context}/subjects")
+@resource_not_found
+@require_scopes("read")
+def registry_context_subjects_resource(name: str, context: str):
+    """Get all subjects in a named context for a specific registry."""
+    import json
+
+    try:
+        result = list_subjects_tool(
+            registry_manager,
+            REGISTRY_MODE,
+            context=context,
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+        result["resource_info"] = {
+            "resource_uri": f"registry://{name}/contexts/{context}/subjects",
+            "registry_name": name,
+            "context": context,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": current_protocol_version(),
+        }
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps(
+            {
+                "error": f"Failed to get subjects for registry '{name}' context '{context}': {e}",
+                "resource_info": {
+                    "resource_uri": f"registry://{name}/contexts/{context}/subjects",
+                    "registry_name": name,
+                    "context": context,
+                    "registry_mode": REGISTRY_MODE,
+                    "mcp_protocol_version": current_protocol_version(),
+                },
+            },
+            indent=2,
+        )
+
+
 @mcp.resource("registry://{name}/contexts")
 @resource_not_found
 @require_scopes("read")
