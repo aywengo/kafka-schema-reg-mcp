@@ -17,7 +17,7 @@
         "-e", "SCHEMA_REGISTRY_USER_2", 
         "-e", "SCHEMA_REGISTRY_PASSWORD_2",
         "-e", "VIEWONLY_2",
-        "aywengo/kafka-schema-reg-mcp:2.0.0"
+        "aywengo/kafka-schema-reg-mcp:2.2.2"
       ],
       "env": {
         "SCHEMA_REGISTRY_NAME_1": "development",

@@ -481,7 +481,7 @@ async def create_context_interactive(
                         details={
                             "context": context,
                             "elicitation_status": "declined",
-                            "suggestion": "Call create_context again and provide metadata, or use create_context_interactive with a client that supports elicitation",
+                            "suggestion": "Call create_context_interactive again with a client that supports elicitation, or call create_context without metadata",
                         },
                         error_code="CONTEXT_CREATION_DECLINED",
                     )

@@ -19,11 +19,11 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_stable_config.json`** - Current stable release, viewer edition
 - **`claude_desktop_docker_config.json`** - Latest Docker image, viewer edition
 
-#### Historical FastMCP 2.x Configurations (v2.0.0)
+#### Historical FastMCP 2.x Configurations (v2.2.2)
 These files are kept for older deployments; use the 3.0 configurations for new work.
-- **`claude_desktop_v2_config.json`** - FastMCP 2.x framework (v2.0.0)
-- **`claude_desktop_v2_oauth_config.json`** - v2.0.0 with OAuth 2.1 generic discovery
-- **`claude_desktop_v2_multi_registry.json`** - v2.0.0 multi-registry setup
+- **`claude_desktop_v2_config.json`** - FastMCP 2.x framework (v2.2.2)
+- **`claude_desktop_v2_oauth_config.json`** - v2.2.2 with OAuth 2.1 generic discovery
+- **`claude_desktop_v2_multi_registry.json`** - v2.2.2 multi-registry setup
 
 ### Multi-Registry Configurations
 - **`claude_desktop_numbered_config.json`** - Local Python multi-registry setup
@@ -73,9 +73,9 @@ cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/co
 cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
-### For Historical FastMCP 2.8.0 Deployments (v2.0.0)
+### For Historical FastMCP 2.8.0 Deployments (v2.2.2)
 ```bash
-# Copy the v2.0.0 configuration for an older deployment
+# Copy the v2.2.2 configuration for an older deployment
 cp config-examples/claude_desktop_v2_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
@@ -186,8 +186,8 @@ cd tests
 - ✅ 39 / 42 / 66 tools by edition
 - ✅ Multi-registry, background tasks and MRTR workflows
 
-### Use Case: Historical FastMCP 2.x Deployment (v2.0.0)
-**Recommended only for existing v2.0.0 deployments:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
+### Use Case: Historical FastMCP 2.x Deployment (v2.2.2)
+**Recommended only for existing v2.2.2 deployments:** `claude_desktop_v2_config.json` or `claude_desktop_v2_oauth_config.json`
 - FastMCP 2.8.0 and MCP 2025-06-18
 - OAuth 2.1 generic discovery
 - Use the [v3.0 migration guide](../docs/v3-migration-guide.md) to upgrade
