@@ -53,7 +53,7 @@ cp ~/.config/claude-desktop/config.json \
    ~/.config/claude-desktop/config_v1_backup.json
 ```
 
-### Step 2: Update to Latest Stable
+### Step 2: Update to v2.2.2
 ```bash
 # Pull the latest stable version
 docker pull aywengo/kafka-schema-reg-mcp:stable
@@ -199,7 +199,7 @@ cp ~/claude_desktop_config_v1_backup.json \
 
 ## 📊 Version Comparison
 
-| Feature | v1.8.3 (Legacy) | v2.2.2 (Current) |
+| Feature | v1.8.3 (Legacy) | v2.2.2 (Last v2) |
 |---------|------------------|------------------|
 | **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 3.2.0+ (3.x, capped below 4) |
 | **MCP Specification** | Pre-2025 | ✅ MCP 2025-11-25 |
