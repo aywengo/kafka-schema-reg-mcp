@@ -28,7 +28,7 @@ spec:
         {{- if and .Values.auth.enabled .Values.auth.createSecret.enabled (not .Values.auth.existingSecret.enabled) }}
         checksum/oauth2-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
-        {{- if not .Values.requestStateKey.existingSecret }}
+        {{- if and (not .Values.requestStateKey.existingSecret) (or .Values.requestStateKey.value .Values.requestStateKey.disallowGenerated) }}
         checksum/request-state-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.monitoring.enabled }}
