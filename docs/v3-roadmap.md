@@ -1,8 +1,9 @@
 # v3.0 Design and Roadmap
 
-> Status: implemented on `release/3.0` as `3.0.0`. Baseline: `2.2.2`; the
-> FastMCP 4 work landed on top of the PR #180 compatibility branch.
-> Companion documents: [CHANGELOG.md](../CHANGELOG.md), [v2 Migration Guide](v2-migration-guide.md).
+> Status: released as `3.0.0` on `main` (PR #192, tag `v3.0.0`). Baseline:
+> `2.2.2`; the FastMCP 4 work landed on top of the PR #180 compatibility branch.
+> Companion documents: [CHANGELOG.md](../CHANGELOG.md),
+> [v3 migration guide](v3-migration-guide.md), [v2 migration guide](v2-migration-guide.md).
 
 v3.0 is a major release with two themes:
 
@@ -102,8 +103,8 @@ Umbrella tracker: [#191](https://github.com/aywengo/kafka-schema-reg-mcp/issues/
   edition and which rule chose it, so a misconfigured deployment is obvious.
 - Docker tags published by [publish.yml](../.github/workflows/publish.yml):
   - `:3.0.0-viewer`, `:3.0-viewer`, `:3-viewer`, `:latest-viewer`, `:stable-viewer`
-  - `:3.0.0-editor`, `:3.0-editor`, `:3-editor`, `:latest-editor`, `:stable-editor`
-  - `:3.0.0-admin`, `:3.0-admin`, `:3-admin`, `:latest-admin`, `:stable-admin`
+  - `:3.0.0-editor`, `:3.0-editor`, `:3-editor`, `:stable-editor`
+  - `:3.0.0-admin`, `:3.0-admin`, `:3-admin`, `:stable-admin`
   - plain `:3.0.0`, `:3.0`, `:3`, `:latest`, `:stable` are aliases of the viewer image
   - The edition is baked in via `ENV MCP_EDITION_DEFAULT=...` (never `MCP_EDITION`) so it
     works without any extra client configuration and can still be overridden by `MCP_EDITION`

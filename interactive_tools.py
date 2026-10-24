@@ -475,6 +475,16 @@ async def create_context_interactive(
                 status, payload = await ask_request(ctx, elicitation_request, state="create_context_interactive")
                 if status == "suspend":
                     return payload
+                if status == "declined":
+                    return create_error_response(
+                        "Context creation cancelled because metadata elicitation was declined",
+                        details={
+                            "context": context,
+                            "elicitation_status": "declined",
+                            "suggestion": "Call create_context_interactive again with a client that supports elicitation, or call create_context without metadata",
+                        },
+                        error_code="CONTEXT_CREATION_DECLINED",
+                    )
                 values = payload if status == "answered" else None
 
             if values is not None:

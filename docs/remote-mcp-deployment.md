@@ -16,12 +16,12 @@ Remote MCP servers are third-party services that expand LLM capabilities by prov
 
 Our Kafka Schema Registry MCP Server is **production-ready** for remote deployment:
 
-- ✅ **FastMCP 3.2.0+ Framework**: Modern MCP architecture with MCP 2025-11-25 specification compliance
-- ✅ **Enhanced Authentication**: Native FastMCP BearerAuth provider with OAuth 2.0 support
-- ✅ **Multi-Transport Support**: stdio, SSE, and Streamable HTTP transports via FastMCP
+- ✅ **FastMCP 4.1+ Framework**: Modern MCP architecture with MCP 2026-07-28 compliance and `2025-11-25` fallback
+- ✅ **Enhanced Authentication**: FastMCP 4 `JWTVerifier` with OAuth 2.1 discovery
+- ✅ **Multi-Transport Support**: stdio and Streamable HTTP transports via FastMCP
 - ✅ **Enterprise OAuth**: Azure AD, Google, Keycloak, Okta, GitHub with JWT validation
 - ✅ **Production Infrastructure**: Docker, Kubernetes, TLS/HTTPS
-- ✅ **48 MCP Tools**: Complete schema registry operations
+- ✅ **39 / 42 / 66 MCP Tools**: Viewer, editor and admin editions
 - ✅ **Multi-Registry Support**: Enterprise-grade functionality
 - ✅ **Security**: Role-based access control with scope validation
 
@@ -87,7 +87,7 @@ and everything else to `kafka-schema-registry-mcp-viewer`.
 # Admin Ingress: a second Ingress with the same host/path and these annotations.
 nginx.ingress.kubernetes.io/canary: "true"
 nginx.ingress.kubernetes.io/canary-by-header: "Mcp-Name"
-nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(delete_subject|delete_context|update_global_config|update_subject_config|set_default_registry|create_context|migrate_context|delete_subject_alias)$"
+nginx.ingress.kubernetes.io/canary-by-header-pattern: "^(delete_subject|delete_context|update_global_config|update_subject_config|create_context|migrate_context|delete_subject_alias)$"
 ```
 
 The canary header match sends only matching tool calls to the admin service.
@@ -119,7 +119,7 @@ Remote MCP servers require authentication. Choose your OAuth provider:
    az ad app create \
      --display-name "Kafka Schema Registry MCP Server" \
      --sign-in-audience "AzureADMyOrg"
-   
+
    # Note the Application (client) ID and Tenant ID
    ```
 
@@ -129,7 +129,7 @@ Remote MCP servers require authentication. Choose your OAuth provider:
    export AZURE_CLIENT_ID="your-client-id"
    export AZURE_CLIENT_SECRET="your-client-secret"
    export AUTH_AUDIENCE="your-client-id"
-   
+
    # SSL/TLS Security Configuration (v2.0.0+)
    export ENFORCE_SSL_TLS_VERIFICATION="true"
    export CUSTOM_CA_BUNDLE_PATH=""  # Optional: path to corporate CA bundle
@@ -204,7 +204,7 @@ export MCP_PATH="/sse"
    ```bash
    # Copy and customize values
    cp helm/values-remote-mcp.yaml helm/values-production.yaml
-   
+
    # Edit values-production.yaml:
    # - Set your domain name
    # - Configure OAuth provider
@@ -223,10 +223,10 @@ export MCP_PATH="/sse"
    ```bash
    # Check pods
    kubectl get pods -n mcp-servers
-   
+
    # Check ingress
    kubectl get ingress -n mcp-servers
-   
+
    # Test endpoint
    curl https://mcp-schema-registry.your-domain.com/mcp
    ```
@@ -282,14 +282,14 @@ from fastmcp import Client
 import asyncio
 
 async def main():
-    # Connect to remote MCP server using FastMCP 3.2.0+ client
+    # Connect to remote MCP server using a FastMCP 4.1+ client
     client = Client("https://mcp-schema-registry.your-domain.com/mcp")
-    
+
     async with client:
         # List available tools
         tools = await client.list_tools()
         print(f"Available tools: {len(tools)}")
-        
+
         # Call a tool with enhanced error handling
         result = await client.call_tool("list_subjects", {
             "registry": "production"
@@ -350,7 +350,7 @@ curl -X POST https://mcp-schema-registry.your-domain.com/mcp \
 2. **Use Token in Requests**:
    ```bash
    TOKEN=$(az account get-access-token --resource YOUR_CLIENT_ID --query accessToken -o tsv)
-   
+
    curl -X POST https://mcp-schema-registry.your-domain.com/mcp \
      -H "Authorization: Bearer $TOKEN" \
      -H "Content-Type: application/json" \
@@ -402,7 +402,7 @@ curl http://localhost:8000/metrics
 export ENABLE_AUTH="false"  # Development only!
 export ENFORCE_SSL_TLS_VERIFICATION="false"  # Development only - not recommended
 
-# Staging  
+# Staging
 export ENABLE_AUTH="true"
 export AUTH_PROVIDER="azure"
 export VIEWONLY_1="false"  # Allow write operations
@@ -424,14 +424,14 @@ To list your remote MCP server in [Anthropic's directory](https://docs.anthropic
 ### Server Information
 
 - **Company**: Your Organization
-- **Description**: Kafka Schema Registry MCP Server with OAuth authentication and 48 tools for schema management
+- **Description**: Kafka Schema Registry MCP Server with OAuth authentication and edition-dependent tools for schema management
 - **Server URL**: `https://mcp-schema-registry.your-domain.com/mcp`
 - **Authentication**: OAuth 2.0 (Azure AD, Google, Keycloak, Okta)
 - **Documentation**: Link to this deployment guide
 
 ### Capabilities
 
-- ✅ **48 MCP Tools**: Complete schema registry operations
+- ✅ **39 / 42 / 66 MCP Tools**: Viewer, editor and admin editions
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 - ✅ **OAuth Authentication**: Enterprise-grade security
 - ✅ **Real-time Operations**: Async task management with progress tracking
@@ -446,7 +446,7 @@ To list your remote MCP server in [Anthropic's directory](https://docs.anthropic
    ```bash
    # Check JWT libraries are installed
    pip install PyJWT cryptography aiohttp
-   
+
    # Verify OAuth configuration
    kubectl logs -n mcp-servers deployment/kafka-schema-registry-remote-mcp | grep "OAuth"
    ```
@@ -462,7 +462,7 @@ To list your remote MCP server in [Anthropic's directory](https://docs.anthropic
    ```bash
    # Test transport endpoint
    curl -v https://mcp-schema-registry.your-domain.com/mcp
-   
+
    # Check ingress configuration
    kubectl get ingress -n mcp-servers -o yaml
    ```
@@ -484,7 +484,7 @@ Your Kafka Schema Registry MCP Server is **production-ready** for remote deploym
 - ✅ **Enterprise Authentication**: OAuth 2.0 with 4 major providers
 - ✅ **Modern Transports**: SSE and Streamable HTTP support via FastMCP
 - ✅ **Production Infrastructure**: Kubernetes, Helm, TLS, monitoring
-- ✅ **Complete Functionality**: 48 tools, multi-registry, async operations
+- ✅ **Complete Functionality**: 39 / 42 / 66 tools by edition, multi-registry, background tasks
 - ✅ **Security**: JWT validation, scope-based authorization, network policies
 
-Deploy with confidence using the configurations in this guide! 
+Deploy with confidence using the configurations in this guide!

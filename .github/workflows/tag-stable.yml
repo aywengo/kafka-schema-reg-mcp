@@ -68,7 +68,7 @@ jobs:
             
             # Get image digest for confirmation
             STABLE_DIGEST=$(docker inspect aywengo/kafka-schema-reg-mcp:stable --format='{{index .RepoDigests 0}}')
-            SOURCE_DIGEST=$(docker inspect aywengo/kafka-schema-reg-mcp:${{ github.event.inputs.source_tag }} --format='{{index .RepoDigests 0}}')
+            SOURCE_DIGEST=$(docker inspect aywengo/kafka-schema-reg-mcp:${{ github.event.inputs.source_tag }}-viewer --format='{{index .RepoDigests 0}}')
             
             echo "📋 Image Digests:"
             echo "   Source (${{ github.event.inputs.source_tag }}): ${SOURCE_DIGEST}"

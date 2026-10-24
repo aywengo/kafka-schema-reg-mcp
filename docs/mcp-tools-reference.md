@@ -1,1326 +1,1164 @@
 # MCP Tools Reference
 
-This document describes the Kafka Schema Registry MCP Server v3.0 on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients.
+This document describes the Kafka Schema Registry MCP Server **3.0.0** on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The tool surface is generated from `tool_catalog.py`; this reference is generated from the live MCP schemas.
 
-## 🎛️ Editions
-
-v3.0 replaces `SLIM_MODE` with three editions. The edition decides which tools are registered:
-
-| Edition | Tools | Docker tag | Use case |
-|---|---|---|---|
-| `viewer` | 39 | `:<version>-viewer` | Browse, export, compare, compatibility |
-| `editor` | 42 | `:<version>-editor` | Viewer plus schema registration and evolution |
-| `admin` | 66 | `:<version>-admin` | Configuration, deletion, migration, bulk operations |
+## Editions
 
 Set `MCP_EDITION=viewer|editor|admin`; the default is `viewer`. `SLIM_MODE=true` is a deprecated alias for `editor`. The generated per-edition tables are in [editions.md](editions.md).
 
-Every tool below is annotated with its scope. A tool that is not in the active edition is not listed and returns `-32602` if called.
+| Edition | Tools | Access |
+|---|---|---|
+| `viewer` | 39 | Read-only browsing, export, comparison, compatibility, statistics |
+| `editor` | 42 | Viewer plus schema registration and evolution |
+| `admin` | 66 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
+
+Tools outside the active edition are not registered, so clients do not list them and cannot call them.
+
+## Tools by edition
+
+### Viewer (39 tools)
+
+| Tool | Scope | Kind | Description |
+|---|---|---|---|
+| `check_compatibility` | `read` | read-only | Check if a schema is compatible with the latest version. |
+| `check_compatibility_interactive` | `read` | read-only | Interactive compatibility checking with elicitation for resolution options. When compatibility issues are found, this tool will elicit resolution preferences from the user. |
+| `compare_contexts_across_registries` | `read` | read-only | Compare contexts across two registries. |
+| `compare_registries` | `read` | read-only | Compare two Schema Registry instances and show differences. |
+| `count_contexts` | `read` | read-only | Count the number of contexts in a registry. |
+| `count_schema_versions` | `read` | read-only | Count the number of versions for a specific schema. |
+| `count_schemas` | `read` | read-only | Count the number of schemas in a context or registry. |
+| `describe_workflow` | `read` | read-only | Get detailed information about a workflow definition |
+| `export_context` | `read` | read-only | Export all subjects within a context. |
+| `export_global` | `read` | read-only | Export all contexts and schemas from a registry. |
+| `export_global_interactive` | `read` | read-only | Interactive global export with elicitation for export preferences. When export preferences are not specified, this tool will elicit the required configuration from the user. |
+| `export_schema` | `read` | read-only | Export a single schema in the specified format. |
+| `export_subject` | `read` | read-only | Export all versions of a subject. |
+| `find_missing_schemas` | `read` | read-only | Find schemas that exist in source registry but not in target registry. |
+| `generate_resource_templates` | `read` | read-only | Generate resource URI templates for your specific configuration. |
+| `get_default_registry` | `read` | read-only | Get the current default registry. |
+| `get_global_config` | `read` | read-only | Get global configuration settings. |
+| `get_mcp_compliance_status` | `read` | read-only | Get MCP 2026-07-28 specification compliance status and configuration details. Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance. |
+| `get_mode` | `read` | read-only | Get the current mode of the Schema Registry. |
+| `get_oauth_scopes_info` | `read` | read-only | Get information about OAuth scopes and permissions. |
+| `get_registry_info` | `read` | read-only | Get detailed information about a specific registry. |
+| `get_registry_statistics` | `read` | read-only | Get comprehensive statistics about a registry. |
+| `get_schema` | `read` | read-only | Get a specific version of a schema. |
+| `get_schema_by_id` | `read` | read-only | Get a schema by its globally unique ID. |
+| `get_schema_versions` | `read` | read-only | Get all versions of a schema for a subject. |
+| `get_subject_config` | `read` | read-only | Get configuration settings for a specific subject. |
+| `get_subject_mode` | `read` | read-only | Get the operational mode for a specific subject. |
+| `get_subjects_by_schema_id` | `read` | read-only | Get subjects and versions associated with a schema ID. |
+| `guided_schema_evolution` | `read` | read-only | Start the Schema Evolution Assistant workflow. This guided workflow helps you safely evolve schemas by analyzing changes, suggesting strategies, and coordinating consumer updates. |
+| `list_available_resources` | `read` | read-only | List all available MCP resources and their usage patterns. |
+| `list_contexts` | `read` | read-only | List all available schema contexts. |
+| `list_registries` | `read` | read-only | List all configured Schema Registry instances. |
+| `list_subjects` | `read` | read-only | List all subjects, optionally filtered by context. |
+| `list_workflows` | `read` | read-only | List available multi-step workflows |
+| `ping` | `read` | read-only | Respond to MCP ping requests with pong. This tool implements the standard MCP ping/pong protocol for server health checking. MCP proxies and clients use this to verify that the server is alive and responding. |
+| `suggest_resource_for_tool` | `read` | read-only | Suggest the appropriate resource to use instead of a removed tool. |
+| `test_all_registries` | `read` | read-only | Test connections to all configured registries. |
+| `test_oauth_discovery_endpoints` | `read` | read-only | Test OAuth discovery endpoints to ensure proper MCP client compatibility. Validates: - /.well-known/oauth-authorization-server - /.well-known/oauth-protected-resource - /.well-known/jwks.json |
+| `test_registry_connection` | `read` | read-only | Test connection to a specific registry. |
+
+### Editor-only (3 tools)
+
+| Tool | Scope | Kind | Description |
+|---|---|---|---|
+| `add_subject_alias` | `write` | write | Create a subject alias to an existing subject (editor and admin editions; VIEWONLY blocks writes). |
+| `register_schema` | `write` | write | Register a new schema version. |
+| `register_schema_interactive` | `write` | write | Interactive schema registration with elicitation for missing field definitions. When schema_definition is incomplete or missing fields, this tool will elicit the required information from the user interactively. |
+
+### Admin-only (24 tools)
+
+| Tool | Scope | Kind | Description |
+|---|---|---|---|
+| `bulk_configuration_update` | `admin` | write | Update configuration settings across multiple schemas or contexts. Supports security policies, retention settings, and access controls. |
+| `bulk_operations_wizard` | `admin` | read-only | Start the interactive Bulk Operations Wizard for admin tasks. Guides through safe execution of operations across multiple schemas. Supports schema updates, migrations, cleanup, and configuration changes. |
+| `bulk_schema_cleanup` | `admin` | destructive | Clean up schemas in bulk with safety checks. Detects active consumers and provides options for handling them. Supports test schema cleanup, deprecated schema removal, and version purging. |
+| `bulk_schema_migration` | `admin` | destructive | Migrate schemas between contexts or registries. Supports pattern-based selection and maintains schema IDs. Includes preview and rollback capabilities. |
+| `bulk_schema_update` | `admin` | write | Update schemas in bulk with interactive guidance. Supports compatibility settings, naming conventions, and metadata updates. Pattern matching supported (e.g., test-*, deprecated-*). |
+| `clear_context_batch` | `admin` | destructive | Clear all subjects in a context using application-level batch operations. ⚠️ APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2026-07-28 compliance. Uses FastMCP background tasks API (SEP-1686) for async execution. |
+| `clear_multiple_contexts_batch` | `admin` | destructive | Clear multiple contexts in a registry using application-level batch operations. ⚠️ APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2026-07-28 compliance. Uses FastMCP background tasks API (SEP-1686) for async execution. |
+| `create_context` | `write` | write | Create a new schema context. |
+| `create_context_interactive` | `write` | write | Interactive context creation with elicitation for metadata. When context metadata is not provided, this tool will elicit organizational information from the user. |
+| `delete_context` | `admin` | destructive | Delete a schema context. |
+| `delete_subject` | `admin` | destructive | Delete a subject and all its versions. |
+| `delete_subject_alias` | `admin` | destructive | Delete a subject alias (editor and admin editions; VIEWONLY blocks writes). |
+| `guided_context_reorganization` | `admin` | read-only | Start the Context Reorganization workflow for reorganizing schemas across contexts |
+| `guided_disaster_recovery` | `admin` | read-only | Start the Disaster Recovery Setup workflow |
+| `guided_schema_migration` | `admin` | read-only | Start the Schema Migration Wizard workflow for guided schema migration |
+| `migrate_context` | `admin` | destructive | Guide for migrating an entire context using Docker-based tools. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
+| `migrate_context_interactive` | `admin` | destructive | Interactive context migration with elicitation for missing preferences. When migration preferences are not specified, this tool will elicit the required configuration from the user. |
+| `migrate_schema` | `admin` | destructive | Migrate a schema from one registry to another. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
+| `migrate_schema_interactive` | `admin` | destructive | Interactive schema migration that asks for missing preferences. Modern clients get a multi-round-trip form; legacy clients get `elicitation/create`. Declining returns a structured error. |
+| `preview_bulk_operation` | `admin` | read-only | Preview the changes a bulk operation would make without executing it. |
+| `update_global_config` | `write` | write | Update global configuration settings. |
+| `update_mode` | `write` | write | Update the mode of the Schema Registry. |
+| `update_subject_config` | `write` | write | Update configuration settings for a specific subject. |
+| `update_subject_mode` | `write` | write | Update the mode for a specific subject. |
+
+## Tool parameters
+
+### Viewer tools
+
+#### `check_compatibility`
+
+Check if a schema is compatible with the latest version.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-## 🔍 Registry Metadata Integration## 🔍 Registry Metadata Integration
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `schema_definition` | `object` | yes |  |
+| `schema_type` | `string` | no | `AVRO` |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-**All test and statistics methods now automatically include comprehensive Schema Registry metadata** using the `/v1/metadata/*` endpoints. This provides enhanced traceability and debugging capabilities without requiring separate calls.
+#### `check_compatibility_interactive`
 
-**Metadata Included:**
-- **Version**: Schema Registry version (e.g., "7.6.0")
-- **Commit ID**: Git commit hash of the registry build
-- **Kafka Cluster ID**: Unique identifier for the Kafka cluster
-- **Schema Registry Cluster ID**: Registry cluster identifier
+Interactive compatibility checking with elicitation for resolution options. When compatibility issues are found, this tool will elicit resolution preferences from the user.
 
-**Enhanced Methods:**
-- `get_registry_info` - **Primary method for complete registry information with metadata**
-- `test_registry_connection` - Connection testing with metadata
-- `test_all_registries` - Multi-registry testing with metadata
-- `count_schemas`, `count_contexts`, `count_schema_versions` - Statistics with registry context
-- `get_registry_statistics` - Comprehensive stats with metadata
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-## 🤖 MCP Integration Overview
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `schema_definition` | `object` | yes |  |
+| `schema_type` | `string` | no | `AVRO` |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-The Kafka Schema Registry MCP Server provides **70+ comprehensive MCP tools** that enable natural language interaction with Kafka Schema Registry through Claude Desktop and other MCP clients, now with advanced async operations and multi-registry support.
+#### `compare_contexts_across_registries`
 
-### **Key Features:**
-- ✅ **Natural Language Interface**: Interact using plain English commands
-- ✅ **Claude Desktop Integration**: Seamless AI-assisted schema management  
-- ✅ **66 MCP tools** at the admin edition (39 viewer / 42 editor)
-- ✅ **Context-Aware Operations**: All tools support schema contexts
-- ✅ **Real-time Feedback**: Immediate results and validation
-- ✅ **Production Safety**: VIEWONLY mode blocks modifications in production
-- ✅ **Async Task Management**: Non-blocking operations with progress tracking
-- ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
-- ✅ **Editions**: Select 39, 42 or 66 tools with `MCP_EDITION`
+Compare contexts across two registries.
 
-### **Tool Categories:**
-- **Schema Management** (4 tools): register, retrieve, versions, compatibility
-- **Context Management** (3 tools): list, create, delete contexts - *2 available in SLIM_MODE*
-- **Subject Management** (2 tools): list, delete subjects - *1 available in SLIM_MODE*
-- **Configuration Management** (5 tools): global and subject-specific settings - *2 read-only in SLIM_MODE*
-- **Mode Management** (5 tools): operational mode control - *2 read-only in SLIM_MODE*
-- **Export Tools** (4 tools): comprehensive schema export capabilities - *NOT in SLIM_MODE*
-- **Multi-Registry Tools** (8 tools): cross-registry operations - *6 available in SLIM_MODE*
-- **Batch Cleanup Tools** (2 tools): efficient context cleanup - *NOT in SLIM_MODE*
-- **Migration Tools** (5 tools): schema and context migration - *NOT in SLIM_MODE*
-- **Task Management Tools** (10 tools): progress tracking and monitoring - *NOT in SLIM_MODE*
-- **Interactive/Elicitation Tools** (15+ tools): guided workflows and user interaction - *NOT in SLIM_MODE*
-- **Workflow Tools** (9 tools): multi-step guided operations - *NOT in SLIM_MODE*
-- **Utility Tools** (8+ tools): compliance, OAuth, statistics - *2 available in SLIM_MODE*
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
----
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `source_context` | `string` | yes |  |
+| `target_context` | `string` | no |  |
 
-## 🔧 Schema Management Tools
+#### `compare_registries`
 
-### 1. register_schema
+Compare two Schema Registry instances and show differences.
 
-Register a new schema version under a specified subject.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Purpose**: Create new schemas or evolve existing ones with version control.
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `include_contexts` | `boolean` | no | `true` |
+| `include_configs` | `boolean` | no | `true` |
 
-**Parameters:**
-- `subject` (string): The subject name for the schema
-- `schema_definition` (object): The schema definition as a dictionary
-- `schema_type` (string, optional): Schema type (default: "AVRO")
-- `context` (string, optional): Schema context name
+#### `count_contexts`
 
-**Claude Desktop Usage:**
-```
-Human: "Register a user schema with fields for id, name, and email in the development context"
+Count the number of contexts in a registry.
 
-Claude: I'll register that user schema in your development context.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-[Uses register_schema MCP tool]
-✅ Schema registered: user-events (ID: 1) in development context
-```
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
 
-**Advanced Example:**
-```
-Human: "Create an order schema in the production context with orderId, customerId, items array, total amount, and timestamp"
+#### `count_schema_versions`
 
-Claude: I'll create a comprehensive order schema for production.
+Count the number of versions for a specific schema.
 
-[Uses register_schema MCP tool]
-✅ Schema registered: order-events (ID: 15) in production context
-   Fields: orderId (string), customerId (string), items (array), total (double), timestamp (long)
-```
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
----
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-### 2. get_schema
+#### `count_schemas`
 
-Retrieve a specific version of a schema.
+Count the number of schemas in a context or registry.
 
-**Purpose**: View schema definitions, inspect field structures, and analyze schema evolution.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: Yes.
 
-**Parameters:**
-- `subject` (string): The subject name
-- `version` (string, optional): Schema version (default: "latest")
-- `context` (string, optional): Schema context
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-**Claude Desktop Usage:**
-```
-Human: "Show me the latest version of the user-events schema in production"
+#### `describe_workflow`
 
-Claude: I'll retrieve the latest user-events schema from production.
+Get detailed information about a workflow definition
 
-[Uses get_schema MCP tool]
-📋 Schema: user-events v3 in production context
-   Fields: userId (string), eventType (string), timestamp (long), metadata (map)
-   Registered: 2024-05-25 14:30:15 UTC
-```
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Version-Specific Example:**
-```
-Human: "Show me version 2 of the order schema to compare with the current version"
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `workflow_id` | `string` | yes |  |
 
-Claude: I'll get version 2 of the order schema for comparison.
-
-[Uses get_schema MCP tool]
-📋 Schema: order-events v2 (historical)
-   Fields: orderId (string), customerId (string), amount (double)
-   Note: Missing items array and timestamp (added in v3)
-```
-
----
-
-### 3. get_schema_versions
-
-Get all versions of a schema subject.
-
-**Purpose**: Track schema evolution, identify version history, and plan upgrades.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `context` (string, optional): Schema context
-
-**Claude Desktop Usage:**
-```
-Human: "What versions exist for the user-events schema?"
-
-Claude: I'll check all available versions of the user-events schema.
-
-[Uses get_schema_versions MCP tool]
-📊 user-events versions: [1, 2, 3, 4]
-   Current: v4 (latest)
-   Evolution: 4 versions spanning 6 months
-```
-
-**Context-Specific Example:**
-```
-Human: "Show me version history for payment schemas in the production context"
-
-Claude: I'll get the version history for payment schemas in production.
-
-[Uses get_schema_versions MCP tool]
-📊 payment-events versions in production: [1, 2, 3, 4, 5]
-   Latest: v5 (current production version)
-   Note: 5 versions showing steady evolution
-```
-
----
-
-### 4. check_compatibility
-
-Check if a schema is compatible with existing versions.
-
-**Purpose**: Validate schema evolution before registration, prevent breaking changes.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `schema_definition` (object): Schema definition to check
-- `schema_type` (string, optional): Schema type (default: "AVRO")
-- `context` (string, optional): Schema context
-
-**Claude Desktop Usage:**
-```
-Human: "I want to add an optional email field to the user schema. Check if this is backward compatible"
-
-Claude: I'll check if adding an optional email field is backward compatible.
-
-[Uses check_compatibility MCP tool]
-✅ Compatibility: BACKWARD compatible
-   Change: Adding optional field with default value - safe to deploy
-   Impact: Existing consumers will continue working
-```
-
-**Breaking Change Detection:**
-```
-Human: "What if I change the userId field from string to integer - is that compatible?"
-
-Claude: I'll check that type change for compatibility.
-
-[Uses check_compatibility MCP tool]
-❌ Compatibility: NOT compatible
-   Issue: Type change from string to integer is BREAKING
-   Risk: All existing consumers will fail
-   Recommendation: Use a new field name instead
-```
-
----
-
-## 🗂️ Context Management Tools
-
-### 5. list_contexts
-
-List all available schema contexts.
-
-**Purpose**: Discover available environments, understand context organization.
-
-**Parameters:** None
-
-**Claude Desktop Usage:**
-```
-Human: "What schema contexts are available?"
-
-Claude: I'll show you all available schema contexts.
-
-[Uses list_contexts MCP tool]
-📋 Available contexts:
-   • development (active development)
-   • staging (pre-production testing)  
-   • production (live environment)
-   • client-acme (tenant isolation)
-```
-
----
-
-### 6. create_context
-
-Create a new schema context.
-
-**Purpose**: Set up new environments, tenant isolation, feature branches.
-
-**Parameters:**
-- `context` (string): Context name to create
-
-**Claude Desktop Usage:**
-```
-Human: "Create a new context for our staging environment"
-
-Claude: I'll create a staging context for you.
-
-[Uses create_context MCP tool]
-✅ Created context: staging
-   Status: Ready for schema registration
-   Usage: Isolated environment for pre-production testing
-```
-
-**Multi-Context Setup:**
-```
-Human: "Set up contexts for our three clients: ACME, Globex, and Wayne Enterprises"
-
-Claude: I'll create isolated contexts for each of your clients.
-
-[Uses create_context MCP tool multiple times]
-✅ Created context: client-acme
-✅ Created context: client-globex  
-✅ Created context: client-wayne
-   Purpose: Tenant isolation with independent schema evolution
-```
-
----
-
-### 7. delete_context
-
-Delete a schema context.
-
-**Purpose**: Clean up temporary environments, remove unused contexts.
-
-**Parameters:**
-- `context` (string): Context name to delete
-
-**Note**: This tool is excluded from SLIM_MODE as it's a destructive operation. Use full mode for context deletion.
-
-**Claude Desktop Usage:**
-```
-Human: "Delete the feature-user-preferences context since we merged that feature"
-
-Claude: I'll clean up the feature context for you.
-
-[Uses delete_context MCP tool]
-✅ Deleted context: feature-user-preferences
-♻️ Resources cleaned up
-   Note: All schemas in this context have been removed
-```
-
----
-
-## 📄 Subject Management Tools
-
-### 8. list_subjects
-
-List all subjects, optionally filtered by context.
-
-**Purpose**: Discover available schemas, understand subject organization.
-
-**Parameters:**
-- `context` (string, optional): Filter by schema context
-
-**Claude Desktop Usage:**
-```
-Human: "What schemas are available in production?"
-
-Claude: I'll show you all production schemas.
-
-[Uses list_subjects MCP tool]
-📋 Production subjects:
-   • user-events (user activity tracking)
-   • order-events (order lifecycle)
-   • payment-events (payment processing)
-   • notification-events (user notifications)
-   Total: 4 active schemas
-```
-
-**All Contexts:**
-```
-Human: "Show me all schemas across all contexts"
-
-Claude: I'll list all schemas from every context.
-
-[Uses list_subjects MCP tool]
-📋 All subjects across contexts:
-   Production: 4 schemas
-   Development: 8 schemas  
-   Staging: 6 schemas
-   Client contexts: 12 schemas
-   Total: 30 schemas across 6 contexts
-```
-
----
-
-### 9. delete_subject
-
-Delete a subject and all its versions.
-
-**Purpose**: Remove deprecated schemas, clean up test subjects.
-
-**Parameters:**
-- `subject` (string): Subject name to delete
-- `context` (string, optional): Schema context
-
-**Note**: This destructive operation is excluded from SLIM_MODE for safety.
-
-**Claude Desktop Usage:**
-```
-Human: "Delete the test-user-schema since we don't need it anymore"
-
-Claude: I'll delete the test user schema for you.
-
-[Uses delete_subject MCP tool]
-✅ Deleted subject: test-user-schema
-   Versions removed: [1, 2, 3]
-   Context: development
-⚠️ Note: Deletion is permanent and cannot be undone
-```
-
----
-
-## ⚙️ Configuration Management Tools
-
-### 10. get_global_config
-
-Get global configuration settings.
-
-**Purpose**: View current compatibility levels, understand global policies.
-
-**Parameters:**
-- `context` (string, optional): Schema context
-
-**Claude Desktop Usage:**
-```
-Human: "What's the current global compatibility configuration?"
-
-Claude: I'll check the global compatibility settings.
-
-[Uses get_global_config MCP tool]
-⚙️ Global configuration:
-   Compatibility Level: BACKWARD
-   Policy: New schemas must be backward compatible
-   Context: Applied globally unless overridden
-```
-
----
-
-### 11. update_global_config
-
-Update global configuration settings.
-
-**Purpose**: Change compatibility requirements, enforce policies.
-
-**Parameters:**
-- `compatibility` (string): Compatibility level (BACKWARD, FORWARD, FULL, NONE)
-- `context` (string, optional): Schema context
-
-**Note**: Configuration updates are excluded from SLIM_MODE. Use full mode for configuration changes.
-
-**Claude Desktop Usage:**
-```
-Human: "Set the production context to FULL compatibility for maximum safety"
-
-Claude: I'll set production to the strictest compatibility mode.
-
-[Uses update_global_config MCP tool]
-✅ Updated global config for production context
-   Compatibility: FULL (strictest mode)
-   Impact: Both forward and backward compatibility required
-   Safety: Maximum protection against breaking changes
-```
-
----
-
-### 12. get_subject_config
-
-Get configuration for a specific subject.
-
-**Purpose:** View subject-specific compatibility overrides.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `context` (string, optional): Schema context
-
-**Claude Desktop Usage:**
-```
-Human: "What's the compatibility setting for the payment-events schema?"
-
-Claude: I'll check the payment-events compatibility configuration.
-
-[Uses get_subject_config MCP tool]
-⚙️ payment-events configuration:
-   Compatibility: FULL (overrides global BACKWARD)
-   Reason: Critical payment data requires strict compatibility
-   Last updated: 2024-05-20 by ops-team
-```
-
----
-
-### 13. update_subject_config
-
-Update configuration for a specific subject.
-
-**Purpose**: Override global settings for specific schemas, apply custom policies.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `compatibility` (string): Compatibility level
-- `context` (string, optional): Schema context
-
-**Note**: Configuration updates are excluded from SLIM_MODE.
-
-**Claude Desktop Usage:**
-```
-Human: "Set the payment schemas to require FULL compatibility since they're critical"
-
-Claude: I'll apply strict compatibility rules to payment schemas.
-
-[Uses update_subject_config MCP tool]
-✅ Updated payment-events configuration
-   Compatibility: FULL (strictest mode)
-   Override: Supersedes global BACKWARD setting
-   Reason: Critical payment data protection
-```
-
----
-
-## 🎛️ Mode Management Tools
-
-### 14. ~~get_mode~~ ❌ *(REMOVED - Use registry://mode resource)*
-
-**Replaced by:** `registry://mode` resource
-
-Get the current operational mode.
-
-**Migration:** Use the `registry://mode` resource instead of this tool for better performance.
-
-**Claude Desktop Usage:**
-```
-Human: "What's the current operational mode of the schema registry?"
-
-Claude: I'll check the current operational mode.
-
-[Uses registry://mode resource]
-🎛️ Current mode: READWRITE
-   Status: Normal operations - registration and reads enabled
-   Context: Global setting
-```
-
----
-
-### 15. update_mode
-
-Update the operational mode.
-
-**Purpose**: Control schema registration during maintenance, enable read-only modes.
-
-**Parameters:**
-- `mode` (string): Mode to set (READWRITE, READONLY, IMPORT)
-- `context` (string, optional): Schema context
-
-**Note**: Mode updates are excluded from SLIM_MODE.
-
-**Claude Desktop Usage:**
-```
-Human: "Switch to read-only mode during our maintenance window"
-
-Claude: I'll switch the registry to read-only mode for maintenance.
-
-[Uses update_mode MCP tool]
-✅ Mode changed: READONLY
-   Effect: Schema registration disabled, reads still allowed
-   Duration: Until manually changed back to READWRITE
-⏰ Ready for maintenance operations
-```
-
----
-
-### 16. get_subject_mode
-
-Get the mode for a specific subject.
-
-**Purpose**: Check subject-specific operational restrictions.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `context` (string, optional): Schema context
-
-**Claude Desktop Usage:**
-```
-Human: "Check if the user-events subject has any mode restrictions"
-
-Claude: I'll check the operational mode for user-events.
-
-[Uses get_subject_mode MCP tool]
-🎛️ user-events mode: READWRITE
-   Status: Normal operations enabled
-   Override: No subject-specific restrictions
-```
-
----
-
-### 17. update_subject_mode
-
-Update the mode for a specific subject.
-
-**Purpose**: Restrict specific schemas during migrations, enable subject-level controls.
-
-**Parameters:**
-- `subject` (string): The subject name
-- `mode` (string): Mode to set
-- `context` (string, optional): Schema context
-
-**Note**: Mode updates are excluded from SLIM_MODE.
-
-**Claude Desktop Usage:**
-```
-Human: "Set the legacy-events schema to read-only since we're deprecating it"
-
-Claude: I'll set legacy-events to read-only mode.
-
-[Uses update_subject_mode MCP tool]
-✅ legacy-events mode: READONLY
-   Effect: No new versions allowed, existing versions readable
-   Purpose: Deprecation in progress
-```
-
----
-
-## 📤 Export Tools ❌ *(ALL NOT in SLIM_MODE)*
-
-The following export tools are excluded from SLIM_MODE to reduce complexity:
-
-### 18. export_schema ❌
-
-Export a single schema in specified format.
-
-**Note**: Export operations are excluded from SLIM_MODE as they can generate large responses.
-
----
-
-### 19. export_subject ❌
-
-Export all versions of a subject.
-
-**Note**: Export operations are excluded from SLIM_MODE.
-
----
-
-### 20. export_context ❌
+#### `export_context`
 
 Export all subjects within a context.
 
-**Note**: Export operations are excluded from SLIM_MODE.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | yes |  |
+| `registry` | `string` | no |  |
+| `include_metadata` | `boolean` | no | `true` |
+| `include_config` | `boolean` | no | `true` |
+| `include_versions` | `string` | no | `all` |
+
+#### `export_global`
+
+Export all contexts and schemas from a registry.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `include_metadata` | `boolean` | no | `true` |
+| `include_config` | `boolean` | no | `true` |
+| `include_versions` | `string` | no | `all` |
+
+#### `export_global_interactive`
+
+Interactive global export with elicitation for export preferences. When export preferences are not specified, this tool will elicit the required configuration from the user.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `include_metadata` | `boolean` | no |  |
+| `include_config` | `boolean` | no |  |
+| `include_versions` | `string` | no |  |
+| `format` | `string` | no |  |
+| `compression` | `string` | no |  |
+| `output_format` | `string` | no |  |
+| `schemas_per_file` | `string` | no |  |
+
+#### `export_schema`
+
+Export a single schema in the specified format.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `version` | `string` | no | `latest` |
+| `context` | `string` | no |  |
+| `format` | `string` | no | `json` |
+| `registry` | `string` | no |  |
+
+#### `export_subject`
+
+Export all versions of a subject.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `include_metadata` | `boolean` | no | `true` |
+| `include_config` | `boolean` | no | `true` |
+| `include_versions` | `string` | no | `all` |
+| `registry` | `string` | no |  |
+
+#### `find_missing_schemas`
+
+Find schemas that exist in source registry but not in target registry.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `context` | `string` | no |  |
+
+#### `generate_resource_templates`
+
+Generate resource URI templates for your specific configuration.
 
----
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-### 21. export_global ❌
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry_name` | `string` | no |  |
+| `context` | `string` | no |  |
+| `subject` | `string` | no |  |
 
-Export all contexts and schemas from the registry.
-
-**Note**: Export operations are excluded from SLIM_MODE. These are considered heavy operations that can generate large responses. Use full mode for export functionality.
-
----
-
-## 📊 MCP Resources
-
-In addition to tools, the MCP server provides **7 resources** for real-time information. All resources remain available in SLIM_MODE:
-
-## 📊 Global Resources ✅ *(All Available in SLIM_MODE)*
-
-### registry://status
-Get current Schema Registry connection status and health information.
-
-### registry://info  
-Get detailed Schema Registry configuration, capabilities, and server information.
-
-### registry://mode
-Get information about the current registry mode and how it was detected.
-
-### registry://names
-Get a list of all configured schema registry names with status information.
-
-## 🎯 Registry-Specific Resources ✅ *(All Available in SLIM_MODE)*
-
-### registry://status/{name}
-Get the connection status and health information for a specific registry.
-
-### registry://info/{name}
-Get detailed configuration and metadata information for a specific registry.
-
-### registry://mode/{name}
-Get mode and operational configuration information for a specific registry.
-
-### registry://{name}/subjects ✅
-Get all subjects for a specific registry, optionally filtered by context.
-
-### registry://{name}/contexts ✅
-Get all contexts for a specific registry.
-
-### registry://{name}/config ✅
-Get global configuration for a specific registry, optionally filtered by context.
-
-## 📋 Schema Resources ✅ *(All Available in SLIM_MODE)*
-
-### schema://{name}/{context}/{subject_name}
-Get schema content for a specific subject in a specific context and registry.
-
-### schema://{name}/{subject_name}
-Get schema content for a specific subject in the default context of a registry.
-
-**Usage Examples in Claude Desktop:**
-
-**Global Resources:**
-```
-Human: "Check the status of our Schema Registry connection"
-
-Claude: I'll check the Schema Registry status for you.
-
-[Uses registry://status resource]
-✅ Schema Registry Status: Connected
-   URL: http://localhost:8081
-   Response Time: 45ms
-   Health: All systems operational
-```
-
-**Registry Names:**
-```
-Human: "Show me all available registries"
-
-Claude: I'll list all configured registries for you.
-
-[Uses registry://names resource]
-✅ Available registries: production, staging, development
-```
-
-**Advanced Example:**
-```
-Human: "Get detailed information about the production registry"
-
-Claude: I'll get the detailed information for the production registry.
-
-[Uses registry://info/production resource]
-✅ Registry info: Confluent Schema Registry v7.6.0, 45 subjects, BACKWARD compatibility
-```
-
-**Registry Mode Information:**
-```
-Human: "What mode is the server running in?"
-
-Claude: I'll check the server mode and configuration.
-
-[Uses registry://mode resource]
-🔧 Server Mode: MULTI-REGISTRY
-   Detection: Auto-detected from REGISTRIES_CONFIG
-   Structured Output: 100% Complete
-   Elicitation: Enabled
-   MCP Protocol: 2025-06-18 Compliant
-```
-
-**Registry-Specific Resources:**
-```
-Human: "Check the status of the production registry specifically"
-
-Claude: I'll check the production registry status.
-
-[Uses registry://status/production resource]
-✅ Production Registry Status:
-   URL: https://prod.schema-registry.com
-   Status: Connected (120ms)
-   Mode: READWRITE
-   Viewonly: false
-   Health: Operational
-```
-
-**Schema Content Access:**
-```
-Human: "Show me the user schema from production"
-
-Claude: I'll retrieve the user schema from production.
-
-[Uses schema://production/user resource]
-📋 User Schema (Latest Version):
-   Subject: user
-   Registry: production
-   Context: default
-   Version: 3
-   Schema Type: AVRO
-   
-   Schema Content:
-   {
-     "type": "record",
-     "name": "User",
-     "fields": [
-       {"name": "id", "type": "long"},
-       {"name": "name", "type": "string"},
-       {"name": "email", "type": "string"}
-     ]
-   }
-```
-
-**Context-Specific Schema Access:**
-```
-Human: "Get the user schema from the analytics context in staging"
-
-Claude: I'll retrieve the user schema from the analytics context.
-
-[Uses schema://staging/analytics/user resource]
-📋 User Schema (Analytics Context):
-   Subject: user
-   Registry: staging
-   Context: analytics
-   Version: 2
-   Schema Type: AVRO
-   
-   Schema Content:
-   {
-     "type": "record",
-     "name": "AnalyticsUser",
-     "fields": [
-       {"name": "user_id", "type": "long"},
-       {"name": "username", "type": "string"},
-       {"name": "last_activity", "type": "long"}
-     ]
-   }
-```
-
----
-
-## 💡 Natural Language Interaction Tips
-
-### **Effective Commands:**
-- **Be Specific**: "Register a user schema in production context" vs "Create schema"
-- **Include Context**: "Show staging schemas" vs "Show schemas"  
-- **Specify Format**: "Export as Avro IDL" vs "Export schema"
-- **Ask for Help**: "What compatibility levels are available?"
-
-### **Complex Workflows:**
-- **Multi-Step Operations**: "Check compatibility, then register if safe"
-- **Conditional Logic**: "Register in staging only if compatible with production"
-- **Bulk Operations**: "Export all schemas from development context"
-
-### **Best Practices:**
-- ✅ Use clear, descriptive schema and context names
-- ✅ Always check compatibility before production changes
-- ✅ Export schemas before major changes for backup
-- ✅ Clean up temporary contexts after feature completion
-- ✅ Use context isolation for different environments
-
----
-
-## 🔒 VIEWONLY Mode (Production Safety)
-
-The MCP server includes a **production safety feature** that can be enabled by setting the `VIEWONLY=true` environment variable. When enabled, all modification operations are blocked while read and export operations remain fully functional.
-
-### **Environment Setup**
-```bash
-# Enable VIEWONLY mode for production safety
-export VIEWONLY=true
-
-# Or in Docker/Claude Desktop
-"env": {
-  "VIEWONLY": "true",
-  "SCHEMA_REGISTRY_URL": "http://localhost:8081"
-}
-```
-
-### **Blocked Operations in VIEWONLY Mode**
-When VIEWONLY mode is enabled, the following tools will return an error:
-- 🚫 `register_schema` - Cannot register new schemas
-- 🚫 `create_context` / `delete_context` - Cannot modify contexts
-- 🚫 `delete_subject` - Cannot delete subjects
-- 🚫 `update_global_config` / `update_subject_config` - Cannot modify configuration
-- 🚫 `update_mode` / `update_subject_mode` - Cannot change operational modes
-
-### **Allowed Operations in VIEWONLY Mode**
-These tools continue to work normally:
-- ✅ All `get_*` tools - Read schema information and configuration
-- ✅ All `list_*` tools - Browse available schemas and contexts
-- ✅ `check_compatibility` - Test schema compatibility (no modifications)
-- ✅ All `export_*` tools - Generate backups and documentation
-
-### **Claude Desktop Usage in VIEWONLY Mode**
-```
-Human: "Register a new user schema with id and name fields"
-
-Claude: I attempted to register the schema, but the operation was blocked because the MCP server is running in VIEWONLY mode for production safety. 
-
-Error: Operation blocked: MCP server is running in VIEWONLY mode. Set VIEWONLY=false to enable modification operations.
-
-However, I can help you with read-only operations like:
-- Viewing existing schemas
-- Checking compatibility
-- Exporting schemas for documentation
-- Browsing contexts and subjects
-
-Would you like me to show you the current schemas instead?
-```
-
-### **Benefits**
-- 🛡️ **Production Safety**: Prevents accidental modifications to critical schemas
-- 📊 **Full Visibility**: Complete read access for monitoring and analysis
-- 📤 **Backup Capability**: All export operations remain available
-- 🔍 **Compatibility Testing**: Can still validate schema changes without applying them
-
-### **Combining VIEWONLY and SLIM_MODE**
-```bash
-# Maximum safety and performance for production
-export VIEWONLY=true
-export SLIM_MODE=true
-```
-
-This combination provides:
-- 🛡️ **No Modifications**: VIEWONLY blocks all writes
-- 🚀 **Fast Performance**: SLIM_MODE reduces tool overhead
-- 🎯 **Production Ready**: Ideal for read-only production access
-
----
-
-## 🌐 Multi-Registry Management Tools
-
-### 22. ~~list_registries~~ ❌ *(REMOVED - Use registry://names resource)*
-
-**Replaced by:** `registry://names` resource
-
-List all configured Schema Registry instances.
-
-**Migration:** Use the `registry://names` resource instead of this tool for better performance.
-
-**Claude Desktop Usage:**
-```
-Human: "Show me all configured schema registries"
-
-Claude: I'll list all configured registries with their status.
-
-[Uses registry://names resource]
-📋 Available Registries:
-   • production (default) ✅ Connected
-   • staging ✅ Connected  
-   • development ⚠️ Connection failed
-   • testing ✅ Connected
-   Total: 4 registries (3 connected, 1 failed)
-```
-
----
-
-### 23. ~~get_registry_info~~ ❌ *(REMOVED - Use registry://info/{name} resource)*
-
-**Replaced by:** `registry://info/{name}` resource
-
-Get detailed information about a specific registry including connection status, configuration, and server metadata.
-
-**Migration:** Use the `registry://info/{name}` resource instead of this tool for better performance.
-
-**Claude Desktop Usage:**
-```
-Human: "Show me details about the production registry"
-
-Claude: I'll get detailed information about the production registry.
-
-[Uses registry://info/production resource]
-📋 Production Registry Details:
-   URL: https://prod.schema-registry.com
-   Status: Connected (120ms)
-   Version: 7.6.0
-   Mode: READWRITE
-   Viewonly: false
-   Cluster ID: prod-cluster-001
-```
-
----
-
-### 24. ~~test_registry_connection~~ ❌ *(REMOVED - Use registry://status/{name} resource)*
-
-**Replaced by:** `registry://status/{name}` resource
-
-Test connection to a specific registry and return comprehensive information including metadata.
-
-**Migration:** Use the `registry://status/{name}` resource instead of this tool for better performance.
-
-**Claude Desktop Usage:**
-```
-Human: "Test the connection to the staging registry"
-
-Claude: I'll test the connection to the staging registry.
-
-[Uses registry://status/staging resource]
-✅ Staging Registry Status:
-   URL: https://staging.schema-registry.com
-   Status: Connected (85ms)
-   Health: All systems operational
-   Last Check: 2024-01-15T10:30:00Z
-```
-{
-    "status": "connected",
-    "url": "http://localhost:8081",
-    "response_time_ms": 45.2,
-    "registry_mode": "single",
-    "version": "7.6.0",
-    "commit_id": "02d9aa023a8d034d480a718242df2a880e0be1f7",
-    "kafka_cluster_id": "MkVlNjdqWVF0Q056MWFrUA",
-    "schema_registry_cluster_id": "schema-registry",
-    "scope": {
-        "path": [],
-        "clusters": {
-            "kafka-cluster": "MkVlNjdqWVF0Q056MWFrUA",
-            "schema-registry-cluster": "schema-registry"
-        }
-    }
-}
-```
-
-**Example Usage:**
-```bash
-[Uses test_registry_connection MCP tool]
-```
-
----
-
-### 25. ~~test_all_registries~~ ❌ *(REMOVED - Use registry://status resource)*
-
-**Replaced by:** `registry://status` resource
-
-Test connections to all configured registries with comprehensive metadata.
-
-**Migration:** Use the `registry://status` resource instead of this tool for better performance.
-
-**Claude Desktop Usage:**
-```
-Human: "Test connections to all registries"
-
-Claude: I'll test connections to all configured registries.
-
-[Uses registry://status resource]
-✅ Registry Connection Status:
-   • production: Connected (120ms)
-   • staging: Connected (85ms)  
-   • development: Connection failed
-   • testing: Connected (95ms)
-   Summary: 3/4 registries connected
-```
-
----
-
-### 26. set_default_registry ✅ *(Available in SLIM_MODE - Single-Registry Mode Only)*
-
-Set the default registry for operations.
-
-**Purpose**: Change the active registry for subsequent operations.
-
-**Availability**: 
-- ✅ Available in SLIM_MODE when using single-registry configuration
-- ❌ Not available in SLIM_MODE when using multi-registry configuration
-- ✅ Always available in full mode
-
-**Parameters:**
-- `registry_name` (string): Registry name to set as default
-
----
-
-### 27. get_default_registry
+#### `get_default_registry`
 
 Get the current default registry.
 
-**Purpose**: Check which registry is currently active.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Parameters:** None
+No parameters.
 
----
+#### `get_global_config`
 
-## 🚀 Migration Tools ❌ *(ALL NOT in SLIM_MODE)*
+Get global configuration settings.
 
-All migration tools are excluded from SLIM_MODE as they are heavy, long-running operations:
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-### 28. migrate_schema ❌
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-Migrate a schema from one registry to another. Returns task ID for async operation.
+#### `get_mcp_compliance_status`
 
-**Purpose**: Schema promotion, environment synchronization, registry migration.
+Get MCP 2026-07-28 specification compliance status and configuration details. Returns information about JSON-RPC batching status, protocol version, header validation, and migration guidance.
 
-**Note**: Migration operations require full mode. These are complex, potentially long-running operations that benefit from full task management support.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
----
+No parameters.
 
-### 29. migrate_context ❌
+#### `get_mode`
 
-Generate ready-to-run Docker commands for migrating an entire context using the [kafka-schema-reg-migrator](https://github.com/aywengo/kafka-schema-reg-migrator) tool.
+Get the current mode of the Schema Registry.
 
-**Purpose**: Generate Docker commands for bulk schema migration, environment promotion, disaster recovery.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Note**: Migration operations require full mode.
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
----
+#### `get_oauth_scopes_info`
 
-### 30. list_migrations ❌
+Get information about OAuth scopes and permissions.
 
-Show migration history.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Purpose**: Track migration operations, audit changes, view history.
+No parameters.
 
-**Note**: Migration operations require full mode.
+#### `get_registry_info`
 
----
+Get detailed information about a specific registry.
 
-### 31. get_migration_status ❌
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-Check migration progress.
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
 
-**Purpose**: Monitor ongoing migrations, get detailed status, troubleshoot issues.
+#### `get_registry_statistics`
 
-**Note**: Migration operations require full mode.
+Get comprehensive statistics about a registry.
 
----
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: Yes.
 
-## 🧹 Batch Cleanup Tools ❌ *(ALL NOT in SLIM_MODE)*
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `include_context_details` | `boolean` | no | `true` |
 
-Batch operations are excluded from SLIM_MODE:
+#### `get_schema`
 
-### 32. clear_context_batch ❌
+Get a specific version of a schema.
 
-Efficiently remove all subjects from a context. Returns task ID for async operation.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-**Purpose**: Clean up test environments, remove feature branches, reset contexts.
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `version` | `string` | no | `latest` |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-**Note**: These destructive batch operations require full mode for safety and proper task tracking.
+#### `get_schema_by_id`
 
----
+Get a schema by its globally unique ID.
 
-### 33. clear_multiple_contexts_batch ❌
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-Clean multiple contexts in batch mode. Returns task ID for async operation.
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `schema_id` | `integer` | yes |  |
+| `registry` | `string` | no |  |
 
-**Purpose**: Bulk environment cleanup, multi-context reset, test cleanup.
+#### `get_schema_versions`
 
-**Note**: These destructive batch operations require full mode for safety and proper task tracking.
+Get all versions of a schema for a subject.
 
----
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
-## 📊 Task Management & Progress Tracking Tools ❌ *(ALL NOT in SLIM_MODE)*
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-All task management tools are excluded from SLIM_MODE as they're primarily used with heavy operations:
+#### `get_subject_config`
 
-### 34. get_task_progress ❌
-### 35. get_migration_progress ❌
-### 36. get_cleanup_progress ❌
-### 37. get_comparison_progress ❌
-### 38. list_all_active_tasks ❌
-### 39. list_migration_tasks ❌
-### 40. list_cleanup_tasks ❌
-### 41. list_comparison_tasks ❌
-### 42. cancel_task ❌
-### 43. get_operation_info_tool ❌
-### 44. watch_task_progress ❌
+Get configuration settings for a specific subject.
 
-**Note**: Task management is not needed in SLIM_MODE since all included operations are synchronous and lightweight.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
 
----
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
 
-## Schema Statistics and Counting Tools
+#### `get_subject_mode`
 
-The following tools provide comprehensive statistics and counting capabilities for Schema Registry instances.
+Get the operational mode for a specific subject.
 
-### Count Contexts
-```python
-@mcp.tool()
-def count_contexts(registry: Optional[str] = None) -> Dict[str, Any]:
-    """Count the number of contexts in a registry.
-    
-    Args:
-        registry: Optional registry name. If not provided, uses default registry.
-        
-    Returns:
-        Dict containing:
-        - registry: Registry name
-        - total_contexts: Total number of contexts
-        - contexts: List of context names
-        - timestamp: Current timestamp
-    """
-```
-
-Example usage:
-```python
-# Count contexts in default registry
-result = count_contexts()
-print(f"Found {result['total_contexts']} contexts: {result['contexts']}")
-
-# Count contexts in specific registry
-result = count_contexts(registry="production")
-print(f"Found {result['total_contexts']} contexts in production")
-```
-
-### Count Schemas
-```python
-@mcp.tool()
-def count_schemas(
-    context: Optional[str] = None,
-    registry: Optional[str] = None
-) -> Dict[str, Any]:
-    """Count the number of schemas in a context or registry.
-    
-    Args:
-        context: Optional context name. If not provided, counts all contexts.
-        registry: Optional registry name. If not provided, uses default registry.
-        
-    Returns:
-        Dict containing:
-        - registry: Registry name
-        - context: Context name (if specified)
-        - total_schemas: Total number of schemas
-        - schemas: List of schema names
-        - timestamp: Current timestamp
-    """
-```
-
-Example usage:
-```python
-# Count all schemas in default registry
-result = count_schemas()
-print(f"Found {result['total_schemas']} schemas")
-
-# Count schemas in specific context
-result = count_schemas(context="production")
-print(f"Found {result['total_schemas']} schemas in production context")
-
-# Count schemas in specific registry and context
-result = count_schemas(context="staging", registry="development")
-print(f"Found {result['total_schemas']} schemas in staging context of development registry")
-```
-
-### Count Schema Versions
-```python
-@mcp.tool()
-def count_schema_versions(
-    subject: str,
-    context: Optional[str] = None,
-    registry: Optional[str] = None
-) -> Dict[str, Any]:
-    """Count the number of versions for a specific schema.
-    
-    Args:
-        subject: Schema subject name
-        context: Optional context name. If not provided, uses default context.
-        registry: Optional registry name. If not provided, uses default registry.
-        
-    Returns:
-        Dict containing:
-        - registry: Registry name
-        - context: Context name
-        - subject: Schema subject name
-        - total_versions: Total number of versions
-        - versions: List of version numbers
-        - timestamp: Current timestamp
-    """
-```
-
-Example usage:
-```python
-# Count versions of a schema in default context
-result = count_schema_versions(subject="user-value")
-print(f"Found {result['total_versions']} versions of user-value schema")
-
-# Count versions in specific context
-result = count_schema_versions(subject="order-value", context="production")
-print(f"Found {result['total_versions']} versions in production context")
-
-# Count versions in specific registry and context
-result = count_schema_versions(
-    subject="payment-value",
-    context="staging",
-    registry="development"
-)
-print(f"Found {result['total_versions']} versions in staging context of development registry")
-```
-
-### Get Registry Statistics
-```python
-@mcp.tool()
-def get_registry_statistics(
-    registry: Optional[str] = None,
-    include_context_details: bool = True
-) -> Dict[str, Any]:
-    """Get comprehensive statistics about a registry.
-    
-    Args:
-        registry: Optional registry name. If not provided, uses default registry.
-        include_context_details: Whether to include detailed context information.
-        
-    Returns:
-        Dict containing:
-        - registry: Registry name
-        - total_contexts: Total number of contexts
-        - total_schemas: Total number of schemas
-        - total_versions: Total number of schema versions
-        - avg_versions_per_schema: Average versions per schema
-        - contexts: Optional detailed context information
-        - timestamp: Current timestamp
-    """
-```
-
-**Note**: This heavy statistics operation with potential async processing is excluded from SLIM_MODE. Use the individual counting tools instead.
-
-Example usage:
-```python
-# Get basic statistics
-result = get_registry_statistics(include_context_details=False)
-print(f"Registry has {result['total_contexts']} contexts")
-print(f"Total schemas: {result['total_schemas']}")
-print(f"Total versions: {result['total_versions']}")
-print(f"Average versions per schema: {result['avg_versions_per_schema']:.2f}")
-
-# Get detailed statistics with context information
-result = get_registry_statistics(include_context_details=True)
-for context in result['contexts']:
-    print(f"\nContext: {context['name']}")
-    print(f"Schemas: {context['total_schemas']}")
-    print(f"Versions: {context['total_versions']}")
-```
-
-### Error Handling
-All counting tools handle errors gracefully and return appropriate error messages:
-
-```python
-# Example error response
-{
-    "error": "Registry not found: production",
-    "timestamp": "2024-03-14T12:34:56Z"
-}
-```
-
-Common error scenarios:
-- Registry not found
-- Context not found
-- Schema subject not found
-- Connection errors
-- Authentication failures
-
-### Best Practices
-1. Use `get_registry_statistics` for comprehensive overview (when not in SLIM_MODE)
-2. Use specific counting tools for targeted information
-3. Include context names for precise counting
-4. Handle potential errors in responses
-5. Use timestamps for tracking data freshness
-
----
-
-## 💡 SLIM_MODE Usage Tips
-
-### **Effective SLIM_MODE Usage:**
-- ✅ **Read Operations**: Perfect for viewing schemas and checking compatibility
-- ✅ **Basic Registration**: Can still register new schemas when needed
-- ✅ **Multi-Registry**: Full support for multiple registry management
-- ✅ **Production Safety**: Combines well with VIEWONLY mode
-
-### **When to Switch to Full Mode:**
-- ❌ **Migrations**: Use full mode for schema/context migrations
-- ❌ **Bulk Operations**: Use full mode for batch cleanup
-- ❌ **Export/Import**: Use full mode for comprehensive exports
-- ❌ **Configuration Changes**: Use full mode to update settings
-
-### **Switching Modes:**
-```bash
-# Enable SLIM_MODE
-export SLIM_MODE=true
-
-# Disable SLIM_MODE (full mode)
-export SLIM_MODE=false
-
-# Check current mode
-echo $SLIM_MODE
-```
-
----
-
-This MCP Tools Reference enables natural language schema management through Claude Desktop, eliminating the need for complex API calls and technical syntax. The 48 comprehensive tools provide complete control over schema lifecycle, evolution, and governance through intuitive conversation, with optional VIEWONLY mode for production safety and SLIM_MODE for optimized performance.
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `get_subjects_by_schema_id`
+
+Get subjects and versions associated with a schema ID.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `schema_id` | `integer` | yes |  |
+| `registry` | `string` | no |  |
+
+#### `guided_schema_evolution`
+
+Start the Schema Evolution Assistant workflow. This guided workflow helps you safely evolve schemas by analyzing changes, suggesting strategies, and coordinating consumer updates.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | no |  |
+| `current_schema` | `string` | no |  |
+| `proposed_schema` | `string` | no |  |
+| `strategy` | `string` | no |  |
+
+#### `list_available_resources`
+
+List all available MCP resources and their usage patterns.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+No parameters.
+
+#### `list_contexts`
+
+List all available schema contexts.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+
+#### `list_registries`
+
+List all configured Schema Registry instances.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+No parameters.
+
+#### `list_subjects`
+
+List all subjects, optionally filtered by context.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `list_workflows`
+
+List available multi-step workflows
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+No parameters.
+
+#### `ping`
+
+Respond to MCP ping requests with pong. This tool implements the standard MCP ping/pong protocol for server health checking. MCP proxies and clients use this to verify that the server is alive and responding.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+No parameters.
+
+#### `suggest_resource_for_tool`
+
+Suggest the appropriate resource to use instead of a removed tool.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `tool_name` | `string` | yes |  |
+
+#### `test_all_registries`
+
+Test connections to all configured registries.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+No parameters.
+
+#### `test_oauth_discovery_endpoints`
+
+Test OAuth discovery endpoints to ensure proper MCP client compatibility. Validates: - /.well-known/oauth-authorization-server - /.well-known/oauth-protected-resource - /.well-known/jwks.json
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `server_url` | `string` | no | `http://localhost:8000` |
+
+#### `test_registry_connection`
+
+Test connection to a specific registry.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+
+### Editor-only tools
+
+#### `add_subject_alias`
+
+Create a subject alias to an existing subject (editor and admin editions; VIEWONLY blocks writes).
+
+- Edition: `editor`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `alias` | `string` | yes |  |
+| `existing_subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `register_schema`
+
+Register a new schema version.
+
+- Edition: `editor`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `schema_definition` | `object` | yes |  |
+| `schema_type` | `string` | no | `AVRO` |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `register_schema_interactive`
+
+Interactive schema registration with elicitation for missing field definitions. When schema_definition is incomplete or missing fields, this tool will elicit the required information from the user interactively.
+
+- Edition: `editor`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `schema_definition` | `object` | no |  |
+| `schema_type` | `string` | no | `AVRO` |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+### Admin-only tools
+
+#### `bulk_configuration_update`
+
+Update configuration settings across multiple schemas or contexts. Supports security policies, retention settings, and access controls.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: write
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `config_type` | `string` | no | `security` |
+| `target_type` | `string` | no | `schemas` |
+| `pattern` | `string` | no |  |
+| `settings` | `object` | no |  |
+| `dry_run` | `boolean` | no | `true` |
+
+#### `bulk_operations_wizard`
+
+Start the interactive Bulk Operations Wizard for admin tasks. Guides through safe execution of operations across multiple schemas. Supports schema updates, migrations, cleanup, and configuration changes.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `operation_type` | `string` | no |  |
+| `dry_run` | `boolean` | no | `true` |
+
+#### `bulk_schema_cleanup`
+
+Clean up schemas in bulk with safety checks. Detects active consumers and provides options for handling them. Supports test schema cleanup, deprecated schema removal, and version purging.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `cleanup_type` | `string` | no | `test` |
+| `pattern` | `string` | no |  |
+| `keep_versions` | `integer` | no | `3` |
+| `check_consumers` | `boolean` | no | `true` |
+| `force` | `boolean` | no | `false` |
+
+#### `bulk_schema_migration`
+
+Migrate schemas between contexts or registries. Supports pattern-based selection and maintains schema IDs. Includes preview and rollback capabilities.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_context` | `string` | no |  |
+| `target_context` | `string` | no |  |
+| `source_registry` | `string` | no |  |
+| `target_registry` | `string` | no |  |
+| `schema_pattern` | `string` | no |  |
+| `preserve_ids` | `boolean` | no | `true` |
+| `dry_run` | `boolean` | no | `true` |
+
+#### `bulk_schema_update`
+
+Update schemas in bulk with interactive guidance. Supports compatibility settings, naming conventions, and metadata updates. Pattern matching supported (e.g., test-*, deprecated-*).
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: write
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `pattern` | `string` | no |  |
+| `update_type` | `string` | no | `compatibility` |
+| `dry_run` | `boolean` | no | `true` |
+| `batch_size` | `integer` | no | `10` |
+
+#### `clear_context_batch`
+
+Clear all subjects in a context using application-level batch operations. ⚠️ APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2026-07-28 compliance. Uses FastMCP background tasks API (SEP-1686) for async execution.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | yes |  |
+| `registry` | `string` | no |  |
+| `delete_context_after` | `boolean` | no | `true` |
+| `dry_run` | `boolean` | no | `true` |
+
+#### `clear_multiple_contexts_batch`
+
+Clear multiple contexts in a registry using application-level batch operations. ⚠️ APPLICATION-LEVEL BATCHING: Uses individual requests per MCP 2026-07-28 compliance. Uses FastMCP background tasks API (SEP-1686) for async execution.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `contexts` | `array` | yes |  |
+| `registry` | `string` | no |  |
+| `delete_contexts_after` | `boolean` | no | `true` |
+| `dry_run` | `boolean` | no | `true` |
+
+#### `create_context`
+
+Create a new schema context.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | yes |  |
+| `registry` | `string` | no |  |
+
+#### `create_context_interactive`
+
+Interactive context creation with elicitation for metadata. When context metadata is not provided, this tool will elicit organizational information from the user.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | yes |  |
+| `registry` | `string` | no |  |
+| `description` | `string` | no |  |
+| `owner` | `string` | no |  |
+| `environment` | `string` | no |  |
+| `tags` | `array` | no |  |
+
+#### `delete_context`
+
+Delete a schema context.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `context` | `string` | yes |  |
+| `registry` | `string` | no |  |
+
+#### `delete_subject`
+
+Delete a subject and all its versions.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+| `permanent` | `boolean` | no | `false` |
+
+#### `delete_subject_alias`
+
+Delete a subject alias (editor and admin editions; VIEWONLY blocks writes).
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `alias` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `guided_context_reorganization`
+
+Start the Context Reorganization workflow for reorganizing schemas across contexts
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `source_context` | `string` | no |  |
+| `target_context` | `string` | no |  |
+| `dry_run` | `boolean` | no |  |
+
+#### `guided_disaster_recovery`
+
+Start the Disaster Recovery Setup workflow
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `backup_target` | `string` | no |  |
+| `schedule` | `string` | no |  |
+| `verify_restore` | `boolean` | no |  |
+
+#### `guided_schema_migration`
+
+Start the Schema Migration Wizard workflow for guided schema migration
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | no |  |
+| `target_registry` | `string` | no |  |
+| `subject` | `string` | no |  |
+| `dry_run` | `boolean` | no |  |
+
+#### `migrate_context`
+
+Guide for migrating an entire context using Docker-based tools. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `target_context` | `string` | no |  |
+| `preserve_ids` | `boolean` | no | `true` |
+| `dry_run` | `boolean` | no | `true` |
+| `migrate_all_versions` | `boolean` | no | `true` |
+
+#### `migrate_context_interactive`
+
+Interactive context migration with elicitation for missing preferences. When migration preferences are not specified, this tool will elicit the required configuration from the user.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `target_context` | `string` | no |  |
+| `preserve_ids` | `boolean` | no |  |
+| `dry_run` | `boolean` | no |  |
+| `migrate_all_versions` | `boolean` | no |  |
+
+#### `migrate_schema`
+
+Migrate a schema from one registry to another. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `dry_run` | `boolean` | no | `false` |
+| `preserve_ids` | `boolean` | no | `true` |
+| `source_context` | `string` | no | `.` |
+| `target_context` | `string` | no | `.` |
+| `versions` | `array` | no |  |
+| `migrate_all_versions` | `boolean` | no | `false` |
+
+#### `migrate_schema_interactive`
+
+Interactive schema migration that asks for missing preferences. Modern clients get a multi-round-trip form; legacy clients get `elicitation/create`. Declining returns a structured error.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `source_registry` | `string` | yes |  |
+| `target_registry` | `string` | yes |  |
+| `source_context` | `string` | no | `.` |
+| `target_context` | `string` | no | `.` |
+| `versions` | `array` | no |  |
+| `migrate_all_versions` | `boolean` | no |  |
+| `preserve_ids` | `boolean` | no |  |
+| `dry_run` | `boolean` | no |  |
+
+#### `preview_bulk_operation`
+
+Preview the changes a bulk operation would make without executing it.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: read-only
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `operation_type` | `string` | yes |  |
+| `items` | `array` | yes |  |
+| `parameters` | `object` | no |  |
+
+#### `update_global_config`
+
+Update global configuration settings.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `compatibility` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `update_mode`
+
+Update the mode of the Schema Registry.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `mode` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `update_subject_config`
+
+Update configuration settings for a specific subject.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `compatibility` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+#### `update_subject_mode`
+
+Update the mode for a specific subject.
+
+- Edition: `admin`
+- Scope: `write`
+- Kind: write
+- Background task: No.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `subject` | `string` | yes |  |
+| `mode` | `string` | yes |  |
+| `context` | `string` | no |  |
+| `registry` | `string` | no |  |
+
+## Resources
+
+The server exposes 4 concrete resources and 17 resource templates. Resources are available in every edition.
+
+### Concrete resources
+
+| URI | Name | Description |
+|---|---|---|
+| `registry://names` | `registry_names_resource` | Get list of all configured registry names. |
+| `registry://info` | `registry_info_resource` | Get detailed server configuration and capabilities. |
+| `registry://status` | `registry_status_resource` | Get connection status for all registries. |
+| `registry://mode` | `registry_mode_resource` | Get operational mode for all registries. |
+
+### Resource templates
+
+| URI template | Name | Description |
+|---|---|---|
+| `registry://info/{name}` | `registry_info_specific_resource` | Get detailed information about a specific registry. |
+| `registry://status/{name}` | `registry_status_specific_resource` | Get connection status for a specific registry. |
+| `registry://mode/{name}` | `registry_mode_specific_resource` | Get operational mode for a specific registry. |
+| `registry://{name}/subjects` | `registry_subjects_resource` | Get all subjects for a specific registry, optionally filtered by context. |
+| `registry://{name}/contexts/{context}/subjects` | `registry_context_subjects_resource` | Get all subjects in a named context for a specific registry. |
+| `registry://{name}/contexts` | `registry_contexts_resource` | Get all contexts for a specific registry. |
+| `registry://{name}/config` | `registry_config_resource` | Get global configuration for a specific registry, optionally filtered by context. |
+| `schema://{name}/{context}/{subject}` | `schema_content_resource` | Get schema content for a specific subject in a specific context and registry. |
+| `schema://{name}/{subject}` | `schema_content_default_context_resource` | Get schema content for a specific subject in the default context of a registry. |
+| `schema://{name}/{context}/{subject}/versions` | `schema_versions_resource` | Get all versions of a schema for a specific subject in a specific context and registry. |
+| `schema://{name}/{subject}/versions` | `schema_versions_default_context_resource` | Get all versions of a schema for a specific subject in the default context of a registry. |
+| `subject://{name}/{context}/{subject}/config` | `subject_config_resource` | Get configuration settings for a specific subject with explicit context. |
+| `subject://{name}/{subject}/config` | `subject_config_default_context_resource` | Get configuration settings for a specific subject in the default context. |
+| `subject://{name}/{context}/{subject}/mode` | `subject_mode_resource` | Get the mode for a specific subject with explicit context. |
+| `subject://{name}/{subject}/mode` | `subject_mode_default_context_resource` | Get the mode for a specific subject in the default context. |
+| `registry://{name}/migrations` | `migrations_collection_resource` | List persisted migration records (none are persisted by this server). |
+| `registry://{name}/tasks` | `tasks_collection_resource` | Describe how background tasks are exposed. |
+
+## Prompts
+
+The server exposes 10 prompts.
+
+| Prompt | Description |
+|---|---|
+| `schema-getting-started` | Getting started with Schema Registry operations |
+| `schema-registration` | Guide for registering new schemas |
+| `context-management` | Guide for managing schema contexts |
+| `schema-export` | Guide for exporting schemas and documentation |
+| `multi-registry` | Guide for multi-registry operations |
+| `schema-compatibility` | Guide for schema compatibility and evolution |
+| `troubleshooting` | Troubleshooting guide for common issues |
+| `advanced-workflows` | Guide for complex Schema Registry workflows |
+| `schema-evolution` | Guide for safe schema evolution with the Schema Evolution Assistant |
+| `quick-reference` | Get a quick reference card of most common commands. |
+
+## Related documentation
+
+- [Editions and per-edition tool tables](editions.md)
+- [v3.0 migration guide](v3-migration-guide.md)
+- [REST API reference](api-reference.md)

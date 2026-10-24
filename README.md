@@ -6,7 +6,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/aywengo/kafka-schema-reg-mcp)](https://github.com/aywengo/kafka-schema-reg-mcp/issues)
 [![Docker Image Size](https://img.shields.io/docker/image-size/aywengo/kafka-schema-reg-mcp/stable)](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp)
 [![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/aywengo/kafka-schema-reg-mcp/graphs/commit-activity)
-[![MCP Specification](https://img.shields.io/badge/MCP-2025--11--25-brightgreen.svg)](https://modelcontextprotocol.io)
+[![MCP Specification](https://img.shields.io/badge/MCP-2026--07--28-brightgreen.svg)](https://modelcontextprotocol.io)
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/aywengo/kafka-schema-reg-mcp)](https://archestra.ai/mcp-catalog/aywengo__kafka-schema-reg-mcp)
 
 # Kafka Schema Registry MCP Server
@@ -67,14 +67,14 @@ Copy a ready-to-use configuration from [`config-examples/`](config-examples/):
 # macOS
 cp config-examples/claude_desktop_stable_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
 
-# Linux  
+# Linux
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 ```
 
 ### 3. Start Using with Claude
 Restart Claude Desktop and try these prompts:
 - *"List all schema contexts"*
-- *"Show me the subjects in the production context"* 
+- *"Show me the subjects in the production context"*
 - *"Register a new user schema with fields for id, name, and email"*
 
 ## ✨ Key Features
@@ -210,7 +210,7 @@ export SCHEMA_REGISTRY_URL_1="http://dev-registry:8081"
 export VIEWONLY_1="false"
 
 # Production Registry (with safety)
-export SCHEMA_REGISTRY_NAME_2="production"  
+export SCHEMA_REGISTRY_NAME_2="production"
 export SCHEMA_REGISTRY_URL_2="http://prod-registry:8081"
 export VIEWONLY_2="true"                     # Read-only protection
 ```
@@ -264,7 +264,7 @@ The tool surface is generated from `tool_catalog.py`; the tables in
 | `editor` | +3 | `register_schema`, `check_compatibility`, interactive schema registration |
 | `admin` | +26 | Configuration, deletion, contexts, migration, bulk operations, workflows |
 
-The server also exposes prompts (10) and resources (18, including templates).
+The server also exposes 10 prompts, 4 concrete resources and 17 resource templates.
 See [docs/mcp-tools-reference.md](docs/mcp-tools-reference.md) for parameter
 details.
 
@@ -279,7 +279,7 @@ details.
 "List subjects in production context"
 ```
 
-### Multi-Registry Operations  
+### Multi-Registry Operations
 ```bash
 "Compare development and production registries"
 "Migrate user-events schema from staging to production"
@@ -379,7 +379,7 @@ DOCKER_VERSION=latest ./run-inspector-tests.sh stable
 # With docker-compose
 docker-compose up -d
 
-# Direct Docker  
+# Direct Docker
 docker run -d -p 38000:8000 \
   -e SCHEMA_REGISTRY_URL=http://registry:8081 \
   aywengo/kafka-schema-reg-mcp:stable
@@ -395,10 +395,11 @@ helm install kafka-schema-mcp ./helm/kafka-schema-reg-mcp
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see:
-- **[Contributing Guidelines](.github/CONTRIBUTING.md)** 
-- **[Code of Conduct](.github/CODE_OF_CONDUCT.md)**
+We welcome contributions. Open an issue or pull request on
+[GitHub](https://github.com/aywengo/kafka-schema-reg-mcp), and see:
 - **[Development Setup](docs/deployment.md#local-development)**
+- **[Testing Guide](TESTING_SETUP_GUIDE.md)**
+- **[Release Process](docs/release-process.md)**
 
 ### Quick Development Setup
 ```bash
@@ -428,16 +429,16 @@ python kafka_schema_registry_unified_mcp.py
 - **🔒 Security Fixes** - Resolved credential exposure in logging
 - **🤖 Interactive Schema Migration** - Smart migration with user preference elicitation
 - **💾 Automatic Backups** - Pre-migration backup creation
-- **✅ Post-Migration Verification** - Comprehensive schema validation  
+- **✅ Post-Migration Verification** - Comprehensive schema validation
 - **🚀 FastMCP 2.8.0+ Framework** - Complete architecture upgrade
-- **📊 MCP 2025-06-18 Compliance** - Latest protocol specification
+- **📊 MCP 2025-06-18 Compliance** - Protocol version at the time of the v2.0 release
 - **🔐 OAuth 2.1 Generic Discovery** - Universal provider compatibility
 - **🔗 Resource Linking** - HATEOAS navigation in tool responses
 
 > **📖 Full changelog**: [CHANGELOG.md](CHANGELOG.md) | **📖 v2.0.0 features**: [README-v2.0.0-HIGHLIGHTS.md](README-v2.0.0-HIGHLIGHTS.md)
 
 ---
-**🐳 Glama.ai:** 
+**🐳 Glama.ai:**
 
 <a href="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@aywengo/kafka-schema-reg-mcp/badge" />
@@ -445,6 +446,6 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 
-**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 50+ MCP Tools (12 backward compatibility), 19 Resources, 8 Registries, OAuth 2.1, Multi-platform
+**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 39 / 42 / 66 tools by edition, 4 resources + 17 templates, 8 registries, OAuth 2.1, multi-platform
 
 **License:** MIT | **Maintainer:** [@aywengo](https://github.com/aywengo) | **Issues:** [GitHub Issues](https://github.com/aywengo/kafka-schema-reg-mcp/issues)

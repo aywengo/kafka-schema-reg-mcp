@@ -1,14 +1,18 @@
-# v2.x Migration Guide - Current Stable Versions
+# v2.x Migration Guide - Historical
 
-This guide helps teams migrate from v1.x versions to the current stable v2.x release series with **FastMCP 3.2.0+ framework** and **MCP 2025-11-25 specification compliance**.
+> **Historical guide.** This document describes the v1 → v2 upgrade and the
+> v2.x releases. It is kept for teams still running v2.x. For the current
+> release, use the [v3.0 migration guide](v3-migration-guide.md).
 
-## 🚀 Current Version Information
+This guide helps teams migrate from v1.x versions to the v2.x release series with **FastMCP 3.2.0+** and **MCP 2025-11-25**.
 
-- **Latest Stable**: v2.2.2 (`:stable` tag)
+## 🚀 v2 Version Information
+
+- **Last v2 release**: v2.2.2 (`:2.2.2` tag)
 - **Previous Stable**: v1.8.3 (deprecated)
 - **Upgrade Path**: v1.x → v2.2.2 (direct upgrade supported)
 
-> **✅ Production Ready**: v2.2.x series is stable and production-ready. Use `:stable` tag for automatic updates to latest stable version.
+> **Note:** The `:stable` tag now follows the current 3.x release. Pin `:2.2.2` if you need the last v2 image.
 
 ## 🔄 Migration Overview
 
@@ -26,7 +30,7 @@ This guide helps teams migrate from v1.x versions to the current stable v2.x rel
 
 ### What's New in v2.0.0
 - **🚀 FastMCP 2.8.0+ Framework**: Complete migration from legacy `mcp[cli]==1.9.4`
-- **📊 MCP 2025-06-18 Compliance**: Full support for latest MCP specification
+- **📊 MCP 2025-06-18 Compliance**: Protocol version supported at the time of v2
 - **🔐 OAuth 2.1 Generic Discovery**: 75% less configuration - works with any OAuth 2.1 provider
 - **🔗 Resource Linking**: HATEOAS navigation in tool responses
 
@@ -49,23 +53,23 @@ cp ~/.config/claude-desktop/config.json \
    ~/.config/claude-desktop/config_v1_backup.json
 ```
 
-### Step 2: Update to Latest Stable
+### Step 2: Update to v2.2.2
 ```bash
-# Pull the latest stable version
-docker pull aywengo/kafka-schema-reg-mcp:stable
+# Pull the last v2 release
+docker pull aywengo/kafka-schema-reg-mcp:2.2.2
 
-# Verify you have v2.0.2 or later
-docker run --rm aywengo/kafka-schema-reg-mcp:stable python -c "import os; print('Version check passed')"
+# Verify the image starts
+docker run --rm aywengo/kafka-schema-reg-mcp:2.2.2 python -c "import os; print('Version check passed')"
 ```
 
 ### Step 3: Update Claude Desktop Configuration
 ```bash
-# Use the latest stable configuration
-cp config-examples/claude_desktop_stable_config.json \
+# Use a v2 configuration and set its image tag to :2.2.2
+cp config-examples/claude_desktop_v2_config.json \
    ~/Library/Application\ Support/Claude/claude_desktop_config.json
 
 # Or for multi-registry setup
-cp config-examples/claude_desktop_multi_registry_docker.json \
+cp config-examples/claude_desktop_v2_multi_registry.json \
    ~/Library/Application\ Support/Claude/claude_desktop_config.json
 ```
 
@@ -195,7 +199,7 @@ cp ~/claude_desktop_config_v1_backup.json \
 
 ## 📊 Version Comparison
 
-| Feature | v1.8.3 (Legacy) | v2.2.2 (Current) |
+| Feature | v1.8.3 (Legacy) | v2.2.2 (Last v2) |
 |---------|------------------|------------------|
 | **MCP Framework** | Legacy mcp[cli] 1.9.4 | ✅ FastMCP 3.2.0+ (3.x, capped below 4) |
 | **MCP Specification** | Pre-2025 | ✅ MCP 2025-11-25 |
@@ -209,12 +213,12 @@ cp ~/claude_desktop_config_v1_backup.json \
 | **Resource Linking** | None | ✅ HATEOAS navigation |
 | **Schema Validation** | Network-dependent | ✅ Local with zero dependencies |
 | **Error Handling** | Basic | ✅ Comprehensive with recovery |
-| **Production Ready** | ⚠️ Legacy | ✅ Current Stable |
+| **Production Ready** | ⚠️ Legacy | ✅ Last v2 release |
 
 ## 🧪 Validation Checklist
 
 ### Basic Functionality
-- [ ] Server starts without errors using `:stable` tag
+- [ ] Server starts without errors using the `:2.2.2` tag
 - [ ] Claude Desktop connects successfully
 - [ ] Basic MCP tools work (`list_subjects`, `get_schema`)
 - [ ] Context operations work (`list_contexts`, `create_context`)
@@ -239,15 +243,15 @@ cp ~/claude_desktop_config_v1_backup.json \
 - [ ] All existing Claude Desktop prompts work
 - [ ] Multi-registry support unchanged
 - [ ] Async operations function correctly
-- [ ] Docker deployment works with `:stable` tag
+- [ ] Docker deployment works with the `:2.2.2` tag
 - [ ] Environment variables work as expected
 
 ## 🎯 Best Practices for v2.x
 
 ### Docker Tag Strategy
-- **Production**: Use `:stable` tag for automatic stable updates
-- **Testing**: Use specific version tags like `:2.0.2` for testing
-- **Development**: Use `:latest` for cutting-edge features (may be unstable)
+- **Production**: Pin `:2.2.2` for v2 deployments; `:stable` now follows 3.x
+- **Testing**: Pin `:2.2.2`; older v2 tags are historical
+- **Development**: Use a 3.x tag and the [v3 migration guide](v3-migration-guide.md)
 
 ### Configuration Management
 - **Environment Variables**: Use the new simplified OAuth 2.1 configuration

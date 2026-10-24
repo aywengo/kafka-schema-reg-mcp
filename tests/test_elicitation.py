@@ -745,6 +745,21 @@ class TestInteractiveTools:
         mock_create_tool.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_create_context_interactive_declined_does_not_create(self):
+        """Declining metadata elicitation must not create the context."""
+        mock_create_tool = Mock()
+
+        with patch("interactive_tools.ask_request", return_value=("declined", None)):
+            result = await create_context_interactive(
+                context="test-context",
+                create_context_tool=mock_create_tool,
+                ctx=object(),
+            )
+
+        assert result["error_code"] == "CONTEXT_CREATION_DECLINED"
+        mock_create_tool.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_export_global_interactive_with_preferences(self):
         """Test interactive global export with preference elicitation."""
         # Mock the core export_global_tool

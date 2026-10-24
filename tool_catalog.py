@@ -30,13 +30,14 @@ class PromptSpec:
     min_edition: Edition
 
 
-def _read(name: str, *, idempotent: bool = True) -> ToolSpec:
+def _read(name: str, *, idempotent: bool = True, task: bool = False) -> ToolSpec:
     return ToolSpec(
         name=name,
         min_edition=Edition.VIEWER,
         scope="read",
         mutates=False,
         annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=idempotent),
+        task=task,
     )
 
 
@@ -116,7 +117,7 @@ for _name in (
     "list_workflows",
     "describe_workflow",
 ):
-    _SPECS.append(_read(_name))
+    _SPECS.append(_read(_name, task=_name in {"count_schemas", "get_registry_statistics"}))
 
 # Editor: schema authoring.
 _SPECS.extend(
