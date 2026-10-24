@@ -148,8 +148,6 @@ class ToolSpec:
     min_edition: Edition            # lowest edition that registers the tool
     scope: str                      # "read" | "write" | "admin"
     mutates: bool                   # subject to VIEWONLY enforcement
-    write_targets: tuple[str, ...]  # argument names that resolve to the registries written to,
-                                    # e.g. ("registry",) or ("target_registry",)
     annotations: ToolAnnotations    # readOnlyHint / destructiveHint / idempotentHint
     task: bool = False              # register with task=True (fastmcp-tasks)
 ```
@@ -286,11 +284,10 @@ flowchart LR
   destination: `migrate_schema` / `migrate_context` write to `target_registry`, bulk tools
   take registry lists, and the bulk wizard and guided workflows choose their destination during
   elicitation, possibly after an MRTR resume.
-  - *Early check (friendly error).* A FastMCP middleware applied during catalog registration
-    reads `ToolSpec.mutates` and `ToolSpec.write_targets`, resolves each named argument
-    (including defaults) to a registry, and rejects the call before any work if one of them is
-    VIEWONLY. This replaces the ten hand-written `check_viewonly_mode(...)` calls in
-    `core_registry_tools.py`.
+  - *Early check (deferred).* A per-tool middleware would need to resolve every write
+    destination, including `target_registry`, bulk lists and MRTR-selected destinations.
+    v3.0 does not ship that middleware; the catalog's `mutates` flag documents intent, and the
+    definitive HTTP check below produces the error. A later version can add the early check.
   - *Definitive check (cannot be bypassed).* Direct registry writes are not confined to
     `schema_registry_common.py`: as of `2.2.2` there are 7 `session.post/put/delete` sites
     there, about 24 in `core_registry_tools.py`, 4 in `migration_tools.py`
@@ -610,9 +607,9 @@ Still open for M1 exit:
 
 - `edition.py`, `tool_catalog.py`, catalog-driven registration; remove the 41
   `if not SLIM_MODE` blocks.
-- Centralised VIEWONLY enforcement at both layers (catalog middleware with `write_targets`,
-  `GuardedSession` with read-semantic POST allowlist, static no-raw-session test); then remove
-  inline `check_viewonly_mode` calls and `READONLY*`.
+- Centralised VIEWONLY enforcement at the HTTP boundary (`GuardedSession` with a
+  read-semantic POST allowlist and a static no-raw-session test); then remove inline
+  `check_viewonly_mode` calls and `READONLY*`.
 - Native FastMCP scope checks; regenerate `SCOPE_DEFINITIONS` from the catalog.
 - Register `migrate_schema_interactive` and `preview_bulk_operation`; delete the
   `get_bulk_operation_status` / `cancel_bulk_operation` stubs; rename the two `_tool`-suffixed

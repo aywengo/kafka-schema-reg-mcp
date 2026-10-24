@@ -118,7 +118,7 @@ Includes every viewer tool.
 |---|---|---|---|
 | `add_subject_alias` | write | yes | editor |
 | `bulk_configuration_update` | admin | yes | admin |
-| `bulk_operations_wizard` | admin | yes | admin |
+| `bulk_operations_wizard` | read | no | admin |
 | `bulk_schema_cleanup` | admin | yes | admin |
 | `bulk_schema_migration` | admin | yes | admin |
 | `bulk_schema_update` | admin | yes | admin |
@@ -157,10 +157,10 @@ Includes every viewer tool.
 | `get_subject_config` | read | no | viewer |
 | `get_subject_mode` | read | no | viewer |
 | `get_subjects_by_schema_id` | read | no | viewer |
-| `guided_context_reorganization` | admin | yes | admin |
-| `guided_disaster_recovery` | admin | yes | admin |
+| `guided_context_reorganization` | read | no | admin |
+| `guided_disaster_recovery` | read | no | admin |
 | `guided_schema_evolution` | read | no | viewer |
-| `guided_schema_migration` | admin | yes | admin |
+| `guided_schema_migration` | read | no | admin |
 | `list_available_resources` | read | no | viewer |
 | `list_contexts` | read | no | viewer |
 | `list_registries` | read | no | viewer |

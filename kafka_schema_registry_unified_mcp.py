@@ -63,6 +63,7 @@ import urllib.request
 from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict, Optional, Union
+from urllib.parse import urlsplit
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -343,11 +344,24 @@ mcp: FastMCP = EditionGate(FastMCP(**mcp_config), EDITION, auth_enabled=ENABLE_A
 # SEP-2663 tasks extension. FastMCP 4 refuses to serve a task=True tool without it.
 TASKS_BACKEND = os.getenv("TASKS_BACKEND", "memory").strip().lower()
 TASKS_BACKEND_URL = os.getenv("TASKS_BACKEND_URL")
+
+
+def _safe_backend_url(url: str) -> str:
+    """Return a log-safe Redis URL without credentials."""
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname or ""
+        port = f":{parsed.port}" if parsed.port else ""
+        return f"{parsed.scheme}://{host}{port}{parsed.path}"
+    except ValueError:
+        return "<invalid-url>"
+
+
 if TASKS_BACKEND == "redis":
     if not TASKS_BACKEND_URL:
         raise RuntimeError("TASKS_BACKEND=redis requires TASKS_BACKEND_URL (for example redis://valkey:6379/0)")
     mcp.add_extension(TasksExtension(url=TASKS_BACKEND_URL))
-    logging.getLogger(__name__).info("📋 Task storage: redis (%s)", TASKS_BACKEND_URL)
+    logging.getLogger(__name__).info("📋 Task storage: redis (%s)", _safe_backend_url(TASKS_BACKEND_URL))
 elif TASKS_BACKEND == "memory":
     mcp.add_extension(TasksExtension())
     logging.getLogger(__name__).info("📋 Task storage: in-memory (single process only)")

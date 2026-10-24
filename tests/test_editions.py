@@ -117,3 +117,18 @@ def test_unknown_edition_fails_fast():
     result = _run("import kafka_schema_registry_unified_mcp", {"MCP_EDITION": "superuser"})
     assert result.returncode != 0
     assert "not a valid edition" in result.stderr
+
+
+def test_planner_tools_are_read_only():
+    from tool_catalog import TOOL_CATALOG
+
+    for name in (
+        "guided_schema_evolution",
+        "guided_schema_migration",
+        "guided_context_reorganization",
+        "guided_disaster_recovery",
+        "bulk_operations_wizard",
+    ):
+        spec = TOOL_CATALOG[name]
+        assert spec.mutates is False
+        assert spec.annotations.read_only_hint is True

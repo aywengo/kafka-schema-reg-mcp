@@ -20,7 +20,6 @@ class ToolSpec:
     min_edition: Edition
     scope: str
     mutates: bool
-    write_targets: tuple[str, ...] = ()
     annotations: ToolAnnotations = field(default_factory=ToolAnnotations)
     task: bool = False
 
@@ -46,7 +45,6 @@ def _write(
     edition: Edition = Edition.EDITOR,
     *,
     scope: str = "write",
-    targets: tuple[str, ...] = ("registry",),
     destructive: bool = False,
     task: bool = False,
 ) -> ToolSpec:
@@ -55,16 +53,24 @@ def _write(
         min_edition=edition,
         scope=scope,
         mutates=True,
-        write_targets=targets,
         annotations=ToolAnnotations(destructiveHint=destructive, idempotentHint=False),
         task=task,
     )
 
 
-def _admin(
-    name: str, *, targets: tuple[str, ...] = ("registry",), destructive: bool = False, task: bool = False
-) -> ToolSpec:
-    return _write(name, Edition.ADMIN, scope="admin", targets=targets, destructive=destructive, task=task)
+def _admin(name: str, *, destructive: bool = False, task: bool = False) -> ToolSpec:
+    return _write(name, Edition.ADMIN, scope="admin", destructive=destructive, task=task)
+
+
+def _admin_read(name: str) -> ToolSpec:
+    """Admin-edition planner that only reads state and returns a plan."""
+    return ToolSpec(
+        name=name,
+        min_edition=Edition.ADMIN,
+        scope="read",
+        mutates=False,
+        annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True),
+    )
 
 
 _SPECS: list[ToolSpec] = []
@@ -134,16 +140,16 @@ _SPECS.extend(
         _write("update_subject_mode", Edition.ADMIN),
         _write("add_subject_alias"),
         _admin("delete_subject_alias", destructive=True),
-        _admin("migrate_schema", targets=("target_registry",), destructive=True, task=True),
-        _admin("migrate_context", targets=("target_registry",), destructive=True, task=True),
-        _admin("migrate_context_interactive", targets=("target_registry",), destructive=True),
-        _admin("migrate_schema_interactive", targets=("target_registry",), destructive=True),
+        _admin("migrate_schema", destructive=True, task=True),
+        _admin("migrate_context", destructive=True, task=True),
+        _admin("migrate_context_interactive", destructive=True),
+        _admin("migrate_schema_interactive", destructive=True),
         _admin("clear_context_batch", destructive=True, task=True),
         _admin("clear_multiple_contexts_batch", destructive=True, task=True),
-        _admin("bulk_operations_wizard"),
+        _admin_read("bulk_operations_wizard"),
         _admin("bulk_schema_update", task=True),
         _admin("bulk_schema_cleanup", destructive=True, task=True),
-        _admin("bulk_schema_migration", targets=("target_registry",), destructive=True, task=True),
+        _admin("bulk_schema_migration", destructive=True, task=True),
         _admin("bulk_configuration_update", task=True),
         ToolSpec(
             name="preview_bulk_operation",
@@ -152,9 +158,9 @@ _SPECS.extend(
             mutates=False,
             annotations=ToolAnnotations(readOnlyHint=True),
         ),
-        _admin("guided_schema_migration", targets=("target_registry",), destructive=True),
-        _admin("guided_context_reorganization", targets=("target_registry",), destructive=True),
-        _admin("guided_disaster_recovery", targets=("target_registry",), destructive=True),
+        _admin_read("guided_schema_migration"),
+        _admin_read("guided_context_reorganization"),
+        _admin_read("guided_disaster_recovery"),
     ]
 )
 

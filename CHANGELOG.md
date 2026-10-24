@@ -44,6 +44,9 @@ Release candidate for v3.0. See `docs/v3-migration-guide.md` for the upgrade pat
 - **MRTR workflows.** Interactive tools and the four guided workflows return
   `InputRequiredResult` on modern connections and use `ctx.elicit()` on legacy
   connections. `REQUEST_STATE_KEY` signs resumable state.
+- **Planner tools.** The guided workflows and `bulk_operations_wizard` now
+  return execution plans; they do not write to a registry. Use the dedicated
+  bulk and migration tools to execute a plan.
 - **Guarded session.** `VIEWONLY` is enforced at the HTTP boundary; the
   `READONLY` alias, `readonly` JSON key, `is_readonly()` and
   `check_readonly_mode()` are removed.
