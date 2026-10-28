@@ -94,6 +94,13 @@ Design, milestones and implementation record for v3.0:
 - **Editions**: `viewer` (read-only), `editor` (read, compatibility, evolution, registration) and `admin` (full access)
 - **Roadmap**: Milestones M0-M4, risk register, backward compatibility matrix
 
+### 🗺️ **[v3.1 Design and Roadmap](v3.1-roadmap.md)** - Proposed
+Design for the next minor release:
+- **Restore**: apply an export document, dry-run unless told to write
+- **Identity**: one verifier for human, client-credentials, and SEP-990 access tokens
+- **Fleet**: `ClientGroup` front for registries that do not fit in eight environment variables
+- **Cache hints**: per-resource `ttlMs`, including a schema-by-id resource
+
 ---
 
 ## 🎉 What's New in v3.0.0 (Latest)

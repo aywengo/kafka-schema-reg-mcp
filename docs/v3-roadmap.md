@@ -751,6 +751,8 @@ awaiting them; CI's quick mode and the targeted suites are the release gate.
 
 ### Post-3.0 candidates (3.1)
 
+Specified in [v3.1 Design and Roadmap](v3.1-roadmap.md):
+
 - Automated DR restore/import tool to complement `export_*` and `guided_disaster_recovery`.
 - Identity assertion (SEP-990) and machine-to-machine client auth in `oauth_provider.py`.
 - `ClientGroup`-based multi-registry proxying for very large registry fleets.
