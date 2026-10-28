@@ -86,6 +86,7 @@ from bulk_operations_mcp_integration import (
     handle_bulk_operations_tool,
 )
 from bulk_operations_wizard import BulkOperationsWizard
+from cache_hints import install_read_resource_hints
 from comparison_tools import (
     compare_contexts_across_registries_tool,
     compare_registries_tool,
@@ -660,6 +661,12 @@ def list_available_resources():
                 "description": "Get schema content (default context)",
                 "replaces_tool": "get_schema",
                 "example": "schema://production/user-events",
+                "data_type": "schema_content",
+            },
+            "schema://{name}/ids/{schema_id}": {
+                "description": "Get a schema by its globally unique id (immutable; long cache hint)",
+                "replaces_tool": "get_schema_by_id",
+                "example": "schema://production/ids/42",
                 "data_type": "schema_content",
             },
             "schema://{name}/{context}/{subject}/versions": {
@@ -3397,6 +3404,96 @@ def registry_config_resource(name: str, context: Optional[str] = None):
         return json.dumps(error_response, indent=2)
 
 
+# Template order matters: FastMCP returns the first registered template that
+# matches a URI, so the templates with literal segments (`/ids/`, `/versions`)
+# are registered before `schema://{name}/{context}/{subject}`, which would
+# otherwise capture them.
+@mcp.resource("schema://{name}/{subject}/versions")
+@resource_not_found
+@require_scopes("read")
+def schema_versions_default_context_resource(name: str, subject: str):
+    """Get all versions of a schema for a specific subject in the default context of a registry."""
+    import json
+
+    try:
+        # Use the existing get_schema_versions_tool implementation with default context
+        result = get_schema_versions_tool(
+            subject=subject,
+            registry_manager=registry_manager,
+            registry_mode=REGISTRY_MODE,
+            context=None,  # Use default context
+            registry=name if REGISTRY_MODE == "multi" else None,
+            auth=auth,
+            headers=headers,
+            schema_registry_url=SCHEMA_REGISTRY_URL,
+        )
+
+        # Add resource metadata
+        result["resource_info"] = {
+            "resource_uri": f"schema://{name}/{subject}/versions",
+            "registry_name": name,
+            "context": "default",
+            "subject": subject,
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": current_protocol_version(),
+        }
+
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema versions for '{subject}' from registry '{name}' (default context): {str(e)}",
+            "resource_info": {
+                "resource_uri": f"schema://{name}/{subject}/versions",
+                "registry_name": name,
+                "context": "default",
+                "subject": subject,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": current_protocol_version(),
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
+@mcp.resource("schema://{name}/ids/{schema_id}")
+@resource_not_found
+@require_scopes("read")
+def schema_by_id_resource(name: str, schema_id: int):
+    """Get a schema by its globally unique id. The body is immutable, so the read carries a long cache hint."""
+    import json
+
+    resource_uri = f"schema://{name}/ids/{schema_id}"
+    try:
+        result = get_schema_by_id_tool(
+            int(schema_id),
+            registry_manager,
+            REGISTRY_MODE,
+            name if REGISTRY_MODE == "multi" else None,
+            auth,
+            headers,
+            SCHEMA_REGISTRY_URL,
+        )
+        result["resource_info"] = {
+            "resource_uri": resource_uri,
+            "registry_name": name,
+            "schema_id": int(schema_id),
+            "registry_mode": REGISTRY_MODE,
+            "mcp_protocol_version": current_protocol_version(),
+        }
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        error_response = {
+            "error": f"Failed to get schema id {schema_id} from registry '{name}': {str(e)}",
+            "resource_info": {
+                "resource_uri": resource_uri,
+                "registry_name": name,
+                "schema_id": schema_id,
+                "registry_mode": REGISTRY_MODE,
+                "mcp_protocol_version": current_protocol_version(),
+            },
+        }
+        return json.dumps(error_response, indent=2)
+
+
 # Schema-specific resources for direct schema content access
 @mcp.resource("schema://{name}/{context}/{subject}")
 @resource_not_found
@@ -3534,52 +3631,6 @@ def schema_versions_resource(name: str, context: str, subject: str):
                 "resource_uri": f"schema://{name}/{context}/{subject}/versions",
                 "registry_name": name,
                 "context": context,
-                "subject": subject,
-                "registry_mode": REGISTRY_MODE,
-                "mcp_protocol_version": current_protocol_version(),
-            },
-        }
-        return json.dumps(error_response, indent=2)
-
-
-@mcp.resource("schema://{name}/{subject}/versions")
-@resource_not_found
-@require_scopes("read")
-def schema_versions_default_context_resource(name: str, subject: str):
-    """Get all versions of a schema for a specific subject in the default context of a registry."""
-    import json
-
-    try:
-        # Use the existing get_schema_versions_tool implementation with default context
-        result = get_schema_versions_tool(
-            subject=subject,
-            registry_manager=registry_manager,
-            registry_mode=REGISTRY_MODE,
-            context=None,  # Use default context
-            registry=name if REGISTRY_MODE == "multi" else None,
-            auth=auth,
-            headers=headers,
-            schema_registry_url=SCHEMA_REGISTRY_URL,
-        )
-
-        # Add resource metadata
-        result["resource_info"] = {
-            "resource_uri": f"schema://{name}/{subject}/versions",
-            "registry_name": name,
-            "context": "default",
-            "subject": subject,
-            "registry_mode": REGISTRY_MODE,
-            "mcp_protocol_version": current_protocol_version(),
-        }
-
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        error_response = {
-            "error": f"Failed to get schema versions for '{subject}' from registry '{name}' (default context): {str(e)}",
-            "resource_info": {
-                "resource_uri": f"schema://{name}/{subject}/versions",
-                "registry_name": name,
-                "context": "default",
                 "subject": subject,
                 "registry_mode": REGISTRY_MODE,
                 "mcp_protocol_version": current_protocol_version(),
@@ -3826,6 +3877,10 @@ for _prompt_name, _prompt_fn in _PROMPT_REGISTRY.items():
 # Registration is complete; expose the real FastMCP server to clients.
 if isinstance(mcp, EditionGate):
     mcp = mcp._server
+
+# SEP-2549 per-resource cache hints (v3.1 M4). The constructor's cache_ttl stays
+# the hint for the list methods; resources/read is stamped per URI.
+install_read_resource_hints(mcp)
 
 
 # ===== SERVER ENTRY POINT =====

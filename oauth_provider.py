@@ -1130,9 +1130,12 @@ def get_fastmcp_config(server_name: str):
     """Get FastMCP configuration with OAuth 2.1 authentication and request-state sealing."""
     config = {
         "name": server_name,
-        # SEP-2549 cache hints for list results (tools/resources/prompts).
+        # SEP-2549 cache hints for the list methods and server/discover. The
+        # catalog is the same for every caller only when no scope can filter
+        # it, so the scope is public with auth off and private with auth on.
+        # resources/read is stamped per URI by cache_hints.py.
         "cache_ttl": 60,
-        "cache_scope": "private",
+        "cache_scope": "private" if ENABLE_AUTH else "public",
         # Protocol compliance is handled by FastMCP 4 / MCP SDK 2.
     }
 
