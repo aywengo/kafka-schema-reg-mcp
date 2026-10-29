@@ -1012,6 +1012,8 @@ Migrate a schema from one registry to another. Uses FastMCP background tasks API
 
 Apply an `export_global`, `export_context`, or `export_subject` document to one registry. Dry-run unless `apply` is true. Preserves schema ids. `migrate_schema` remains the live-to-live copy between two registries.
 
+Restore opens IMPORT on the whole registry with `force=true`, so a registry that already has schemas can keep ids. `accept_new_ids` is only the retry when that mode change still fails. A `context` filter limits which versions are written. It does not narrow the IMPORT window to `PUT /contexts/{ctx}/mode`. The version post creates a context; restore does not call `POST /contexts/{name}`.
+
 - Edition: `admin`
 - Scope: `admin`
 - Kind: destructive

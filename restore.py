@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 OP_INFO = "registry_info"
 OP_BEGIN_IMPORT = "begin_import"
 OP_END_IMPORT = "end_import"
-OP_CREATE_CONTEXT = "create_context"
-OP_SCHEMA_BY_ID = "get_schema_by_id"
+OP_SUBJECT_VERSION = "get_subject_version"
 OP_IMPORT_VERSION = "import_schema_version"
 OP_SUBJECT_CONFIG = "update_subject_config"
 OP_GLOBAL_CONFIG = "update_global_config"
@@ -94,7 +93,7 @@ class SubjectPlan:
 
 @dataclass
 class ContextPlan:
-    """A context to create, plus the compatibility and mode to write afterwards."""
+    """Compatibility and mode written after the versions. The version POST creates the context."""
 
     name: str | None
     compatibility: str | None
@@ -148,8 +147,7 @@ class RegistryFleet:
             OP_INFO: self._info,
             OP_BEGIN_IMPORT: self._begin_import,
             OP_END_IMPORT: self._end_import,
-            OP_CREATE_CONTEXT: self._create_context,
-            OP_SCHEMA_BY_ID: self._schema_by_id,
+            OP_SUBJECT_VERSION: self._subject_version,
             OP_IMPORT_VERSION: self._import_version,
             OP_SUBJECT_CONFIG: self._subject_config,
             OP_GLOBAL_CONFIG: self._global_config,
@@ -165,7 +163,7 @@ class RegistryFleet:
     def _begin_import(self, client: Any, arguments: Mapping[str, Any]) -> dict[str, Any]:
         _require_write(client)
         try:
-            previous = open_import_mode(client)
+            previous = open_import_mode(client, force=True)
         except ImportModeUnavailable as exc:
             return {"ok": False, "reason": exc.reason, "error": exc.detail}
         self._imports[client.config.name] = (client, previous)
@@ -178,18 +176,11 @@ class RegistryFleet:
         stored, previous = pair
         return {"ok": restore_previous_mode(stored, previous)}
 
-    def _create_context(self, client: Any, arguments: Mapping[str, Any]) -> dict[str, Any]:
-        _require_write(client)
-        name = str(arguments["context"])
-        url = f"{client.config.url}/contexts/{quote(name, safe='')}"
-        response = client.session.post(url, auth=client.auth, headers=client.headers, timeout=10)
-        if response.status_code in (200, 201, 204, 409):
-            return {"ok": True}
-        return {"ok": False, "error": response.text}
-
-    def _schema_by_id(self, client: Any, arguments: Mapping[str, Any]) -> dict[str, Any]:
-        schema_id = arguments["schema_id"]
-        url = f"{client.config.url}/schemas/ids/{schema_id}"
+    def _subject_version(self, client: Any, arguments: Mapping[str, Any]) -> dict[str, Any]:
+        subject = str(arguments["subject"])
+        version = arguments["version"]
+        context = arguments.get("context")
+        url = client.build_context_url(f"/subjects/{quote(subject, safe='')}/versions/{version}", context)
         response = client.session.get(url, auth=client.auth, headers=client.headers, timeout=10)
         if response.status_code == 404:
             return {"found": False}
@@ -198,8 +189,8 @@ class RegistryFleet:
         try:
             body = response.json()
         except ValueError:
-            return {"found": False, "error": "schema by id was not JSON"}
-        return {"found": True, "id": schema_id, "schema": body.get("schema")}
+            return {"found": False, "error": "subject version was not JSON"}
+        return {"found": True, "id": body.get("id"), "schema": body.get("schema")}
 
     def _import_version(self, client: Any, arguments: Mapping[str, Any]) -> dict[str, Any]:
         _require_write(client)
@@ -226,7 +217,7 @@ class RegistryFleet:
             headers={**client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
             timeout=10,
         )
-        if response.status_code not in (200, 409):
+        if response.status_code != 200:
             return {"ok": False, "error": response.text}
         new_id = schema_id
         if response.status_code == 200:
@@ -304,6 +295,13 @@ async def restore(
     if isinstance(prepared, RestoreReport):
         return prepared
     preservation = _id_preservation(prepared, accept_new_ids)
+    if not accept_new_ids and _id_without_version(prepared):
+        return _finish(
+            "rejected",
+            prepared,
+            id_preservation=preservation,
+            reason="a schema id requires a version number",
+        )
     if prepared.cycle:
         return _finish("incomplete", prepared, id_preservation=preservation, reason="reference cycle")
     if target not in fleet.names():
@@ -426,14 +424,6 @@ async def _write_versions(
     accept_new_ids: bool,
     outcome: Outcome,
 ) -> None:
-    for plan in document.contexts:
-        if _is_default(plan.name):
-            continue
-        result = await fleet.dispatch(OP_CREATE_CONTEXT, {"registry": target, "context": plan.name})
-        if not _succeeded(result):
-            outcome.failed = True
-            outcome.reason = _error_text(result, f"cannot create context '{plan.name}'")
-            return
     for subject in document.ordered:
         for version in subject.versions:
             if outcome.failed:
@@ -451,13 +441,26 @@ async def _write_version(
 ) -> None:
     preserve = version.schema_id is not None and not accept_new_ids
     if preserve:
-        found = await fleet.dispatch(OP_SCHEMA_BY_ID, {"registry": target, "schema_id": version.schema_id})
+        found = await fleet.dispatch(
+            OP_SUBJECT_VERSION,
+            {
+                "registry": target,
+                "subject": subject.name,
+                "version": version.version,
+                "context": subject.context,
+            },
+        )
         if isinstance(found, Mapping) and found.get("found"):
-            if _same_schema(found.get("schema"), version.schema):
+            same_id = found.get("id") == version.schema_id
+            same_body = _same_schema(found.get("schema"), version.schema)
+            if same_id and same_body:
                 outcome.skipped.append(_entry(subject, version, version.schema_id))
                 return
             outcome.conflicts.append(
-                {**_entry(subject, version, version.schema_id), "reason": "schema id exists with a different body"}
+                {
+                    **_entry(subject, version, version.schema_id),
+                    "reason": "subject version exists with a different id or body",
+                }
             )
             return
         if isinstance(found, Mapping) and found.get("error"):
@@ -755,6 +758,15 @@ def _resolve_reference(subjects: list[SubjectPlan], owner: SubjectPlan, name: st
     if anywhere:
         return anywhere[0]
     return None
+
+
+def _id_without_version(document: Document) -> bool:
+    """IMPORT posts need both the schema id and the version number."""
+    return any(
+        version.schema_id is not None and version.version is None
+        for subject in document.subjects
+        for version in subject.versions
+    )
 
 
 def _id_preservation(document: Document, accept_new_ids: bool) -> str:

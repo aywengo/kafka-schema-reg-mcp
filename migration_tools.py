@@ -424,16 +424,19 @@ class ImportModeUnavailable(Exception):
         self.detail = detail
 
 
-def open_import_mode(client: Any) -> str:
+def open_import_mode(client: Any, force: bool = False) -> str:
     """Put the registry in IMPORT mode and return the mode to restore.
 
     When the registry is already in IMPORT mode, that value is returned and
-    the caller must not write it back. ``ViewOnlyError`` propagates so the
+    the caller must not write it back. ``force`` adds ``?force=true`` so a
+    registry that already has schemas can enter IMPORT. The default leaves
+    that decision to the registry. ``ViewOnlyError`` propagates so the
     caller can reject the write. Every other failure raises
     ``ImportModeUnavailable`` and leaves the mode unchanged.
 
     Args:
         client: Registry client whose session performs the mode requests.
+        force: Send ``force=true`` on the mode change. Restore does. Migrate does not.
 
     Returns:
         The mode that was current before this call.
@@ -463,9 +466,12 @@ def open_import_mode(client: Any) -> str:
         logger.info("Target registry already in IMPORT mode")
         return previous
     logger.info(f"Setting target registry to IMPORT mode for ID preservation (was {previous})")
+    mode_url = f"{client.config.url}/mode"
+    if force:
+        mode_url = f"{mode_url}?force=true"
     try:
         import_response = client.session.put(
-            f"{client.config.url}/mode",
+            mode_url,
             json={"mode": "IMPORT"},
             auth=client.auth,
             headers={**client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},

@@ -26,14 +26,16 @@ class RecordingFleet:
         *,
         viewonly: bool = False,
         import_denied: bool = False,
-        schemas: dict[int, Any] | None = None,
+        versions: dict[tuple[str | None, str, int], dict[str, Any]] | None = None,
         fail_tool: str | None = None,
+        post_conflict: bool = False,
     ) -> None:
         self._names = list(names)
         self.viewonly = viewonly
         self.import_denied = import_denied
-        self.schemas = dict(schemas or {})
+        self.versions = dict(versions or {})
         self.fail_tool = fail_tool
+        self.post_conflict = post_conflict
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self._next_id = 1000
 
@@ -52,19 +54,21 @@ class RecordingFleet:
             return {"ok": True, "previous_mode": "READWRITE"}
         if tool == "end_import":
             return {"ok": True}
-        if tool == "get_schema_by_id":
-            schema_id = arguments["schema_id"]
-            if schema_id not in self.schemas:
+        if tool == "get_subject_version":
+            key = (arguments.get("context"), arguments["subject"], arguments["version"])
+            stored = self.versions.get(key)
+            if stored is None:
                 return {"found": False}
-            return {"found": True, "id": schema_id, "schema": self.schemas[schema_id]}
+            return {"found": True, "id": stored["id"], "schema": stored["schema"]}
         if tool == "import_schema_version":
+            if self.post_conflict:
+                return {"ok": False, "error": "Conflict"}
             new_id = arguments.get("schema_id")
             if new_id is None:
                 new_id = self._next_id
                 self._next_id += 1
-            self.schemas[new_id] = arguments.get("schema")
             return {"ok": True, "id": new_id}
-        if tool in {"create_context", "update_subject_config", "update_global_config", "update_mode"}:
+        if tool in {"update_subject_config", "update_global_config", "update_mode"}:
             return {"ok": True}
         return {"ok": False, "error": f"unknown operation {tool}"}
 
@@ -132,7 +136,10 @@ async def test_accept_new_ids_registers_without_opening_import() -> None:
 
 @pytest.mark.asyncio
 async def test_matching_id_is_skipped() -> None:
-    fleet = RecordingFleet(["dev"], schemas={7: json.dumps(USER_SCHEMA)})
+    fleet = RecordingFleet(
+        ["dev"],
+        versions={(None, "user", 1): {"id": 7, "schema": json.dumps(USER_SCHEMA)}},
+    )
     report = await restore(_subject_bundle(), "dev", fleet, apply=True)
     assert report.status == "applied"
     assert report.id_preservation == "preserved"
@@ -148,12 +155,57 @@ async def test_conflicting_id_is_not_overwritten_and_other_versions_continue() -
     bundle["versions"].append(
         {"subject": "user", "version": 2, "id": 8, "schemaType": "AVRO", "schema": {"type": "string"}}
     )
-    fleet = RecordingFleet(["dev"], schemas={7: {"type": "string"}})
+    fleet = RecordingFleet(
+        ["dev"],
+        versions={(None, "user", 1): {"id": 7, "schema": {"type": "string"}}},
+    )
     report = await restore(bundle, "dev", fleet, apply=True)
     assert report.status == "applied"
     assert report.conflicts[0]["schema_id"] == 7
     assert [item["schema_id"] for item in report.created] == [8]
     assert 7 not in {args.get("schema_id") for name, args in fleet.calls if name == "import_schema_version"}
+
+
+@pytest.mark.asyncio
+async def test_shared_schema_id_is_posted_for_each_subject() -> None:
+    bundle = {
+        "context": "orders",
+        "subjects": [
+            {"subject": "user", "versions": [{"version": 1, "id": 7, "schemaType": "AVRO", "schema": USER_SCHEMA}]},
+            {"subject": "alias", "versions": [{"version": 1, "id": 7, "schemaType": "AVRO", "schema": USER_SCHEMA}]},
+        ],
+    }
+    fleet = RecordingFleet(["dev"])
+    report = await restore(bundle, "dev", fleet, apply=True)
+    assert report.status == "applied"
+    assert report.skipped == []
+    posted = [(args["subject"], args["schema_id"]) for name, args in fleet.calls if name == "import_schema_version"]
+    assert posted == [("user", 7), ("alias", 7)]
+    lookups = [args for name, args in fleet.calls if name == "get_subject_version"]
+    assert [(args["subject"], args["context"]) for args in lookups] == [("user", "orders"), ("alias", "orders")]
+
+
+@pytest.mark.asyncio
+async def test_post_conflict_is_incomplete_and_not_created() -> None:
+    fleet = RecordingFleet(["dev"], post_conflict=True)
+    report = await restore(_subject_bundle(), "dev", fleet, apply=True)
+    assert report.status == "incomplete"
+    assert report.created == []
+    assert "import_schema_version" in _tools(fleet)
+
+
+@pytest.mark.asyncio
+async def test_schema_id_without_version_is_rejected_unless_new_ids() -> None:
+    bundle = _subject_bundle()
+    del bundle["versions"][0]["version"]
+    fleet = RecordingFleet(["dev"])
+    rejected = await restore(bundle, "dev", fleet, apply=True)
+    assert rejected.status == "rejected"
+    assert rejected.reason == "a schema id requires a version number"
+    assert fleet.calls == []
+    accepted = await restore(bundle, "dev", fleet, apply=True, accept_new_ids=True)
+    assert accepted.status == "applied"
+    assert accepted.id_preservation == "new_ids"
 
 
 @pytest.mark.asyncio
@@ -234,8 +286,11 @@ async def test_reference_order_versions_and_mode_restore_before_document_mode() 
     assert report.status == "applied"
     posted = [(args["subject"], args["version"]) for name, args in fleet.calls if name == "import_schema_version"]
     assert posted == [("user", 1), ("order", 1), ("order", 2)]
+    lookups = [args for name, args in fleet.calls if name == "get_subject_version"]
+    assert lookups and all(args["context"] == "orders" for args in lookups)
     names = _tools(fleet)
-    assert names.index("create_context") < names.index("import_schema_version")
+    assert "create_context" not in names
+    assert names.index("get_subject_version") < names.index("import_schema_version")
     assert names.index("end_import") < names.index("update_global_config")
     assert names.index("update_global_config") < names.index("update_mode")
 
@@ -303,12 +358,30 @@ def test_import_helper_lets_viewonly_propagate() -> None:
         open_import_mode(_Client(session))
 
 
-def test_migrate_schema_uses_the_shared_import_helper() -> None:
-    from migration_tools import _execute_schema_migration
+def test_import_helper_default_put_has_no_force_query() -> None:
+    session = _Session()
+    open_import_mode(_Client(session))
+    puts = [url for method, url, _payload in session.calls if method == "PUT"]
+    assert puts == ["http://registry.test/mode"]
 
-    source = inspect.getsource(_execute_schema_migration)
-    assert "open_import_mode(" in source
-    assert "restore_previous_mode(" in source
+
+def test_import_helper_force_adds_the_query() -> None:
+    session = _Session()
+    open_import_mode(_Client(session), force=True)
+    puts = [url for method, url, _payload in session.calls if method == "PUT"]
+    assert puts == ["http://registry.test/mode?force=true"]
+
+
+def test_migrate_confirmation_when_import_is_denied() -> None:
+    from migration_tools import MigrationConfirmationRequired, _execute_schema_migration
+
+    source = _Client(_VersionSession())
+    target_session = _Session(put_status=403)
+    with pytest.raises(MigrationConfirmationRequired) as caught:
+        _execute_schema_migration("user", source, _Client(target_session), versions=[1])
+    assert caught.value.confirmation_details["error_reason"] == "Permission denied to set IMPORT mode"
+    puts = [url for method, url, _payload in target_session.calls if method == "PUT"]
+    assert puts and all("force" not in url for url in puts)
 
 
 def test_restore_bundle_catalog_is_admin_destructive_task() -> None:
@@ -349,12 +422,12 @@ async def test_disaster_recovery_plan_names_restore_bundle_and_does_not_call_it(
 
 
 class _Response:
-    def __init__(self, status: int, payload: dict[str, Any] | None = None, text: str = "") -> None:
+    def __init__(self, status: int, payload: Any = None, text: str = "") -> None:
         self.status_code = status
-        self._payload = payload or {}
+        self._payload = {} if payload is None else payload
         self.text = text or str(payload)
 
-    def json(self) -> dict[str, Any]:
+    def json(self) -> Any:
         return self._payload
 
 
@@ -374,6 +447,14 @@ class _Session:
         payload = kwargs.get("json")
         self.calls.append(("PUT", url, payload))
         return _Response(self.put_status, payload, text="denied")
+
+
+class _VersionSession(_Session):
+    """Source registry that answers the versions list."""
+
+    def get(self, url: str, **_kwargs: Any) -> _Response:
+        self.calls.append(("GET", url, None))
+        return _Response(200, [1])
 
 
 class _Config:
