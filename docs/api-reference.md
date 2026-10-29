@@ -1556,7 +1556,7 @@ The v3.0.0 server exposes an edition-dependent MCP surface. The full parameter r
 |---|---|---|
 | `viewer` | 39 | Read-only browsing, export, comparison, compatibility, statistics |
 | `editor` | 42 | Viewer plus schema registration and evolution |
-| `admin` | 66 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
+| `admin` | 67 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
 
 ### Tool inventory
 
@@ -1622,6 +1622,7 @@ The v3.0.0 server exposes an edition-dependent MCP surface. The full parameter r
 | `migrate_context` | `admin` | `admin` | destructive | Guide for migrating an entire context using Docker-based tools. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
 | `migrate_context_interactive` | `admin` | `admin` | destructive | Interactive context migration with elicitation for missing preferences. When migration preferences are not specified, this tool will elicit the required configuration from the user. |
 | `migrate_schema` | `admin` | `admin` | destructive | Migrate a schema from one registry to another. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
+| `restore_bundle` | `admin` | `admin` | destructive | Apply an export document to one registry. Dry-run unless apply is true. Preserves schema ids. |
 | `migrate_schema_interactive` | `admin` | `admin` | destructive | Interactive schema migration that asks for missing preferences. Modern clients get a multi-round-trip form; legacy clients get ``elicitation/create``. Declining returns a structured error. |
 | `preview_bulk_operation` | `admin` | `admin` | read-only | Preview the changes a bulk operation would make without executing it. |
 | `update_global_config` | `admin` | `write` | write | Update global configuration settings. |

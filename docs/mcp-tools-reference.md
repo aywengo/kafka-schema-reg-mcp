@@ -10,7 +10,7 @@ Set `MCP_EDITION=viewer|editor|admin`; the default is `viewer`. `SLIM_MODE=true`
 |---|---|---|
 | `viewer` | 39 | Read-only browsing, export, comparison, compatibility, statistics |
 | `editor` | 42 | Viewer plus schema registration and evolution |
-| `admin` | 66 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
+| `admin` | 67 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
 
 Tools outside the active edition are not registered, so clients do not list them and cannot call them.
 
@@ -68,7 +68,7 @@ Tools outside the active edition are not registered, so clients do not list them
 | `register_schema` | `write` | write | Register a new schema version. |
 | `register_schema_interactive` | `write` | write | Interactive schema registration with elicitation for missing field definitions. When schema_definition is incomplete or missing fields, this tool will elicit the required information from the user interactively. |
 
-### Admin-only (24 tools)
+### Admin-only (25 tools)
 
 | Tool | Scope | Kind | Description |
 |---|---|---|---|
@@ -90,6 +90,7 @@ Tools outside the active edition are not registered, so clients do not list them
 | `migrate_context` | `admin` | destructive | Guide for migrating an entire context using Docker-based tools. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
 | `migrate_context_interactive` | `admin` | destructive | Interactive context migration with elicitation for missing preferences. When migration preferences are not specified, this tool will elicit the required configuration from the user. |
 | `migrate_schema` | `admin` | destructive | Migrate a schema from one registry to another. Uses FastMCP background tasks API (SEP-1686) for async execution with progress tracking. |
+| `restore_bundle` | `admin` | destructive | Apply an export document to one registry. Dry-run unless apply is true. Preserves schema ids. Uses FastMCP background tasks API (SEP-1686) for async execution. |
 | `migrate_schema_interactive` | `admin` | destructive | Interactive schema migration that asks for missing preferences. Modern clients get a multi-round-trip form; legacy clients get `elicitation/create`. Declining returns a structured error. |
 | `preview_bulk_operation` | `admin` | read-only | Preview the changes a bulk operation would make without executing it. |
 | `update_global_config` | `write` | write | Update global configuration settings. |
@@ -1006,6 +1007,24 @@ Migrate a schema from one registry to another. Uses FastMCP background tasks API
 | `target_context` | `string` | no | `.` |
 | `versions` | `array` | no |  |
 | `migrate_all_versions` | `boolean` | no | `false` |
+
+#### `restore_bundle`
+
+Apply an `export_global`, `export_context`, or `export_subject` document to one registry. Dry-run unless `apply` is true. Preserves schema ids. `migrate_schema` remains the live-to-live copy between two registries.
+
+- Edition: `admin`
+- Scope: `admin`
+- Kind: destructive
+- Background task:  Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `bundle` | `object` | yes | Export document. A string or a bare schema is rejected. |
+| `target` | `string` | yes | Registry to write. |
+| `apply` | `boolean` | no | `false` |
+| `accept_new_ids` | `boolean` | no | `false`. Retry after IMPORT mode cannot be set. |
+| `context` | `string` | no | Limit the document to one context. |
+| `subject` | `string` | no | Limit the document to one subject. Requires `context`. |
 
 #### `migrate_schema_interactive`
 
