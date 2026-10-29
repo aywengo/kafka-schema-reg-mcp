@@ -141,6 +141,9 @@ COPY --chown=mcp:mcp schema_evolution_helpers.py .
 COPY --chown=mcp:mcp bulk_operations_wizard.py .
 COPY --chown=mcp:mcp bulk_operations_mcp_integration.py .
 
+# Per-resource SEP-2549 cache hints (v3.1 M4). Imported at server startup.
+COPY --chown=mcp:mcp cache_hints.py .
+
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .
