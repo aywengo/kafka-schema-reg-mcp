@@ -5,6 +5,33 @@ All notable changes to the Kafka Schema Registry MCP Server will be documented i
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added (v3.1 M4 — cache hints)
+
+- Per-resource SEP-2549 cache hints. `cache_hints.py` holds the table from
+  `docs/v3.1-roadmap.md` section 5 and stamps `ttlMs`/`cacheScope` on every
+  `resources/read` result: schema-by-id 24 h, latest schema / config / mode
+  15 s, collections 60 s, `tasks` and `migrations` 0. Clients that ignore
+  hints behave as before.
+- `schema://{name}/ids/{schema_id}` resource (viewer edition, scope `read`),
+  the resource form of `get_schema_by_id`.
+
+### Changed
+
+- The list-method hint (`cache_ttl=60`) is `public` when auth is off and
+  `private` when auth is on.
+
+### Fixed
+
+- `registry://{name}/tasks` and `registry://{name}/migrations` no longer
+  inherit the 60-second list hint; they are stale on arrival.
+- `schema://{name}/{subject}/versions` was shadowed by
+  `schema://{name}/{context}/{subject}` (FastMCP picks the first registered
+  template that matches), so a default-context versions read returned the
+  latest schema instead. Templates with literal segments are now registered
+  first.
+
 ## [3.0.0] - 2026-10-23
 
 Final v3.0 release. The rc.1 notes below list the full change set; this entry

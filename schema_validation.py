@@ -12,8 +12,8 @@ Features:
 - Decorator for easy integration with existing tools
 """
 
-import asyncio
 import functools
+import inspect
 import logging
 import warnings
 from typing import Any, Callable, Dict, Optional, Union
@@ -237,7 +237,7 @@ def structured_output(tool_name: str, strict: bool = False, fallback_on_error: b
     """
 
     def decorator(func: Callable) -> Callable:
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
