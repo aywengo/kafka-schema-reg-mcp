@@ -52,12 +52,11 @@ logger = logging.getLogger(__name__)
 # Try to import JWT and HTTP libraries for production validation
 try:
     import aiohttp
-    import jwt
 
-    JWT_AVAILABLE = jwt is not None
+    JWT_AVAILABLE = True
 except ImportError:
     JWT_AVAILABLE = False
-    logger.warning("JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography")
+    logger.warning("JWT validation libraries not available. Install: pip install joserfc aiohttp cryptography")
 
 # OAuth configuration from environment variables
 ENABLE_AUTH = os.getenv("ENABLE_AUTH", "false").lower() in ("true", "1", "yes", "on")
@@ -243,7 +242,18 @@ KNOWN_GRANTS = ("authorization_code", "client_credentials", JWT_BEARER_GRANT)
 # SEP-990 enterprise-managed authorization, advertised only when the issuer lists jwt-bearer.
 ENTERPRISE_MANAGED_AUTHORIZATION = "io.modelcontextprotocol/enterprise-managed-authorization"
 _SCOPE_ORDER = ("read", "write", "admin")
-_EPHEMERAL_PUBLIC_PEM: Optional[str] = None
+# Public key only. JWTVerifier requires a PEM when the issuer has no JWKS URI.
+# Verification never uses this key; the issuer JWKS does.
+_EPHEMERAL_PUBLIC_PEM = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt87IYFDZgcjt6TXqDoOZ
+Ps9HVyO3wujFFA6KkCH+rAuRb7FTakl1D5aztTK12Dj001s6Pnb+NOKZcNnVJI9d
+VHQxoTLz55bR7FJzKJShIariOEoBBHYC8TUkDTQzWLqKsR9gPReyqTth9WhZSiM8
+QvP9e+fw22BO5VzIBUmb+9YpX31/RP9u8rIQPyZioBfaeP5voBVIbYZettG0lpHw
+BV/BxJAmw76c2oYvCtnP0s8jbNxe7oLqSBaZ9bLFcyiehfmlO4T/qLFd6uQJrK8L
+FkF9W+I2v5BTLfSWWbSYlTe3TtnsGpO9D8+aV5rD4cTfih7A2lvGFrLjN6QXrqRb
+0wIDAQAB
+-----END PUBLIC KEY-----
+"""
 
 
 class AuthenticationError(Exception):
@@ -297,13 +307,21 @@ def identity_accepted(claims: Dict[str, Any]) -> bool:
     return any(claims.get(name) for name in ("sub", "azp", "client_id"))
 
 
+_RSA_ALGS = ["RS256", "RS384", "RS512", "PS256", "PS384", "PS512"]
+_EC_ALGS = {"P-256": ["ES256"], "P-384": ["ES384"], "P-521": ["ES512"]}
+
+
 def published_algorithms(key: Dict[str, Any]) -> List[str]:
-    """Algorithms this JWK publishes. OKP Ed25519/Ed448 with no alg is EdDSA."""
+    """Algorithms this JWK can verify. alg is optional on a JWK (RFC 7517)."""
     alg = key.get("alg")
     if isinstance(alg, str) and alg:
         return [alg]
     if key.get("kty") == "OKP" and key.get("crv") in ("Ed25519", "Ed448"):
         return ["EdDSA"]
+    if key.get("kty") == "RSA":
+        return list(_RSA_ALGS)
+    if key.get("kty") == "EC":
+        return list(_EC_ALGS.get(str(key.get("crv")), ["ES256", "ES384", "ES512"]))
     return []
 
 
@@ -688,7 +706,7 @@ class OAuth21TokenValidator:
             return True
 
         # Expand user scopes to include inherited scopes
-        expanded_user_scopes = self.expand_scopes(list(user_scopes))
+        expanded_user_scopes = expand_scope_set(list(user_scopes))
 
         # Check if all required scopes are present
         return required_scopes.issubset(expanded_user_scopes)
@@ -700,22 +718,6 @@ class OAuth21TokenValidator:
 
 # Global token validator instance
 token_validator = OAuth21TokenValidator() if JWT_AVAILABLE else None
-
-
-def _ephemeral_public_key() -> str:
-    """PEM public key used only to satisfy JWTVerifier construction."""
-    global _EPHEMERAL_PUBLIC_PEM
-    if _EPHEMERAL_PUBLIC_PEM is None:
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-
-        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        public_pem = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        )
-        _EPHEMERAL_PUBLIC_PEM = public_pem.decode("utf-8")
-    return _EPHEMERAL_PUBLIC_PEM
 
 
 def _fastmcp_jwt_verifier_kwargs() -> Dict[str, Any]:
@@ -752,7 +754,7 @@ def _verifier_kwargs_for_server(server: AuthorizationServer) -> Dict[str, Any]:
     if jwks_uri:
         kwargs["jwks_uri"] = jwks_uri
     else:
-        kwargs["public_key"] = _ephemeral_public_key()
+        kwargs["public_key"] = _EPHEMERAL_PUBLIC_PEM
     return kwargs
 
 
@@ -848,16 +850,37 @@ def _unverified_jwt_header(token: str) -> Optional[Dict[str, Any]]:
     return header
 
 
-def _select_jwk(jwks: Dict[str, Any], kid: Optional[str]) -> Optional[Dict[str, Any]]:
-    """Pick the JWK named by kid, or the only key when kid is absent."""
+def _candidate_keys(jwks: Dict[str, Any], header: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Keys that may verify this header.
+
+    A kid is an exact match. When kid is absent, every key whose published
+    algorithms include the header alg is a candidate. Issuers rotating keys
+    often publish two keys and omit kid.
+    """
     keys = [key for key in jwks.get("keys", []) if isinstance(key, dict)]
+    raw_kid = header.get("kid")
+    kid = raw_kid if isinstance(raw_kid, str) else None
     if kid:
-        for key in keys:
-            if key.get("kid") == kid:
-                return key
-        return None
+        return [key for key in keys if key.get("kid") == kid]
+    alg = header.get("alg")
+    if isinstance(alg, str):
+        matched = [key for key in keys if alg in published_algorithms(key)]
+        if matched:
+            return matched
     if len(keys) == 1:
-        return keys[0]
+        return keys
+    return []
+
+
+def _claims_from_keys(token: str, keys: List[Dict[str, Any]], algorithm: str) -> Optional[Dict[str, Any]]:
+    """Verify against each candidate. The first signature that holds wins."""
+    for key in keys:
+        if algorithm not in published_algorithms(key):
+            continue
+        try:
+            return _decode_with_jwks(token, {"keys": [key]}, algorithm)
+        except Exception:
+            continue
     return None
 
 
@@ -898,6 +921,26 @@ def _resource_allowed(claims: Dict[str, Any], resource: str) -> bool:
     return resource in audiences or resource in resources
 
 
+def _indicators_allowed(claims: Dict[str, Any], indicators: List[str]) -> bool:
+    """True when no indicators are configured, or one of them is on the token."""
+    if not indicators:
+        return True
+    return any(_resource_allowed(claims, indicator) for indicator in indicators)
+
+
+def _warn_if_pkce_missing(document: Dict[str, Any], grants: tuple[str, ...]) -> None:
+    """Warn when authorization_code is advertised without PKCE S256.
+
+    Discovery is checked only. The grant stays, and tokens are not rejected.
+    """
+    if "authorization_code" not in grants:
+        return
+    methods = document.get("code_challenge_methods_supported") or []
+    if isinstance(methods, list) and "S256" in methods:
+        return
+    logger.warning("Issuer advertises authorization_code without PKCE S256; tokens are not rejected")
+
+
 def _decode_with_jwks(token: str, jwks: Dict[str, Any], algorithm: str) -> Dict[str, Any]:
     """Verify the signature with joserfc and return the claims object."""
     from joserfc import jwt as jose_jwt
@@ -922,12 +965,23 @@ class OAuth21BearerAuthProvider(JWTVerifier):
     """
     The only access-token parse for this resource server.
 
-    Signature, issuer, expiry, and audience are checked here. Algorithms
-    are those the matching JWK publishes, including EdDSA for an OKP key.
-    Scopes on the returned access token are already expanded.
+    FastMCP's JWTVerifier accepts one algorithm and skips OKP keys, so this
+    class verifies against the issuer JWKS itself, including EdDSA. The JWKS
+    document is cached for JWKS_CACHE_TTL so discovery is not repeated on
+    every token. Scopes on the returned access token are already expanded.
+
+    Configured RESOURCE_INDICATORS must appear in aud or the resource claim.
+    An injected issuer does not inherit the process indicators. Callers that
+    pass resource= to load_access_token check that one URI the same way.
     """
 
-    def __init__(self, authorization_server: Optional[AuthorizationServer] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        authorization_server: Optional[AuthorizationServer] = None,
+        *,
+        resource_indicators: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> None:
         server = authorization_server if authorization_server is not None else HttpAuthorizationServer()
         if authorization_server is not None:
             init_kwargs = _verifier_kwargs_for_server(server)
@@ -936,26 +990,41 @@ class OAuth21BearerAuthProvider(JWTVerifier):
         init_kwargs.update(kwargs)
         super().__init__(**init_kwargs)
         self.authorization_server = server
+        if resource_indicators is not None:
+            self._resource_indicators = list(resource_indicators)
+        elif authorization_server is not None:
+            self._resource_indicators = []
+        else:
+            self._resource_indicators = list(RESOURCE_INDICATORS)
+        self._jwks_document: Optional[Dict[str, Any]] = None
+        self._jwks_fetched_at = 0.0
         logger.info("OAuth 2.1 JWT verifier initialized for issuer %s", self.issuer)
 
+    async def _cached_jwks(self) -> Dict[str, Any]:
+        """Return the issuer JWKS, refreshing after JWKS_CACHE_TTL."""
+        now = time.time()
+        if self._jwks_document is not None and now - self._jwks_fetched_at < JWKS_CACHE_TTL:
+            return self._jwks_document
+        document = await self.authorization_server.jwks()
+        self._jwks_document = document
+        self._jwks_fetched_at = now
+        return document
+
     async def _verified_claims(self, token: str) -> Optional[Dict[str, Any]]:
-        """Check signature, exp, iss, and audience. Return claims or None."""
-        jwks = await self.authorization_server.jwks()
+        """Check signature, exp, iss, audience, and resource indicators."""
+        jwks = await self._cached_jwks()
         header = _unverified_jwt_header(token)
         if header is None:
             self.logger.info("Bearer token rejected: malformed JWT")
             return None
-        raw_kid = header.get("kid")
-        kid = raw_kid if isinstance(raw_kid, str) else None
-        jwk_dict = _select_jwk(jwks, kid)
-        if jwk_dict is None:
-            self.logger.info("Bearer token rejected: signing key not in issuer JWKS")
-            return None
         alg = header.get("alg")
-        if not isinstance(alg, str) or alg not in published_algorithms(jwk_dict):
+        if not isinstance(alg, str):
             self.logger.info("Bearer token rejected: algorithm is not published by the signing key")
             return None
-        claims = _decode_with_jwks(token, jwks, alg)
+        claims = _claims_from_keys(token, _candidate_keys(jwks, header), alg)
+        if claims is None:
+            self.logger.info("Bearer token rejected: signature or key")
+            return None
         if not _exp_valid(claims.get("exp")):
             self.logger.info("Bearer token rejected: token expired or missing exp")
             return None
@@ -965,9 +1034,12 @@ class OAuth21BearerAuthProvider(JWTVerifier):
         if not _audience_matches(self.audience, claims.get("aud")):
             self.logger.info("Bearer token rejected: audience mismatch")
             return None
+        if not _indicators_allowed(claims, self._resource_indicators):
+            self.logger.info("Bearer token rejected: resource indicator")
+            return None
         return claims
 
-    async def load_access_token(self, token: str) -> Optional[AccessToken]:
+    async def load_access_token(self, token: str, *, resource: Optional[str] = None) -> Optional[AccessToken]:
         """Verify one bearer token and attach the expanded scope set."""
         try:
             claims = await self._verified_claims(token)
@@ -975,6 +1047,9 @@ class OAuth21BearerAuthProvider(JWTVerifier):
             self.logger.debug("Token validation failed: %s", exc)
             return None
         if claims is None:
+            return None
+        if resource is not None and not _resource_allowed(claims, resource):
+            self.logger.info("Bearer token rejected: resource is not authorized")
             return None
         if not identity_accepted(claims):
             self.logger.info("Bearer token rejected: grant identity requirements not met")
@@ -1022,12 +1097,10 @@ async def authenticate(
 ) -> Principal:
     """Verify one access token and return the expanded principal."""
     verifier = _verifier_for(authorization_server)
-    access = await verifier.load_access_token(token)
+    access = await verifier.load_access_token(token, resource=resource)
     if access is None:
         raise AuthenticationError("Token rejected")
     claims = access.claims if isinstance(access.claims, dict) else {}
-    if resource is not None and not _resource_allowed(claims, resource):
-        raise AuthenticationError("Resource is not authorized by the token")
     client = claims.get("client_id") or claims.get("azp")
     subject = claims.get("sub")
     return Principal(
@@ -1051,7 +1124,9 @@ async def advertised_grants(authorization_server: Optional[AuthorizationServer] 
     if not isinstance(upstream, list):
         return ()
     upstream_set = set(upstream)
-    return tuple(grant for grant in KNOWN_GRANTS if grant in upstream_set)
+    grants = tuple(grant for grant in KNOWN_GRANTS if grant in upstream_set)
+    _warn_if_pkce_missing(document, grants)
+    return grants
 
 
 def revoke_token(token: str = None, jti: str = None):

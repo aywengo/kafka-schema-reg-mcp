@@ -790,7 +790,6 @@ async def oauth_authorization_server_metadata(request):
                 "profile",
             ],
             "response_types_supported": ["code"],  # OAuth 2.1 removes implicit flow
-            "grant_types_supported": list(await advertised_grants()),
             "token_endpoint_auth_methods_supported": [
                 "client_secret_basic",
                 "client_secret_post",
@@ -851,6 +850,10 @@ async def oauth_authorization_server_metadata(request):
                 "enhanced_security": True,
             },
         }
+
+        grants = list(await advertised_grants())
+        if grants:
+            metadata["grant_types_supported"] = grants
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}

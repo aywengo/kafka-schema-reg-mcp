@@ -47,6 +47,8 @@ class EditionGate:
     def resource(self, *args: Any, **kwargs: Any):
         options = dict(kwargs)
         options.setdefault("mime_type", "application/json")
+        if self.auth_enabled and "auth" not in options:
+            options["auth"] = require_scopes("read")
         return self._server.resource(*args, **options)
 
     def add_extension(self, *args: Any, **kwargs: Any):

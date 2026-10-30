@@ -20,6 +20,7 @@ dependencies = [
     "aiohttp>=3.13.5",
     "jsonschema>=4.26.0",
     "PyJWT>=2.10.1",
+    "joserfc>=1.7,<2",
     "cryptography>=45.0.7",
     "avro-python3>=1.10.2",
     "jaraco-context>=6.1.2",  # GHSA-58pv-8j8x-9vj2 (transitive via fastmcp/keyring)
