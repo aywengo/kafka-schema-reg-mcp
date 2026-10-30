@@ -453,9 +453,9 @@ class WorkflowMCPTools:
                         "Inventory registries, contexts and subjects.",
                         "Export a full backup to the chosen target.",
                         "Schedule recurring backups and retention.",
-                        "Restore into a scratch registry and verify.",
+                        "Verify with restore_bundle against a scratch registry.",
                     ],
-                    "note": "Execution stays in export_global and migrate_context.",
+                    "note": "This plan does not call restore_bundle. migrate_schema remains the live-to-live copy.",
                 }
             )
 

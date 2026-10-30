@@ -111,6 +111,7 @@ COPY --chown=mcp:mcp statistics_tools.py .
 COPY --chown=mcp:mcp export_tools.py .
 COPY --chown=mcp:mcp comparison_tools.py .
 COPY --chown=mcp:mcp migration_tools.py .
+COPY --chown=mcp:mcp restore.py .
 COPY --chown=mcp:mcp registry_management_tools.py .
 COPY --chown=mcp:mcp mcp_prompts.py .
 

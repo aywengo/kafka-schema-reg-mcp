@@ -142,6 +142,7 @@ _SPECS.extend(
         _write("add_subject_alias"),
         _admin("delete_subject_alias", destructive=True),
         _admin("migrate_schema", destructive=True, task=True),
+        _admin("restore_bundle", destructive=True, task=True),
         _admin("migrate_context", destructive=True, task=True),
         _admin("migrate_context_interactive", destructive=True),
         _admin("migrate_schema_interactive", destructive=True),

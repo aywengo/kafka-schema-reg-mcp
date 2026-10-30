@@ -20,6 +20,7 @@ from fastmcp.dependencies import Progress
 
 from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
+from schema_registry_common import ViewOnlyError
 from schema_validation import (
     create_error_response,
     structured_output,
@@ -414,6 +415,159 @@ async def _execute_schema_migration_async(
     return migration_result
 
 
+class ImportModeUnavailable(Exception):
+    """IMPORT mode could not be opened. The registry mode was left unchanged."""
+
+    def __init__(self, reason: str, detail: str) -> None:
+        super().__init__(detail)
+        self.reason = reason
+        self.detail = detail
+
+
+def open_import_mode(client: Any, force: bool = False) -> str:
+    """Put the registry in IMPORT mode and return the mode to restore.
+
+    When the registry is already in IMPORT mode, that value is returned and
+    the caller must not write it back. ``force`` adds ``?force=true`` so a
+    registry that already has schemas can enter IMPORT. The default leaves
+    that decision to the registry. ``ViewOnlyError`` propagates so the
+    caller can reject the write. Every other failure raises
+    ``ImportModeUnavailable`` and leaves the mode unchanged.
+
+    Args:
+        client: Registry client whose session performs the mode requests.
+        force: Send ``force=true`` on the mode change. Restore does. Migrate does not.
+
+    Returns:
+        The mode that was current before this call.
+
+    Raises:
+        ImportModeUnavailable: IMPORT mode could not be read or set.
+        ViewOnlyError: The session refused the write.
+    """
+    try:
+        mode_response = client.session.get(
+            f"{client.config.url}/mode",
+            auth=client.auth,
+            headers=client.headers,
+            timeout=10,
+        )
+    except ViewOnlyError:
+        raise
+    except Exception as exc:
+        raise ImportModeUnavailable("Unexpected error setting IMPORT mode", str(exc)) from exc
+    if mode_response.status_code != 200:
+        raise ImportModeUnavailable(
+            "Cannot access target registry mode",
+            f"HTTP {mode_response.status_code}: {mode_response.text}",
+        )
+    previous = mode_response.json().get("mode", "READWRITE")
+    if previous == "IMPORT":
+        logger.info("Target registry already in IMPORT mode")
+        return previous
+    logger.info(f"Setting target registry to IMPORT mode for ID preservation (was {previous})")
+    mode_url = f"{client.config.url}/mode"
+    if force:
+        mode_url = f"{mode_url}?force=true"
+    try:
+        import_response = client.session.put(
+            mode_url,
+            json={"mode": "IMPORT"},
+            auth=client.auth,
+            headers={**client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+            timeout=10,
+        )
+    except ViewOnlyError:
+        raise
+    except Exception as exc:
+        raise ImportModeUnavailable("Unexpected error setting IMPORT mode", str(exc)) from exc
+    if import_response.status_code != 200:
+        logger.warning(f"Failed to set IMPORT mode: {import_response.text}.")
+        raise ImportModeUnavailable("Permission denied to set IMPORT mode", import_response.text)
+    logger.info("Target registry set to IMPORT mode")
+    return previous
+
+
+def restore_previous_mode(client: Any, previous: str | None) -> bool:
+    """Put ``previous`` back. No-op when it is missing or already IMPORT.
+
+    Failures are logged and returned as False. They are not raised, so a
+    version-write error is not replaced by the cleanup error.
+
+    Args:
+        client: Registry client whose session performs the mode request.
+        previous: Mode returned by ``open_import_mode``.
+
+    Returns:
+        True when the registry mode is the previous mode again.
+    """
+    if not previous or previous == "IMPORT":
+        return True
+    try:
+        logger.info(f"Restoring target registry to original mode: {previous}")
+        response = client.session.put(
+            f"{client.config.url}/mode",
+            json={"mode": previous},
+            auth=client.auth,
+            headers={**client.headers, "Content-Type": "application/vnd.schemaregistry.v1+json"},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning(f"Error restoring registry mode: {exc}")
+        return False
+    if response.status_code == 200:
+        logger.info(f"Target registry restored to {previous} mode")
+        return True
+    logger.warning(f"Failed to restore registry mode: {response.text}")
+    return False
+
+
+def _import_failure_message(subject: str, reason: str, detail: str) -> str:
+    """Keep the confirmation text migrate_schema already shows."""
+    if reason == "Permission denied to set IMPORT mode":
+        problem = "Cannot set target registry to IMPORT mode due to insufficient permissions."
+    elif reason == "Cannot access target registry mode":
+        problem = "Cannot access target registry mode."
+    else:
+        problem = f"Unexpected error: {detail}."
+    return (
+        f"ID preservation failed for subject '{subject}'. {problem} "
+        "Do you want to continue migration without ID preservation?"
+    )
+
+
+def _import_confirmation(
+    subject: str,
+    source_client: Any,
+    target_client: Any,
+    source_context: str,
+    target_context: str,
+    versions_to_migrate: List[int],
+    reason: str,
+    detail: str,
+) -> Dict[str, Any]:
+    """Details attached to MigrationConfirmationRequired when IMPORT cannot be set."""
+    cancel = {
+        "Permission denied to set IMPORT mode": "Cancel the migration and resolve permissions first",
+        "Cannot access target registry mode": "Cancel the migration and check registry access",
+    }.get(reason, "Cancel the migration and investigate the error")
+    return {
+        "subject": subject,
+        "source_registry": source_client.config.name,
+        "target_registry": target_client.config.name,
+        "source_context": source_context,
+        "target_context": target_context,
+        "versions_to_migrate": versions_to_migrate,
+        "preserve_ids_requested": True,
+        "id_preservation_error": detail,
+        "error_reason": reason,
+        "options": {
+            "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
+            "cancel_migration": cancel,
+        },
+    }
+
+
 def _execute_schema_migration(
     subject: str,
     source_client,
@@ -535,137 +689,35 @@ def _execute_schema_migration(
 
         logger.info(f"Versions to migrate: {sorted(versions_to_migrate)}")
 
-        # Handle IMPORT mode for ID preservation
+        # Open IMPORT for id preservation. The same helper restores the previous mode.
         original_target_mode = None
-        id_preservation_error = None
 
         if preserve_ids:
             try:
-                # Get current target registry mode
-                mode_response = target_client.session.get(
-                    f"{target_client.config.url}/mode",
-                    auth=target_client.auth,
-                    headers=target_client.headers,
-                    timeout=10,
-                )
-                if mode_response.status_code == 200:
-                    original_target_mode = mode_response.json().get("mode", "READWRITE")
-
-                    # Set target registry to IMPORT mode for ID preservation
-                    if original_target_mode != "IMPORT":
-                        logger.info(
-                            f"Setting target registry to IMPORT mode for ID preservation "
-                            f"(was {original_target_mode})"
-                        )
-                        import_response = target_client.session.put(
-                            f"{target_client.config.url}/mode",
-                            json={"mode": "IMPORT"},
-                            auth=target_client.auth,
-                            headers={
-                                **target_client.headers,
-                                "Content-Type": "application/vnd.schemaregistry.v1+json",
-                            },
-                            timeout=10,
-                        )
-                        if import_response.status_code != 200:
-                            id_preservation_error = import_response.text
-                            logger.warning(f"Failed to set IMPORT mode: {import_response.text}.")
-
-                            # Check if we should ask for user confirmation
-                            if not force_without_id_preservation:
-                                confirmation_details = {
-                                    "subject": subject,
-                                    "source_registry": source_client.config.name,
-                                    "target_registry": target_client.config.name,
-                                    "source_context": source_context,
-                                    "target_context": target_context,
-                                    "versions_to_migrate": versions_to_migrate,
-                                    "preserve_ids_requested": True,
-                                    "id_preservation_error": id_preservation_error,
-                                    "error_reason": "Permission denied to set IMPORT mode",
-                                    "options": {
-                                        "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
-                                        "cancel_migration": "Cancel the migration and resolve permissions first",
-                                    },
-                                }
-
-                                raise MigrationConfirmationRequired(
-                                    f"ID preservation failed for subject '{subject}'. "
-                                    f"Cannot set target registry to IMPORT mode due to insufficient permissions. "
-                                    f"Do you want to continue migration without ID preservation?",
-                                    confirmation_details,
-                                )
-                            else:
-                                logger.info(
-                                    "Proceeding without ID preservation as requested (force_without_id_preservation=True)"
-                                )
-                                preserve_ids = False
-                        else:
-                            logger.info("✅ Target registry set to IMPORT mode")
-                    else:
-                        logger.info("✅ Target registry already in IMPORT mode")
+                original_target_mode = open_import_mode(target_client)
+            except Exception as exc:
+                if isinstance(exc, ImportModeUnavailable):
+                    reason, detail = exc.reason, exc.detail
                 else:
-                    id_preservation_error = f"HTTP {mode_response.status_code}: {mode_response.text}"
-                    logger.warning(f"Could not get target registry mode: {mode_response.text}.")
-
-                    if not force_without_id_preservation:
-                        confirmation_details = {
-                            "subject": subject,
-                            "source_registry": source_client.config.name,
-                            "target_registry": target_client.config.name,
-                            "source_context": source_context,
-                            "target_context": target_context,
-                            "versions_to_migrate": versions_to_migrate,
-                            "preserve_ids_requested": True,
-                            "id_preservation_error": id_preservation_error,
-                            "error_reason": "Cannot access target registry mode",
-                            "options": {
-                                "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
-                                "cancel_migration": "Cancel the migration and check registry access",
-                            },
-                        }
-
-                        raise MigrationConfirmationRequired(
-                            f"ID preservation failed for subject '{subject}'. "
-                            f"Cannot access target registry mode. "
-                            f"Do you want to continue migration without ID preservation?",
-                            confirmation_details,
-                        )
-                    else:
-                        preserve_ids = False
-
-            except MigrationConfirmationRequired:
-                # Re-raise confirmation required exceptions
-                raise
-            except Exception as e:
-                id_preservation_error = str(e)
-                logger.warning(f"Error setting IMPORT mode: {str(e)}.")
-
+                    reason, detail = "Unexpected error setting IMPORT mode", str(exc)
+                logger.warning(f"Error setting IMPORT mode: {detail}.")
                 if not force_without_id_preservation:
-                    confirmation_details = {
-                        "subject": subject,
-                        "source_registry": source_client.config.name,
-                        "target_registry": target_client.config.name,
-                        "source_context": source_context,
-                        "target_context": target_context,
-                        "versions_to_migrate": versions_to_migrate,
-                        "preserve_ids_requested": True,
-                        "id_preservation_error": str(e),
-                        "error_reason": "Unexpected error setting IMPORT mode",
-                        "options": {
-                            "continue_without_id_preservation": "Proceed with migration but schemas will get new IDs",
-                            "cancel_migration": "Cancel the migration and investigate the error",
-                        },
-                    }
-
                     raise MigrationConfirmationRequired(
-                        f"ID preservation failed for subject '{subject}'. "
-                        f"Unexpected error: {str(e)}. "
-                        f"Do you want to continue migration without ID preservation?",
-                        confirmation_details,
-                    )
-                else:
-                    preserve_ids = False
+                        _import_failure_message(subject, reason, detail),
+                        _import_confirmation(
+                            subject,
+                            source_client,
+                            target_client,
+                            source_context,
+                            target_context,
+                            versions_to_migrate,
+                            reason,
+                            detail,
+                        ),
+                    ) from exc
+                logger.info("Proceeding without ID preservation as requested (force_without_id_preservation=True)")
+                preserve_ids = False
+                original_target_mode = None
 
         # Continue with migration...
         # Migrate each version
@@ -830,26 +882,7 @@ def _execute_schema_migration(
                     )
 
         finally:
-            # Restore original target registry mode
-            if original_target_mode and original_target_mode != "IMPORT":
-                try:
-                    logger.info(f"Restoring target registry to original mode: {original_target_mode}")
-                    restore_response = target_client.session.put(
-                        f"{target_client.config.url}/mode",
-                        json={"mode": original_target_mode},
-                        auth=target_client.auth,
-                        headers={
-                            **target_client.headers,
-                            "Content-Type": "application/vnd.schemaregistry.v1+json",
-                        },
-                        timeout=10,
-                    )
-                    if restore_response.status_code == 200:
-                        logger.info(f"✅ Target registry restored to {original_target_mode} mode")
-                    else:
-                        logger.warning(f"Failed to restore registry mode: {restore_response.text}")
-                except Exception as e:
-                    logger.warning(f"Error restoring registry mode: {str(e)}")
+            restore_previous_mode(target_client, original_target_mode)
 
         logger.info(f"Migration completed for subject '{subject}'. Migrated {successful_count} versions")
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (v3.1 M1 — restore)
+
+- `restore_bundle` applies an `export_global`, `export_context`, or
+  `export_subject` document to one registry. The call is a dry-run unless
+  `apply` is true, and it preserves schema ids. `guided_disaster_recovery`
+  names the tool and does not call it. `migrate_schema` remains the
+  live-to-live copy.
+
 ### Added (v3.1 M4 — cache hints)
 
 - Per-resource SEP-2549 cache hints. `cache_hints.py` holds the table from

@@ -154,6 +154,7 @@ from registry_management_tools import (
     test_all_registries_tool,
     test_registry_connection_tool,
 )
+from restore import RegistryFleet, restore
 from schema_registry_common import (
     SINGLE_REGISTRY_PASSWORD,
     SINGLE_REGISTRY_URL,
@@ -1732,6 +1733,34 @@ async def migrate_schema(
         migrate_all_versions=migrate_all_versions,
         progress=progress,
     )
+
+
+@mcp.tool(task=True)
+@require_scopes("admin")
+async def restore_bundle(
+    bundle: Any,
+    target: str,
+    apply: bool = False,
+    accept_new_ids: bool = False,
+    context: Optional[str] = None,
+    subject: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Apply an export document to one registry.
+
+    Reads an export_global, export_context, or export_subject document.
+    Dry-run unless apply is true. Preserves schema ids. migrate_schema remains
+    the live-to-live copy between two registries.
+    """
+    report = await restore(
+        bundle,
+        target,
+        RegistryFleet(registry_manager),
+        apply=apply,
+        accept_new_ids=accept_new_ids,
+        context=context,
+        subject=subject,
+    )
+    return report.as_dict()
 
 
 @mcp.tool(task=True)

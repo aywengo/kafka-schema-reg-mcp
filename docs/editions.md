@@ -8,7 +8,7 @@ from `tool_catalog.py`.
 |---|---|---|---|
 | `viewer` | 39 | `:3.0.0-viewer` | Browse, export, compare, compatibility checks |
 | `editor` | 42 | `:3.0.0-editor` | Viewer plus schema registration and evolution |
-| `admin` | 66 | `:3.0.0-admin` | Full access, including configuration, deletion and migration |
+| `admin` | 67 | `:3.0.0-admin` | Full access, including configuration, deletion and migration |
 
 The default is `viewer`. Set `MCP_EDITION=editor` or `MCP_EDITION=admin` to
 expose more tools. The image can also bake a different default with
@@ -110,7 +110,7 @@ Includes every viewer tool.
 | `test_oauth_discovery_endpoints` | read | no | viewer |
 | `test_registry_connection` | read | no | viewer |
 
-## Full admin set (66)
+## Full admin set (67)
 
 Includes every viewer tool.
 
@@ -174,6 +174,7 @@ Includes every viewer tool.
 | `preview_bulk_operation` | admin | no | admin |
 | `register_schema` | write | yes | editor |
 | `register_schema_interactive` | write | yes | editor |
+| `restore_bundle` | admin | yes | admin |
 | `suggest_resource_for_tool` | read | no | viewer |
 | `test_all_registries` | read | no | viewer |
 | `test_oauth_discovery_endpoints` | read | no | viewer |

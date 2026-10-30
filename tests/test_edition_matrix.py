@@ -10,7 +10,7 @@ from fastmcp.client.transports import StdioTransport
 
 ROOT = Path(__file__).resolve().parent.parent
 SERVER = ROOT / "kafka_schema_registry_unified_mcp.py"
-EXPECTED = {"viewer": 39, "editor": 42, "admin": 66}
+EXPECTED = {"viewer": 39, "editor": 42, "admin": 67}
 
 
 @pytest.mark.asyncio

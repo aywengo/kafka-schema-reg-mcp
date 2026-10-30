@@ -68,7 +68,7 @@ def test_admin_final_snapshot():
     from tool_catalog import TOOL_CATALOG
 
     expected = sorted(s.name for s in TOOL_CATALOG.values() if s.min_edition <= Edition.ADMIN)
-    assert len(expected) == 66
+    assert len(expected) == 67
     assert _tools({"MCP_EDITION": "admin"}) == expected
 
 
@@ -85,7 +85,7 @@ def test_slim_mode_alias_selects_editor():
 
 
 def test_explicit_edition_wins_over_image_default():
-    assert len(_tools({"MCP_EDITION": "admin", "MCP_EDITION_DEFAULT": "viewer"})) == 66
+    assert len(_tools({"MCP_EDITION": "admin", "MCP_EDITION_DEFAULT": "viewer"})) == 67
 
 
 def test_editor_config_example_selects_editor():
