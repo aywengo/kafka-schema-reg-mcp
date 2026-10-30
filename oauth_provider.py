@@ -30,15 +30,16 @@ Security Features:
 - Enhanced SSL/TLS verification for all HTTP requests
 """
 
-import asyncio
 import hashlib
 import logging
 import os
 import ssl
 import time
-from typing import Any, Dict, List, Optional, Set, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Protocol, Set, Union
 
 from dotenv import load_dotenv
+from fastmcp.server.auth import AccessToken, JWTVerifier
 
 from _version import __version__
 
@@ -52,9 +53,8 @@ logger = logging.getLogger(__name__)
 try:
     import aiohttp
     import jwt
-    from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
-    JWT_AVAILABLE = True
+    JWT_AVAILABLE = jwt is not None
 except ImportError:
     JWT_AVAILABLE = False
     logger.warning("JWT validation libraries not available. Install: pip install PyJWT aiohttp cryptography")
@@ -192,6 +192,7 @@ SCOPE_DEFINITIONS = {
             "update_schemas",
             "update_configs",
         ],
+        "requires": ["read"],
     },
     "admin": {
         "description": "Administrative access (includes read, write, and delete)",
@@ -231,8 +232,86 @@ SCOPE_DEFINITIONS = {
             "delete_schemas",
             "manage_compatibility",
         ],
+        "requires": ["read", "write"],
     },
 }
+
+
+# Grants this resource server is willing to mirror from an issuer.
+JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+KNOWN_GRANTS = ("authorization_code", "client_credentials", JWT_BEARER_GRANT)
+# SEP-990 enterprise-managed authorization, advertised only when the issuer lists jwt-bearer.
+ENTERPRISE_MANAGED_AUTHORIZATION = "io.modelcontextprotocol/enterprise-managed-authorization"
+_SCOPE_ORDER = ("read", "write", "admin")
+_EPHEMERAL_PUBLIC_PEM: Optional[str] = None
+
+
+class AuthenticationError(Exception):
+    """The bearer token or issuer discovery was rejected."""
+
+
+@dataclass(frozen=True)
+class Principal:
+    """Caller identity after one verification. Scopes are already expanded."""
+
+    scopes: frozenset[str]
+    subject: Optional[str]
+    client_id: Optional[str]
+
+
+class AuthorizationServer(Protocol):
+    """Discovery and JWKS for one authorization server."""
+
+    @property
+    def issuer(self) -> str:
+        """Issuer identifier an access token must carry."""
+
+    async def metadata(self) -> Dict[str, Any]:
+        """Authorization server metadata. Raise when discovery fails."""
+
+    async def jwks(self) -> Dict[str, Any]:
+        """JSON Web Key Set used to verify access tokens."""
+
+
+def expand_scope_set(scopes: List[str]) -> Set[str]:
+    """Apply read/write/admin hierarchy. admin includes write and read."""
+    expanded = set(scopes)
+    for scope in scopes:
+        definition = SCOPE_DEFINITIONS.get(scope, {})
+        expanded.update(definition.get("requires", []))
+    return expanded
+
+
+def scope_list(scopes: Set[str]) -> List[str]:
+    """Stable scope order for AccessToken.scopes."""
+    ordered = [name for name in _SCOPE_ORDER if name in scopes]
+    ordered.extend(sorted(name for name in scopes if name not in _SCOPE_ORDER))
+    return ordered
+
+
+def identity_accepted(claims: Dict[str, Any]) -> bool:
+    """Grant table. authorization_code and jwt-bearer apply only for that gty."""
+    gty = claims.get("gty")
+    if gty in ("authorization_code", JWT_BEARER_GRANT):
+        return bool(claims.get("sub"))
+    return any(claims.get(name) for name in ("sub", "azp", "client_id"))
+
+
+def published_algorithms(key: Dict[str, Any]) -> List[str]:
+    """Algorithms this JWK publishes. OKP Ed25519/Ed448 with no alg is EdDSA."""
+    alg = key.get("alg")
+    if isinstance(alg, str) and alg:
+        return [alg]
+    if key.get("kty") == "OKP" and key.get("crv") in ("Ed25519", "Ed448"):
+        return ["EdDSA"]
+    return []
+
+
+def protected_resource_grant_metadata(grants: tuple[str, ...]) -> Dict[str, Any]:
+    """SEP-990 member for protected-resource metadata. Empty when jwt-bearer is absent."""
+    if JWT_BEARER_GRANT in grants:
+        return {"extensions": {ENTERPRISE_MANAGED_AUTHORIZATION: {}}}
+    return {}
 
 
 def create_secure_ssl_context() -> ssl.SSLContext:
@@ -479,146 +558,34 @@ class OAuth21TokenValidator:
         requested_resource: str = None,
     ) -> Dict[str, Any]:
         """
-        Validate OAuth 2.1 token with full compliance checks.
+        Development-token helper.
 
-        Returns validation result with user info and scopes.
+        Real JWTs are verified only by OAuth21BearerAuthProvider. This method
+        does not parse a JWT.
         """
-        try:
-            # Check for development token bypass (only in development)
-            if self.is_dev_token(token):
-                if ALLOW_DEV_TOKENS:
-                    logger.warning("🚨 Using development token bypass - NOT FOR PRODUCTION!")
-                    return {
-                        "valid": True,
-                        "user": "dev-user",
-                        "scopes": list(AUTH_VALID_SCOPES),
-                        "claims": {
-                            "sub": "dev-user",
-                            "scope": " ".join(AUTH_VALID_SCOPES),
-                        },
-                        "dev_token": True,
-                    }
-                else:
-                    logger.error("🚨 Development token rejected in production environment")
-                    return {
-                        "valid": False,
-                        "error": "Development tokens not allowed in production",
-                    }
-
-            # Check if token is revoked
-            if self.is_token_revoked(token):
-                return {"valid": False, "error": "Token has been revoked"}
-
-            # Decode JWT without verification first to get header
-            try:
-                header = jwt.get_unverified_header(token)
-            except Exception as e:
-                return {"valid": False, "error": f"Invalid JWT format: {str(e)}"}
-
-            # Get key ID from header
-            kid = header.get("kid")
-            if not kid:
-                return {"valid": False, "error": "Missing key ID in JWT header"}
-
-            # Get provider configuration
-            provider_config = await self.get_provider_config()
-            if not provider_config:
-                return {
-                    "valid": False,
-                    "error": "OAuth 2.1 provider configuration not available",
-                }
-
-            jwks_uri = provider_config.get("jwks_uri")
-            if not jwks_uri:
-                return {"valid": False, "error": "No JWKS URI configured for provider"}
-
-            # Get JWKS
-            jwks = await self.get_jwks(jwks_uri)
-            if not jwks:
-                return {"valid": False, "error": "Failed to retrieve JWKS"}
-
-            # Find the key
-            key = None
-            for k in jwks.get("keys", []):
-                if k.get("kid") == kid:
-                    key = k
-                    break
-
-            if not key:
-                return {"valid": False, "error": f"Key ID {kid} not found in JWKS"}
-
-            # Convert JWK to PEM format
-            try:
-                public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
-            except Exception as e:
-                return {
-                    "valid": False,
-                    "error": f"Failed to convert JWK to public key: {str(e)}",
-                }
-
-            # Verify and decode token
-            try:
-                claims = jwt.decode(
-                    token,
-                    public_key,
-                    algorithms=["RS256"],
-                    issuer=AUTH_ISSUER_URL,
-                    options={
-                        "verify_signature": True,
-                        "verify_exp": True,
-                        "verify_iat": True,
-                        "verify_iss": True,
-                        "require": ["exp", "iat", "iss", "sub"],
-                    },
-                )
-            except ExpiredSignatureError:
-                return {"valid": False, "error": "Token has expired"}
-            except InvalidTokenError as e:
-                return {"valid": False, "error": f"Invalid token: {str(e)}"}
-
-            # Validate audience (RFC 8707)
-            if not self.validate_audience(claims.get("aud"), RESOURCE_INDICATORS):
-                return {"valid": False, "error": "Invalid audience"}
-
-            # Validate resource indicator (RFC 8707)
-            if not self.validate_resource_indicator(claims, requested_resource):
-                return {"valid": False, "error": "Invalid resource indicator"}
-
-            # Validate PKCE requirements
-            if not self.validate_pkce_requirements(claims):
-                return {"valid": False, "error": "PKCE validation failed"}
-
-            # Extract scopes
-            scope_claim = claims.get("scope") or claims.get("scp") or ""
-            if isinstance(scope_claim, list):
-                user_scopes = set(scope_claim)
-            else:
-                user_scopes = set(scope_claim.split()) if scope_claim else set()
-
-            # Validate required scopes
-            if required_scopes and not self.check_scopes(user_scopes, required_scopes):
-                return {
-                    "valid": False,
-                    "error": "Insufficient permissions",
-                    "required_scopes": list(required_scopes),
-                    "user_scopes": list(user_scopes),
-                }
-
-            # Extract user information
-            user_id = claims.get("sub") or claims.get("preferred_username") or claims.get("email")
-
+        del required_scopes, requested_resource
+        if not self.is_dev_token(token):
+            return {
+                "valid": False,
+                "error": "JWT verification is performed by OAuth21BearerAuthProvider",
+            }
+        if ALLOW_DEV_TOKENS:
+            logger.warning("Using development token bypass - NOT FOR PRODUCTION")
             return {
                 "valid": True,
-                "user": user_id,
-                "scopes": list(user_scopes),
-                "claims": claims,
-                "jti": claims.get("jti"),  # For revocation tracking
-                "ssl_verified": ENFORCE_SSL_TLS_VERIFICATION,
+                "user": "dev-user",
+                "scopes": list(AUTH_VALID_SCOPES),
+                "claims": {
+                    "sub": "dev-user",
+                    "scope": " ".join(AUTH_VALID_SCOPES),
+                },
+                "dev_token": True,
             }
-
-        except Exception as e:
-            logger.error(f"Token validation error: {str(e)}")
-            return {"valid": False, "error": f"Token validation failed: {str(e)}"}
+        logger.error("Development token rejected in production environment")
+        return {
+            "valid": False,
+            "error": "Development tokens not allowed in production",
+        }
 
     async def discover_oauth_configuration(self, issuer_url: str) -> Optional[Dict[str, Any]]:
         """
@@ -728,18 +695,27 @@ class OAuth21TokenValidator:
 
     def expand_scopes(self, scopes: list) -> Set[str]:
         """Expand scopes to include inherited scopes based on hierarchy."""
-        expanded = set(scopes)
-
-        for scope in scopes:
-            if scope in SCOPE_DEFINITIONS:
-                required_scopes = SCOPE_DEFINITIONS[scope].get("requires", [])
-                expanded.update(required_scopes)
-
-        return expanded
+        return expand_scope_set(scopes)
 
 
 # Global token validator instance
 token_validator = OAuth21TokenValidator() if JWT_AVAILABLE else None
+
+
+def _ephemeral_public_key() -> str:
+    """PEM public key used only to satisfy JWTVerifier construction."""
+    global _EPHEMERAL_PUBLIC_PEM
+    if _EPHEMERAL_PUBLIC_PEM is None:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        public_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        _EPHEMERAL_PUBLIC_PEM = public_pem.decode("utf-8")
+    return _EPHEMERAL_PUBLIC_PEM
 
 
 def _fastmcp_jwt_verifier_kwargs() -> Dict[str, Any]:
@@ -765,188 +741,317 @@ def _fastmcp_jwt_verifier_kwargs() -> Dict[str, Any]:
     return kwargs
 
 
+def _verifier_kwargs_for_server(server: AuthorizationServer) -> Dict[str, Any]:
+    """Build JWTVerifier kwargs for an injected issuer that may have no JWKS URI."""
+    kwargs: Dict[str, Any] = {
+        "issuer": server.issuer or None,
+        "audience": None,
+        "required_scopes": None,
+    }
+    jwks_uri = getattr(server, "jwks_uri", None)
+    if jwks_uri:
+        kwargs["jwks_uri"] = jwks_uri
+    else:
+        kwargs["public_key"] = _ephemeral_public_key()
+    return kwargs
+
+
+class HttpAuthorizationServer:
+    """Production issuer port. Fetches discovery and the JWKS URI."""
+
+    def __init__(
+        self,
+        issuer_url: Optional[str] = None,
+        validator: Optional[OAuth21TokenValidator] = None,
+    ) -> None:
+        self.issuer_url = AUTH_ISSUER_URL if issuer_url is None else issuer_url
+        self._validator = validator
+
+    @property
+    def issuer(self) -> str:
+        """Issuer identifier configured for this process."""
+        return self.issuer_url
+
+    def _validator_or_default(self) -> Optional[OAuth21TokenValidator]:
+        if self._validator is not None:
+            return self._validator
+        return token_validator
+
+    async def metadata(self) -> Dict[str, Any]:
+        """Fetch authorization-server metadata. A quiet upstream raises."""
+        if not self.issuer_url or self.issuer_url == "https://example.com":
+            raise AuthenticationError("No valid issuer URL configured")
+        validator = self._validator_or_default()
+        if validator is None:
+            raise AuthenticationError("OAuth discovery is unavailable")
+        config = await validator.discover_oauth_configuration(self.issuer_url)
+        if not config:
+            raise AuthenticationError("OAuth discovery failed")
+        return config
+
+    async def jwks(self) -> Dict[str, Any]:
+        """Fetch the JWKS named by issuer metadata."""
+        document = await self.metadata()
+        jwks_uri = document.get("jwks_uri")
+        if not jwks_uri:
+            raise AuthenticationError("Issuer metadata has no JWKS URI")
+        validator = self._validator_or_default()
+        if validator is None:
+            raise AuthenticationError("JWKS fetch is unavailable")
+        jwks = await validator.get_jwks(str(jwks_uri))
+        if not jwks:
+            raise AuthenticationError("Failed to retrieve JWKS")
+        return jwks
+
+
+class FakeAuthorizationServer:
+    """Canned metadata and an in-memory JWKS. Tests open no socket."""
+
+    def __init__(self, metadata: Dict[str, Any], jwks: Dict[str, Any]) -> None:
+        self._metadata = metadata
+        self._jwks = jwks
+
+    @property
+    def issuer(self) -> str:
+        """Issuer value stored on the canned metadata document."""
+        return str(self._metadata.get("issuer") or "")
+
+    @property
+    def jwks_uri(self) -> None:
+        """In-memory key sets have no remote JWKS URI."""
+        return None
+
+    async def metadata(self) -> Dict[str, Any]:
+        """Return the canned authorization-server document."""
+        return self._metadata
+
+    async def jwks(self) -> Dict[str, Any]:
+        """Return the canned JSON Web Key Set."""
+        return self._jwks
+
+
+def _unverified_jwt_header(token: str) -> Optional[Dict[str, Any]]:
+    """Read a JWT header without checking the signature."""
+    import base64
+    import json
+
+    parts = token.split(".")
+    if len(parts) != 3 or not parts[0]:
+        return None
+    try:
+        padded = parts[0] + "=" * (-len(parts[0]) % 4)
+        header = json.loads(base64.urlsafe_b64decode(padded))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(header, dict):
+        return None
+    return header
+
+
+def _select_jwk(jwks: Dict[str, Any], kid: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Pick the JWK named by kid, or the only key when kid is absent."""
+    keys = [key for key in jwks.get("keys", []) if isinstance(key, dict)]
+    if kid:
+        for key in keys:
+            if key.get("kid") == kid:
+                return key
+        return None
+    if len(keys) == 1:
+        return keys[0]
+    return None
+
+
+def _exp_valid(exp: Any) -> bool:
+    """True when exp is a number that is still in the future."""
+    if isinstance(exp, bool) or not isinstance(exp, (int, float)):
+        return False
+    return float(exp) >= time.time()
+
+
+def _issuer_matches(expected: Union[str, List[str], None], actual: Any) -> bool:
+    """True when no issuer is required or the token iss matches."""
+    if not expected:
+        return True
+    if isinstance(expected, list):
+        return actual in expected
+    return actual == expected
+
+
+def _audience_matches(expected: Union[str, List[str], None], actual: Any) -> bool:
+    """True when no audience is required or one expected audience is present."""
+    if not expected:
+        return True
+    expected_list = expected if isinstance(expected, list) else [expected]
+    actual_list = actual if isinstance(actual, list) else [actual]
+    return any(item in actual_list for item in expected_list)
+
+
+def _resource_allowed(claims: Dict[str, Any], resource: str) -> bool:
+    """True when resource appears in aud or the resource claim."""
+    aud = claims.get("aud")
+    audiences = [aud] if isinstance(aud, str) else list(aud or [])
+    raw_resource = claims.get("resource")
+    if isinstance(raw_resource, str):
+        resources = [raw_resource]
+    else:
+        resources = list(raw_resource or [])
+    return resource in audiences or resource in resources
+
+
+def _decode_with_jwks(token: str, jwks: Dict[str, Any], algorithm: str) -> Dict[str, Any]:
+    """Verify the signature with joserfc and return the claims object."""
+    from joserfc import jwt as jose_jwt
+    from joserfc.jwk import KeySet
+    from joserfc.jws import JWSRegistry
+
+    # EdDSA is registered but not in joserfc's recommended set, so name it.
+    registry = JWSRegistry(algorithms=[algorithm])
+    verified = jose_jwt.decode(
+        token,
+        KeySet.import_key_set(jwks),
+        algorithms=[algorithm],
+        registry=registry,
+    )
+    claims = verified.claims
+    if not isinstance(claims, dict):
+        raise AuthenticationError("JWT claims are not an object")
+    return claims
+
+
+class OAuth21BearerAuthProvider(JWTVerifier):
+    """
+    The only access-token parse for this resource server.
+
+    Signature, issuer, expiry, and audience are checked here. Algorithms
+    are those the matching JWK publishes, including EdDSA for an OKP key.
+    Scopes on the returned access token are already expanded.
+    """
+
+    def __init__(self, authorization_server: Optional[AuthorizationServer] = None, **kwargs: Any) -> None:
+        server = authorization_server if authorization_server is not None else HttpAuthorizationServer()
+        if authorization_server is not None:
+            init_kwargs = _verifier_kwargs_for_server(server)
+        else:
+            init_kwargs = _fastmcp_jwt_verifier_kwargs()
+        init_kwargs.update(kwargs)
+        super().__init__(**init_kwargs)
+        self.authorization_server = server
+        logger.info("OAuth 2.1 JWT verifier initialized for issuer %s", self.issuer)
+
+    async def _verified_claims(self, token: str) -> Optional[Dict[str, Any]]:
+        """Check signature, exp, iss, and audience. Return claims or None."""
+        jwks = await self.authorization_server.jwks()
+        header = _unverified_jwt_header(token)
+        if header is None:
+            self.logger.info("Bearer token rejected: malformed JWT")
+            return None
+        raw_kid = header.get("kid")
+        kid = raw_kid if isinstance(raw_kid, str) else None
+        jwk_dict = _select_jwk(jwks, kid)
+        if jwk_dict is None:
+            self.logger.info("Bearer token rejected: signing key not in issuer JWKS")
+            return None
+        alg = header.get("alg")
+        if not isinstance(alg, str) or alg not in published_algorithms(jwk_dict):
+            self.logger.info("Bearer token rejected: algorithm is not published by the signing key")
+            return None
+        claims = _decode_with_jwks(token, jwks, alg)
+        if not _exp_valid(claims.get("exp")):
+            self.logger.info("Bearer token rejected: token expired or missing exp")
+            return None
+        if not _issuer_matches(self.issuer, claims.get("iss")):
+            self.logger.info("Bearer token rejected: issuer mismatch")
+            return None
+        if not _audience_matches(self.audience, claims.get("aud")):
+            self.logger.info("Bearer token rejected: audience mismatch")
+            return None
+        return claims
+
+    async def load_access_token(self, token: str) -> Optional[AccessToken]:
+        """Verify one bearer token and attach the expanded scope set."""
+        try:
+            claims = await self._verified_claims(token)
+        except Exception as exc:
+            self.logger.debug("Token validation failed: %s", exc)
+            return None
+        if claims is None:
+            return None
+        if not identity_accepted(claims):
+            self.logger.info("Bearer token rejected: grant identity requirements not met")
+            return None
+        scopes = scope_list(expand_scope_set(self._extract_scopes(claims)))
+        if self.required_scopes and not set(self.required_scopes).issubset(set(scopes)):
+            self.logger.info("Bearer token rejected: missing required scopes")
+            return None
+        client_id = claims.get("client_id") or claims.get("azp") or claims.get("sub") or "unknown"
+        exp = claims.get("exp")
+        expires_at = int(exp) if isinstance(exp, (int, float)) and not isinstance(exp, bool) else None
+        return AccessToken(
+            token=token,
+            client_id=str(client_id),
+            scopes=scopes,
+            expires_at=expires_at,
+            claims=claims,
+        )
+
+
+oauth_provider = None
 if ENABLE_AUTH:
     try:
-        from fastmcp.server.auth import JWTVerifier
-        from fastmcp.server.dependencies import AccessToken, get_access_token
-
-        class OAuth21BearerAuthProvider(JWTVerifier):
-            """
-            OAuth 2.1 JWT verifier for the MCP server (FastMCP 3 JWTVerifier).
-
-            Implements comprehensive OAuth 2.1 features:
-            - PKCE enforcement (mandatory)
-            - Resource indicator validation (RFC 8707)
-            - Audience validation
-            - Token binding support
-            - Token revocation checking
-            - Proper JWKS caching
-            - Enhanced SSL/TLS security for all HTTP requests
-            """
-
-            def __init__(self, **kwargs):
-                init_kwargs = _fastmcp_jwt_verifier_kwargs()
-                init_kwargs.update(kwargs)
-                super().__init__(**init_kwargs)
-
-                self.valid_scopes = set(AUTH_VALID_SCOPES)
-                self.required_scopes = set(AUTH_REQUIRED_SCOPES)
-                logger.info(f"OAuth 2.1 JWT verifier initialized with scopes: {self.valid_scopes}")
-                logger.info(f"JWT validation available: {JWT_AVAILABLE}")
-                logger.info(f"PKCE enforcement: {REQUIRE_PKCE}")
-                logger.info(f"Resource indicators: {RESOURCE_INDICATORS}")
-                logger.info(f"OAuth 2.1 Issuer: {AUTH_ISSUER_URL}")
-                logger.info(f"JWKS URI: {self.jwks_uri}")
-                logger.info(f"SSL/TLS verification: {ENFORCE_SSL_TLS_VERIFICATION}")
-                logger.info(
-                    "🚀 Using generic OAuth 2.1 discovery (RFC 8414) - no provider-specific configuration needed"
-                )
-
-            async def validate_token_comprehensive(
-                self,
-                token: str,
-                required_scopes: Set[str] = None,
-                requested_resource: str = None,
-            ) -> Dict[str, Any]:
-                """Comprehensive token validation using our OAuth 2.1 validator."""
-                if not token_validator:
-                    return {"valid": False, "error": "Token validation not available"}
-
-                return await token_validator.validate_token(token, required_scopes, requested_resource)
-
-            def check_scopes(self, user_scopes: Set[str], required_scopes: Set[str]) -> bool:
-                """Check if user has required scopes, considering scope hierarchy."""
-                if token_validator:
-                    return token_validator.check_scopes(user_scopes, required_scopes)
-                expanded = self.expand_scopes(list(user_scopes))
-                return required_scopes.issubset(expanded)
-
-            def expand_scopes(self, scopes: list) -> Set[str]:
-                """Expand scopes to include inherited scopes based on hierarchy."""
-                if token_validator:
-                    return token_validator.expand_scopes(scopes)
-                return set(scopes)
-
-            def has_read_access(self, user_scopes: Set[str]) -> bool:
-                return self.check_scopes(user_scopes, {"read"})
-
-            def has_write_access(self, user_scopes: Set[str]) -> bool:
-                return self.check_scopes(user_scopes, {"write"})
-
-            def has_admin_access(self, user_scopes: Set[str]) -> bool:
-                return self.check_scopes(user_scopes, {"admin"})
-
-        # Create global instance for easy access
-        if JWT_AVAILABLE:
-            try:
-                oauth_provider = OAuth21BearerAuthProvider()
-                logger.info("OAuth 2.1 JWT verifier initialized successfully")
-            except Exception as e:
-                logger.warning(f"Failed to initialize OAuth 2.1 JWT verifier: {e}")
-                oauth_provider = None
-        else:
-            oauth_provider = None
-
-        def require_scopes(*required_scopes: str):
-            """
-            Decorator to require specific OAuth scopes with OAuth 2.1 compliance.
-            """
-
-            def decorator(func):
-                async def wrapper(*args, **kwargs):
-                    try:
-                        # Access token information using FastMCP's dependency system
-                        access_token: AccessToken = get_access_token()
-
-                        if not access_token or not access_token.token:
-                            if ENABLE_AUTH:
-                                return {
-                                    "error": "Authentication required",
-                                    "required_scopes": list(required_scopes),
-                                    "oauth_2_1_compliant": True,
-                                }
-                            else:
-                                # Auth disabled, proceed
-                                return (
-                                    await func(*args, **kwargs)
-                                    if asyncio.iscoroutinefunction(func)
-                                    else func(*args, **kwargs)
-                                )
-
-                        # Perform comprehensive OAuth 2.1 validation
-                        if oauth_provider and token_validator:
-                            validation_result = await oauth_provider.validate_token_comprehensive(
-                                access_token.token, set(required_scopes)
-                            )
-
-                            if not validation_result.get("valid"):
-                                return {
-                                    "error": validation_result.get("error", "Token validation failed"),
-                                    "required_scopes": list(required_scopes),
-                                    "oauth_2_1_compliant": True,
-                                }
-                        else:
-                            # Fallback to basic scope checking
-                            user_scopes = set(access_token.scopes) if access_token.scopes else set()
-
-                            if oauth_provider and not oauth_provider.check_scopes(user_scopes, set(required_scopes)):
-                                return {
-                                    "error": "Insufficient permissions",
-                                    "required_scopes": list(required_scopes),
-                                    "user_scopes": list(user_scopes),
-                                    "oauth_2_1_compliant": True,
-                                }
-
-                        return (
-                            await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
-                        )
-                    except Exception as e:
-                        if ENABLE_AUTH:
-                            logger.warning(f"OAuth 2.1 authentication check failed: {e}")
-                            return {
-                                "error": "Authentication failed",
-                                "required_scopes": list(required_scopes),
-                                "oauth_2_1_compliant": True,
-                            }
-                        else:
-                            # If auth is disabled, just proceed
-                            return (
-                                await func(*args, **kwargs)
-                                if asyncio.iscoroutinefunction(func)
-                                else func(*args, **kwargs)
-                            )
-
-                # Preserve function metadata
-                wrapper.__name__ = func.__name__
-                wrapper.__doc__ = func.__doc__
-                wrapper.__annotations__ = func.__annotations__
-                return wrapper
-
-            return decorator
-
-    except ImportError as e:
-        logger.warning(f"FastMCP auth imports not available: {e}")
-        ENABLE_AUTH = False
+        oauth_provider = OAuth21BearerAuthProvider()
+        logger.info("OAuth 2.1 JWT verifier initialized successfully")
+    except Exception as exc:
+        logger.warning("Failed to initialize OAuth 2.1 JWT verifier: %s", exc)
         oauth_provider = None
 
-        def require_scopes(*required_scopes: str):
-            """Fallback decorator when FastMCP auth is not available."""
 
-            def decorator(func):
-                return func
+def _verifier_for(authorization_server: Optional[AuthorizationServer]) -> OAuth21BearerAuthProvider:
+    """Use the process verifier, or build one around an injected issuer."""
+    if authorization_server is None:
+        if oauth_provider is not None:
+            return oauth_provider
+        return OAuth21BearerAuthProvider()
+    return OAuth21BearerAuthProvider(authorization_server=authorization_server)
 
-            return decorator
 
-else:
-    oauth_provider = None
+async def authenticate(
+    token: str,
+    *,
+    resource: Optional[str] = None,
+    authorization_server: Optional[AuthorizationServer] = None,
+) -> Principal:
+    """Verify one access token and return the expanded principal."""
+    verifier = _verifier_for(authorization_server)
+    access = await verifier.load_access_token(token)
+    if access is None:
+        raise AuthenticationError("Token rejected")
+    claims = access.claims if isinstance(access.claims, dict) else {}
+    if resource is not None and not _resource_allowed(claims, resource):
+        raise AuthenticationError("Resource is not authorized by the token")
+    client = claims.get("client_id") or claims.get("azp")
+    subject = claims.get("sub")
+    return Principal(
+        scopes=frozenset(access.scopes or []),
+        subject=str(subject) if subject else None,
+        client_id=str(client) if client else None,
+    )
 
-    def require_scopes(*required_scopes: str):
-        """Decorator when authentication is disabled."""
 
-        def decorator(func):
-            return func
-
-        return decorator
+async def advertised_grants(authorization_server: Optional[AuthorizationServer] = None) -> tuple[str, ...]:
+    """Intersection of upstream grant_types_supported with the grants we mirror."""
+    server = HttpAuthorizationServer() if authorization_server is None else authorization_server
+    try:
+        document = await server.metadata()
+    except Exception:
+        logger.debug("advertised_grants failed closed", exc_info=True)
+        return ()
+    if not isinstance(document, dict):
+        return ()
+    upstream = document.get("grant_types_supported") or []
+    if not isinstance(upstream, list):
+        return ()
+    upstream_set = set(upstream)
+    return tuple(grant for grant in KNOWN_GRANTS if grant in upstream_set)
 
 
 def revoke_token(token: str = None, jti: str = None):
@@ -1207,8 +1312,18 @@ __all__ = [
     "JWT_AVAILABLE",
     "SCOPE_DEFINITIONS",
     "OAuth21TokenValidator",
+    "OAuth21BearerAuthProvider",
     "oauth_provider",
-    "require_scopes",
+    "Principal",
+    "AuthenticationError",
+    "AuthorizationServer",
+    "HttpAuthorizationServer",
+    "FakeAuthorizationServer",
+    "authenticate",
+    "advertised_grants",
+    "protected_resource_grant_metadata",
+    "JWT_BEARER_GRANT",
+    "ENTERPRISE_MANAGED_AUTHORIZATION",
     "get_oauth_scopes_info",
     "get_oauth_provider_configs",
     "get_fastmcp_config",

@@ -145,7 +145,6 @@ from oauth_provider import (
     ENABLE_AUTH,
     get_fastmcp_config,
     get_oauth_scopes_info,
-    require_scopes,
 )
 from protocol_version import current_protocol_version
 from registry_management_tools import list_registries_tool  # Still needed for resource handlers
@@ -549,7 +548,6 @@ def ping():
 
 
 @mcp.tool()
-@require_scopes("read")
 async def compare_registries(
     source_registry: str,
     target_registry: str,
@@ -571,7 +569,6 @@ async def compare_registries(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def compare_contexts_across_registries(
     source_registry: str,
     target_registry: str,
@@ -593,7 +590,6 @@ async def compare_contexts_across_registries(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def find_missing_schemas(source_registry: str, target_registry: str, context: Optional[str] = None):
     """Find schemas that exist in source registry but not in target registry."""
     return await find_missing_schemas_tool(source_registry, target_registry, registry_manager, REGISTRY_MODE, context)
@@ -603,7 +599,6 @@ async def find_missing_schemas(source_registry: str, target_registry: str, conte
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_available_resources():
     """List all available MCP resources and their usage patterns."""
     resources = {
@@ -723,7 +718,6 @@ def list_available_resources():
 
 
 @mcp.tool()
-@require_scopes("read")
 def suggest_resource_for_tool(tool_name: str):
     """Suggest the appropriate resource to use instead of a removed tool."""
     tool_to_resource_mapping = {
@@ -860,7 +854,6 @@ data = json.loads(result.contents[0].text)""",
 
 
 @mcp.tool()
-@require_scopes("read")
 def generate_resource_templates(
     registry_name: Optional[str] = None, context: Optional[str] = None, subject: Optional[str] = None
 ):
@@ -941,7 +934,6 @@ except Exception as e:
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_registries():
     """List all configured Schema Registry instances.
 
@@ -953,7 +945,6 @@ def list_registries():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_registry_info(registry: Optional[str] = None):
     """Get detailed information about a specific registry.
 
@@ -964,7 +955,6 @@ def get_registry_info(registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("read")
 def test_registry_connection(registry: Optional[str] = None):
     """Test connection to a specific registry.
 
@@ -975,7 +965,6 @@ def test_registry_connection(registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("read")
 def test_all_registries():
     """Test connections to all configured registries.
 
@@ -986,7 +975,6 @@ def test_all_registries():
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_subjects(context: Optional[str] = None, registry: Optional[str] = None):
     """List all subjects, optionally filtered by context.
 
@@ -1005,7 +993,6 @@ def list_subjects(context: Optional[str] = None, registry: Optional[str] = None)
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_schema(
     subject: str,
     version: str = "latest",
@@ -1031,7 +1018,6 @@ def get_schema(
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_schema_versions(
     subject: str,
     context: Optional[str] = None,
@@ -1055,7 +1041,6 @@ def get_schema_versions(
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_schema_by_id(
     schema_id: int,
     registry: Optional[str] = None,
@@ -1081,7 +1066,6 @@ def get_schema_by_id(
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_subjects_by_schema_id(
     schema_id: int,
     registry: Optional[str] = None,
@@ -1107,7 +1091,6 @@ def get_subjects_by_schema_id(
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_global_config(context: Optional[str] = None, registry: Optional[str] = None):
     """Get global configuration settings.
 
@@ -1126,7 +1109,6 @@ def get_global_config(context: Optional[str] = None, registry: Optional[str] = N
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_mode(context: Optional[str] = None, registry: Optional[str] = None):
     """Get the current mode of the Schema Registry.
 
@@ -1145,7 +1127,6 @@ def get_mode(context: Optional[str] = None, registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_contexts(registry: Optional[str] = None):
     """List all available schema contexts.
 
@@ -1163,7 +1144,6 @@ def list_contexts(registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_subject_config(
     subject: str,
     context: Optional[str] = None,
@@ -1187,7 +1167,6 @@ def get_subject_config(
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_subject_mode(
     subject: str,
     context: Optional[str] = None,
@@ -1218,7 +1197,6 @@ def get_subject_mode(
 
 # Basic register schema is kept even in SLIM_MODE for essential operations
 @mcp.tool()
-@require_scopes("write")
 def register_schema(
     subject: str,
     schema_definition: dict,
@@ -1245,7 +1223,6 @@ def register_schema(
 
 
 @mcp.tool()
-@require_scopes("write")
 async def register_schema_interactive(
     subject: str,
     schema_definition: Optional[dict] = None,
@@ -1278,7 +1255,6 @@ async def register_schema_interactive(
 
 
 @mcp.tool()
-@require_scopes("read")
 def check_compatibility(
     subject: str,
     schema_definition: dict,
@@ -1305,7 +1281,6 @@ def check_compatibility(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def check_compatibility_interactive(
     subject: str,
     schema_definition: dict,
@@ -1343,7 +1318,6 @@ async def check_compatibility_interactive(
 
 
 @mcp.tool()
-@require_scopes("write")
 def update_global_config(compatibility: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Update global configuration settings."""
     return update_global_config_tool(
@@ -1362,7 +1336,6 @@ def update_global_config(compatibility: str, context: Optional[str] = None, regi
 
 
 @mcp.tool()
-@require_scopes("write")
 def update_subject_config(
     subject: str, compatibility: str, context: Optional[str] = None, registry: Optional[str] = None
 ):
@@ -1384,7 +1357,6 @@ def update_subject_config(
 
 
 @mcp.tool()
-@require_scopes("write")
 def add_subject_alias(
     alias: str,
     existing_subject: str,
@@ -1406,7 +1378,6 @@ def add_subject_alias(
 
 
 @mcp.tool()
-@require_scopes("write")
 def delete_subject_alias(
     alias: str,
     context: Optional[str] = None,
@@ -1432,7 +1403,6 @@ def delete_subject_alias(
 
 
 @mcp.tool()
-@require_scopes("write")
 def update_mode(mode: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Update the mode of the Schema Registry."""
     return update_mode_tool(
@@ -1451,7 +1421,6 @@ def update_mode(mode: str, context: Optional[str] = None, registry: Optional[str
 
 
 @mcp.tool()
-@require_scopes("write")
 def update_subject_mode(subject: str, mode: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Update the mode for a specific subject."""
     return update_subject_mode_tool(
@@ -1472,7 +1441,6 @@ def update_subject_mode(subject: str, mode: str, context: Optional[str] = None, 
 
 # Create context is kept even in SLIM_MODE for essential operations
 @mcp.tool()
-@require_scopes("write")
 def create_context(context: str, registry: Optional[str] = None):
     """Create a new schema context."""
     return create_context_tool(
@@ -1490,7 +1458,6 @@ def create_context(context: str, registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("write")
 async def create_context_interactive(
     context: str,
     registry: Optional[str] = None,
@@ -1527,7 +1494,6 @@ async def create_context_interactive(
 
 
 @mcp.tool()
-@require_scopes("admin")
 def delete_context(context: str, registry: Optional[str] = None):
     """Delete a schema context."""
     return delete_context_tool(
@@ -1542,7 +1508,6 @@ def delete_context(context: str, registry: Optional[str] = None):
 
 
 @mcp.tool()
-@require_scopes("admin")
 async def delete_subject(
     subject: str, context: Optional[str] = None, registry: Optional[str] = None, permanent: bool = False
 ):
@@ -1572,7 +1537,6 @@ async def delete_subject(
 
 # Essential export tools (Available in SLIM_MODE)
 @mcp.tool()
-@require_scopes("read")
 def export_schema(
     subject: str,
     version: str = "latest",
@@ -1585,7 +1549,6 @@ def export_schema(
 
 
 @mcp.tool()
-@require_scopes("read")
 def export_subject(
     subject: str,
     context: Optional[str] = None,
@@ -1611,7 +1574,6 @@ def export_subject(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def export_context(
     context: str,
     registry: Optional[str] = None,
@@ -1635,7 +1597,6 @@ async def export_context(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def export_global(
     registry: Optional[str] = None,
     include_metadata: bool = True,
@@ -1657,7 +1618,6 @@ async def export_global(
 
 
 @mcp.tool()
-@require_scopes("read")
 async def export_global_interactive(
     registry: Optional[str] = None,
     include_metadata: Optional[bool] = None,
@@ -1702,7 +1662,6 @@ async def export_global_interactive(
 
 
 @mcp.tool(task=True)
-@require_scopes("admin")
 async def migrate_schema(
     subject: str,
     source_registry: str,
@@ -1736,7 +1695,6 @@ async def migrate_schema(
 
 
 @mcp.tool(task=True)
-@require_scopes("admin")
 async def restore_bundle(
     bundle: Any,
     target: str,
@@ -1764,7 +1722,6 @@ async def restore_bundle(
 
 
 @mcp.tool(task=True)
-@require_scopes("admin")
 async def migrate_context(
     source_registry: str,
     target_registry: str,
@@ -1794,7 +1751,6 @@ async def migrate_context(
 
 
 @mcp.tool()
-@require_scopes("admin")
 async def migrate_schema_interactive(
     subject: str,
     source_registry: str,
@@ -1832,7 +1788,6 @@ async def migrate_schema_interactive(
 
 
 @mcp.tool()
-@require_scopes("admin")
 async def migrate_context_interactive(
     source_registry: str,
     target_registry: str,
@@ -1868,7 +1823,6 @@ async def migrate_context_interactive(
 
 
 @mcp.tool(task=True)
-@require_scopes("admin")
 async def clear_context_batch(
     context: str,
     registry: Optional[str] = None,
@@ -1893,7 +1847,6 @@ async def clear_context_batch(
 
 
 @mcp.tool(task=True)
-@require_scopes("admin")
 async def clear_multiple_contexts_batch(
     contexts: list,
     registry: Optional[str] = None,
@@ -1930,7 +1883,6 @@ try:
 
     # Add tools to MCP server
     @mcp.tool()
-    @require_scopes("admin")
     async def bulk_operations_wizard(
         operation_type: Optional[str] = None,
         dry_run: bool = True,
@@ -1951,7 +1903,6 @@ try:
         return await bulk_wizard.start_wizard(op_type, ctx=ctx)
 
     @mcp.tool()
-    @require_scopes("admin")
     async def preview_bulk_operation(
         operation_type: str,
         items: list,
@@ -1965,7 +1916,6 @@ try:
         )
 
     @mcp.tool()
-    @require_scopes("admin")
     async def bulk_schema_update(
         pattern: Optional[str] = None,
         update_type: str = "compatibility",
@@ -1985,7 +1935,6 @@ try:
         )
 
     @mcp.tool()
-    @require_scopes("admin")
     async def bulk_schema_cleanup(
         cleanup_type: str = "test",
         pattern: Optional[str] = None,
@@ -2012,7 +1961,6 @@ try:
         )
 
     @mcp.tool()
-    @require_scopes("admin")
     async def bulk_schema_migration(
         source_context: Optional[str] = None,
         target_context: Optional[str] = None,
@@ -2043,7 +1991,6 @@ try:
         )
 
     @mcp.tool()
-    @require_scopes("admin")
     async def bulk_configuration_update(
         config_type: str = "security",
         target_type: str = "schemas",
@@ -2081,14 +2028,12 @@ except Exception as e:
 
 
 @mcp.tool()
-@require_scopes("read")
 def count_contexts(registry: Optional[str] = None):
     """Count the number of contexts in a registry."""
     return count_contexts_tool(registry_manager, REGISTRY_MODE, registry)
 
 
 @mcp.tool(task=True)
-@require_scopes("read")
 async def count_schemas(context: Optional[str] = None, registry: Optional[str] = None, progress: Progress = Progress()):
     """Count the number of schemas in a context or registry."""
     # Use background task version for better performance when counting across multiple contexts
@@ -2103,7 +2048,6 @@ async def count_schemas(context: Optional[str] = None, registry: Optional[str] =
 
 
 @mcp.tool()
-@require_scopes("read")
 def count_schema_versions(subject: str, context: Optional[str] = None, registry: Optional[str] = None):
     """Count the number of versions for a specific schema."""
     return count_schema_versions_tool(subject, registry_manager, REGISTRY_MODE, context, registry)
@@ -2113,7 +2057,6 @@ def count_schema_versions(subject: str, context: Optional[str] = None, registry:
 
 
 @mcp.tool(task=True)
-@require_scopes("read")
 async def get_registry_statistics(
     registry: Optional[str] = None, include_context_details: bool = True, progress: Progress = Progress()
 ):
@@ -2128,7 +2071,6 @@ async def get_registry_statistics(
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_elicitation_requests():
     """List all pending elicitation requests."""
     try:
@@ -2148,7 +2090,6 @@ def list_elicitation_requests():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_elicitation_request(request_id: str):
     """Get details of a specific elicitation request."""
     try:
@@ -2177,7 +2118,6 @@ def get_elicitation_request(request_id: str):
 
 
 @mcp.tool()
-@require_scopes("admin")
 @structured_output("cancel_elicitation_request", fallback_on_error=True)
 def cancel_elicitation_request(request_id: str):
     """Cancel a pending elicitation request."""
@@ -2204,7 +2144,6 @@ def cancel_elicitation_request(request_id: str):
 
 
 @mcp.tool()
-@require_scopes("read")
 @structured_output("get_elicitation_status", fallback_on_error=True)
 def get_elicitation_status():
     """Get the status of the elicitation system."""
@@ -2240,7 +2179,6 @@ def get_elicitation_status():
 
 
 @mcp.tool()
-@require_scopes("write")
 async def submit_elicitation_response(
     request_id: str,
     response_data: dict,
@@ -2314,7 +2252,6 @@ async def submit_elicitation_response(
 
 
 @mcp.tool()
-@require_scopes("read")
 def list_available_workflows():
     """List all available multi-step workflows for complex operations."""
     try:
@@ -2356,7 +2293,6 @@ def list_available_workflows():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_workflow_status(workflow_id: Optional[str] = None):
     """Get the status of active workflows."""
     try:
@@ -2611,7 +2547,6 @@ def get_mcp_compliance_status():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_mcp_compliance_status_tool():
     """Get MCP 2026-07-28 specification compliance status and configuration details.
 
@@ -2668,7 +2603,6 @@ if not SLIM_MODE or REGISTRY_MODE == "single":
             )
 
     @mcp.tool()
-    @require_scopes("admin")
     def set_default_registry(registry_name: str):
         """Set the default registry."""
         return set_default_registry_tool(registry_name)
@@ -2715,7 +2649,6 @@ def get_default_registry_tool():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_default_registry():
     """Get the current default registry."""
     return get_default_registry_tool()
@@ -2789,14 +2722,12 @@ def get_oauth_scopes_info_tool_wrapper():
 
 
 @mcp.tool()
-@require_scopes("read")
 def get_oauth_scopes_info_tool():
     """Get information about OAuth scopes and permissions."""
     return get_oauth_scopes_info_tool_wrapper()
 
 
 @mcp.tool()
-@require_scopes("read")
 def test_oauth_discovery_endpoints(server_url: str = "http://localhost:8000"):
     """
     Test OAuth discovery endpoints to ensure proper MCP client compatibility.
@@ -2994,7 +2925,6 @@ def resource_not_found(fn):
 
 @mcp.resource("registry://names")
 @resource_not_found
-@require_scopes("read")
 def registry_names_resource():
     """Get list of all configured registry names."""
     import json
@@ -3036,7 +2966,6 @@ def registry_names_resource():
 
 @mcp.resource("registry://info")
 @resource_not_found
-@require_scopes("read")
 def registry_info_resource():
     """Get detailed server configuration and capabilities."""
     import json
@@ -3082,7 +3011,6 @@ def registry_info_resource():
 
 @mcp.resource("registry://info/{name}")
 @resource_not_found
-@require_scopes("read")
 def registry_info_specific_resource(name: str):
     """Get detailed information about a specific registry."""
     import json
@@ -3115,7 +3043,6 @@ def registry_info_specific_resource(name: str):
 
 @mcp.resource("registry://status")
 @resource_not_found
-@require_scopes("read")
 def registry_status_resource():
     """Get connection status for all registries."""
     import json
@@ -3146,7 +3073,6 @@ def registry_status_resource():
 
 @mcp.resource("registry://status/{name}")
 @resource_not_found
-@require_scopes("read")
 def registry_status_specific_resource(name: str):
     """Get connection status for a specific registry."""
     import json
@@ -3179,7 +3105,6 @@ def registry_status_specific_resource(name: str):
 
 @mcp.resource("registry://mode")
 @resource_not_found
-@require_scopes("read")
 def registry_mode_resource():
     """Get operational mode for all registries."""
     import json
@@ -3226,7 +3151,6 @@ def registry_mode_resource():
 
 @mcp.resource("registry://mode/{name}")
 @resource_not_found
-@require_scopes("read")
 def registry_mode_specific_resource(name: str):
     """Get operational mode for a specific registry."""
     import json
@@ -3268,7 +3192,6 @@ def registry_mode_specific_resource(name: str):
 # Registry-specific resources for read-only operations
 @mcp.resource("registry://{name}/subjects")
 @resource_not_found
-@require_scopes("read")
 def registry_subjects_resource(name: str, context: Optional[str] = None):
     """Get all subjects for a specific registry, optionally filtered by context."""
     import json
@@ -3311,7 +3234,6 @@ def registry_subjects_resource(name: str, context: Optional[str] = None):
 
 @mcp.resource("registry://{name}/contexts/{context}/subjects")
 @resource_not_found
-@require_scopes("read")
 def registry_context_subjects_resource(name: str, context: str):
     """Get all subjects in a named context for a specific registry."""
     import json
@@ -3352,7 +3274,6 @@ def registry_context_subjects_resource(name: str, context: str):
 
 @mcp.resource("registry://{name}/contexts")
 @resource_not_found
-@require_scopes("read")
 def registry_contexts_resource(name: str):
     """Get all contexts for a specific registry."""
     import json
@@ -3392,7 +3313,6 @@ def registry_contexts_resource(name: str):
 
 @mcp.resource("registry://{name}/config")
 @resource_not_found
-@require_scopes("read")
 def registry_config_resource(name: str, context: Optional[str] = None):
     """Get global configuration for a specific registry, optionally filtered by context."""
     import json
@@ -3439,7 +3359,6 @@ def registry_config_resource(name: str, context: Optional[str] = None):
 # otherwise capture them.
 @mcp.resource("schema://{name}/{subject}/versions")
 @resource_not_found
-@require_scopes("read")
 def schema_versions_default_context_resource(name: str, subject: str):
     """Get all versions of a schema for a specific subject in the default context of a registry."""
     import json
@@ -3485,7 +3404,6 @@ def schema_versions_default_context_resource(name: str, subject: str):
 
 @mcp.resource("schema://{name}/ids/{schema_id}")
 @resource_not_found
-@require_scopes("read")
 def schema_by_id_resource(name: str, schema_id: int):
     """Get a schema by its globally unique id. The body is immutable, so the read carries a long cache hint."""
     import json
@@ -3526,7 +3444,6 @@ def schema_by_id_resource(name: str, schema_id: int):
 # Schema-specific resources for direct schema content access
 @mcp.resource("schema://{name}/{context}/{subject}")
 @resource_not_found
-@require_scopes("read")
 def schema_content_resource(name: str, context: str, subject: str, version: str = "latest"):
     """Get schema content for a specific subject in a specific context and registry."""
     import json
@@ -3575,7 +3492,6 @@ def schema_content_resource(name: str, context: str, subject: str, version: str 
 
 @mcp.resource("schema://{name}/{subject}")
 @resource_not_found
-@require_scopes("read")
 def schema_content_default_context_resource(name: str, subject: str, version: str = "latest"):
     """Get schema content for a specific subject in the default context of a registry."""
     import json
@@ -3624,7 +3540,6 @@ def schema_content_default_context_resource(name: str, subject: str, version: st
 
 @mcp.resource("schema://{name}/{context}/{subject}/versions")
 @resource_not_found
-@require_scopes("read")
 def schema_versions_resource(name: str, context: str, subject: str):
     """Get all versions of a schema for a specific subject in a specific context and registry."""
     import json
@@ -3673,7 +3588,6 @@ def schema_versions_resource(name: str, context: str, subject: str):
 
 @mcp.resource("subject://{name}/{context}/{subject}/config")
 @resource_not_found
-@require_scopes("read")
 def subject_config_resource(name: str, context: str, subject: str):
     """Get configuration settings for a specific subject with explicit context."""
     import json
@@ -3719,7 +3633,6 @@ def subject_config_resource(name: str, context: str, subject: str):
 
 @mcp.resource("subject://{name}/{subject}/config")
 @resource_not_found
-@require_scopes("read")
 def subject_config_default_context_resource(name: str, subject: str):
     """Get configuration settings for a specific subject in the default context."""
     import json
@@ -3765,7 +3678,6 @@ def subject_config_default_context_resource(name: str, subject: str):
 
 @mcp.resource("subject://{name}/{context}/{subject}/mode")
 @resource_not_found
-@require_scopes("read")
 def subject_mode_resource(name: str, context: str, subject: str):
     """Get the mode for a specific subject with explicit context."""
     import json
@@ -3811,7 +3723,6 @@ def subject_mode_resource(name: str, context: str, subject: str):
 
 @mcp.resource("subject://{name}/{subject}/mode")
 @resource_not_found
-@require_scopes("read")
 def subject_mode_default_context_resource(name: str, subject: str):
     """Get the mode for a specific subject in the default context."""
     import json
@@ -3856,7 +3767,6 @@ def subject_mode_default_context_resource(name: str, subject: str):
 
 
 @mcp.resource("registry://{name}/migrations")
-@require_scopes("read")
 def migrations_collection_resource(name: str):
     """List persisted migration records (none are persisted by this server)."""
     return json.dumps(
@@ -3870,7 +3780,6 @@ def migrations_collection_resource(name: str):
 
 
 @mcp.resource("registry://{name}/tasks")
-@require_scopes("read")
 def tasks_collection_resource(name: str):
     """Describe how background tasks are exposed."""
     return json.dumps(

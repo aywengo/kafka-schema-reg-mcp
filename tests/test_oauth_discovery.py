@@ -246,6 +246,14 @@ class OAuthDiscoveryTest:
                     return False
                 print(f"   ✅ Found required field: {field}")
 
+            # This test issuer is not reachable, so jwt-bearer is not mirrored.
+            extension_id = "io.modelcontextprotocol/enterprise-managed-authorization"
+            extensions = data.get("extensions") or {}
+            if extension_id in extensions:
+                print("   ❌ SEP-990 extension advertised without an issuer jwt-bearer grant")
+                return False
+            print("   ✅ SEP-990 extension omitted (issuer did not list jwt-bearer)")
+
             # Check MCP-specific fields
             mcp_fields = [
                 "mcp_server_info",
