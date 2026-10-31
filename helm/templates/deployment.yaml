@@ -81,7 +81,8 @@ spec:
                   name: {{ include "kafka-schema-registry-mcp.oauth2SecretName" . }}
                   key: {{ .Values.auth.existingSecret.clientSecretKey | default "client-secret" }}
             {{- end }}
-            
+
+            {{- if ne (.Values.fleet.role | default "inprocess") "front" }}
             # Schema Registry credentials
             {{- if or .Values.schemaRegistry.user .Values.schemaRegistry.password .Values.schemaRegistry.existingSecret.enabled }}
             {{- if or .Values.schemaRegistry.user .Values.schemaRegistry.existingSecret.enabled }}
@@ -99,7 +100,7 @@ spec:
                   key: {{ .Values.schemaRegistry.existingSecret.passwordKey | default "password" }}
             {{- end }}
             {{- end }}
-            
+
             # Multi-registry credentials
             {{- if .Values.schemaRegistry.multiRegistry.enabled }}
             {{- range $index, $registry := .Values.schemaRegistry.multiRegistry.registries }}
@@ -111,6 +112,7 @@ spec:
             {{- if $registry.password }}
             - name: SCHEMA_REGISTRY_PASSWORD_{{ $registryIndex }}
               value: {{ $registry.password | quote }}
+            {{- end }}
             {{- end }}
             {{- end }}
             {{- end }}

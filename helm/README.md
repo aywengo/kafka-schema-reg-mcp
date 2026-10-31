@@ -154,6 +154,27 @@ schemaRegistry:
         password: "staging-pass"
 ```
 
+### Fleet front
+
+`fleet.role` defaults to `inprocess`, which keeps the Schema Registry URL and
+credentials above. `front` emits `FLEET_SHARDS` and `FLEET_DIRECTORY` and omits
+`SCHEMA_REGISTRY_URL`, `SCHEMA_REGISTRY_USER`, and `SCHEMA_REGISTRY_PASSWORD`.
+
+```yaml
+fleet:
+  role: front
+  shards:
+    - member: alpha
+      url: http://mcp-alpha:8080/mcp
+    - member: beta
+      url: http://mcp-beta:8080/mcp
+  directory:
+    - registry: prod
+      member: alpha
+    - registry: staging
+      member: beta
+```
+
 ### Ingress Configuration
 
 | Parameter | Description | Default |

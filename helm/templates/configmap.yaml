@@ -24,10 +24,16 @@ data:
   {{- else }}
   ENABLE_AUTH: "false"
   {{- end }}
-  
+
+  {{- if eq (.Values.fleet.role | default "inprocess") "front" }}
+  # Front: shard URLs and the directory. No Schema Registry URL or password.
+  FLEET_ROLE: "front"
+  FLEET_SHARDS: {{ include "kafka-schema-registry-mcp.fleetShards" . | quote }}
+  FLEET_DIRECTORY: {{ include "kafka-schema-registry-mcp.fleetDirectory" . | quote }}
+  {{- else }}
   # Schema Registry settings
   SCHEMA_REGISTRY_URL: {{ .Values.schemaRegistry.url | quote }}
-  
+
   {{- if .Values.schemaRegistry.multiRegistry.enabled }}
   # Multi-registry configuration
   {{- range $index, $registry := .Values.schemaRegistry.multiRegistry.registries }}
@@ -35,6 +41,7 @@ data:
   SCHEMA_REGISTRY_NAME_{{ $registryIndex }}: {{ $registry.name | quote }}
   SCHEMA_REGISTRY_URL_{{ $registryIndex }}: {{ $registry.url | quote }}
   VIEWONLY_{{ $registryIndex }}: {{ $registry.viewonly | quote }}
+  {{- end }}
   {{- end }}
   {{- end }}
   

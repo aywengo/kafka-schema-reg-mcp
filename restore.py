@@ -1,8 +1,8 @@
 """Apply an export document to one registry, preserving schema ids.
 
-``restore`` talks only to a ``Fleet``. The in-process adapter turns those
-calls into ``RegistryClient`` operations. A front process can replace the
-adapter and dispatch the whole ``restore_bundle`` call to the shard.
+``restore`` talks only to a ``Fleet``. ``RegistryFleet`` is the adapter a shard
+runs: it turns those calls into ``RegistryClient`` operations. A front forwards
+the whole ``restore_bundle`` call to that shard.
 """
 
 from __future__ import annotations
@@ -31,7 +31,12 @@ _DEFAULT_CONTEXTS = (None, "", ".")
 
 
 class Fleet(Protocol):
-    """Section 4 fleet. M3 supplies the front and group implementations."""
+    """Import-window operations for one registry the shard owns.
+
+    A front does not implement this protocol. It forwards the whole
+    ``restore_bundle`` call to the shard, and the shard runs ``restore``
+    against ``RegistryFleet``.
+    """
 
     async def dispatch(self, tool: str, arguments: Mapping[str, Any]) -> Any:
         """Run one operation against a registry named in ``arguments``."""

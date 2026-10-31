@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (v3.1 M3 — fleet)
+
+- A process is either an in-process fleet or a front. The front routes
+  `registry=` to a shard through FastMCP `ClientGroup` and holds no registry
+  password. `list_registries` returns the directory. Cross-shard compare and
+  find-missing export each side once. Cross-shard `migrate_schema` is
+  `export_subject` on the source shard and `restore_bundle` on the target.
+- Helm `fleet.role`, `fleet.shards`, and `fleet.directory`. A front chart
+  omits Schema Registry URLs and credentials.
+
 ### Added (v3.1 M1 — restore)
 
 - `restore_bundle` applies an `export_global`, `export_context`, or

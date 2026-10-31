@@ -184,6 +184,10 @@ class RemoteMCPMetrics:
             return self.registry_stats_cache
 
         stats = {}
+        if registry_manager is None:
+            self.registry_stats_cache = stats
+            self.stats_cache_timestamp = current_time
+            return stats
         try:
             # Get registry statistics
             for registry_name in registry_manager.list_registries():
@@ -532,6 +536,52 @@ def get_security_headers() -> dict:
 
 
 @mcp.custom_route("/health", methods=["GET"])
+def _probe_registry_health() -> tuple[dict, bool]:
+    """Probe registries this process owns. A front does not open those connections."""
+    registry_health: dict = {}
+    overall_healthy = True
+    try:
+        if registry_manager is None:
+            return {"fleet": {"status": "front"}}, True
+        if REGISTRY_MODE == "single":
+            default_registry = registry_manager.get_default_registry()
+            if default_registry:
+                client = registry_manager.get_registry(default_registry)
+                if client:
+                    test_result = client.test_connection()
+                    registry_health[default_registry] = test_result
+                    if test_result.get("status") != "connected":
+                        overall_healthy = False
+                else:
+                    overall_healthy = False
+                    registry_health["error"] = "No registry client available"
+        else:
+            for registry_name in registry_manager.list_registries():
+                try:
+                    client = registry_manager.get_registry(registry_name)
+                    if client:
+                        test_result = client.test_connection()
+                        registry_health[registry_name] = test_result
+                        if test_result.get("status") != "connected":
+                            overall_healthy = False
+                    else:
+                        registry_health[registry_name] = {
+                            "status": "error",
+                            "error": "Client not available",
+                        }
+                        overall_healthy = False
+                except Exception as e:
+                    registry_health[registry_name] = {
+                        "status": "error",
+                        "error": str(e),
+                    }
+                    overall_healthy = False
+    except Exception as e:
+        overall_healthy = False
+        registry_health["error"] = str(e)
+    return registry_health, overall_healthy
+
+
 async def health_check(request):
     """Health check endpoint for Kubernetes and monitoring."""
     try:
@@ -562,49 +612,7 @@ async def health_check(request):
         }
 
         # Test registry connectivity
-        registry_health = {}
-        overall_healthy = True
-
-        try:
-            if REGISTRY_MODE == "single":
-                # Test single registry
-                default_registry = registry_manager.get_default_registry()
-                if default_registry:
-                    client = registry_manager.get_registry(default_registry)
-                    if client:
-                        test_result = client.test_connection()
-                        registry_health[default_registry] = test_result
-                        if test_result.get("status") != "connected":
-                            overall_healthy = False
-                    else:
-                        overall_healthy = False
-                        registry_health["error"] = "No registry client available"
-            else:
-                # Test all registries in multi mode
-                for registry_name in registry_manager.list_registries():
-                    try:
-                        client = registry_manager.get_registry(registry_name)
-                        if client:
-                            test_result = client.test_connection()
-                            registry_health[registry_name] = test_result
-                            if test_result.get("status") != "connected":
-                                overall_healthy = False
-                        else:
-                            registry_health[registry_name] = {
-                                "status": "error",
-                                "error": "Client not available",
-                            }
-                            overall_healthy = False
-                    except Exception as e:
-                        registry_health[registry_name] = {
-                            "status": "error",
-                            "error": str(e),
-                        }
-                        overall_healthy = False
-
-        except Exception as e:
-            overall_healthy = False
-            registry_health["error"] = str(e)
+        registry_health, overall_healthy = _probe_registry_health()
 
         # Update server status based on registry health
         if not overall_healthy:

@@ -131,6 +131,14 @@ from export_tools import (
     export_schema_tool,
     export_subject_tool,
 )
+from fleet import (
+    ClientGroupFleet,
+    FrontRouter,
+    InProcessFleet,
+    build_client_group,
+    fleet_lifespan,
+    load_fleet_config,
+)
 from interactive_tools import check_compatibility_interactive as check_compatibility_interactive_impl
 from interactive_tools import create_context_interactive as create_context_interactive_impl
 from interactive_tools import export_global_interactive as export_global_interactive_impl
@@ -336,8 +344,15 @@ try:
 except ImportError:
     pass  # requests not available
 
+# Role is chosen once. A front never constructs a registry manager.
+FLEET_CONFIG = load_fleet_config()
+_FLEET_GROUP = build_client_group(FLEET_CONFIG) if FLEET_CONFIG.role == "front" else None
+active_fleet: Any = None
+
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
+if _FLEET_GROUP is not None:
+    mcp_config["lifespan"] = fleet_lifespan(_FLEET_GROUP)
 EDITION_RESOLUTION = resolve_edition()
 EDITION = EDITION_RESOLUTION.edition
 mcp: FastMCP = EditionGate(FastMCP(**mcp_config), EDITION, auth_enabled=ENABLE_AUTH)
@@ -408,7 +423,7 @@ def detect_registry_mode() -> str:
 
 
 # Detect mode and initialize appropriate manager
-REGISTRY_MODE = detect_registry_mode()
+REGISTRY_MODE = "multi" if FLEET_CONFIG.role == "front" else detect_registry_mode()
 logger.info(f"🔍 Auto-detected registry mode: {REGISTRY_MODE}")
 
 
@@ -452,9 +467,23 @@ class SecureHeaderDict(dict):
         return super().values()
 
 
-if REGISTRY_MODE == "single":
+if FLEET_CONFIG.role == "front":
+    logger.info(
+        "Front fleet: %s registries on %s shards",
+        len(FLEET_CONFIG.directory),
+        len(FLEET_CONFIG.shards),
+    )
+    registry_manager: Union[LegacyRegistryManager, MultiRegistryManager, None] = None
+    SCHEMA_REGISTRY_URL = ""
+    SCHEMA_REGISTRY_USER = ""
+    SCHEMA_REGISTRY_PASSWORD = ""
+    VIEWONLY = False
+    auth = None
+    headers = SecureHeaderDict("application/vnd.schemaregistry.v1+json")
+    standard_headers = SecureHeaderDict("application/json")
+elif REGISTRY_MODE == "single":
     logger.info("📡 Initializing Single Registry Manager")
-    registry_manager: Union[LegacyRegistryManager, MultiRegistryManager] = LegacyRegistryManager("")
+    registry_manager = LegacyRegistryManager("")
 
     # Legacy compatibility globals
     SCHEMA_REGISTRY_URL = SINGLE_REGISTRY_URL
@@ -3796,7 +3825,9 @@ def tasks_collection_resource(name: str):
 @mcp.completion
 async def complete_arguments(ref, argument, context):
     """Complete registry names for tool, prompt and resource arguments."""
-    if getattr(argument, "name", None) in {"registry", "name"}:
+    if getattr(argument, "name", None) in {"registry", "name", "source_registry", "target_registry", "target"}:
+        if FLEET_CONFIG.role == "front":
+            return active_fleet.names()
         try:
             return registry_manager.list_registries()
         except Exception:
@@ -3821,6 +3852,18 @@ if isinstance(mcp, EditionGate):
 install_read_resource_hints(mcp)
 
 
+async def _run_registered_tool(tool: str, arguments: dict) -> Any:
+    """In-process fleet runner. Production tools do not call this."""
+    return await mcp.call_tool(tool, dict(arguments))
+
+
+if FLEET_CONFIG.role == "front":
+    active_fleet = ClientGroupFleet(FLEET_CONFIG.directory, _FLEET_GROUP)
+    mcp.add_middleware(FrontRouter(active_fleet))
+else:
+    active_fleet = InProcessFleet(list(registry_manager.list_registries()), _run_registered_tool)
+
+
 # ===== SERVER ENTRY POINT =====
 
 if __name__ == "__main__":
@@ -3837,13 +3880,14 @@ if __name__ == "__main__":
         tool_count = "75+"
         features_status = "Full feature set + Bulk Operations Wizard"
 
+    registry_count = len(active_fleet.names())
     print(
         f"""
 🚀 Kafka Schema Registry Unified MCP Server Starting (Modular + Elicitation + Ping)
 🏷️  Version: {__version__}
 📡 Mode: {REGISTRY_MODE.upper()}
 🚦 SLIM_MODE: {"ENABLED" if SLIM_MODE else "DISABLED"} - {features_status}
-🔧 Registries: {len(registry_manager.list_registries())}
+🔧 Registries: {registry_count}
 🛡️  OAuth: {"Enabled" if ENABLE_AUTH else "Disabled"}
 🚫 JSON-RPC Batching: DISABLED
 🔌 MCP Protocol: FastMCP 4 / MCP SDK 2 (negotiated per connection; {current_protocol_version()})
@@ -3862,7 +3906,7 @@ if __name__ == "__main__":
     # Log startup information
     logger.info(f"Starting Unified MCP Server in {REGISTRY_MODE} mode (modular architecture with elicitation and ping)")
     logger.info(f"SLIM_MODE: {'ENABLED' if SLIM_MODE else 'DISABLED'} - {features_status}")
-    logger.info(f"Detected {len(registry_manager.list_registries())} registry configurations")
+    logger.info(f"Detected {len(active_fleet.names())} registry configurations")
     logger.info(f"🔌 MCP protocol negotiation managed by FastMCP 4 / MCP SDK 2 ({current_protocol_version()})")
     logger.info("🚫 JSON-RPC batching DISABLED")
     if not SLIM_MODE:

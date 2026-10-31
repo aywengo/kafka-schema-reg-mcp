@@ -98,6 +98,17 @@ schemaRegistry:
     #   url: "http://staging-schema-registry:8081"
     #   viewonly: true
 
+# Fleet front. inprocess owns SCHEMA_REGISTRY_* credentials. front holds shard
+# MCP URLs and a registry-to-member directory, and no registry password.
+fleet:
+  role: inprocess
+  shards: []
+  # - member: alpha
+  #   url: http://mcp-alpha:8080/mcp
+  directory: []
+  # - registry: prod
+  #   member: alpha
+
 # Application settings
 app:
   viewonly: false
