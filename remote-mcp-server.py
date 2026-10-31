@@ -49,6 +49,7 @@ from kafka_schema_registry_unified_mcp import (
     mcp,
     registry_manager,
 )
+from oauth_provider import advertised_grants, protected_resource_grant_metadata
 from protocol_version import DEFAULT_PROTOCOL_VERSION
 
 # Configure logging for remote deployment
@@ -789,7 +790,6 @@ async def oauth_authorization_server_metadata(request):
                 "profile",
             ],
             "response_types_supported": ["code"],  # OAuth 2.1 removes implicit flow
-            "grant_types_supported": ["authorization_code", "client_credentials"],
             "token_endpoint_auth_methods_supported": [
                 "client_secret_basic",
                 "client_secret_post",
@@ -850,6 +850,10 @@ async def oauth_authorization_server_metadata(request):
                 "enhanced_security": True,
             },
         }
+
+        grants = list(await advertised_grants())
+        if grants:
+            metadata["grant_types_supported"] = grants
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}
@@ -1022,6 +1026,9 @@ async def oauth_protected_resource_metadata(request):
                 "invalid_audience": f"{base_url}/docs/errors#invalid_audience",
             },
         }
+
+        # SEP-990 only when the issuer listed the jwt-bearer grant.
+        metadata.update(protected_resource_grant_metadata(await advertised_grants()))
 
         # Remove None values
         metadata = {k: v for k, v in metadata.items() if v is not None}

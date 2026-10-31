@@ -46,58 +46,47 @@ async def test_jwt_validation(issuer_url: str, audience: str, token: str):
     print("🚀 Testing OAuth 2.1 JWT Validation")
     print("=" * 60)
 
+    # Environment is read when oauth_provider is imported.
+    setup_oauth21_config(issuer_url, audience)
+
     try:
-        from oauth_provider import JWT_AVAILABLE, KafkaSchemaRegistryOAuthProvider
+        from oauth_provider import JWT_AVAILABLE, AuthenticationError, authenticate
 
         if not JWT_AVAILABLE:
             print("❌ JWT validation libraries not available")
-            print("Install with: pip install PyJWT aiohttp cryptography")
+            print("Install with: pip install joserfc aiohttp cryptography")
             return False
 
-        # Setup OAuth 2.1 generic configuration
-        setup_oauth21_config(issuer_url, audience)
-
-        # Initialize OAuth provider
-        oauth_provider = KafkaSchemaRegistryOAuthProvider()
-
-        # Test JWT validation
         print(f"📝 Token (first 50 chars): {token[:50]}...")
         print(f"🌐 Issuer URL: {issuer_url}")
         print(f"👥 Audience: {audience}")
         print("🔍 Discovery: Using OAuth 2.1 RFC 8414 discovery")
         print()
 
-        # Validate the token
-        result = await oauth_provider.validate_token(token)
-
-        if result:
-            print("✅ JWT validation successful!")
-            print(f"👤 User: {result.get('sub', 'unknown')}")
-            print(f"📧 Email: {result.get('email', 'not provided')}")
-            print(f"🏷️  Name: {result.get('name', 'not provided')}")
-            print(f"🔑 Scopes: {result.get('scopes', [])}")
-            print(f"🏢 Issuer: {result.get('iss', 'unknown')}")
-            print(f"⏰ Expires: {result.get('exp', 'unknown')}")
-
-            # Test scope access levels
-            user_scopes = set(result.get("scopes", []))
-            print()
-            print("🔒 Access Level Check:")
-            print(f"   Read Access: {'✅' if oauth_provider.has_read_access(user_scopes) else '❌'}")
-            print(f"   Write Access: {'✅' if oauth_provider.has_write_access(user_scopes) else '❌'}")
-            print(f"   Admin Access: {'✅' if oauth_provider.has_admin_access(user_scopes) else '❌'}")
-
-            return True
-        else:
+        try:
+            principal = await authenticate(token, resource=audience)
+        except AuthenticationError:
             print("❌ JWT validation failed")
             print("Possible reasons:")
             print("   • Token expired")
             print("   • Invalid signature")
             print("   • Wrong issuer or audience")
+            print("   • Resource is not authorized by the token")
             print("   • Malformed token")
             print("   • Network error fetching JWKS")
             print("   • OAuth 2.1 discovery failed")
             return False
+
+        print("✅ JWT validation successful!")
+        print(f"👤 User: {principal.subject or 'unknown'}")
+        print(f"🔑 Scopes: {sorted(principal.scopes)}")
+        print(f"🪪 Client: {principal.client_id or 'not provided'}")
+        print()
+        print("🔒 Access Level Check:")
+        print(f"   Read Access: {'✅' if 'read' in principal.scopes else '❌'}")
+        print(f"   Write Access: {'✅' if 'write' in principal.scopes else '❌'}")
+        print(f"   Admin Access: {'✅' if 'admin' in principal.scopes else '❌'}")
+        return True
 
     except ImportError:
         print("❌ OAuth provider not available (missing MCP auth modules)")
