@@ -145,6 +145,9 @@ COPY --chown=mcp:mcp bulk_operations_mcp_integration.py .
 # Per-resource SEP-2549 cache hints (v3.1 M4). Imported at server startup.
 COPY --chown=mcp:mcp cache_hints.py .
 
+# Fleet front router (v3.1 M3). Imported at server startup.
+COPY --chown=mcp:mcp fleet.py .
+
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .
