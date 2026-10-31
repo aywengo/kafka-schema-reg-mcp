@@ -106,7 +106,7 @@ Common annotations
 Generate multi-registry environment variables
 */}}
 {{- define "kafka-schema-registry-mcp.multiRegistryEnvVars" -}}
-{{- if .Values.schemaRegistry.multiRegistry.enabled }}
+{{- if and .Values.schemaRegistry.multiRegistry.enabled (ne (.Values.fleet.role | default "inprocess") "front") }}
 {{- range $index, $registry := .Values.schemaRegistry.multiRegistry.registries }}
 {{- $registryIndex := add $index 1 }}
 - name: SCHEMA_REGISTRY_NAME_{{ $registryIndex }}
@@ -125,4 +125,22 @@ Generate multi-registry environment variables
 {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{/*
+Comma-separated shard member=url pairs for a fleet front.
+*/}}
+{{- define "kafka-schema-registry-mcp.fleetShards" -}}
+{{- range $i, $shard := .Values.fleet.shards -}}
+{{- if $i }},{{ end }}{{ $shard.member }}={{ $shard.url }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Comma-separated registry=member pairs for a fleet front.
+*/}}
+{{- define "kafka-schema-registry-mcp.fleetDirectory" -}}
+{{- range $i, $entry := .Values.fleet.directory -}}
+{{- if $i }},{{ end }}{{ $entry.registry }}={{ $entry.member }}
+{{- end -}}
 {{- end }} 
