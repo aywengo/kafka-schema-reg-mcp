@@ -535,7 +535,6 @@ def get_security_headers() -> dict:
     }
 
 
-@mcp.custom_route("/health", methods=["GET"])
 def _probe_registry_health() -> tuple[dict, bool]:
     """Probe registries this process owns. A front does not open those connections."""
     registry_health: dict = {}
@@ -582,6 +581,7 @@ def _probe_registry_health() -> tuple[dict, bool]:
     return registry_health, overall_healthy
 
 
+@mcp.custom_route("/health", methods=["GET"])
 async def health_check(request):
     """Health check endpoint for Kubernetes and monitoring."""
     try:
