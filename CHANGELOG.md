@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The runtime image no longer installs `safety` or `pip-audit`. Those audit
+  tools pulled `filelock` 3.32.7 (CVE-2026-112940, HIGH). The fix is `filelock`
+  4.2.1, which `safety` 3.8.1 refuses (`filelock<4`). CI still installs both
+  from `requirements.txt`. (#195)
 - `registry://{name}/tasks` and `registry://{name}/migrations` no longer
   inherit the 60-second list hint; they are stale on arrival.
 - `schema://{name}/{subject}/versions` was shadowed by

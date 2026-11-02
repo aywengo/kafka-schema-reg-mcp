@@ -37,6 +37,8 @@ pytest>=8.4.1
 pytest-asyncio>=1.0.0
 httpx>=0.27.0
 
-# Additional security dependencies - Conservative versions
+# Audit tools for local and CI scans. The runtime image skips both: safety 3.8.1
+# requires filelock<4, and filelock 3.32.7 is CVE-2026-112940 (fixed in 4.2.1).
+# pip-audit pulls that same filelock via cachecontrol's filecache extra.
 safety>=3.8.1
 pip-audit>=2.10.1
