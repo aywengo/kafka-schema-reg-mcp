@@ -21,10 +21,18 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Copy requirements and install Python dependencies in builder stage
+# Copy requirements and install Python dependencies in builder stage.
+# safety and pip-audit stay in requirements.txt for CI audits, but not in the
+# image. safety 3.8.1 requires filelock<4, and filelock 3.32.7 is
+# CVE-2026-112940 (HIGH, arbitrary file overwrite; fixed in 4.2.1). pip-audit
+# pulls the same filelock through cachecontrol's filecache extra. Neither tool
+# runs in the server (#195).
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade "pip>=25.0" "setuptools>=78.1.1" wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    grep -Ev '^(safety|pip-audit)([<>=!~]=|[<>]|\[|$)' requirements.txt > /tmp/requirements-runtime.txt && \
+    pip install --no-cache-dir -r /tmp/requirements-runtime.txt && \
+    rm /tmp/requirements-runtime.txt && \
+    python -c "import importlib.util,sys; sys.exit('CVE-2026-112940: do not ship filelock; pin filelock>=4.2.1 if a runtime dependency needs it' if importlib.util.find_spec('filelock') else 0)"
 
 # Production stage with minimal attack surface
 FROM python:3.14-slim-bookworm AS production
