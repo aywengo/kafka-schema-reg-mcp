@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from fleet import (
     ClientGroupFleet,
+    FrontRouter,
     InProcessFleet,
     RecordingFleet,
     RequestBearerAuth,
+    build_client_group,
     inbound_bearer,
     load_fleet_config,
     route_tool,
@@ -23,61 +26,83 @@ _FRONT_ENV = {
 }
 
 
-class _FakeClient:
+class _Template:
+    """A disconnected shard client. ``new`` opens a session for one call."""
+
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.opened = 0
+
+    def new(self) -> "_Session":
+        return _Session(self)
+
+
+class _Session:
+    def __init__(self, template: _Template) -> None:
+        self._template = template
+
+    async def __aenter__(self) -> "_Session":
+        self._template.opened += 1
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        return None
 
     async def call_tool(self, name: str, arguments: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        self.calls.append((name, dict(arguments)))
+        self._template.calls.append((name, dict(arguments)))
         return {"ok": True, "tool": name}
 
 
-class _FakeRoute:
-    def __init__(self, client: _FakeClient, upstream_name: str) -> None:
-        self.client = client
-        self.upstream_name = upstream_name
-        self.server_name = "alpha"
+class _Catalog:
+    def __init__(self, names: set[str]) -> None:
+        self._names = names
+        self.lookups: list[str] = []
+
+    async def get_tool(self, name: str, version: Any = None) -> object | None:
+        self.lookups.append(name)
+        if name in self._names:
+            return object()
+        return None
 
 
-class _FakeGroup:
-    def __init__(self, routes: dict[str, _FakeRoute]) -> None:
-        self.routes = routes
-        self.resolved: list[str] = []
-
-    async def resolve_tool(self, name: str) -> _FakeRoute:
-        self.resolved.append(name)
-        return self.routes[name]
+def _Call(name: str, arguments: dict[str, Any], server: _Catalog) -> SimpleNamespace:
+    return SimpleNamespace(
+        message=SimpleNamespace(name=name, arguments=arguments),
+        fastmcp_context=SimpleNamespace(fastmcp=server),
+    )
 
 
-def _group() -> tuple[ClientGroupFleet, _FakeGroup, _FakeClient]:
-    client = _FakeClient()
-    route = _FakeRoute(client, "list_subjects")
-    group = _FakeGroup({"alpha_list_subjects": route})
-    fleet = ClientGroupFleet({"prod": "alpha", "staging": "beta"}, group)
-    return fleet, group, client
+async def _not_called(context: Any) -> None:
+    raise AssertionError("local tool should not run")
+
+
+def _group() -> tuple[ClientGroupFleet, _Template]:
+    client = _Template()
+    fleet = ClientGroupFleet({"prod": "alpha", "staging": "beta"}, {"alpha": client, "beta": _Template()})
+    return fleet, client
 
 
 @pytest.mark.asyncio
-async def test_resolve_tool_uses_member_route_and_unprefixed_name() -> None:
-    fleet, group, client = _group()
+async def test_dispatch_calls_the_member_with_the_unprefixed_name() -> None:
+    fleet, client = _group()
     arguments = {"registry": "prod", "context": "."}
 
     await fleet.dispatch("list_subjects", arguments)
 
-    assert group.resolved == ["alpha_list_subjects"]
+    assert client.opened == 1
     assert client.calls == [("list_subjects", arguments)]
     assert client.calls[0][1]["registry"] == "prod"
 
 
 @pytest.mark.asyncio
-async def test_unknown_registry_does_not_resolve_a_tool() -> None:
-    fleet, group, client = _group()
+async def test_unknown_registry_does_not_open_a_session() -> None:
+    fleet, client = _group()
 
     result = await fleet.dispatch("list_subjects", {"registry": "missing"})
 
     assert result["error_code"] == "REGISTRY_NOT_FOUND"
     assert result["error"] == "Registry 'missing' not found"
-    assert group.resolved == []
+    assert client.opened == 0
     assert client.calls == []
 
 
@@ -185,13 +210,37 @@ async def test_same_shard_compare_dispatches_the_tool_once() -> None:
 
 
 @pytest.mark.asyncio
-async def test_omitted_registry_stays_omitted_and_uses_the_default_member() -> None:
-    fleet, group, client = _group()
+async def test_omitted_registry_is_sent_as_the_directory_default() -> None:
+    fleet, client = _group()
 
     await fleet.dispatch("list_subjects", {"context": "."})
 
-    assert group.resolved == ["alpha_list_subjects"]
-    assert client.calls == [("list_subjects", {"context": "."})]
+    assert client.opened == 1
+    assert client.calls == [("list_subjects", {"context": ".", "registry": "prod"})]
+
+
+@pytest.mark.asyncio
+async def test_same_shard_pair_uses_the_source_member_and_keeps_arguments() -> None:
+    alpha = _Template()
+    beta = _Template()
+    fleet = ClientGroupFleet({"prod": "alpha", "staging": "beta"}, {"alpha": alpha, "beta": beta})
+    arguments = {"source_registry": "staging", "target_registry": "staging"}
+
+    await fleet.dispatch("compare_registries", arguments)
+
+    assert alpha.opened == 0
+    assert beta.opened == 1
+    assert beta.calls == [("compare_registries", arguments)]
+
+
+@pytest.mark.asyncio
+async def test_each_call_opens_its_own_session() -> None:
+    fleet, client = _group()
+
+    await fleet.dispatch("list_subjects", {"registry": "prod"})
+    await fleet.dispatch("list_subjects", {"registry": "prod"})
+
+    assert client.opened == 2
 
 
 @pytest.mark.asyncio
@@ -309,6 +358,110 @@ def test_front_startup_rejects_a_registry_password() -> None:
         load_fleet_config({**_FRONT_ENV, "SCHEMA_REGISTRY_PASSWORD": "secret"})
     with pytest.raises(RuntimeError, match="SCHEMA_REGISTRY_USER_1"):
         load_fleet_config({**_FRONT_ENV, "SCHEMA_REGISTRY_USER_1": "schema"})
+
+
+@pytest.mark.asyncio
+async def test_failed_export_is_not_restored() -> None:
+    document = {
+        "error": "subject missing",
+        "error_code": "SUBJECT_EXPORT_FAILED",
+        "subject": "user",
+        "versions": [],
+    }
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"}, {("export_subject", "prod"): document})
+
+    result = await route_tool(
+        "migrate_schema",
+        {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert [call[0] for call in fleet.calls] == ["export_subject"]
+    assert result["error"] == "subject missing"
+
+
+@pytest.mark.asyncio
+async def test_global_compare_keeps_the_same_subject_in_two_contexts() -> None:
+    source = {
+        "default_context": {"context": "", "subjects": [{"subject": "user", "versions": [{"version": 1, "id": 1}]}]},
+        "contexts": [{"context": "orders", "subjects": [{"subject": "user", "versions": [{"version": 1, "id": 2}]}]}],
+    }
+    target = {"default_context": {"context": "", "subjects": []}, "contexts": []}
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {("export_global", "prod"): source, ("export_global", "staging"): target},
+    )
+
+    result = await route_tool(
+        "compare_registries",
+        {"source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert result["differences"]["subjects"]["only_in_source"] == [":.orders:user", "user"]
+
+
+@pytest.mark.asyncio
+async def test_missing_requested_version_does_not_restore() -> None:
+    document = {
+        "subject": "user",
+        "versions": [{"version": 1, "id": 1}],
+        "config": {"compatibilityLevel": "FULL"},
+        "metadata": {"context": "."},
+    }
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"}, {("export_subject", "prod"): document})
+
+    result = await route_tool(
+        "migrate_schema",
+        {
+            "subject": "user",
+            "source_registry": "prod",
+            "target_registry": "staging",
+            "versions": [9],
+            "dry_run": False,
+        },
+        fleet,
+    )
+
+    assert [call[0] for call in fleet.calls] == ["export_subject"]
+    assert result["message"] == "No versions to migrate"
+    assert result["successful_migrations"] == 0
+
+
+@pytest.mark.asyncio
+async def test_front_refuses_a_tool_the_catalog_did_not_register() -> None:
+    fleet = RecordingFleet({"prod": "alpha"})
+    server = _Catalog({"list_registries"})
+    context = _Call("delete_subject", {}, server)
+
+    with pytest.raises(Exception, match="not found or not authorized"):
+        await FrontRouter(fleet).on_call_tool(context, _not_called)
+
+    assert fleet.calls == []
+    assert server.lookups == ["delete_subject"]
+
+
+@pytest.mark.asyncio
+async def test_front_authorizes_a_directory_tool_before_answering() -> None:
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"})
+    server = _Catalog({"list_registries"})
+    context = _Call("list_registries", {}, server)
+
+    result = await FrontRouter(fleet).on_call_tool(context, _not_called)
+
+    assert server.lookups == ["list_registries"]
+    assert fleet.calls == []
+    assert result.structured_content["default_registry"] == "prod"
+
+
+def test_shard_clients_stay_disconnected_and_share_request_auth() -> None:
+    clients = build_client_group(load_fleet_config(_FRONT_ENV))
+
+    auths = [client.transport.auth for client in clients.values()]
+    assert set(clients) == {"alpha", "beta"}
+    assert len({id(auth) for auth in auths}) == 1
+    assert all(isinstance(auth, RequestBearerAuth) for auth in auths)
+    assert all(not client.is_connected() for client in clients.values())
 
 
 def test_inprocess_role_keeps_a_registry_password() -> None:

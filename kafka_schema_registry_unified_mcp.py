@@ -136,7 +136,6 @@ from fleet import (
     FrontRouter,
     InProcessFleet,
     build_client_group,
-    fleet_lifespan,
     load_fleet_config,
 )
 from interactive_tools import check_compatibility_interactive as check_compatibility_interactive_impl
@@ -345,14 +344,13 @@ except ImportError:
     pass  # requests not available
 
 # Role is chosen once. A front never constructs a registry manager.
+# Shard clients stay disconnected until a call clones one.
 FLEET_CONFIG = load_fleet_config()
-_FLEET_GROUP = build_client_group(FLEET_CONFIG) if FLEET_CONFIG.role == "front" else None
+_FLEET_CLIENTS = build_client_group(FLEET_CONFIG) if FLEET_CONFIG.role == "front" else None
 active_fleet: Any = None
 
 # Initialize FastMCP with OAuth configuration and MCP 2025-06-18 compliance
 mcp_config = get_fastmcp_config("Kafka Schema Registry Unified MCP Server")
-if _FLEET_GROUP is not None:
-    mcp_config["lifespan"] = fleet_lifespan(_FLEET_GROUP)
 EDITION_RESOLUTION = resolve_edition()
 EDITION = EDITION_RESOLUTION.edition
 mcp: FastMCP = EditionGate(FastMCP(**mcp_config), EDITION, auth_enabled=ENABLE_AUTH)
@@ -3858,7 +3856,7 @@ async def _run_registered_tool(tool: str, arguments: dict) -> Any:
 
 
 if FLEET_CONFIG.role == "front":
-    active_fleet = ClientGroupFleet(FLEET_CONFIG.directory, _FLEET_GROUP)
+    active_fleet = ClientGroupFleet(FLEET_CONFIG.directory, _FLEET_CLIENTS or {})
     mcp.add_middleware(FrontRouter(active_fleet))
 else:
     active_fleet = InProcessFleet(list(registry_manager.list_registries()), _run_registered_tool)

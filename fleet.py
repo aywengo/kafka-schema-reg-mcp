@@ -1,8 +1,9 @@
 """Route ``registry=`` to the process that owns that registry.
 
 An in-process deployment keeps calling ``RegistryClient``. A front holds shard
-URLs and a directory, and no registry password. ``ClientGroupFleet`` sends one
-tool call to the shard member that owns the name.
+URLs and a directory, and no registry password. Each call opens its own session
+to the shard that owns the registry. The shared object is the request-bearer
+auth, which does not store a token.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ import copy
 import os
 import re
 from collections.abc import Awaitable, Callable, Mapping
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
@@ -156,11 +156,15 @@ class InProcessFleet:
 
 
 class ClientGroupFleet:
-    """Forwards a tool to the ClientGroup member that owns ``registry``."""
+    """Forwards a tool to the shard client that owns ``registry``.
 
-    def __init__(self, directory: Mapping[str, str], group: Any) -> None:
+    ``clients`` are disconnected templates. Each call clones one template, so
+    the handshake uses the bearer on that call and the session is not shared.
+    """
+
+    def __init__(self, directory: Mapping[str, str], clients: Mapping[str, Any]) -> None:
         self._directory = dict(directory)
-        self._group = group
+        self._clients = clients
 
     def names(self) -> list[str]:
         """Return directory registry names."""
@@ -171,21 +175,32 @@ class ClientGroupFleet:
         return self._directory.get(registry)
 
     async def dispatch(self, tool: str, arguments: Mapping[str, Any]) -> Any:
-        """Resolve ``{member}_{tool}`` and call the unprefixed upstream name.
+        """Call the unprefixed tool on a fresh session for its member.
 
-        ``registry`` is left as the caller sent it. An unknown name returns
-        the same ``REGISTRY_NOT_FOUND`` dict ``get_registry`` leads to, and
-        does not call the group.
+        An omitted registry is sent as the directory default. A pair call keeps
+        the caller's arguments and uses the source registry's member. An unknown
+        name returns the same ``REGISTRY_NOT_FOUND`` dict ``get_registry`` leads
+        to, and does not open a session.
         """
         payload = dict(arguments)
-        registry = _explicit_registry(tool, payload)
+        registry = _routing_registry(tool, payload)
         if registry is None:
             registry = self.names()[0] if self.names() else None
+            if registry is not None:
+                _assign_default_registry(tool, payload, registry)
         if registry is None or self.member_for(registry) is None:
             return _registry_not_found(registry or "")
         member = self.member_for(registry)
-        route = await self._group.resolve_tool(f"{member}_{tool}")
-        result = await route.client.call_tool(route.upstream_name, payload)
+        return await self._call_member(member, tool, payload, registry)
+
+    async def _call_member(self, member: str | None, tool: str, payload: dict[str, Any], registry: str) -> Any:
+        """Open one session on ``member`` and call ``tool``."""
+        template = self._clients.get(member or "")
+        if template is None:
+            return _registry_not_found(registry)
+        session = template.new()
+        async with session:
+            result = await session.call_tool(tool, payload)
         return _unwrap_tool_result(result)
 
 
@@ -196,9 +211,14 @@ class FrontRouter(Middleware):
         self._fleet = fleet
 
     async def on_call_tool(self, context: Any, call_next: Any) -> Any:
-        """Dispatch the tool, or run a process-local tool through ``call_next``."""
+        """Dispatch the tool, or run a process-local tool through ``call_next``.
+
+        The registered tool is resolved first. FastMCP applies the edition and
+        scope checks inside ``get_tool``, which a returned result would skip.
+        """
         from fastmcp.tools.base import ToolResult
 
+        await _require_registered_tool(context)
         message = context.message
         arguments = dict(message.arguments or {})
         result = await route_tool(message.name, arguments, self._fleet)
@@ -241,25 +261,30 @@ def load_fleet_config(environ: Mapping[str, str] | None = None) -> FleetConfig:
     return FleetConfig(role=role, shards=shards, directory=directory)
 
 
-def build_client_group(config: FleetConfig) -> Any:
-    """Build one pooled client per shard. Auth is attached here, not via from_config."""
+def build_client_group(config: FleetConfig) -> dict[str, Any]:
+    """Build one disconnected client per shard.
+
+    One ``RequestBearerAuth`` is shared and does not store a token. Sessions
+    are opened per call, not from a server lifespan.
+    """
     from fastmcp import Client
-    from fastmcp.client.group import ClientGroup
 
     auth = RequestBearerAuth()
-    clients = {member: Client(url, auth=auth) for member, url in config.shards.items()}
-    return ClientGroup(clients)
+    return {member: Client(url, auth=auth) for member, url in config.shards.items()}
 
 
-def fleet_lifespan(group: Any) -> Any:
-    """Return a FastMCP lifespan that connects the shard pool."""
+async def _require_registered_tool(context: Any) -> None:
+    """Refuse a call the front did not register or this caller may not use."""
+    from fastmcp.exceptions import AuthorizationError
 
-    @asynccontextmanager
-    async def lifespan(server: Any) -> Any:
-        async with group:
-            yield {}
-
-    return lifespan
+    message = getattr(context, "message", None)
+    name = getattr(message, "name", None)
+    server = getattr(getattr(context, "fastmcp_context", None), "fastmcp", None)
+    if not isinstance(name, str) or server is None:
+        raise AuthorizationError("Authorization failed: missing tool context")
+    tool = await server.get_tool(name)
+    if tool is None:
+        raise AuthorizationError(f"Authorization failed for tool {name!r}: not found or not authorized")
 
 
 def inbound_bearer() -> str | None:
@@ -540,7 +565,9 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
     document = await fleet.dispatch("export_subject", export_arguments)
     if _is_export_error(document):
         return document
-    bundle = _migrate_document(document, versions, str(target_context))
+    bundle = _migrate_document(document if isinstance(document, Mapping) else {}, versions, str(target_context))
+    if isinstance(versions, list) and versions and not bundle.get("versions"):
+        return _nothing_to_migrate(arguments, document if isinstance(document, Mapping) else {})
     apply = not bool(arguments.get("dry_run") or False)
     accept_new_ids = arguments.get("preserve_ids", True) is False
     restored = await fleet.dispatch(
@@ -583,9 +610,24 @@ async def _export_for_missing(fleet: RoutingFleet, registry: str, context: Any) 
 
 
 def _is_export_error(document: Any) -> bool:
-    return (
-        isinstance(document, dict) and "error" in document and "versions" not in document and "subjects" not in document
-    )
+    """A top-level error is a failed export, even when empty collections were added."""
+    return isinstance(document, dict) and bool(document.get("error"))
+
+
+def _nothing_to_migrate(arguments: Mapping[str, Any], document: Mapping[str, Any]) -> dict[str, Any]:
+    """Match in-process migrate when the requested versions do not exist."""
+    available = document.get("versions")
+    count = len(available) if isinstance(available, list) else 0
+    return {
+        "total_versions": count,
+        "successful_migrations": 0,
+        "failed_migrations": 0,
+        "skipped_migrations": 0,
+        "message": "No versions to migrate",
+        "dry_run": bool(arguments.get("dry_run") or False),
+        "registry_mode": "multi",
+        "mcp_protocol_version": current_protocol_version(),
+    }
 
 
 def _migrate_document(document: Mapping[str, Any], versions: Any, target_context: str) -> dict[str, Any]:
@@ -614,23 +656,34 @@ def _bare_subject(subject: str) -> str:
 
 def _subjects_from_export(document: Mapping[str, Any]) -> dict[str, list[dict[str, Any]]]:
     found: dict[str, list[dict[str, Any]]] = {}
-    if "subjects" in document and "context" in document:
-        _collect_subjects(document, found)
+    scoped = "subjects" in document and "context" in document
+    if scoped and "contexts" not in document and "default_context" not in document:
+        _collect_subjects(document, found, qualify=False)
         return found
     default = document.get("default_context")
     if isinstance(default, dict):
-        _collect_subjects(default, found)
+        _collect_subjects(default, found, qualify=True)
     for raw in document.get("contexts") or []:
         if isinstance(raw, dict):
-            _collect_subjects(raw, found)
+            _collect_subjects(raw, found, qualify=True)
     return found
 
 
-def _collect_subjects(raw: Mapping[str, Any], found: dict[str, list[dict[str, Any]]]) -> None:
+def _collect_subjects(raw: Mapping[str, Any], found: dict[str, list[dict[str, Any]]], *, qualify: bool) -> None:
     for subject in raw.get("subjects") or []:
         if isinstance(subject, dict) and subject.get("subject"):
             versions = [item for item in subject.get("versions") or [] if isinstance(item, dict)]
-            found[str(subject["subject"])] = versions
+            found[_subject_key(raw, str(subject["subject"]), qualify=qualify)] = versions
+
+
+def _subject_key(raw: Mapping[str, Any], name: str, *, qualify: bool) -> str:
+    """Qualify a global-export subject. A context export keeps the bare name."""
+    if not qualify:
+        return name
+    context = raw.get("context")
+    if not isinstance(context, str) or context in {"", "."}:
+        return name
+    return f":.{context}:{name}"
 
 
 def _contexts_from_export(document: Mapping[str, Any]) -> set[str]:
@@ -718,6 +771,25 @@ def _missing_detail(subject: str, versions: list[dict[str, Any]]) -> dict[str, A
         "latest_schema_id": latest_body.get("id") if isinstance(latest_body, dict) else None,
         "schema_type": (latest_body.get("schemaType", "AVRO") if isinstance(latest_body, dict) else None),
     }
+
+
+def _routing_registry(tool: str, arguments: Mapping[str, Any]) -> str | None:
+    """The registry that selects a shard. None means the caller named none."""
+    explicit = _explicit_registry(tool, arguments)
+    if explicit:
+        return explicit
+    source = arguments.get("source_registry")
+    if isinstance(source, str) and source:
+        return source
+    return None
+
+
+def _assign_default_registry(tool: str, payload: dict[str, Any], registry: str) -> None:
+    """Put the directory default on a call that omitted it."""
+    if tool == "restore_bundle":
+        payload["target"] = registry
+        return
+    payload["registry"] = registry
 
 
 def _explicit_registry(tool: str, arguments: Mapping[str, Any]) -> str | None:
