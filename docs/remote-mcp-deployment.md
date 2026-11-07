@@ -21,7 +21,7 @@ Our Kafka Schema Registry MCP Server is **production-ready** for remote deployme
 - ✅ **Multi-Transport Support**: stdio and Streamable HTTP transports via FastMCP
 - ✅ **Enterprise OAuth**: Azure AD, Google, Keycloak, Okta, GitHub with JWT validation
 - ✅ **Production Infrastructure**: Docker, Kubernetes, TLS/HTTPS
-- ✅ **39 / 42 / 66 MCP Tools**: Viewer, editor and admin editions
+- ✅ **39 / 42 / 67 MCP Tools**: Viewer, editor and admin editions
 - ✅ **Multi-Registry Support**: Enterprise-grade functionality
 - ✅ **Security**: Role-based access control with scope validation
 
@@ -431,7 +431,7 @@ To list your remote MCP server in [Anthropic's directory](https://docs.anthropic
 
 ### Capabilities
 
-- ✅ **39 / 42 / 66 MCP Tools**: Viewer, editor and admin editions
+- ✅ **39 / 42 / 67 MCP Tools**: Viewer, editor and admin editions
 - ✅ **Multi-Registry Support**: Manage multiple Schema Registry instances
 - ✅ **OAuth Authentication**: Enterprise-grade security
 - ✅ **Real-time Operations**: Async task management with progress tracking
@@ -484,7 +484,7 @@ Your Kafka Schema Registry MCP Server is **production-ready** for remote deploym
 - ✅ **Enterprise Authentication**: OAuth 2.0 with 4 major providers
 - ✅ **Modern Transports**: SSE and Streamable HTTP support via FastMCP
 - ✅ **Production Infrastructure**: Kubernetes, Helm, TLS, monitoring
-- ✅ **Complete Functionality**: 39 / 42 / 66 tools by edition, multi-registry, background tasks
+- ✅ **Complete Functionality**: 39 / 42 / 67 tools by edition, multi-registry, background tasks
 - ✅ **Security**: JWT validation, scope-based authorization, network policies
 
 Deploy with confidence using the configurations in this guide!

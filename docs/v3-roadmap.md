@@ -749,14 +749,14 @@ structured-output and prompt suites pass. The full `pytest` run still reports
 pre-existing failures that need Docker or that call async tools without
 awaiting them; CI's quick mode and the targeted suites are the release gate.
 
-### Post-3.0 candidates (3.1)
+### Shipped in 3.1.0
 
-Specified in [v3.1 Design and Roadmap](v3.1-roadmap.md):
+The four post-3.0 candidates shipped in [3.1.0](../CHANGELOG.md). Design and exit criteria: [v3.1 Design and Roadmap](v3.1-roadmap.md).
 
-- Automated DR restore/import tool to complement `export_*` and `guided_disaster_recovery`.
-- Identity assertion (SEP-990) and machine-to-machine client auth in `oauth_provider.py`.
-- `ClientGroup`-based multi-registry proxying for very large registry fleets.
-- Positive cache hints tuned per resource once client support is widespread.
+- `restore_bundle` applies an export document.
+- One verifier accepts authorization-code, client-credentials, and SEP-990 access tokens.
+- A fleet front routes `registry=` through `ClientGroup` and holds no registry password.
+- Per-resource SEP-2549 cache hints, including `schema://{name}/ids/{schema_id}`.
 
 ---
 

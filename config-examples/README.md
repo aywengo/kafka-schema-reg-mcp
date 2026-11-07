@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.0 with **FastMCP 4.1+** and **MCP 2026-07-28**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.1 with **FastMCP 4.1+** and **MCP 2026-07-28**.
 
 ## 📂 Available Configurations
 
@@ -11,13 +11,14 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
 - **`claude_desktop_viewer_config.json`** - Viewer edition (39 tools, default)
 - **`claude_desktop_editor_config.json`** - Editor edition (42 tools)
-- **`claude_desktop_admin_config.json`** - Admin edition (66 tools)
+- **`claude_desktop_admin_config.json`** - Admin edition. The file pulls `:stable`
 
 ### Version-Specific Configurations
 
-#### Current Stable (v3.0.0)
-- **`claude_desktop_stable_config.json`** - Current stable release, viewer edition
-- **`claude_desktop_docker_config.json`** - Latest Docker image, viewer edition
+#### Stable channel
+These files pull `:stable` or `:latest`. `:stable` moves only when Tag as Stable runs, so it is not automatically 3.1.0. Pin `:3.1.0`, `:3.1.0-editor`, or `:3.1.0-admin` to run this release. Admin on `:3.1.0-admin` is 67 tools.
+- **`claude_desktop_stable_config.json`** - Promoted `:stable` image, viewer edition
+- **`claude_desktop_docker_config.json`** - `:latest` image, viewer edition
 
 #### Historical FastMCP 2.x Configurations (v2.2.2)
 These files are kept for older deployments; use the 3.0 configurations for new work.
@@ -52,7 +53,7 @@ These files are kept for older deployments; use the 3.0 configurations for new w
 |---|---|---|
 | `claude_desktop_viewer_config.json` | viewer | 39 |
 | `claude_desktop_editor_config.json` | editor | 42 |
-| `claude_desktop_admin_config.json` | admin | 66 |
+| `claude_desktop_admin_config.json` | admin | 67 on `:3.1.0-admin` |
 
 ```bash
 cp config-examples/claude_desktop_admin_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
@@ -64,9 +65,9 @@ with `MCP_EDITION`; the server refuses to start. See
 
 ## 🚀 Quick Start
 
-### For Production (Recommended - Current Stable v3.0.0)
+### For production (stable channel)
 ```bash
-# Copy stable configuration (v3.0.0)
+# Copy the stable-channel configuration. `:stable` is the promoted image.
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
@@ -179,11 +180,11 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Current Production (Stable v3.0.0)
+### Use Case: Production (stable channel)
 **Recommended:** `claude_desktop_stable_config.json` for read-only, or `claude_desktop_admin_config.json` for full access
-- ✅ 3.0 stable release
+- ✅ Promoted `:stable` image. Pin `:3.1.0-admin` for the 67-tool 3.1.0 admin catalog
 - ✅ `viewer` by default; choose `editor` or `admin` explicitly
-- ✅ 39 / 42 / 66 tools by edition
+- ✅ Multi-registry, background tasks and MRTR workflows
 - ✅ Multi-registry, background tasks and MRTR workflows
 
 ### Use Case: Historical FastMCP 2.x Deployment (v2.2.2)

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deployment scenarios for the Kafka Schema Registry MCP Server **3.0.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three runtime editions, MRTR workflows and the 3.0 security model, from local development to production environments.
+This guide covers deployment scenarios for the Kafka Schema Registry MCP Server **3.1.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three runtime editions, MRTR workflows, an optional fleet front, and the 3.0 security model, from local development to production environments.
 
 ## 🐳 Docker Deployment
 
@@ -35,10 +35,10 @@ docker run -p 38000:8000 \
 - `aywengo/kafka-schema-reg-mcp:stable` - Current stable release, `viewer` edition
 - `aywengo/kafka-schema-reg-mcp:stable-editor` - Stable `editor` edition
 - `aywengo/kafka-schema-reg-mcp:stable-admin` - Stable `admin` edition
-- `aywengo/kafka-schema-reg-mcp:3.0.0` - Pinned 3.0.0 `viewer` image
-- `aywengo/kafka-schema-reg-mcp:3.0.0-viewer` - Explicit 3.0.0 `viewer` image
-- `aywengo/kafka-schema-reg-mcp:3.0.0-editor` - Pinned 3.0.0 `editor` image
-- `aywengo/kafka-schema-reg-mcp:3.0.0-admin` - Pinned 3.0.0 `admin` image
+- `aywengo/kafka-schema-reg-mcp:3.1.0` - Pinned 3.1.0 `viewer` image
+- `aywengo/kafka-schema-reg-mcp:3.1.0-viewer` - Explicit 3.1.0 `viewer` image
+- `aywengo/kafka-schema-reg-mcp:3.1.0-editor` - Pinned 3.1.0 `editor` image
+- `aywengo/kafka-schema-reg-mcp:3.1.0-admin` - Pinned 3.1.0 `admin` image
 - `aywengo/kafka-schema-reg-mcp:latest-viewer` - Latest release, `viewer` edition
 - `aywengo/kafka-schema-reg-mcp:latest` - Alias of `:latest-viewer`
 - **Multi-Platform Support**: `linux/amd64` and `linux/arm64`
@@ -217,7 +217,7 @@ metadata:
   namespace: kafka-schema-registry
   labels:
     app: mcp-server
-    version: "3.0.0"
+    version: "3.1.0"
 spec:
   replicas: 3
   selector:
@@ -227,7 +227,7 @@ spec:
     metadata:
       labels:
         app: mcp-server
-        version: "3.0.0"
+        version: "3.1.0"
     spec:
       containers:
       - name: mcp-server
@@ -576,6 +576,10 @@ healthcheck:
 
 ## 🔄 Upgrade Guide
 
+### Upgrading to 3.1.0
+
+3.1.0 adds `restore_bundle`, one access-token verifier, per-resource cache hints, and an optional fleet front. Editions and the 3.0 environment variables stay. A front is opt-in: set Helm `fleet.role`, `fleet.shards`, and `fleet.directory`. See the [changelog](../CHANGELOG.md).
+
 ### Upgrading to 3.0.0
 
 1. **Review breaking changes**: See the [v3.0 migration guide](v3-migration-guide.md).
@@ -684,12 +688,12 @@ The project includes production-ready workflows:
 
 2. **Create Version Tag**:
    ```bash
-   git tag v3.0.0
-   git push origin v3.0.0
+   git tag v3.1.0
+   git push origin v3.1.0
    ```
 
 3. **Automated Process**: GitHub Actions handles building, testing, and publishing
 
 ---
 
-This deployment guide provides instructions for deploying Kafka Schema Registry MCP Server 3.0.0 with FastMCP 4.1+, the three editions, MRTR workflows and the 3.0 security model across production environments.
+This deployment guide provides instructions for deploying Kafka Schema Registry MCP Server 3.1.0 with FastMCP 4.1+, the three editions, MRTR workflows and the 3.0 security model across production environments.
