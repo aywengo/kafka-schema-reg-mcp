@@ -28,6 +28,21 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.app.port }}
+    {{- if or .Values.networkPolicy.fleetPeers .Values.networkPolicy.ingress.extraFrom }}
+    - from:
+        {{- if .Values.networkPolicy.fleetPeers }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "kafka-schema-registry-mcp.name" . }}
+              app.kubernetes.io/component: mcp
+        {{- end }}
+        {{- with .Values.networkPolicy.ingress.extraFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.app.port }}
+    {{- end }}
   {{- end }}
   {{- if .Values.networkPolicy.egress.enabled }}
   egress:
@@ -48,5 +63,13 @@ spec:
           port: 53   # DNS
         - protocol: UDP
           port: 53   # DNS
+        {{- if or .Values.networkPolicy.fleetPeers (eq (.Values.fleet.role | default "inprocess") "front") }}
+        - protocol: TCP
+          port: {{ .Values.app.port }}  # Peer MCP, front to shard
+        {{- end }}
+        {{- range .Values.networkPolicy.egress.extraPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
   {{- end }}
 {{- end }} 

@@ -1201,14 +1201,28 @@ def export_subject(
                 return versions_list
             versions = [str(v) for v in versions_list]
 
-        # Get schemas for each version
+        # Get schemas for each version. A failed fetch is an incomplete export:
+        # dropping it would let a migration restore an older version as latest.
         schemas = []
+        failed_versions = []
         for version in versions:
             schema_data = get_schema_with_metadata(client, subject, version, context)
-            if "error" not in schema_data:
+            if isinstance(schema_data, dict) and "error" in schema_data:
+                failed_versions.append({"version": version, "error": schema_data["error"]})
+            else:
                 schemas.append(schema_data)
+        if failed_versions:
+            return {
+                "error": f"Failed to export {len(failed_versions)} version(s) of subject '{subject}'",
+                "error_code": "SUBJECT_EXPORT_INCOMPLETE",
+                "subject": subject,
+                "versions": schemas,
+                "failed_versions": failed_versions,
+            }
 
         result = {"subject": subject, "versions": schemas}
+        if include_versions != "latest":
+            result["version_numbers"] = [int(version) if str(version).isdigit() else version for version in versions]
 
         if include_config:
             config = client.get_subject_config(subject, context)
@@ -1226,6 +1240,16 @@ def export_subject(
         return result
     except Exception as e:
         return {"error": str(e)}
+
+
+def _incomplete_aggregate(kind: str, name: str, failed: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a failed child export instead of a successful partial document."""
+    return {
+        "error": failed.get("error") or f"Failed to export {kind} '{name}'",
+        "error_code": failed.get("error_code", "EXPORT_INCOMPLETE"),
+        kind: name,
+        "failed_exports": [failed],
+    }
 
 
 def export_context(
@@ -1251,8 +1275,15 @@ def export_context(
                 include_config,
                 include_versions,
             )
-            if "error" not in subject_export:
-                subjects_data.append(subject_export)
+            if isinstance(subject_export, dict) and subject_export.get("error"):
+                return {
+                    "error": subject_export["error"],
+                    "error_code": subject_export.get("error_code", "CONTEXT_EXPORT_INCOMPLETE"),
+                    "context": context,
+                    "subject": subject,
+                    "failed_subjects": [subject_export],
+                }
+            subjects_data.append(subject_export)
 
         result = {"context": context, "subjects": subjects_data}
 
@@ -1292,15 +1323,18 @@ def export_global(
         contexts_data = []
         for context in contexts_list:
             context_export = export_context(client, context, include_metadata, include_config, include_versions)
-            if "error" not in context_export:
-                contexts_data.append(context_export)
+            if isinstance(context_export, dict) and context_export.get("error"):
+                return _incomplete_aggregate("context", context, context_export)
+            contexts_data.append(context_export)
 
         # Export default context (no context specified)
         default_export = export_context(client, "", include_metadata, include_config, include_versions)
+        if isinstance(default_export, dict) and default_export.get("error"):
+            return _incomplete_aggregate("context", ".", default_export)
 
         result = {
             "contexts": contexts_data,
-            "default_context": (default_export if "error" not in default_export else None),
+            "default_context": default_export,
         }
 
         if include_config:

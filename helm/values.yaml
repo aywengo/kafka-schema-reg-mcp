@@ -98,6 +98,17 @@ schemaRegistry:
     #   url: "http://staging-schema-registry:8081"
     #   viewonly: true
 
+# Fleet front. inprocess owns SCHEMA_REGISTRY_* credentials. front holds shard
+# MCP URLs and a registry-to-member directory, and no registry password.
+fleet:
+  role: inprocess
+  shards: []
+  # - member: alpha
+  #   url: http://mcp-alpha:8080/mcp
+  directory: []
+  # - registry: prod
+  #   member: alpha
+
 # Application settings
 app:
   viewonly: false
@@ -208,15 +219,22 @@ podDisruptionBudget:
 # Network Policy
 networkPolicy:
   enabled: true
+  # Peer MCP on app.port. Set true on a fleet front and on each shard so the
+  # front can reach chart-deployed shards without disabling this policy.
+  fleetPeers: false
   ingress:
     enabled: true
     from:
       - namespaceSelector:
           matchLabels:
             name: ingress-nginx
+    # Additional sources, such as a front in another namespace.
+    extraFrom: []
   egress:
     enabled: true
     to: []
+    # Extra TCP ports beyond OAuth, Schema Registry, Valkey, DNS, and app.port.
+    extraPorts: []
 
 # Monitoring
 monitoring:

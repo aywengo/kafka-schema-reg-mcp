@@ -7,16 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (v3.1 M1 — restore)
+### Added
 
+- A process is either an in-process fleet or a front. The front routes
+  `registry=` to the shard that owns it, opens a fresh session per call, and
+  holds no registry password. An omitted registry is the directory default.
+  The front authorizes the call against its registered tools before routing.
+  `list_registries` returns the directory. Cross-shard compare and
+  find-missing export each side once and keep context-qualified subject names.
+  Cross-shard `migrate_schema` is `export_subject` on the source shard and
+  `restore_bundle` on the target. It copies schema versions only, reports
+  every available source version in `total_versions`, counts a failed or
+  unattempted restore version as a failed migration, and does not restore
+  when the export has no versions or does not include every source version.
+  Cross-shard arguments are checked against the registered tool before
+  orchestration. An omitted optional registry endpoint stays omitted.
+  A failed subject or context export fails the aggregate export.
+  `start_workflow` and the other
+  registry-free planners stay on the front. A shard session uses the caller's
+  protocol era. A legacy caller answers elicitation in-request. A modern
+  input request is returned to a modern caller. A shard tool error is a tool
+  error.
+- Helm `fleet.role`, `fleet.shards`, and `fleet.directory`. A front chart
+  omits Schema Registry URLs and credentials. `networkPolicy.fleetPeers`
+  allows front-to-shard traffic on the chart's app port.
 - `restore_bundle` applies an `export_global`, `export_context`, or
   `export_subject` document to one registry. The call is a dry-run unless
   `apply` is true, and it preserves schema ids. `guided_disaster_recovery`
   names the tool and does not call it. `migrate_schema` remains the
   live-to-live copy.
-
-### Added (v3.1 M4 — cache hints)
-
 - Per-resource SEP-2549 cache hints. `cache_hints.py` holds the table from
   `docs/v3.1-roadmap.md` section 5 and stamps `ttlMs`/`cacheScope` on every
   `resources/read` result: schema-by-id 24 h, latest schema / config / mode
