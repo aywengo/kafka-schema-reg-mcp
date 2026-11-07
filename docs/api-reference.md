@@ -1550,7 +1550,7 @@ curl http://localhost:38000/export/subjects?context=production
 
 ## 📊 MCP Tools and Resources
 
-The v3.0.0 server exposes an edition-dependent MCP surface. The full parameter reference is in [mcp-tools-reference.md](mcp-tools-reference.md).
+The v3.1.0 server exposes an edition-dependent MCP surface. The full parameter reference is in [mcp-tools-reference.md](mcp-tools-reference.md).
 
 | Edition | Tools | Access |
 |---|---|---|
@@ -1632,7 +1632,7 @@ The v3.0.0 server exposes an edition-dependent MCP surface. The full parameter r
 
 ### Resources
 
-The server exposes 4 concrete resources and 17 resource templates. Resources are available in every edition.
+The server exposes 4 concrete resources and 18 resource templates. Resources are available in every edition.
 
 | URI or template | Type | Description |
 |---|---|---|
@@ -1649,6 +1649,7 @@ The server exposes 4 concrete resources and 17 resource templates. Resources are
 | `registry://{name}/config` | template | Get global configuration for a specific registry, optionally filtered by context. |
 | `schema://{name}/{context}/{subject}` | template | Get schema content for a specific subject in a specific context and registry. |
 | `schema://{name}/{subject}` | template | Get schema content for a specific subject in the default context of a registry. |
+| `schema://{name}/ids/{schema_id}` | template | Get a schema by its globally unique id. The body is immutable. |
 | `schema://{name}/{context}/{subject}/versions` | template | Get all versions of a schema for a specific subject in a specific context and registry. |
 | `schema://{name}/{subject}/versions` | template | Get all versions of a schema for a specific subject in the default context of a registry. |
 | `subject://{name}/{context}/{subject}/config` | template | Get configuration settings for a specific subject with explicit context. |
@@ -1683,4 +1684,4 @@ The server exposes 10 prompts.
 
 ---
 
-This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v3.0.0. Use this as a reference when building integrations or working with the server programmatically.
+This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v3.1.0. Use this as a reference when building integrations or working with the server programmatically.

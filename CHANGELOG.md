@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-11-07
+
+Restore, one access-token verifier, an optional fleet front, and per-resource
+cache hints. Editions, the task backend, and the Schema Registry HTTP client
+are unchanged.
+
 ### Added
 
+- One access-token verifier. Signature, issuer, expiry, and audience are
+  checked once, and scopes are expanded on the access token (`admin` includes
+  `write` and `read`; `write` includes `read`). A token is accepted when any
+  one of `sub`, `azp`, or `client_id` is present, so a client-credentials
+  token whose subject is the client id passes. Protected-resource metadata
+  advertises `client_credentials` and
+  `urn:ietf:params:oauth:grant-type:jwt-bearer` only when the issuer lists
+  them, and advertises the SEP-990 enterprise-managed authorization extension
+  only when that jwt-bearer grant is listed.
 - A process is either an in-process fleet or a front. The front routes
   `registry=` to the shard that owns it, opens a fresh session per call, and
   holds no registry password. An omitted registry is the directory default.
@@ -46,11 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Resource reads use the same scope check as tools. The second token parse
+  (`validate_token_comprehensive` and the `oauth_provider.require_scopes`
+  wrappers) is removed. `EditionGate` still attaches
+  `fastmcp.server.auth.require_scopes`.
 - The list-method hint (`cache_ttl=60`) is `public` when auth is off and
   `private` when auth is on.
 
 ### Fixed
 
+- Issuer JWKS keys that omit `alg` or `kid` are still used.
 - The runtime image no longer installs `safety` or `pip-audit`. Those audit
   tools pulled `filelock` 3.32.7 (CVE-2026-112940, HIGH). The fix is `filelock`
   4.2.1, which `safety` 3.8.1 refuses (`filelock<4`). CI still installs both
@@ -62,6 +82,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   template that matches), so a default-context versions read returned the
   latest schema instead. Templates with literal segments are now registered
   first.
+
+### Release
+
+- `_version.py`, Helm `version`/`appVersion`, and the Docker tag matrix are
+  `3.1.0`.
+- Images: `3.1.0`, `3.1.0-viewer`, `3.1.0-editor`, `3.1.0-admin`. Plain
+  `3.1.0`, `3.1`, `3`, and `latest` stay aliases of the viewer image.
+- Helm chart `3.1.0` keeps `edition: viewer`. A front sets `fleet.role`.
 
 ## [3.0.0] - 2026-10-23
 

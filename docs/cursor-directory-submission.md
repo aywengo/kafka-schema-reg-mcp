@@ -13,7 +13,7 @@ Transform your schema management workflow with AI-powered automation:
 ## ✨ Key Features
 
 ### **🤖 AI-First Design**
-- **39 / 42 / 66 MCP Tools**: Viewer, editor and admin editions for schema operations via natural language
+- **39 / 42 / 67 MCP Tools**: Viewer, editor and admin editions for schema operations via natural language
 - **Real-Time Progress**: Monitor long-running operations with live progress tracking
 - **Multi-Registry Support**: Manage up to 8 Schema Registry instances simultaneously
 - **Context-Aware**: Logical schema grouping for environment isolation

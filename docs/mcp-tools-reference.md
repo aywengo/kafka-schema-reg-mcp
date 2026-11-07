@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-This document describes the Kafka Schema Registry MCP Server **3.0.0** on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The tool surface is generated from `tool_catalog.py`; this reference is generated from the live MCP schemas.
+This document describes the Kafka Schema Registry MCP Server **3.1.0** on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The tool surface is generated from `tool_catalog.py`; this reference is generated from the live MCP schemas.
 
 ## Editions
 
@@ -1128,7 +1128,7 @@ Update the mode for a specific subject.
 
 ## Resources
 
-The server exposes 4 concrete resources and 17 resource templates. Resources are available in every edition.
+The server exposes 4 concrete resources and 18 resource templates. Resources are available in every edition.
 
 ### Concrete resources
 
@@ -1152,6 +1152,7 @@ The server exposes 4 concrete resources and 17 resource templates. Resources are
 | `registry://{name}/config` | `registry_config_resource` | Get global configuration for a specific registry, optionally filtered by context. |
 | `schema://{name}/{context}/{subject}` | `schema_content_resource` | Get schema content for a specific subject in a specific context and registry. |
 | `schema://{name}/{subject}` | `schema_content_default_context_resource` | Get schema content for a specific subject in the default context of a registry. |
+| `schema://{name}/ids/{schema_id}` | `schema_by_id_resource` | Get a schema by its globally unique id. The body is immutable. |
 | `schema://{name}/{context}/{subject}/versions` | `schema_versions_resource` | Get all versions of a schema for a specific subject in a specific context and registry. |
 | `schema://{name}/{subject}/versions` | `schema_versions_default_context_resource` | Get all versions of a schema for a specific subject in the default context of a registry. |
 | `subject://{name}/{context}/{subject}/config` | `subject_config_resource` | Get configuration settings for a specific subject with explicit context. |

@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v3.0 documentation! This folder covers the **FastMCP 4.1+ / MCP SDK 2** stack with **MCP 2026-07-28** compliance, the three runtime editions, **Enhanced Authentication**, **MRTR workflows**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v3.1 documentation! This folder covers the **FastMCP 4.1+ / MCP SDK 2** stack with **MCP 2026-07-28** compliance, the three runtime editions, **Enhanced Authentication**, **MRTR workflows**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
@@ -9,7 +9,7 @@ This project uses **FastMCP 4.1+** on **MCP Python SDK 2** for **MCP 2026-07-28*
 ### **Key MCP Features:**
 - ✅ **FastMCP 4.1+ / MCP SDK 2**: Dual-era protocol negotiation in one process
 - ✅ **MCP 2026-07-28 Compliance**: Modern sessionless protocol with `2025-11-25` fallback
-- ✅ **Three editions**: `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
+- ✅ **Three editions**: `viewer` (39 tools), `editor` (42) and `admin` (67) from one codebase
 - ✅ **Enhanced Authentication**: OAuth 2.1 discovery with scope-based tool permissions
 - ✅ **MRTR workflows**: Guided schema evolution, migration, context reorganization and disaster recovery
 - ✅ **Advanced Security**: Credential protection, secure logging and VIEWONLY enforcement at the HTTP boundary
@@ -47,9 +47,9 @@ Comprehensive deployment instructions covering:
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
 Generated reference for the full edition-dependent MCP surface:
-- **Edition summary**: `viewer` (39 tools), `editor` (42) and `admin` (66)
+- **Edition summary**: `viewer` (39 tools), `editor` (42) and `admin` (67)
 - **Tool inventory**: scope, read-only/destructive annotations and parameters for every tool
-- **Resources**: 4 concrete resources and 17 resource templates
+- **Resources**: 4 concrete resources and 18 resource templates
 - **Prompts**: 10 built-in prompts
 - **Natural Language Examples**: Claude Desktop usage patterns
 
@@ -94,8 +94,8 @@ Design, milestones and implementation record for v3.0:
 - **Editions**: `viewer` (read-only), `editor` (read, compatibility, evolution, registration) and `admin` (full access)
 - **Roadmap**: Milestones M0-M4, risk register, backward compatibility matrix
 
-### 🗺️ **[v3.1 Design and Roadmap](v3.1-roadmap.md)** - Proposed
-Design for the next minor release:
+### 🗺️ **[v3.1 Design and Roadmap](v3.1-roadmap.md)** - Released as 3.1.0
+Design and implementation record for 3.1.0:
 - **Restore**: apply an export document, dry-run unless told to write
 - **Identity**: one verifier for human, client-credentials, and SEP-990 access tokens
 - **Fleet**: `ClientGroup` front for registries that do not fit in eight environment variables
@@ -103,9 +103,15 @@ Design for the next minor release:
 
 ---
 
-## 🎉 What's New in v3.0.0 (Latest)
+## 🎉 What's New in v3.1.0 (Latest)
 
-### **🎛️ Editions**
+### **♻️ Restore, identity, fleet, cache hints**
+- `restore_bundle` applies an export document. Admin is 67 tools
+- One verifier for human, client-credentials, and SEP-990 access tokens
+- Optional fleet front that holds no registry password
+- Per-resource cache hints, including `schema://{name}/ids/{schema_id}`
+
+### **v3.0.0**
 - `viewer` (39 tools), `editor` (42) and `admin` (66) from one codebase
 - `SLIM_MODE` is a deprecated alias for `editor`
 
@@ -318,7 +324,7 @@ When contributing to the MCP implementation documentation:
 2. **MCP Tools Reference**: Include comprehensive tool examples and usage patterns
 3. **Deployment**: Provide MCP-specific configuration and troubleshooting
 4. **Claude Desktop Integration**: Document best practices for AI-assisted workflows
-5. **Version Updates**: Keep version references current (latest: v3.0.0)
+5. **Version Updates**: Keep version references current (latest: v3.1.0)
 
 ---
 

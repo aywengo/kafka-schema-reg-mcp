@@ -1,6 +1,6 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines real-world use cases and scenarios for Kafka Schema Registry MCP Server **3.0.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three editions, **OAuth 2.1**, **Claude Desktop integration**, **background tasks** and **multi-registry support**.
+This document outlines real-world use cases and scenarios for Kafka Schema Registry MCP Server **3.1.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three editions, **OAuth 2.1**, **Claude Desktop integration**, **background tasks** and **multi-registry support**.
 
 ## 🤖 MCP Integration Overview
 
@@ -10,7 +10,7 @@ The Kafka Schema Registry MCP Server uses **FastMCP 4.1+** on **MCP Python SDK 2
 - ✅ **FastMCP 4.1+ Framework**: Modern MCP architecture with dual-era protocol support
 - ✅ **MCP 2026-07-28 Compliance**: Modern protocol with `2025-11-25` client fallback
 - ✅ **Enhanced Authentication**: FastMCP 4 `JWTVerifier` with OAuth 2.1 discovery for multiple providers
-- ✅ **39 / 42 / 66 MCP Tools**: Complete schema operations by edition via natural language
+- ✅ **39 / 42 / 67 MCP Tools**: Complete schema operations by edition via natural language
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Real-time Interaction**: Immediate feedback through Claude Desktop

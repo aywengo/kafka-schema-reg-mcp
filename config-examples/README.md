@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.0 with **FastMCP 4.1+** and **MCP 2026-07-28**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.1 with **FastMCP 4.1+** and **MCP 2026-07-28**.
 
 ## 📂 Available Configurations
 
@@ -11,11 +11,11 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
 - **`claude_desktop_viewer_config.json`** - Viewer edition (39 tools, default)
 - **`claude_desktop_editor_config.json`** - Editor edition (42 tools)
-- **`claude_desktop_admin_config.json`** - Admin edition (66 tools)
+- **`claude_desktop_admin_config.json`** - Admin edition (67 tools)
 
 ### Version-Specific Configurations
 
-#### Current Stable (v3.0.0)
+#### Current Stable (v3.1.0)
 - **`claude_desktop_stable_config.json`** - Current stable release, viewer edition
 - **`claude_desktop_docker_config.json`** - Latest Docker image, viewer edition
 
@@ -52,7 +52,7 @@ These files are kept for older deployments; use the 3.0 configurations for new w
 |---|---|---|
 | `claude_desktop_viewer_config.json` | viewer | 39 |
 | `claude_desktop_editor_config.json` | editor | 42 |
-| `claude_desktop_admin_config.json` | admin | 66 |
+| `claude_desktop_admin_config.json` | admin | 67 |
 
 ```bash
 cp config-examples/claude_desktop_admin_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
@@ -64,9 +64,9 @@ with `MCP_EDITION`; the server refuses to start. See
 
 ## 🚀 Quick Start
 
-### For Production (Recommended - Current Stable v3.0.0)
+### For Production (Recommended - Current Stable v3.1.0)
 ```bash
-# Copy stable configuration (v3.0.0)
+# Copy stable configuration (v3.1.0)
 cp config-examples/claude_desktop_stable_config.json ~/.config/claude-desktop/config.json
 
 # Or for macOS
@@ -179,11 +179,11 @@ cd tests
 - ✅ Easy debugging
 - ✅ Fast iteration
 
-### Use Case: Current Production (Stable v3.0.0)
+### Use Case: Current Production (Stable v3.1.0)
 **Recommended:** `claude_desktop_stable_config.json` for read-only, or `claude_desktop_admin_config.json` for full access
-- ✅ 3.0 stable release
+- ✅ 3.1 stable release
 - ✅ `viewer` by default; choose `editor` or `admin` explicitly
-- ✅ 39 / 42 / 66 tools by edition
+- ✅ 39 / 42 / 67 tools by edition
 - ✅ Multi-registry, background tasks and MRTR workflows
 
 ### Use Case: Historical FastMCP 2.x Deployment (v2.2.2)
