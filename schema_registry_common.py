@@ -1201,14 +1201,28 @@ def export_subject(
                 return versions_list
             versions = [str(v) for v in versions_list]
 
-        # Get schemas for each version
+        # Get schemas for each version. A failed fetch is an incomplete export:
+        # dropping it would let a migration restore an older version as latest.
         schemas = []
+        failed_versions = []
         for version in versions:
             schema_data = get_schema_with_metadata(client, subject, version, context)
-            if "error" not in schema_data:
+            if isinstance(schema_data, dict) and "error" in schema_data:
+                failed_versions.append({"version": version, "error": schema_data["error"]})
+            else:
                 schemas.append(schema_data)
+        if failed_versions:
+            return {
+                "error": f"Failed to export {len(failed_versions)} version(s) of subject '{subject}'",
+                "error_code": "SUBJECT_EXPORT_INCOMPLETE",
+                "subject": subject,
+                "versions": schemas,
+                "failed_versions": failed_versions,
+            }
 
         result = {"subject": subject, "versions": schemas}
+        if include_versions != "latest":
+            result["version_numbers"] = [int(version) if str(version).isdigit() else version for version in versions]
 
         if include_config:
             config = client.get_subject_config(subject, context)

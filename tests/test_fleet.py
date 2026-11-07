@@ -154,6 +154,7 @@ async def test_cross_shard_migrate_exports_then_restores() -> None:
             {"version": 2, "id": 2, "schema": {"type": "record"}},
         ],
         "metadata": {"context": "orders", "export_version": "1.7.0"},
+        "version_numbers": [1, 2],
     }
     fleet = RecordingFleet(
         {"prod": "alpha", "staging": "beta"},
@@ -273,7 +274,11 @@ async def test_cross_shard_dry_run_does_not_apply_and_accepts_new_ids() -> None:
     fleet = RecordingFleet(
         {"prod": "alpha", "staging": "beta"},
         {
-            ("export_subject", "prod"): {"subject": "user", "versions": [{"version": 1}]},
+            ("export_subject", "prod"): {
+                "subject": "user",
+                "versions": [{"version": 1}],
+                "version_numbers": [1],
+            },
             ("restore_bundle", "staging"): {"status": "dry_run"},
         },
     )
@@ -412,6 +417,7 @@ async def test_missing_requested_version_does_not_restore() -> None:
     document = {
         "subject": "user",
         "versions": [{"version": 1, "id": 1}],
+        "version_numbers": [1],
         "config": {"compatibilityLevel": "FULL"},
         "metadata": {"context": "."},
     }
@@ -500,7 +506,12 @@ async def test_guided_schema_migration_stays_on_the_front() -> None:
 
 @pytest.mark.asyncio
 async def test_export_without_versions_does_not_restore() -> None:
-    document = {"subject": "user", "versions": [], "config": {"compatibilityLevel": "NONE"}}
+    document = {
+        "subject": "user",
+        "versions": [],
+        "version_numbers": [],
+        "config": {"compatibilityLevel": "NONE"},
+    }
     fleet = RecordingFleet({"prod": "alpha", "staging": "beta"}, {("export_subject", "prod"): document})
 
     result = await route_tool(
@@ -600,6 +611,7 @@ async def test_latest_migrate_counts_every_source_version() -> None:
             {"version": 2, "id": 2},
             {"version": 3, "id": 3},
         ],
+        "version_numbers": [1, 2, 3],
         "metadata": {"context": "."},
     }
     fleet = RecordingFleet(
@@ -626,6 +638,7 @@ async def test_incomplete_restore_counts_the_version_it_did_not_write() -> None:
     document = {
         "subject": "user",
         "versions": [{"version": 1, "id": 1}, {"version": 2, "id": 2}],
+        "version_numbers": [1, 2],
         "metadata": {"context": "."},
     }
     fleet = RecordingFleet(
@@ -793,3 +806,112 @@ async def test_legacy_caller_answers_input_and_retries(monkeypatch: pytest.Monke
     assert template.rounds[0] is None
     assert template.rounds[1]["form"].action == "accept"
     assert template.rounds[1]["form"].content == {"ok": True}
+
+
+_MIGRATE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "subject": {"type": "string"},
+        "source_registry": {"type": "string"},
+        "target_registry": {"type": "string"},
+        "dry_run": {"default": False, "type": "boolean"},
+        "preserve_ids": {"default": True, "type": "boolean"},
+        "migrate_all_versions": {"default": False, "type": "boolean"},
+    },
+    "required": ["subject", "source_registry", "target_registry"],
+}
+
+
+class _SchemaCatalog:
+    def __init__(self, schema: dict[str, Any]) -> None:
+        self._schema = schema
+
+    async def get_tool(self, name: str, version: Any = None) -> object | None:
+        return SimpleNamespace(parameters=self._schema)
+
+
+@pytest.mark.asyncio
+async def test_cross_shard_migrate_rejects_a_non_boolean_dry_run() -> None:
+    from fastmcp.exceptions import ValidationError
+
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"})
+    context = _Call(
+        "migrate_schema",
+        {
+            "subject": "user",
+            "source_registry": "prod",
+            "target_registry": "staging",
+            "dry_run": [],
+        },
+        _SchemaCatalog(_MIGRATE_SCHEMA),
+    )
+
+    with pytest.raises(ValidationError):
+        await FrontRouter(fleet).on_call_tool(context, _not_called)
+
+    assert fleet.calls == []
+
+
+@pytest.mark.asyncio
+async def test_omitted_dry_run_uses_the_schema_default() -> None:
+    document = {"subject": "user", "versions": [{"version": 1}], "version_numbers": [1]}
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {("export_subject", "prod"): document, ("restore_bundle", "staging"): {"status": "applied"}},
+    )
+    context = _Call(
+        "migrate_schema",
+        {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+        _SchemaCatalog(_MIGRATE_SCHEMA),
+    )
+
+    result = await FrontRouter(fleet).on_call_tool(context, _not_called)
+
+    assert fleet.calls[1][1]["apply"] is True
+    assert result.structured_content["dry_run"] is False
+
+
+@pytest.mark.asyncio
+async def test_partial_export_does_not_restore() -> None:
+    document = {
+        "subject": "user",
+        "versions": [{"version": 1, "id": 1}],
+        "version_numbers": [1, 2],
+    }
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {("export_subject", "prod"): document, ("restore_bundle", "staging"): {"status": "applied"}},
+    )
+
+    result = await route_tool(
+        "migrate_schema",
+        {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert [call[0] for call in fleet.calls] == ["export_subject"]
+    assert result["error_code"] == "EXPORT_INCOMPLETE"
+
+
+def test_export_subject_fails_when_a_version_fetch_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    from schema_registry_common import export_subject
+
+    client = SimpleNamespace(
+        get_schema_versions=lambda subject, context=None: [1, 2],
+        get_subject_config=lambda subject, context=None: {"compatibilityLevel": "BACKWARD"},
+        config=SimpleNamespace(url="http://registry"),
+    )
+
+    def _fetch(_client: Any, _subject: str, version: str, _context: Any) -> dict[str, Any]:
+        if version == "2":
+            return {"error": "schema fetch failed"}
+        return {"version": 1, "schema": "{}"}
+
+    monkeypatch.setattr("schema_registry_common.get_schema_with_metadata", _fetch)
+
+    result = export_subject(client, "user")
+
+    assert result["error_code"] == "SUBJECT_EXPORT_INCOMPLETE"
+    assert result["failed_versions"] == [{"version": "2", "error": "schema fetch failed"}]
+    assert "version_numbers" not in result

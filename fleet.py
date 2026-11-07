@@ -244,7 +244,7 @@ class FrontRouter(Middleware):
 
         tool = await _require_registered_tool(context)
         message = context.message
-        arguments = dict(message.arguments or {})
+        arguments = _validated_arguments(tool, dict(message.arguments or {}))
         result = await route_tool(
             message.name,
             arguments,
@@ -325,6 +325,32 @@ async def _require_registered_tool(context: Any) -> Any:
     if tool is None:
         raise AuthorizationError(f"Authorization failed for tool {name!r}: not found or not authorized")
     return tool
+
+
+def _validated_arguments(tool: Any, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Reject arguments the registered tool would reject, and apply its defaults.
+
+    Cross-shard orchestration returns before ``call_next``, so FastMCP never
+    validates that call. A falsy non-boolean such as ``dry_run: []`` would
+    otherwise be treated as a real write.
+    """
+    schema = getattr(tool, "parameters", None)
+    if not isinstance(schema, dict) or not schema.get("properties"):
+        return arguments
+    import jsonschema
+    from fastmcp.exceptions import ValidationError
+
+    try:
+        jsonschema.validate(instance=arguments, schema=schema)
+    except jsonschema.ValidationError as exc:
+        raise ValidationError(exc.message) from exc
+    validated = dict(arguments)
+    properties = schema.get("properties")
+    if isinstance(properties, dict):
+        for name, prop in properties.items():
+            if name not in validated and isinstance(prop, dict) and "default" in prop:
+                validated[name] = prop["default"]
+    return validated
 
 
 def _tool_fields(tool: Any) -> frozenset[str]:
@@ -630,6 +656,9 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
     if _is_export_error(document):
         return document
     source_doc = document if isinstance(document, Mapping) else {}
+    incomplete = _incomplete_export(source_doc)
+    if incomplete:
+        return create_error_response(incomplete, error_code="EXPORT_INCOMPLETE", registry_mode="multi")
     available = [item for item in source_doc.get("versions") or [] if isinstance(item, dict)]
     bundle = _migrate_document(source_doc, arguments, str(target_context))
     if not bundle.get("versions"):
@@ -678,6 +707,42 @@ async def _export_for_missing(fleet: RoutingFleet, registry: str, context: Any) 
 def _is_export_error(document: Any) -> bool:
     """A top-level error is a failed export, even when empty collections were added."""
     return isinstance(document, dict) and bool(document.get("error"))
+
+
+def _incomplete_export(document: Mapping[str, Any]) -> str | None:
+    """Refuse a subject export that dropped a source version.
+
+    ``export_subject`` used to skip a version whose schema fetch failed and
+    still return the rest. ``version_numbers`` is the registry's list. A
+    missing or shorter ``versions`` array is not a complete history.
+    """
+    failed = document.get("failed_versions")
+    if isinstance(failed, list) and failed:
+        detail = document.get("error")
+        return str(detail) if detail else "Export omitted source versions"
+    numbers = document.get("version_numbers")
+    if not isinstance(numbers, list):
+        return "Export did not report the source version list"
+    expected: list[int] = []
+    for number in numbers:
+        if isinstance(number, int):
+            expected.append(number)
+        elif isinstance(number, str) and number.isdigit():
+            expected.append(int(number))
+        else:
+            return "Export did not report the source version list"
+    exported = [
+        item.get("version") for item in document.get("versions") or [] if isinstance(item, dict) and "version" in item
+    ]
+    if sorted(exported, key=_version_sort_key) != sorted(expected):
+        return "Export did not include every source version"
+    return None
+
+
+def _version_sort_key(value: Any) -> tuple[int, str]:
+    if isinstance(value, int):
+        return (0, f"{value:020d}")
+    return (1, str(value))
 
 
 def _nothing_to_migrate(arguments: Mapping[str, Any], available: int) -> dict[str, Any]:
