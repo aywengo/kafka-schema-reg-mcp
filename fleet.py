@@ -51,6 +51,14 @@ _LOCAL_TOOLS = frozenset(
         "get_oauth_scopes_info_tool_wrapper",
         "get_oauth_scopes_info",
         "test_oauth_discovery_endpoints",
+        "list_workflows",
+        "describe_workflow",
+        "guided_schema_evolution",
+        "guided_schema_migration",
+        "guided_context_reorganization",
+        "guided_disaster_recovery",
+        "bulk_operations_wizard",
+        "preview_bulk_operation",
     }
 )
 _CROSS_SHARD_TOOLS = frozenset({"compare_registries", "find_missing_schemas", "migrate_schema"})
@@ -126,7 +134,7 @@ class RecordingFleet:
         """Return the scripted member for ``registry``."""
         return self._directory.get(registry)
 
-    async def dispatch(self, tool: str, arguments: Mapping[str, Any]) -> Any:
+    async def dispatch(self, tool: str, arguments: Mapping[str, Any], **_forward: Any) -> Any:
         """Record the call and return the scripted body for that registry."""
         payload = dict(arguments)
         self.calls.append((tool, payload))
@@ -150,7 +158,7 @@ class InProcessFleet:
             return "inprocess"
         return None
 
-    async def dispatch(self, tool: str, arguments: Mapping[str, Any]) -> Any:
+    async def dispatch(self, tool: str, arguments: Mapping[str, Any], **_forward: Any) -> Any:
         """Invoke the injected runner. The runner is the registered tool body."""
         return await self._runner(tool, dict(arguments))
 
@@ -174,33 +182,43 @@ class ClientGroupFleet:
         """Return the shard member for ``registry``."""
         return self._directory.get(registry)
 
-    async def dispatch(self, tool: str, arguments: Mapping[str, Any]) -> Any:
+    async def dispatch(self, tool: str, arguments: Mapping[str, Any], **forward: Any) -> Any:
         """Call the unprefixed tool on a fresh session for its member.
 
-        An omitted registry is sent as the directory default. A pair call keeps
-        the caller's arguments and uses the source registry's member. An unknown
-        name returns the same ``REGISTRY_NOT_FOUND`` dict ``get_registry`` leads
-        to, and does not open a session.
+        An omitted registry is sent as the directory default only when the tool
+        declares that argument. A pair call keeps the caller's arguments and uses
+        the source registry's member. An unknown name returns the same
+        ``REGISTRY_NOT_FOUND`` dict ``get_registry`` leads to, and does not open
+        a session.
         """
         payload = dict(arguments)
         registry = _routing_registry(tool, payload)
         if registry is None:
             registry = self.names()[0] if self.names() else None
             if registry is not None:
-                _assign_default_registry(tool, payload, registry)
+                _assign_default_registry(tool, payload, registry, forward.get("fields"))
         if registry is None or self.member_for(registry) is None:
             return _registry_not_found(registry or "")
         member = self.member_for(registry)
-        return await self._call_member(member, tool, payload, registry)
+        return await self._call_member(member, tool, payload, registry, forward)
 
-    async def _call_member(self, member: str | None, tool: str, payload: dict[str, Any], registry: str) -> Any:
+    async def _call_member(
+        self,
+        member: str | None,
+        tool: str,
+        payload: dict[str, Any],
+        registry: str,
+        forward: Mapping[str, Any],
+    ) -> Any:
         """Open one session on ``member`` and call ``tool``."""
         template = self._clients.get(member or "")
         if template is None:
             return _registry_not_found(registry)
         session = template.new()
         async with session:
-            result = await session.call_tool(tool, payload)
+            result = await _invoke_session(session, tool, payload, forward)
+        if _is_input_required(result):
+            return result
         return _unwrap_tool_result(result)
 
 
@@ -218,12 +236,25 @@ class FrontRouter(Middleware):
         """
         from fastmcp.tools.base import ToolResult
 
-        await _require_registered_tool(context)
+        tool = await _require_registered_tool(context)
         message = context.message
         arguments = dict(message.arguments or {})
-        result = await route_tool(message.name, arguments, self._fleet)
+        result = await route_tool(
+            message.name,
+            arguments,
+            self._fleet,
+            fields=_tool_fields(tool),
+            input_responses=getattr(message, "input_responses", None),
+            request_state=getattr(message, "request_state", None),
+        )
         if result is LOCAL:
             return await call_next(context)
+        if _is_input_required(result):
+            from fastmcp.tools.base import InputRequiredToolResult
+
+            return InputRequiredToolResult(result)
+        if isinstance(result, str):
+            return ToolResult(content=result)
         if not isinstance(result, dict):
             result = {"result": result}
         return ToolResult(structured_content=result)
@@ -270,10 +301,12 @@ def build_client_group(config: FleetConfig) -> dict[str, Any]:
     from fastmcp import Client
 
     auth = RequestBearerAuth()
-    return {member: Client(url, auth=auth) for member, url in config.shards.items()}
+    return {
+        member: Client(url, auth=auth, elicitation_handler=_bridge_elicitation) for member, url in config.shards.items()
+    }
 
 
-async def _require_registered_tool(context: Any) -> None:
+async def _require_registered_tool(context: Any) -> Any:
     """Refuse a call the front did not register or this caller may not use."""
     from fastmcp.exceptions import AuthorizationError
 
@@ -285,6 +318,35 @@ async def _require_registered_tool(context: Any) -> None:
     tool = await server.get_tool(name)
     if tool is None:
         raise AuthorizationError(f"Authorization failed for tool {name!r}: not found or not authorized")
+    return tool
+
+
+def _tool_fields(tool: Any) -> frozenset[str]:
+    """Parameter names declared by the front's registered tool."""
+    parameters = getattr(tool, "parameters", None)
+    properties = parameters.get("properties") if isinstance(parameters, Mapping) else None
+    if not isinstance(properties, Mapping):
+        return frozenset()
+    return frozenset(str(name) for name in properties)
+
+
+async def _bridge_elicitation(message: str, response_type: Any, _params: Any, _request_context: Any) -> Any:
+    """Relay a shard elicitation to the caller that is current on the front."""
+    from fastmcp.client.elicitation import ElicitResult
+
+    try:
+        from fastmcp.server.dependencies import get_context
+
+        context = get_context()
+        result = await context.elicit(message, response_type if response_type is not None else dict)
+    except Exception:
+        return ElicitResult(action="decline")
+    action = getattr(result, "action", None)
+    if action == "accept":
+        return getattr(result, "data", None)
+    if action in {"decline", "cancel"}:
+        return ElicitResult(action=action)
+    return result
 
 
 def inbound_bearer() -> str | None:
@@ -315,7 +377,7 @@ def inbound_bearer() -> str | None:
     return None
 
 
-async def route_tool(name: str, arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
+async def route_tool(name: str, arguments: Mapping[str, Any], fleet: RoutingFleet, **forward: Any) -> Any:
     """Route one front tool call. ``LOCAL`` means the process should run it."""
     args = dict(arguments)
     special = _special_tool(name, fleet)
@@ -324,8 +386,8 @@ async def route_tool(name: str, arguments: Mapping[str, Any], fleet: RoutingFlee
     if name in _LOCAL_TOOLS:
         return LOCAL
     if "source_registry" in args or "target_registry" in args:
-        return await _route_pair(name, args, fleet)
-    return await _route_one(name, args, fleet)
+        return await _route_pair(name, args, fleet, forward)
+    return await _route_one(name, args, fleet, forward)
 
 
 def _parse_pairs(raw: str, label: str) -> dict[str, str]:
@@ -415,16 +477,14 @@ def _directory_listing(fleet: RoutingFleet) -> dict[str, Any]:
     return result
 
 
-async def _route_one(name: str, arguments: dict[str, Any], fleet: RoutingFleet) -> Any:
+async def _route_one(name: str, arguments: dict[str, Any], fleet: RoutingFleet, forward: Mapping[str, Any]) -> Any:
     registry = _explicit_registry(name, arguments)
-    if registry is None:
-        return await fleet.dispatch(name, arguments)
-    if fleet.member_for(registry) is None:
+    if registry is not None and fleet.member_for(registry) is None:
         return _registry_not_found(registry)
-    return await fleet.dispatch(name, arguments)
+    return await fleet.dispatch(name, arguments, **dict(forward))
 
 
-async def _route_pair(name: str, arguments: dict[str, Any], fleet: RoutingFleet) -> Any:
+async def _route_pair(name: str, arguments: dict[str, Any], fleet: RoutingFleet, forward: Mapping[str, Any]) -> Any:
     source = str(arguments.get("source_registry") or "")
     target = str(arguments.get("target_registry") or "")
     source_member = fleet.member_for(source)
@@ -434,7 +494,7 @@ async def _route_pair(name: str, arguments: dict[str, Any], fleet: RoutingFleet)
     if target_member is None:
         return _named_not_found("Target", target)
     if source_member == target_member:
-        return await fleet.dispatch(name, arguments)
+        return await fleet.dispatch(name, arguments, **dict(forward))
     if name == "compare_registries":
         return await _compare(arguments, fleet)
     if name == "find_missing_schemas":
@@ -557,7 +617,7 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
         "subject": subject,
         "registry": source,
         "include_metadata": True,
-        "include_config": True,
+        "include_config": False,
         "include_versions": include_versions,
     }
     if source_context and source_context != ".":
@@ -566,7 +626,7 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
     if _is_export_error(document):
         return document
     bundle = _migrate_document(document if isinstance(document, Mapping) else {}, versions, str(target_context))
-    if isinstance(versions, list) and versions and not bundle.get("versions"):
+    if not bundle.get("versions"):
         return _nothing_to_migrate(arguments, document if isinstance(document, Mapping) else {})
     apply = not bool(arguments.get("dry_run") or False)
     accept_new_ids = arguments.get("preserve_ids", True) is False
@@ -579,7 +639,7 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
             "accept_new_ids": accept_new_ids,
         },
     )
-    return restored
+    return _migration_from_restore(restored, arguments, bundle)
 
 
 async def _export_global(fleet: RoutingFleet, registry: str) -> Any:
@@ -637,6 +697,7 @@ def _migrate_document(document: Mapping[str, Any], versions: Any, target_context
     metadata = dict(bundle.get("metadata") or {})
     metadata["context"] = "." if not target_context or target_context == "." else target_context
     bundle["metadata"] = metadata
+    bundle.pop("config", None)
     if isinstance(versions, list) and versions:
         wanted = set(versions)
         bundle["versions"] = [
@@ -784,12 +845,19 @@ def _routing_registry(tool: str, arguments: Mapping[str, Any]) -> str | None:
     return None
 
 
-def _assign_default_registry(tool: str, payload: dict[str, Any], registry: str) -> None:
-    """Put the directory default on a call that omitted it."""
+def _assign_default_registry(tool: str, payload: dict[str, Any], registry: str, fields: Any) -> None:
+    """Put the directory default on a call that omitted it and declares the field.
+
+    ``fields is None`` means the caller did not supply a schema. Direct tests
+    and internal exports use that path. A front passes the registered names and
+    leaves a registry-free tool unchanged.
+    """
     if tool == "restore_bundle":
-        payload["target"] = registry
+        if fields is None or "target" in fields:
+            payload["target"] = registry
         return
-    payload["registry"] = registry
+    if fields is None or "registry" in fields:
+        payload["registry"] = registry
 
 
 def _explicit_registry(tool: str, arguments: Mapping[str, Any]) -> str | None:
@@ -818,6 +886,111 @@ def _unwrap_tool_result(result: Any) -> Any:
     if isinstance(structured, dict):
         return structured
     data = getattr(result, "data", None)
-    if isinstance(data, dict):
+    if isinstance(data, (dict, str)):
         return data
+    content = getattr(result, "content", None)
+    texts = [getattr(block, "text", None) for block in content or []]
+    texts = [text for text in texts if isinstance(text, str)]
+    if len(texts) == 1:
+        return texts[0]
+    if texts:
+        return "".join(texts)
     return result
+
+
+def _is_input_required(result: Any) -> bool:
+    """True for a shard ask that the caller must answer on the next tools/call."""
+    return type(result).__name__ == "InputRequiredResult"
+
+
+async def _invoke_session(session: Any, tool: str, payload: dict[str, Any], forward: Mapping[str, Any]) -> Any:
+    """Call the shard, carrying a multi-round-trip retry when the caller sent one."""
+    mcp_session = getattr(session, "session", None)
+    if mcp_session is None:
+        return await session.call_tool(tool, payload)
+    return await mcp_session.call_tool(
+        name=tool,
+        arguments=payload,
+        input_responses=forward.get("input_responses"),
+        request_state=forward.get("request_state"),
+        allow_input_required=True,
+    )
+
+
+def _migration_from_restore(restored: Any, arguments: Mapping[str, Any], bundle: Mapping[str, Any]) -> Any:
+    """Shape a restore report like in-process ``migrate_schema``."""
+    if not isinstance(restored, Mapping) or "status" not in restored:
+        return restored
+    versions = bundle.get("versions") if isinstance(bundle.get("versions"), list) else []
+    status = restored.get("status")
+    dry_run = status == "dry_run"
+    created = list(restored.get("created") or [])
+    skipped = list(restored.get("skipped") or [])
+    conflicts = list(restored.get("conflicts") or [])
+    if dry_run:
+        successful, failed, skipped_count = len(versions), 0, 0
+        details = [
+            {"version": item.get("version"), "status": "simulated", "message": "Would migrate this version"}
+            for item in versions
+            if isinstance(item, dict)
+        ]
+    elif any(key in restored for key in ("created", "skipped", "conflicts")):
+        successful, failed, skipped_count = len(created), len(conflicts), len(skipped)
+        details = (
+            [_migration_detail(item, "migrated") for item in created]
+            + [_migration_detail(item, "skipped") for item in skipped]
+            + [_migration_detail(item, "failed") for item in conflicts]
+        )
+    else:
+        successful = len(versions) if status == "applied" else 0
+        failed = 0
+        skipped_count = 0
+        details = [_migration_detail(item, "migrated") for item in versions]
+    if status in {"rejected", "incomplete"} and failed == 0 and successful == 0:
+        failed = len(versions) or 1
+    body: dict[str, Any] = {
+        "total_versions": len(versions),
+        "versions_to_migrate": len(versions),
+        "successful_migrations": successful,
+        "failed_migrations": failed,
+        "skipped_migrations": skipped_count,
+        "migration_details": details,
+        "dry_run": dry_run or bool(arguments.get("dry_run") or False),
+        "preserve_ids": arguments.get("preserve_ids", True) is not False,
+        "message": _migration_message(successful, len(versions), dry_run, restored.get("reason")),
+        "subject": bundle.get("subject"),
+        "source_registry": arguments.get("source_registry"),
+        "target_registry": arguments.get("target_registry"),
+        "source_context": arguments.get("source_context") or ".",
+        "target_context": arguments.get("target_context") or ".",
+        "registry_mode": "multi",
+        "mcp_protocol_version": current_protocol_version(),
+    }
+    if status == "confirmation_required":
+        body["error"] = str(restored.get("reason") or "confirmation required")
+        body["error_type"] = "confirmation_required"
+        body["confirmation_details"] = {
+            "reason": restored.get("reason"),
+            "id_preservation": restored.get("id_preservation"),
+        }
+    elif status in {"rejected", "incomplete"} and restored.get("reason"):
+        body["error"] = str(restored["reason"])
+    return add_links_to_response(
+        body,
+        "migration",
+        str(arguments.get("source_registry") or ""),
+        source_registry=arguments.get("source_registry"),
+        target_registry=arguments.get("target_registry"),
+    )
+
+
+def _migration_detail(item: Any, status: str) -> dict[str, Any]:
+    version = item.get("version") if isinstance(item, Mapping) else None
+    return {"version": version, "status": status}
+
+
+def _migration_message(successful: int, total: int, dry_run: bool, reason: Any) -> str:
+    if isinstance(reason, str) and reason:
+        return reason
+    suffix = " (dry run)" if dry_run else ""
+    return f"Migrated {successful}/{total} versions successfully{suffix}"

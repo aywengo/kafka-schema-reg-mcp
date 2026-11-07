@@ -184,6 +184,7 @@ async def test_cross_shard_migrate_exports_then_restores() -> None:
     assert export_args["registry"] == "prod"
     assert export_args["context"] == "orders"
     assert export_args["include_versions"] == "all"
+    assert export_args["include_config"] is False
     assert restore_tool == "restore_bundle"
     assert restore_args["target"] == "staging"
     assert restore_args["apply"] is True
@@ -191,7 +192,10 @@ async def test_cross_shard_migrate_exports_then_restores() -> None:
     assert restore_args["bundle"]["subject"] == "user"
     assert restore_args["bundle"]["metadata"]["context"] == "billing"
     assert [item["version"] for item in restore_args["bundle"]["versions"]] == [2]
-    assert result == {"status": "applied"}
+    assert "config" not in restore_args["bundle"]
+    assert result["successful_migrations"] == 1
+    assert result["failed_migrations"] == 0
+    assert result["dry_run"] is False
 
 
 @pytest.mark.asyncio
@@ -462,6 +466,106 @@ def test_shard_clients_stay_disconnected_and_share_request_auth() -> None:
     assert len({id(auth) for auth in auths}) == 1
     assert all(isinstance(auth, RequestBearerAuth) for auth in auths)
     assert all(not client.is_connected() for client in clients.values())
+
+
+@pytest.mark.asyncio
+async def test_registry_free_tool_keeps_its_arguments() -> None:
+    fleet, client = _group()
+
+    await fleet.dispatch("list_workflows", {}, fields=frozenset())
+
+    assert client.calls == [("list_workflows", {})]
+
+
+@pytest.mark.asyncio
+async def test_guided_schema_migration_stays_on_the_front() -> None:
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"})
+
+    result = await route_tool(
+        "guided_schema_migration",
+        {"source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert result is not None
+    assert fleet.calls == []
+    from fleet import LOCAL
+
+    assert result is LOCAL
+
+
+@pytest.mark.asyncio
+async def test_export_without_versions_does_not_restore() -> None:
+    document = {"subject": "user", "versions": [], "config": {"compatibilityLevel": "NONE"}}
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"}, {("export_subject", "prod"): document})
+
+    result = await route_tool(
+        "migrate_schema",
+        {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert [call[0] for call in fleet.calls] == ["export_subject"]
+    assert result["message"] == "No versions to migrate"
+
+
+@pytest.mark.asyncio
+async def test_text_shard_result_is_the_text() -> None:
+    class _TextTemplate:
+        def new(self) -> "_TextSession":
+            return _TextSession()
+
+    class _TextSession:
+        async def __aenter__(self) -> "_TextSession":
+            return self
+
+        async def __aexit__(self, *exc: Any) -> None:
+            return None
+
+        async def call_tool(self, name: str, arguments: dict[str, Any], **kwargs: Any) -> Any:
+            return SimpleNamespace(structured_content=None, data='{"status": "plan"}', content=[])
+
+    fleet = ClientGroupFleet({"prod": "alpha"}, {"alpha": _TextTemplate()})
+    result = await fleet.dispatch("guided_disaster_recovery", {"registry": "prod"})
+
+    assert result == '{"status": "plan"}'
+
+
+@pytest.mark.asyncio
+async def test_input_required_is_returned_to_the_caller() -> None:
+    from mcp_types import InputRequiredResult
+
+    required = InputRequiredResult(input_requests={}, request_state="again")
+
+    class _AskTemplate:
+        def new(self) -> "_AskSession":
+            return _AskSession()
+
+    class _AskSession:
+        async def __aenter__(self) -> "_AskSession":
+            return self
+
+        async def __aexit__(self, *exc: Any) -> None:
+            return None
+
+        @property
+        def session(self) -> "_AskSession":
+            return self
+
+        async def call_tool(self, name: str, arguments: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+            self.seen = kwargs
+            return required
+
+    template = _AskTemplate()
+    fleet = ClientGroupFleet({"prod": "alpha"}, {"alpha": template})
+    result = await fleet.dispatch(
+        "export_global_interactive",
+        {"registry": "prod"},
+        input_responses={"answer": "yes"},
+        request_state="again",
+    )
+
+    assert result is required
 
 
 def test_inprocess_role_keeps_a_registry_password() -> None:

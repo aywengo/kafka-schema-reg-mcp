@@ -16,7 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `list_registries` returns the directory. Cross-shard compare and
   find-missing export each side once and keep context-qualified subject names.
   Cross-shard `migrate_schema` is `export_subject` on the source shard and
-  `restore_bundle` on the target.
+  `restore_bundle` on the target. It copies schema versions only, returns the
+  same migration counts as an in-process migrate, and does not restore when
+  the export has no versions. Registry-free planners stay on the front. A
+  shard elicitation or input request is relayed to the caller.
 - Helm `fleet.role`, `fleet.shards`, and `fleet.directory`. A front chart
   omits Schema Registry URLs and credentials.
 - `restore_bundle` applies an `export_global`, `export_context`, or
