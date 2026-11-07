@@ -915,3 +915,85 @@ def test_export_subject_fails_when_a_version_fetch_fails(monkeypatch: pytest.Mon
     assert result["error_code"] == "SUBJECT_EXPORT_INCOMPLETE"
     assert result["failed_versions"] == [{"version": "2", "error": "schema fetch failed"}]
     assert "version_numbers" not in result
+
+
+_BULK_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "source_context": {"type": "string"},
+        "source_registry": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None},
+        "target_registry": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None},
+        "dry_run": {"default": True, "type": "boolean"},
+    },
+}
+
+
+@pytest.mark.asyncio
+async def test_omitted_registry_endpoints_reach_the_default_member() -> None:
+    fleet, client = _group()
+    context = _Call(
+        "bulk_schema_migration",
+        {"source_context": "orders"},
+        _SchemaCatalog(_BULK_SCHEMA),
+    )
+
+    await FrontRouter(fleet).on_call_tool(context, _not_called)
+
+    assert client.opened == 1
+    assert client.calls[0][0] == "bulk_schema_migration"
+    assert client.calls[0][1]["source_context"] == "orders"
+    assert client.calls[0][1]["dry_run"] is True
+    assert "source_registry" not in client.calls[0][1]
+    assert "target_registry" not in client.calls[0][1]
+
+
+@pytest.mark.asyncio
+async def test_incomplete_global_export_stops_the_compare() -> None:
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {
+            ("export_global", "prod"): {
+                "error": "Failed to export subject 'user'",
+                "error_code": "CONTEXT_EXPORT_INCOMPLETE",
+            }
+        },
+    )
+
+    result = await route_tool(
+        "compare_registries",
+        {"source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    assert [call[0] for call in fleet.calls] == ["export_global"]
+    assert result["error_code"] == "CONTEXT_EXPORT_INCOMPLETE"
+
+
+def test_context_export_returns_a_failed_subject(monkeypatch: pytest.MonkeyPatch) -> None:
+    from schema_registry_common import export_context, export_global
+
+    def _subject(_client: Any, subject: str, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
+        if subject == "order":
+            return {
+                "error": "Failed to export 1 version(s) of subject 'order'",
+                "error_code": "SUBJECT_EXPORT_INCOMPLETE",
+            }
+        return {"subject": subject, "versions": []}
+
+    monkeypatch.setattr("schema_registry_common.export_subject", _subject)
+    client = SimpleNamespace(
+        get_subjects=lambda context=None: ["user", "order"],
+        get_contexts=lambda: ["orders"],
+        get_global_config=lambda context=None: {},
+        get_mode=lambda context=None: {},
+        config=SimpleNamespace(url="http://registry"),
+    )
+
+    context_result = export_context(client, "orders", include_config=False, include_metadata=False)
+    global_result = export_global(client, include_config=False, include_metadata=False)
+
+    assert context_result["error_code"] == "SUBJECT_EXPORT_INCOMPLETE"
+    assert context_result["subject"] == "order"
+    assert global_result["error_code"] == "SUBJECT_EXPORT_INCOMPLETE"
+    assert global_result["context"] == "orders"

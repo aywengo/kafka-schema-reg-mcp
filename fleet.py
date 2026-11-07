@@ -348,7 +348,7 @@ def _validated_arguments(tool: Any, arguments: dict[str, Any]) -> dict[str, Any]
     properties = schema.get("properties")
     if isinstance(properties, dict):
         for name, prop in properties.items():
-            if name not in validated and isinstance(prop, dict) and "default" in prop:
+            if name not in validated and isinstance(prop, dict) and prop.get("default") is not None:
                 validated[name] = prop["default"]
     return validated
 
@@ -417,9 +417,17 @@ async def route_tool(name: str, arguments: Mapping[str, Any], fleet: RoutingFlee
         return special
     if name in _LOCAL_TOOLS:
         return LOCAL
-    if "source_registry" in args or "target_registry" in args:
+    if _supplied_registry(args, "source_registry") or _supplied_registry(args, "target_registry"):
         return await _route_pair(name, args, fleet, forward)
     return await _route_one(name, args, fleet, forward)
+
+
+def _supplied_registry(arguments: Mapping[str, Any], name: str) -> str | None:
+    """A registry endpoint the caller named. Omitted and null are not endpoints."""
+    value = arguments.get(name)
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def _parse_pairs(raw: str, label: str) -> dict[str, str]:

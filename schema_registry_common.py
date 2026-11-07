@@ -1242,6 +1242,16 @@ def export_subject(
         return {"error": str(e)}
 
 
+def _incomplete_aggregate(kind: str, name: str, failed: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a failed child export instead of a successful partial document."""
+    return {
+        "error": failed.get("error") or f"Failed to export {kind} '{name}'",
+        "error_code": failed.get("error_code", "EXPORT_INCOMPLETE"),
+        kind: name,
+        "failed_exports": [failed],
+    }
+
+
 def export_context(
     client: RegistryClient,
     context: str,
@@ -1265,8 +1275,15 @@ def export_context(
                 include_config,
                 include_versions,
             )
-            if "error" not in subject_export:
-                subjects_data.append(subject_export)
+            if isinstance(subject_export, dict) and subject_export.get("error"):
+                return {
+                    "error": subject_export["error"],
+                    "error_code": subject_export.get("error_code", "CONTEXT_EXPORT_INCOMPLETE"),
+                    "context": context,
+                    "subject": subject,
+                    "failed_subjects": [subject_export],
+                }
+            subjects_data.append(subject_export)
 
         result = {"context": context, "subjects": subjects_data}
 
@@ -1306,15 +1323,18 @@ def export_global(
         contexts_data = []
         for context in contexts_list:
             context_export = export_context(client, context, include_metadata, include_config, include_versions)
-            if "error" not in context_export:
-                contexts_data.append(context_export)
+            if isinstance(context_export, dict) and context_export.get("error"):
+                return _incomplete_aggregate("context", context, context_export)
+            contexts_data.append(context_export)
 
         # Export default context (no context specified)
         default_export = export_context(client, "", include_metadata, include_config, include_versions)
+        if isinstance(default_export, dict) and default_export.get("error"):
+            return _incomplete_aggregate("context", ".", default_export)
 
         result = {
             "contexts": contexts_data,
-            "default_context": (default_export if "error" not in default_export else None),
+            "default_context": default_export,
         }
 
         if include_config:

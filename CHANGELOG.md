@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unattempted restore version as a failed migration, and does not restore
   when the export has no versions or does not include every source version.
   Cross-shard arguments are checked against the registered tool before
-  orchestration. `start_workflow` and the other
+  orchestration. An omitted optional registry endpoint stays omitted.
+  A failed subject or context export fails the aggregate export.
+  `start_workflow` and the other
   registry-free planners stay on the front. A shard session uses the caller's
   protocol era. A legacy caller answers elicitation in-request. A modern
   input request is returned to a modern caller. A shard tool error is a tool

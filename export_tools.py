@@ -288,8 +288,9 @@ async def export_context_tool(
                     include_versions,
                     registry,
                 )
-                if "error" not in subject_export:
-                    subjects_data.append(subject_export)
+                if isinstance(subject_export, dict) and subject_export.get("error"):
+                    return subject_export
+                subjects_data.append(subject_export)
 
             if mcp_context:
                 await mcp_context.report_progress(70.0, 100.0, f"Exported {len(subjects_data)} subjects successfully")
@@ -467,8 +468,9 @@ async def export_global_tool(
                     include_versions,
                     None,  # Don't pass mcp_context to avoid nested progress reporting
                 )
-                if "error" not in context_export:
-                    contexts_data.append(context_export)
+                if isinstance(context_export, dict) and context_export.get("error"):
+                    return context_export
+                contexts_data.append(context_export)
 
             if mcp_context:
                 await mcp_context.report_progress(65.0, 100.0, f"Exported {len(contexts_data)} contexts successfully")
@@ -487,6 +489,8 @@ async def export_global_tool(
                 include_versions,
                 None,  # Don't pass mcp_context to avoid nested progress reporting
             )
+            if isinstance(default_export, dict) and default_export.get("error"):
+                return default_export
 
             if mcp_context:
                 await mcp_context.report_progress(70.0, 100.0, "Default context export completed")
@@ -498,7 +502,7 @@ async def export_global_tool(
             result = {
                 "contexts": contexts_data,
                 "contexts_count": len(contexts_data),
-                "default_context": (default_export if "error" not in default_export else None),
+                "default_context": default_export,
                 "registry": client.config.name,
                 "registry_mode": registry_mode,
                 "mcp_protocol_version": current_protocol_version(),
