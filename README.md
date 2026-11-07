@@ -145,14 +145,12 @@ This project includes **5 specialized Claude Code skills** – 4 for automated s
 
 ### Option A: Docker (Recommended)
 ```bash
-# Viewer (default, 39 tools)
+# Promoted channel. `:stable` moves only when Tag as Stable runs.
 docker pull aywengo/kafka-schema-reg-mcp:stable
-
-# Editor (42 tools) and admin (67 tools)
 docker pull aywengo/kafka-schema-reg-mcp:stable-editor
 docker pull aywengo/kafka-schema-reg-mcp:stable-admin
 
-# Pin the release and edition
+# This release. Admin on the 3.1.0 tag is 67 tools.
 docker pull aywengo/kafka-schema-reg-mcp:3.1.0-admin
 ```
 

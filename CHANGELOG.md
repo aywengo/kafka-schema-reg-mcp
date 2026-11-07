@@ -17,9 +17,12 @@ are unchanged.
 
 - One access-token verifier. Signature, issuer, expiry, and audience are
   checked once, and scopes are expanded on the access token (`admin` includes
-  `write` and `read`; `write` includes `read`). A token is accepted when any
-  one of `sub`, `azp`, or `client_id` is present, so a client-credentials
-  token whose subject is the client id passes. Protected-resource metadata
+  `write` and `read`; `write` includes `read`). When `gty` is
+  `authorization_code` or `urn:ietf:params:oauth:grant-type:jwt-bearer`, the
+  token must include `sub`; an authorization-code token with only `azp` is
+  rejected. For `client_credentials`, and when `gty` is absent, any one of
+  `sub`, `azp`, or `client_id` is enough, so a client-credentials token whose
+  subject is the client id passes. Protected-resource metadata
   advertises `client_credentials` and
   `urn:ietf:params:oauth:grant-type:jwt-bearer` only when the issuer lists
   them, and advertises the SEP-990 enterprise-managed authorization extension
