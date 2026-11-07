@@ -173,7 +173,11 @@ fleet:
       member: alpha
     - registry: staging
       member: beta
+networkPolicy:
+  fleetPeers: true
 ```
+
+Set `networkPolicy.fleetPeers` on the front and on each shard. It allows egress to `app.port` and ingress from other releases of this chart in the namespace. A front also allows that egress when `fleet.role` is `front`. Use `networkPolicy.ingress.extraFrom` when a front lives in another namespace, and `networkPolicy.egress.extraPorts` when a shard MCP port is not `app.port`.
 
 ### Ingress Configuration
 
@@ -326,15 +330,20 @@ Network policies are enabled by default for production security:
 ```yaml
 networkPolicy:
   enabled: true
+  fleetPeers: false
   ingress:
     enabled: true
     from:
       - namespaceSelector:
           matchLabels:
             name: ingress-nginx
+    extraFrom: []
   egress:
     enabled: true
+    extraPorts: []
 ```
+
+`fleetPeers: true` opens `app.port` between releases of this chart. A fleet front and its shards need that so the default policy does not block shard MCP traffic.
 
 ### Security Contexts
 

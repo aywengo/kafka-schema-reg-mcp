@@ -195,6 +195,8 @@ async def test_cross_shard_migrate_exports_then_restores() -> None:
     assert "config" not in restore_args["bundle"]
     assert result["successful_migrations"] == 1
     assert result["failed_migrations"] == 0
+    assert result["total_versions"] == 2
+    assert result["versions_to_migrate"] == 1
     assert result["dry_run"] is False
 
 
@@ -430,6 +432,8 @@ async def test_missing_requested_version_does_not_restore() -> None:
     assert [call[0] for call in fleet.calls] == ["export_subject"]
     assert result["message"] == "No versions to migrate"
     assert result["successful_migrations"] == 0
+    assert result["total_versions"] == 1
+    assert result["versions_to_migrate"] == 0
 
 
 @pytest.mark.asyncio
@@ -572,3 +576,220 @@ def test_inprocess_role_keeps_a_registry_password() -> None:
     config = load_fleet_config({"SCHEMA_REGISTRY_PASSWORD": "secret"})
     assert config.role == "inprocess"
     assert config.directory == {}
+
+
+@pytest.mark.asyncio
+async def test_start_workflow_stays_on_the_front() -> None:
+    fleet = RecordingFleet({"prod": "alpha", "staging": "beta"})
+
+    result = await route_tool("start_workflow", {"workflow_id": "evolve"}, fleet)
+
+    assert result is not None
+    assert fleet.calls == []
+    from fleet import LOCAL
+
+    assert result is LOCAL
+
+
+@pytest.mark.asyncio
+async def test_latest_migrate_counts_every_source_version() -> None:
+    document = {
+        "subject": "user",
+        "versions": [
+            {"version": 1, "id": 1},
+            {"version": 2, "id": 2},
+            {"version": 3, "id": 3},
+        ],
+        "metadata": {"context": "."},
+    }
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {("export_subject", "prod"): document, ("restore_bundle", "staging"): {"status": "applied"}},
+    )
+
+    result = await route_tool(
+        "migrate_schema",
+        {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+        fleet,
+    )
+
+    restored = fleet.calls[1][1]["bundle"]["versions"]
+    assert [item["version"] for item in restored] == [3]
+    assert fleet.calls[0][1]["include_versions"] == "all"
+    assert result["total_versions"] == 3
+    assert result["versions_to_migrate"] == 1
+    assert result["successful_migrations"] == 1
+
+
+@pytest.mark.asyncio
+async def test_incomplete_restore_counts_the_version_it_did_not_write() -> None:
+    document = {
+        "subject": "user",
+        "versions": [{"version": 1, "id": 1}, {"version": 2, "id": 2}],
+        "metadata": {"context": "."},
+    }
+    fleet = RecordingFleet(
+        {"prod": "alpha", "staging": "beta"},
+        {
+            ("export_subject", "prod"): document,
+            ("restore_bundle", "staging"): {
+                "status": "incomplete",
+                "created": [{"version": 1}],
+                "reason": "cannot import user version 2",
+            },
+        },
+    )
+
+    result = await route_tool(
+        "migrate_schema",
+        {
+            "subject": "user",
+            "source_registry": "prod",
+            "target_registry": "staging",
+            "migrate_all_versions": True,
+        },
+        fleet,
+    )
+
+    assert result["successful_migrations"] == 1
+    assert result["failed_migrations"] == 1
+    failed = [item for item in result["migration_details"] if item["status"] == "failed"]
+    assert failed == [{"version": 2, "status": "failed", "error": "cannot import user version 2"}]
+
+
+@pytest.mark.asyncio
+async def test_shard_tool_error_stops_before_restore() -> None:
+    from fastmcp.exceptions import ToolError
+
+    class _FailTemplate:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def new(self) -> "_FailSession":
+            return _FailSession(self)
+
+    class _FailSession:
+        def __init__(self, template: _FailTemplate) -> None:
+            self._template = template
+
+        async def __aenter__(self) -> "_FailSession":
+            return self
+
+        async def __aexit__(self, *exc: Any) -> None:
+            return None
+
+        async def call_tool(self, name: str, arguments: dict[str, Any], **kwargs: Any) -> Any:
+            self._template.calls.append(name)
+            return SimpleNamespace(
+                is_error=True,
+                structured_content=None,
+                data=None,
+                content=[SimpleNamespace(text="export failed")],
+            )
+
+    template = _FailTemplate()
+    fleet = ClientGroupFleet({"prod": "alpha", "staging": "beta"}, {"alpha": template, "beta": _FailTemplate()})
+
+    with pytest.raises(ToolError, match="export failed"):
+        await route_tool(
+            "migrate_schema",
+            {"subject": "user", "source_registry": "prod", "target_registry": "staging"},
+            fleet,
+        )
+
+    assert template.calls == ["export_subject"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_caller_opens_a_legacy_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("fleet.is_modern_connection", lambda: False)
+
+    class _LegacyTemplate:
+        def __init__(self) -> None:
+            self.session = _LegacySession()
+
+        def new(self) -> "_LegacySession":
+            return self.session
+
+    class _LegacySession:
+        def __init__(self) -> None:
+            self.mode = "auto"
+
+        async def __aenter__(self) -> "_LegacySession":
+            return self
+
+        async def __aexit__(self, *exc: Any) -> None:
+            return None
+
+        async def call_tool(self, name: str, arguments: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+            self.mode_at_call = self.mode
+            return {"ok": True}
+
+    template = _LegacyTemplate()
+    fleet = ClientGroupFleet({"prod": "alpha"}, {"alpha": template})
+
+    await fleet.dispatch("list_subjects", {"registry": "prod"})
+
+    assert template.session.mode_at_call == "legacy"
+
+
+@pytest.mark.asyncio
+async def test_legacy_caller_answers_input_and_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mcp.types import ElicitRequest, ElicitRequestFormParams, ElicitResult, InputRequiredResult
+
+    monkeypatch.setattr("fleet.is_modern_connection", lambda: False)
+
+    async def _answered(message: str, schema: dict[str, Any]) -> ElicitResult:
+        assert message == "Confirm"
+        return ElicitResult(action="accept", content={"ok": True})
+
+    monkeypatch.setattr("fleet._elicit_form", _answered)
+    required = InputRequiredResult(
+        input_requests={
+            "form": ElicitRequest(
+                params=ElicitRequestFormParams(
+                    message="Confirm",
+                    requestedSchema={"type": "object", "properties": {"ok": {"type": "boolean"}}},
+                )
+            )
+        },
+        request_state="sealed",
+    )
+
+    class _AskTemplate:
+        def __init__(self) -> None:
+            self.rounds: list[Any] = []
+
+        def new(self) -> "_AskSession":
+            return _AskSession(self)
+
+    class _AskSession:
+        def __init__(self, template: _AskTemplate) -> None:
+            self._template = template
+            self.mode = "auto"
+
+        async def __aenter__(self) -> "_AskSession":
+            return self
+
+        async def __aexit__(self, *exc: Any) -> None:
+            return None
+
+        @property
+        def session(self) -> "_AskSession":
+            return self
+
+        async def call_tool(self, name: str, arguments: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+            self._template.rounds.append(kwargs.get("input_responses"))
+            if kwargs.get("input_responses"):
+                return {"status": "done"}
+            return required
+
+    template = _AskTemplate()
+    fleet = ClientGroupFleet({"prod": "alpha"}, {"alpha": template})
+
+    result = await fleet.dispatch("export_global_interactive", {"registry": "prod"})
+
+    assert result == {"status": "done"}
+    assert template.rounds[0] is None
+    assert template.rounds[1]["form"].action == "accept"
+    assert template.rounds[1]["form"].content == {"ok": True}

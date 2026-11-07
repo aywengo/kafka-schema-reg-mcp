@@ -16,12 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `list_registries` returns the directory. Cross-shard compare and
   find-missing export each side once and keep context-qualified subject names.
   Cross-shard `migrate_schema` is `export_subject` on the source shard and
-  `restore_bundle` on the target. It copies schema versions only, returns the
-  same migration counts as an in-process migrate, and does not restore when
-  the export has no versions. Registry-free planners stay on the front. A
-  shard elicitation or input request is relayed to the caller.
+  `restore_bundle` on the target. It copies schema versions only, reports
+  every available source version in `total_versions`, counts a failed or
+  unattempted restore version as a failed migration, and does not restore
+  when the export has no versions. `start_workflow` and the other
+  registry-free planners stay on the front. A shard session uses the caller's
+  protocol era. A legacy caller answers elicitation in-request. A modern
+  input request is returned to a modern caller. A shard tool error is a tool
+  error.
 - Helm `fleet.role`, `fleet.shards`, and `fleet.directory`. A front chart
-  omits Schema Registry URLs and credentials.
+  omits Schema Registry URLs and credentials. `networkPolicy.fleetPeers`
+  allows front-to-shard traffic on the chart's app port.
 - `restore_bundle` applies an `export_global`, `export_context`, or
   `export_subject` document to one registry. The call is a dry-run unless
   `apply` is true, and it preserves schema ids. `guided_disaster_recovery`

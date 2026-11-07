@@ -18,6 +18,7 @@ from typing import Any, Protocol
 
 from fastmcp.server.middleware import Middleware
 
+from mrtr import is_modern_connection
 from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_validation import create_error_response
@@ -53,6 +54,7 @@ _LOCAL_TOOLS = frozenset(
         "test_oauth_discovery_endpoints",
         "list_workflows",
         "describe_workflow",
+        "start_workflow",
         "guided_schema_evolution",
         "guided_schema_migration",
         "guided_context_reorganization",
@@ -215,10 +217,14 @@ class ClientGroupFleet:
         if template is None:
             return _registry_not_found(registry)
         session = template.new()
+        _align_session_protocol(session)
         async with session:
             result = await _invoke_session(session, tool, payload, forward)
+            if _is_input_required(result) and not is_modern_connection():
+                result = await _resolve_legacy_input(session, tool, payload, result)
         if _is_input_required(result):
             return result
+        _raise_shard_error(result)
         return _unwrap_tool_result(result)
 
 
@@ -611,23 +617,23 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
     subject = str(arguments.get("subject") or "")
     source_context = arguments.get("source_context") or "."
     target_context = arguments.get("target_context") or "."
-    versions = arguments.get("versions")
-    include_versions = "all" if versions or arguments.get("migrate_all_versions") else "latest"
     export_arguments: dict[str, Any] = {
         "subject": subject,
         "registry": source,
         "include_metadata": True,
         "include_config": False,
-        "include_versions": include_versions,
+        "include_versions": "all",
     }
     if source_context and source_context != ".":
         export_arguments["context"] = source_context
     document = await fleet.dispatch("export_subject", export_arguments)
     if _is_export_error(document):
         return document
-    bundle = _migrate_document(document if isinstance(document, Mapping) else {}, versions, str(target_context))
+    source_doc = document if isinstance(document, Mapping) else {}
+    available = [item for item in source_doc.get("versions") or [] if isinstance(item, dict)]
+    bundle = _migrate_document(source_doc, arguments, str(target_context))
     if not bundle.get("versions"):
-        return _nothing_to_migrate(arguments, document if isinstance(document, Mapping) else {})
+        return _nothing_to_migrate(arguments, len(available))
     apply = not bool(arguments.get("dry_run") or False)
     accept_new_ids = arguments.get("preserve_ids", True) is False
     restored = await fleet.dispatch(
@@ -639,7 +645,7 @@ async def _migrate(arguments: Mapping[str, Any], fleet: RoutingFleet) -> Any:
             "accept_new_ids": accept_new_ids,
         },
     )
-    return _migration_from_restore(restored, arguments, bundle)
+    return _migration_from_restore(restored, arguments, bundle, len(available))
 
 
 async def _export_global(fleet: RoutingFleet, registry: str) -> Any:
@@ -674,12 +680,11 @@ def _is_export_error(document: Any) -> bool:
     return isinstance(document, dict) and bool(document.get("error"))
 
 
-def _nothing_to_migrate(arguments: Mapping[str, Any], document: Mapping[str, Any]) -> dict[str, Any]:
+def _nothing_to_migrate(arguments: Mapping[str, Any], available: int) -> dict[str, Any]:
     """Match in-process migrate when the requested versions do not exist."""
-    available = document.get("versions")
-    count = len(available) if isinstance(available, list) else 0
     return {
-        "total_versions": count,
+        "total_versions": available,
+        "versions_to_migrate": 0,
         "successful_migrations": 0,
         "failed_migrations": 0,
         "skipped_migrations": 0,
@@ -690,7 +695,7 @@ def _nothing_to_migrate(arguments: Mapping[str, Any], document: Mapping[str, Any
     }
 
 
-def _migrate_document(document: Mapping[str, Any], versions: Any, target_context: str) -> dict[str, Any]:
+def _migrate_document(document: Mapping[str, Any], arguments: Mapping[str, Any], target_context: str) -> dict[str, Any]:
     """Apply the target context and version subset the way migrate qualifies a subject."""
     bundle = copy.deepcopy(dict(document))
     bundle["subject"] = _bare_subject(str(bundle.get("subject") or ""))
@@ -698,12 +703,27 @@ def _migrate_document(document: Mapping[str, Any], versions: Any, target_context
     metadata["context"] = "." if not target_context or target_context == "." else target_context
     bundle["metadata"] = metadata
     bundle.pop("config", None)
-    if isinstance(versions, list) and versions:
-        wanted = set(versions)
-        bundle["versions"] = [
-            item for item in bundle.get("versions") or [] if isinstance(item, dict) and item.get("version") in wanted
-        ]
+    bundle["versions"] = _select_versions(
+        bundle.get("versions") or [],
+        arguments.get("versions"),
+        bool(arguments.get("migrate_all_versions")),
+    )
     return bundle
+
+
+def _select_versions(available: Any, requested: Any, migrate_all: bool) -> list[dict[str, Any]]:
+    """Keep the versions migrate would copy. ``total`` is counted before this filter."""
+    items = [item for item in available or [] if isinstance(item, dict)]
+    if isinstance(requested, list) and requested:
+        wanted = set(requested)
+        return [item for item in items if item.get("version") in wanted]
+    if migrate_all:
+        return items
+    numbers = [item.get("version") for item in items if isinstance(item.get("version"), int)]
+    if not numbers:
+        return []
+    latest = max(numbers)
+    return [item for item in items if item.get("version") == latest]
 
 
 def _bare_subject(subject: str) -> str:
@@ -881,6 +901,95 @@ def _call_registry(tool: str, arguments: Mapping[str, Any]) -> str:
     return ""
 
 
+def _align_session_protocol(session: Any) -> None:
+    """Negotiate the shard at the caller's era.
+
+    A legacy caller cannot answer ``InputRequiredResult``. A legacy session
+    makes the shard use in-request elicitation, which the elicitation handler
+    relays. A modern caller keeps the template's mode and receives the input
+    request on the next tools/call.
+    """
+    if not hasattr(session, "mode"):
+        return
+    if not is_modern_connection():
+        session.mode = "legacy"
+
+
+def _raise_shard_error(result: Any) -> None:
+    """A shard ``is_error`` result is a tool failure, not a successful payload."""
+    if not getattr(result, "is_error", False):
+        return
+    from fastmcp.exceptions import ToolError
+
+    raise ToolError(_shard_error_text(result))
+
+
+def _shard_error_text(result: Any) -> str:
+    content = getattr(result, "content", None) or []
+    texts = [getattr(block, "text", None) for block in content]
+    texts = [text for text in texts if isinstance(text, str) and text]
+    if texts:
+        return "\n".join(texts)
+    structured = getattr(result, "structured_content", None)
+    if isinstance(structured, Mapping):
+        error = structured.get("error")
+        if error:
+            return str(error)
+    return "Shard tool call failed"
+
+
+async def _resolve_legacy_input(session: Any, tool: str, payload: dict[str, Any], result: Any) -> Any:
+    """Answer a modern shard input request with in-request elicitation and retry."""
+    from fastmcp.exceptions import ToolError
+
+    pending = result
+    for _ in range(4):
+        requests = getattr(pending, "input_requests", None) or {}
+        if not requests:
+            break
+        responses = {}
+        for key, request in requests.items():
+            if getattr(request, "method", None) != "elicitation/create":
+                break
+            params = getattr(request, "params", None)
+            schema = getattr(params, "requested_schema", None)
+            if not isinstance(schema, Mapping):
+                schema = {"type": "object", "properties": {}}
+            responses[key] = await _elicit_form(str(getattr(params, "message", "") or ""), schema)
+        else:
+            pending = await _invoke_session(
+                session,
+                tool,
+                payload,
+                {
+                    "input_responses": responses,
+                    "request_state": getattr(pending, "request_state", None),
+                },
+            )
+            if not _is_input_required(pending):
+                return pending
+            continue
+        break
+    raise ToolError("Shard asked for input a legacy caller cannot answer")
+
+
+async def _elicit_form(message: str, schema: Mapping[str, Any]) -> Any:
+    """Ask the current caller with the legacy in-request elicitation path."""
+    from mcp.types import ElicitResult
+
+    try:
+        from fastmcp.server.dependencies import get_context
+
+        from mrtr import ask
+
+        outcome, value = await ask(get_context(), message=message, schema=dict(schema))
+    except Exception:
+        return ElicitResult(action="decline")
+    if outcome != "answered" or not isinstance(value, Mapping):
+        return ElicitResult(action="decline")
+    return ElicitResult(action="accept", content=dict(value))
+
+
 def _unwrap_tool_result(result: Any) -> Any:
     structured = getattr(result, "structured_content", None)
     if isinstance(structured, dict):
@@ -917,39 +1026,21 @@ async def _invoke_session(session: Any, tool: str, payload: dict[str, Any], forw
     )
 
 
-def _migration_from_restore(restored: Any, arguments: Mapping[str, Any], bundle: Mapping[str, Any]) -> Any:
+def _migration_from_restore(
+    restored: Any,
+    arguments: Mapping[str, Any],
+    bundle: Mapping[str, Any],
+    available: int,
+) -> Any:
     """Shape a restore report like in-process ``migrate_schema``."""
     if not isinstance(restored, Mapping) or "status" not in restored:
         return restored
     versions = bundle.get("versions") if isinstance(bundle.get("versions"), list) else []
     status = restored.get("status")
+    successful, failed, skipped_count, details = _migration_tally(restored, versions)
     dry_run = status == "dry_run"
-    created = list(restored.get("created") or [])
-    skipped = list(restored.get("skipped") or [])
-    conflicts = list(restored.get("conflicts") or [])
-    if dry_run:
-        successful, failed, skipped_count = len(versions), 0, 0
-        details = [
-            {"version": item.get("version"), "status": "simulated", "message": "Would migrate this version"}
-            for item in versions
-            if isinstance(item, dict)
-        ]
-    elif any(key in restored for key in ("created", "skipped", "conflicts")):
-        successful, failed, skipped_count = len(created), len(conflicts), len(skipped)
-        details = (
-            [_migration_detail(item, "migrated") for item in created]
-            + [_migration_detail(item, "skipped") for item in skipped]
-            + [_migration_detail(item, "failed") for item in conflicts]
-        )
-    else:
-        successful = len(versions) if status == "applied" else 0
-        failed = 0
-        skipped_count = 0
-        details = [_migration_detail(item, "migrated") for item in versions]
-    if status in {"rejected", "incomplete"} and failed == 0 and successful == 0:
-        failed = len(versions) or 1
     body: dict[str, Any] = {
-        "total_versions": len(versions),
+        "total_versions": available,
         "versions_to_migrate": len(versions),
         "successful_migrations": successful,
         "failed_migrations": failed,
@@ -984,9 +1075,81 @@ def _migration_from_restore(restored: Any, arguments: Mapping[str, Any], bundle:
     )
 
 
+def _migration_tally(
+    restored: Mapping[str, Any],
+    versions: list[Any],
+) -> tuple[int, int, int, list[dict[str, Any]]]:
+    """Count created, skipped, failed, and versions the restore never wrote."""
+    status = restored.get("status")
+    created = list(restored.get("created") or [])
+    skipped = list(restored.get("skipped") or [])
+    conflicts = list(restored.get("conflicts") or [])
+    if status == "dry_run":
+        details = [
+            {"version": item.get("version"), "status": "simulated", "message": "Would migrate this version"}
+            for item in versions
+            if isinstance(item, dict)
+        ]
+        return len(versions), 0, 0, details
+    if any(key in restored for key in ("created", "skipped", "conflicts")):
+        missed = _unattempted_versions(versions, created, skipped, conflicts, restored.get("reason"), status)
+        details = (
+            [_migration_detail(item, "migrated") for item in created]
+            + [_migration_detail(item, "skipped") for item in skipped]
+            + [_migration_detail(item, "failed") for item in conflicts]
+            + missed
+        )
+        return len(created), len(conflicts) + len(missed), len(skipped), details
+    successful = len(versions) if status == "applied" else 0
+    failed = 0
+    details = [_migration_detail(item, "migrated") for item in versions]
+    if status in {"rejected", "incomplete"} and successful == 0:
+        failed = len(versions) or 1
+        details = [_unattempted_detail(item, restored.get("reason")) for item in versions if isinstance(item, dict)]
+    return successful, failed, 0, details
+
+
+def _unattempted_versions(
+    versions: list[Any],
+    created: list[Any],
+    skipped: list[Any],
+    conflicts: list[Any],
+    reason: Any,
+    status: Any,
+) -> list[dict[str, Any]]:
+    """Versions absent from an incomplete or rejected restore report."""
+    if status not in {"rejected", "incomplete"}:
+        return []
+    seen = {_version_number(item) for item in (*created, *skipped, *conflicts)}
+    seen.discard(None)
+    return [
+        _unattempted_detail(item, reason)
+        for item in versions
+        if isinstance(item, dict) and item.get("version") not in seen
+    ]
+
+
+def _unattempted_detail(item: Mapping[str, Any], reason: Any) -> dict[str, Any]:
+    detail = {"version": item.get("version"), "status": "failed"}
+    if reason:
+        detail["error"] = str(reason)
+    return detail
+
+
+def _version_number(item: Any) -> Any:
+    if isinstance(item, Mapping):
+        return item.get("version")
+    return None
+
+
 def _migration_detail(item: Any, status: str) -> dict[str, Any]:
     version = item.get("version") if isinstance(item, Mapping) else None
-    return {"version": version, "status": status}
+    detail: dict[str, Any] = {"version": version, "status": status}
+    if isinstance(item, Mapping) and status == "failed":
+        reason = item.get("reason") or item.get("error")
+        if reason:
+            detail["error"] = str(reason)
+    return detail
 
 
 def _migration_message(successful: int, total: int, dry_run: bool, reason: Any) -> str:
