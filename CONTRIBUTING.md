@@ -28,6 +28,6 @@ A change that does not touch the registry client can run the relevant pytest fil
 
 ## Review
 
-[CODEOWNERS](CODEOWNERS) requests `@aywengo` on every pull request.
+[CODEOWNERS](CODEOWNERS) requests `@aywengo` on every pull request. A pull request merges to `main` after an approving review from GitHub Copilot or the owner; see [Branching and Merging](AGENTS.md#branching-and-merging).
 
 Publishing images and the Helm chart is described in [docs/release-process.md](docs/release-process.md).
