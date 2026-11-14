@@ -6,9 +6,9 @@ from `tool_catalog.py`.
 
 | Edition | Tools | Docker tag | Intended use |
 |---|---|---|---|
-| `viewer` | 39 | `:3.1.0-viewer` | Browse, export, compare, compatibility checks |
-| `editor` | 42 | `:3.1.0-editor` | Viewer plus schema registration and evolution |
-| `admin` | 67 | `:3.1.0-admin` | Full access, including configuration, deletion and migration |
+| `viewer` | 40 | `:3.1.0-viewer` | Browse, export, compare, compatibility checks |
+| `editor` | 43 | `:3.1.0-editor` | Viewer plus schema registration and evolution |
+| `admin` | 68 | `:3.1.0-admin` | Full access, including configuration, deletion and migration |
 
 The default is `viewer`. Set `MCP_EDITION=editor` or `MCP_EDITION=admin` to
 expose more tools. The image can also bake a different default with
@@ -17,7 +17,7 @@ expose more tools. The image can also bake a different default with
 `SLIM_MODE=true` is a deprecated alias for `MCP_EDITION=editor`. Setting both
 `SLIM_MODE` and `MCP_EDITION` is an error, not a silent override.
 
-## Viewer (39)
+## Viewer (40)
 
 | Tool | Scope | Mutates | Edition |
 |---|---|---|---|
@@ -42,6 +42,7 @@ expose more tools. The image can also bake a different default with
 | `get_mode` | read | no | viewer |
 | `get_oauth_scopes_info` | read | no | viewer |
 | `get_registry_info` | read | no | viewer |
+| `get_registry_insights` | read | no | viewer |
 | `get_registry_statistics` | read | no | viewer |
 | `get_schema` | read | no | viewer |
 | `get_schema_by_id` | read | no | viewer |
@@ -61,7 +62,7 @@ expose more tools. The image can also bake a different default with
 | `test_oauth_discovery_endpoints` | read | no | viewer |
 | `test_registry_connection` | read | no | viewer |
 
-## Full editor set (42)
+## Full editor set (43)
 
 Includes every viewer tool.
 
@@ -89,6 +90,7 @@ Includes every viewer tool.
 | `get_mode` | read | no | viewer |
 | `get_oauth_scopes_info` | read | no | viewer |
 | `get_registry_info` | read | no | viewer |
+| `get_registry_insights` | read | no | viewer |
 | `get_registry_statistics` | read | no | viewer |
 | `get_schema` | read | no | viewer |
 | `get_schema_by_id` | read | no | viewer |
@@ -110,7 +112,7 @@ Includes every viewer tool.
 | `test_oauth_discovery_endpoints` | read | no | viewer |
 | `test_registry_connection` | read | no | viewer |
 
-## Full admin set (67)
+## Full admin set (68)
 
 Includes every viewer tool.
 
@@ -150,6 +152,7 @@ Includes every viewer tool.
 | `get_mode` | read | no | viewer |
 | `get_oauth_scopes_info` | read | no | viewer |
 | `get_registry_info` | read | no | viewer |
+| `get_registry_insights` | read | no | viewer |
 | `get_registry_statistics` | read | no | viewer |
 | `get_schema` | read | no | viewer |
 | `get_schema_by_id` | read | no | viewer |

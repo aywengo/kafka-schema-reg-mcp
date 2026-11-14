@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `objectives`, `strategy`, `warnings`, and a Markdown `runbook`; the 3.1 keys
   are unchanged. The form also asks for RPO, RTO, and a primary scenario. It
   is still a planner and calls nothing. (#76)
+- `get_registry_insights` (viewer, background task) reports a registry's
+  current state: version distribution and the subjects with the most versions,
+  the schema type mix, compatibility levels and subject overrides, the
+  most-referenced subjects and references to subjects that do not exist, and
+  findings (`COMPATIBILITY_NONE`, `VERSION_SPRAWL`, `DANGLING_REFERENCE`,
+  `EMPTY_CONTEXT`). One failing subject is listed under `errors` and does not
+  fail the report. Usage, consumer, and history data are not in the registry
+  API and are not reported. Editions are now 40 / 43 / 68 tools. (#76)
 
 ## [3.1.0] - 2026-11-07
 
