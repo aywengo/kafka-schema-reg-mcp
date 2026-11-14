@@ -930,8 +930,20 @@ Start the Disaster Recovery Setup workflow
 |---|---|---|---|
 | `registry` | `string` | no |  |
 | `backup_target` | `string` | no |  |
-| `schedule` | `string` | no |  |
-| `verify_restore` | `boolean` | no |  |
+| `schedule` | `string` | no | follows `rpo`, else `daily` |
+| `verify_restore` | `boolean` | no | `true` |
+| `rpo` | `string` | no | `real-time`, `under-1-hour`, `under-24-hours`, `weekly` |
+| `rto` | `string` | no | `under-5-minutes`, `under-1-hour`, `under-4-hours`, `under-24-hours` |
+| `scenarios` | `array` of `string` | no | any of `datacenter-failure`, `region-outage`, `corruption`, `accidental-deletion` |
+| `include_runbook` | `boolean` | no | `true` |
+
+When `backup_target` is missing, the tool asks for it together with RPO, RTO and one
+primary scenario. The plan keeps the 3.1 keys and adds `objectives`, `strategy`
+(`backup_cadence`, `recovery`, `standby_required`), `warnings`, and `runbook` (Markdown,
+or `null` when `include_runbook` is false). `rpo=real-time` and `rto=under-5-minutes`
+set `standby_required`, because scheduled exports cannot meet them. An explicit
+`schedule` slower than the RPO allows is reported in `warnings`. The tool names
+`restore_bundle` and does not call it.
 
 #### `guided_schema_migration`
 
