@@ -693,6 +693,7 @@ REGISTRY_INSIGHTS_SCHEMA = {
             "properties": {
                 "most_referenced": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
                 "dangling": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
+                "unverified": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
             },
             "required": ["most_referenced", "dangling"],
         },

@@ -435,9 +435,13 @@ Report version spread, schema types, compatibility overrides and dangling refere
 A point-in-time snapshot of registry state. The result has `version_distribution`
 (buckets `1`, `2-5`, `6-20`, `21+` and the top subjects), `schema_types`,
 `compatibility` (global and per-context levels, effective level counts, subject
-overrides), `references` (most-referenced subjects and references to subjects that
-do not exist), `findings` (`COMPATIBILITY_NONE`, `VERSION_SPRAWL`,
-`DANGLING_REFERENCE`, `EMPTY_CONTEXT`), per-subject `errors`, and `limitations`.
+overrides), `references` (most-referenced subjects, references to subjects that do
+not exist, and `unverified` references into a context that was out of scope or
+failed to list), `findings` (`COMPATIBILITY_NONE`, `VERSION_SPRAWL`,
+`DANGLING_REFERENCE`, `EMPTY_CONTEXT`), `errors`, and `limitations`. A failed
+listing or configuration read is reported under `errors`: a subject whose config read
+fails (other than 404, "no override") counts as `UNKNOWN`, and a context that fails to
+list produces no absence-based findings.
 Usage, consumer and historical data are not available from the registry API; use
 `/metrics` and the Grafana dashboard for trends.
 
