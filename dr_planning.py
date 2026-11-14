@@ -33,8 +33,9 @@ _RTO_RECOVERY: dict[str, str] = {
 
 _RECOVERY_TEXT = {
     "warm_standby": (
-        "Fail clients over to a warm standby registry kept in sync outside this server. "
-        "Check drift with compare_registries and find_missing_schemas before switching."
+        "Fail clients over to a warm standby registry kept in sync outside this server. Check the standby "
+        "with test_registry_connection and recover to its last verified checkpoint; do not wait on the "
+        "failed primary."
     ),
     "restore_to_prepared_registry": (
         "Keep an empty registry provisioned. Apply the latest backup to it with restore_bundle, "
@@ -60,7 +61,8 @@ _SCENARIO_RUNBOOK: dict[str, tuple[str, list[str]]] = {
         [
             "Keep the backup target and the recovery registry in a different region from the primary.",
             "Recover in the surviving region using the recovery path above.",
-            "After the region returns, compare_registries before moving traffic back.",
+            "After the region returns, compare the export_context output of both registries for every "
+            "context before moving traffic back.",
         ],
     ),
     "corruption": (
@@ -76,7 +78,9 @@ _SCENARIO_RUNBOOK: dict[str, tuple[str, list[str]]] = {
     "accidental-deletion": (
         "Accidental deletion",
         [
-            "Find what is missing with find_missing_schemas against a standby, or by reading the backup.",
+            "Find what is missing: export_context each affected context from the registry and compare its "
+            "subjects and version lists with the standby or the backup. find_missing_schemas only reports "
+            "subjects that are gone entirely, not deleted versions.",
             "Run restore_bundle narrowed with context and subject, apply=false first.",
             "Apply it; versions already present are skipped and schema ids are preserved.",
         ],
@@ -149,10 +153,12 @@ def _runbook(
         "- Keep at least one copy outside the primary registry's failure domain.",
     ]
     if standby_required:
-        lines.append(
-            "- Run a standby registry replicated outside this server; check it with compare_registries "
-            "and find_missing_schemas."
-        )
+        lines += [
+            "- Run a standby registry replicated outside this server.",
+            "- While the primary is healthy, check drift on a schedule: export_context every context from "
+            "both registries and compare subjects, versions, schema ids and bodies. The time of the last "
+            "clean check is the verified checkpoint used at failover.",
+        ]
     lines += ["", "## Recovery", "", f"- {_RECOVERY_TEXT[recovery]}"]
     if rpo == "real-time":
         lines.append(
@@ -168,8 +174,10 @@ def _runbook(
         lines += [
             "- After each backup, run restore_bundle with apply=true into an isolated scratch registry. "
             "A preview with apply=false only checks the document; it does not contact the registry.",
-            "- Check the report status is applied with no conflicts, then compare_registries between the "
-            "source and the scratch registry to confirm every subject and version arrived.",
+            "- Check the report status is applied with no conflicts, then export_context every context from "
+            "the scratch registry and compare it with the backup document: subjects, versions, schema ids, "
+            "bodies and references. compare_registries is not enough; it compares versions only in the "
+            "default context.",
             "- Clear the scratch registry before the next drill.",
         ]
     else:

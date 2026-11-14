@@ -943,9 +943,12 @@ primary scenario. The plan keeps the 3.1 keys and adds `objectives`, `strategy`
 or `null` when `include_runbook` is false). `rpo=real-time` and `rto=under-5-minutes`
 both recover from a warm standby and set `standby_required`, because restoring a
 scheduled export cannot meet them; for a real-time RPO the export restore is listed
-only as a fallback. Restore verification applies the backup to an isolated scratch
-registry and compares it with the source, since a dry run does not contact the
-registry. An explicit
+only as a fallback. Standby drift is checked while the primary is healthy, so
+failover does not depend on reaching it. Restore verification applies the backup to an
+isolated scratch registry and compares every context's export with the backup
+document (subjects, versions, ids, bodies, references), since a dry run does not
+contact the registry and `compare_registries` compares versions only in the default
+context. An explicit
 `schedule` slower than the RPO allows is reported in `warnings`. The tool names
 `restore_bundle` and does not call it.
 

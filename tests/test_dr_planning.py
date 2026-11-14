@@ -45,8 +45,24 @@ def test_real_time_rpo_recovers_from_the_standby(rto) -> None:
     assert plan["strategy"]["standby_required"] is True
     assert plan["strategy"]["recovery"] == "warm_standby"
     assert any("real-time RPO" in warning for warning in plan["warnings"])
-    assert "compare_registries" in plan["runbook"]
+    assert "verified checkpoint" in plan["runbook"]
     assert "Fallback only" in plan["runbook"]
+
+
+def test_failover_does_not_depend_on_the_failed_primary() -> None:
+    runbook = _plan(rto="under-5-minutes", scenarios=["datacenter-failure"])["runbook"]
+    recovery = runbook[runbook.index("## Recovery") : runbook.index("## Scenario")]
+    assert "do not wait on the failed primary" in recovery
+    assert "compare_registries" not in recovery
+    backup = runbook[runbook.index("## Backup") : runbook.index("## Recovery")]
+    assert "While the primary is healthy" in backup
+
+
+def test_deletion_check_compares_versions_not_only_subjects() -> None:
+    runbook = _plan(scenarios=["accidental-deletion"])["runbook"]
+    section = runbook[runbook.index("## Scenario: Accidental deletion") :]
+    assert "version lists" in section
+    assert "not deleted versions" in section
 
 
 def test_corruption_is_found_with_read_only_queries() -> None:
@@ -60,7 +76,8 @@ def test_verification_applies_to_a_scratch_registry() -> None:
     runbook = _plan()["runbook"]
     section = runbook[runbook.index("## Verification") :]
     assert "apply=true into an isolated scratch registry" in section
-    assert "compare_registries" in section
+    assert "export_context every context" in section
+    assert "schema ids, bodies and references" in section
 
 
 @pytest.mark.parametrize(
