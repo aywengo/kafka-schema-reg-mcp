@@ -67,9 +67,10 @@ _SCENARIO_RUNBOOK: dict[str, tuple[str, list[str]]] = {
         "Corruption",
         [
             "Stop writes to the affected registry with update_mode READONLY.",
-            "Run restore_bundle with apply=false against it and read the conflicts list: "
-            "each conflict is a schema id whose body differs from the backup.",
-            "Recover the affected subjects into a clean registry; restore never overwrites a conflict.",
+            "Find the damage with read-only queries: export_subject or export_context from the affected "
+            "registry, and compare each version's schema id and body with the backup document.",
+            "Recover the affected subjects into a clean registry with restore_bundle, preview with "
+            "apply=false, then apply=true. Restore never overwrites an existing id with a different body.",
         ],
     ),
     "accidental-deletion": (
@@ -153,16 +154,24 @@ def _runbook(
             "and find_missing_schemas."
         )
     lines += ["", "## Recovery", "", f"- {_RECOVERY_TEXT[recovery]}"]
+    if rpo == "real-time":
+        lines.append(
+            "- Fallback only: if the standby is lost, restore the latest export with restore_bundle. "
+            "That loses changes made since the export and does not meet the real-time RPO."
+        )
     for scenario in scenarios:
         title, steps = _SCENARIO_RUNBOOK[scenario]
         lines += ["", f"## Scenario: {title}", ""]
         lines += [f"{index}. {step}" for index, step in enumerate(steps, start=1)]
     lines += ["", "## Verification", ""]
     if verify_restore:
-        lines.append(
-            "- After each backup, run restore_bundle with apply=false against a scratch registry "
-            "and check the report status is dry_run with no conflicts."
-        )
+        lines += [
+            "- After each backup, run restore_bundle with apply=true into an isolated scratch registry. "
+            "A preview with apply=false only checks the document; it does not contact the registry.",
+            "- Check the report status is applied with no conflicts, then compare_registries between the "
+            "source and the scratch registry to confirm every subject and version arrived.",
+            "- Clear the scratch registry before the next drill.",
+        ]
     else:
         lines.append("- Verification is off. Schedule a restore drill before relying on this plan.")
     return "\n".join(lines) + "\n"
@@ -203,8 +212,12 @@ def build_dr_plan(
 
     explicit_schedule = bool(schedule)
     effective_schedule = schedule or (_RPO_CADENCE.get(rpo) if rpo else None) or DEFAULT_SCHEDULE
-    recovery = _RTO_RECOVERY[rto] if rto else "restore_to_prepared_registry"
-    standby_required = rpo == "real-time" or recovery == "warm_standby"
+    # Recovering from an export loses changes made since it, so a real-time RPO recovers from the standby.
+    if rpo == "real-time":
+        recovery = "warm_standby"
+    else:
+        recovery = _RTO_RECOVERY[rto] if rto else "restore_to_prepared_registry"
+    standby_required = recovery == "warm_standby"
 
     plan: dict[str, Any] = {
         "status": "plan",
