@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -28,6 +29,8 @@ DEFAULT_CONTEXT_LABEL = "default"
 VERSION_BUCKETS = (("1", 1, 1), ("2-5", 2, 5), ("6-20", 6, 20), ("21+", 21, None))
 SCHEMA_TYPES = ("AVRO", "JSON", "PROTOBUF")
 _SUBJECT_WORKERS = 8
+LIST_TIMEOUT_SECONDS = 30
+_NOT_FOUND = re.compile(r"^\s*404\b")
 
 LIMITATIONS = [
     "Usage frequency, consumer counts and consumer dependencies are not exposed by the Schema Registry API.",
@@ -111,7 +114,10 @@ def _strict_list(client: Any, path: str, context: Optional[str], fallback: Calla
     if session is None or build is None:
         result = fallback()
     else:
-        response = session.get(build(path, context), auth=client.auth, headers=client.headers)
+        # requests ignores session.timeout, so the timeout has to be passed on the call.
+        response = session.get(
+            build(path, context), auth=client.auth, headers=client.headers, timeout=LIST_TIMEOUT_SECONDS
+        )
         response.raise_for_status()
         result = response.json()
     if not isinstance(result, list):
@@ -142,7 +148,7 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
         error = _config_error(config)
         if error is None:
             record.override = _level(config)
-        elif "404" not in error:
+        elif not _NOT_FOUND.match(error):
             # Only a 404 means "no override"; any other failure leaves the effective level unknown.
             record.override_unknown = True
             record.errors.append(f"config: {error}")
@@ -151,7 +157,7 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
     return record
 
 
-def collect_context(client: Any, context: Optional[str], skip_qualified: bool = False) -> ContextRecord:
+def collect_context(client: Any, context: Optional[str], keep_foreign: bool = False) -> ContextRecord:
     """Read one context: its compatibility level and every subject in it."""
     config = None
     try:
@@ -161,8 +167,10 @@ def collect_context(client: Any, context: Optional[str], skip_qualified: bool = 
         return ContextRecord(context, _level(config), [], error=f"subjects: {e}", config_error=_config_error(config))
     level, config_error = _level(config), _config_error(config)
     try:
-        if skip_qualified:
-            subjects = [s for s in subjects if not s.startswith(":.")]
+        if not keep_foreign:
+            # A listing can include qualified subjects of other contexts; keep only this context's own.
+            own = _key(context)
+            subjects = [s for s in subjects if _key(_split_qualified(s, context)[0]) == own]
         with ThreadPoolExecutor(max_workers=_SUBJECT_WORKERS) as executor:
             records = list(executor.map(lambda s: _inspect_subject(client, context, s), subjects))
         return ContextRecord(context, level, records, config_error=config_error)
@@ -368,12 +376,13 @@ async def get_registry_insights_tool(
         await progress.set_message("Listing contexts")
         names, listing_error = await asyncio.to_thread(_contexts_to_scan, client, context)
         await progress.set_total(len(names))
-        skip_qualified = context is None and len(names) > 1
+        # Without a context list, other contexts' subjects are only reachable through the default listing.
+        keep_foreign = context is None and len(names) == 1
 
         collected = []
         for name in names:
             await progress.set_message(f"Analyzing context {_label(name)}")
-            collected.append(await asyncio.to_thread(collect_context, client, name, skip_qualified and name is None))
+            collected.append(await asyncio.to_thread(collect_context, client, name, keep_foreign))
             await progress.increment()
 
         report = summarise(collected, top_n=top_n, version_sprawl_threshold=version_sprawl_threshold)
