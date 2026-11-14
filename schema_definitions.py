@@ -651,6 +651,86 @@ REGISTRY_STATISTICS_SCHEMA = {
     "additionalProperties": True,
 }
 
+_INSIGHT_SUBJECT_REF = {
+    "type": "object",
+    "properties": {"context": {"type": "string"}, "subject": {"type": "string"}},
+    "required": ["context", "subject"],
+}
+
+# Registry insights response
+REGISTRY_INSIGHTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "registry": {"type": "string", "description": "Registry name"},
+        "scope": {"type": "string", "description": "'all' or the single context analysed"},
+        "contexts_analyzed": {"type": "array", "items": {"type": "string"}},
+        "total_subjects": {"type": "integer", "minimum": 0},
+        "version_distribution": {
+            "type": "object",
+            "properties": {
+                "buckets": {
+                    "type": "object",
+                    "properties": {name: {"type": "integer", "minimum": 0} for name in ("1", "2-5", "6-20", "21+")},
+                    "required": ["1", "2-5", "6-20", "21+"],
+                },
+                "top_subjects": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
+            },
+            "required": ["buckets", "top_subjects"],
+        },
+        "schema_types": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+        "compatibility": {
+            "type": "object",
+            "properties": {
+                "global_level": {"type": ["string", "null"]},
+                "context_levels": {"type": "object"},
+                "by_effective_level": {"type": "object", "additionalProperties": {"type": "integer"}},
+                "overrides": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
+            },
+            "required": ["global_level", "by_effective_level", "overrides"],
+        },
+        "references": {
+            "type": "object",
+            "properties": {
+                "most_referenced": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
+                "dangling": {"type": "array", "items": _INSIGHT_SUBJECT_REF},
+            },
+            "required": ["most_referenced", "dangling"],
+        },
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "enum": ["COMPATIBILITY_NONE", "VERSION_SPRAWL", "DANGLING_REFERENCE", "EMPTY_CONTEXT"],
+                    },
+                    "severity": {"type": "string", "enum": ["info", "warning", "error"]},
+                    "context": {"type": "string"},
+                    "subject": {"type": ["string", "null"]},
+                    "message": {"type": "string"},
+                },
+                "required": ["code", "severity", "context", "subject", "message"],
+            },
+        },
+        "errors": {"type": "array", "items": {"type": "object"}},
+        "limitations": {"type": "array", "items": {"type": "string"}},
+        "generated_at": {"type": "string", "format": "date-time"},
+        **METADATA_FIELDS,
+    },
+    "required": [
+        "registry",
+        "total_subjects",
+        "version_distribution",
+        "schema_types",
+        "compatibility",
+        "references",
+        "findings",
+        "limitations",
+    ],
+    "additionalProperties": True,
+}
+
 # ===== TASK MANAGEMENT SCHEMAS =====
 
 # Task status response
@@ -1015,6 +1095,7 @@ TOOL_OUTPUT_SCHEMAS = {
     "count_schemas": COUNT_SCHEMA,
     "count_schema_versions": COUNT_SCHEMA,
     "get_registry_statistics": REGISTRY_STATISTICS_SCHEMA,
+    "get_registry_insights": REGISTRY_INSIGHTS_SCHEMA,
     # Batch Operations
     "clear_context_batch": BATCH_OPERATION_SCHEMA,
     "clear_multiple_contexts_batch": BATCH_OPERATION_SCHEMA,

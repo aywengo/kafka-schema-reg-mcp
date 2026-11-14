@@ -88,7 +88,7 @@ Restart Claude Desktop and try these prompts:
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
 - **🧪 MCP 2026-07-28** - FastMCP 4 / MCP SDK 2; one process also serves `2025-11-25` clients
-- **🎛️ Three editions** - `viewer` (39 tools), `editor` (42) and `admin` (67) from one codebase
+- **🎛️ Three editions** - `viewer` (40 tools), `editor` (43) and `admin` (68) from one codebase
 
 > **📖 See detailed feature descriptions**: [docs/api-reference.md](docs/api-reference.md)
 
@@ -232,9 +232,9 @@ invoked by mistake.
 
 | Edition | Tools | Use case |
 |---|---|---|
-| `viewer` (default) | 39 | Browse, export, compare, compatibility checks |
-| `editor` | 42 | Viewer plus schema registration and evolution |
-| `admin` | 67 | Full surface: configuration, deletion, migration, bulk operations |
+| `viewer` (default) | 40 | Browse, export, compare, compatibility checks |
+| `editor` | 43 | Viewer plus schema registration and evolution |
+| `admin` | 68 | Full surface: configuration, deletion, migration, bulk operations |
 
 ```bash
 export MCP_EDITION="admin"
@@ -257,7 +257,7 @@ The tool surface is generated from `tool_catalog.py`; the tables in
 
 | Edition | Tools | Highlights |
 |---|---|---|
-| `viewer` | 39 | Registry info, subjects, schemas, compatibility, export, comparison, statistics, resources |
+| `viewer` | 40 | Registry info, subjects, schemas, compatibility, export, comparison, statistics and insights, resources |
 | `editor` | +3 | `register_schema`, `check_compatibility`, interactive schema registration |
 | `admin` | +26 | Configuration, deletion, contexts, migration, bulk operations, workflows |
 
@@ -449,6 +449,6 @@ python kafka_schema_registry_unified_mcp.py
 
 ---
 
-**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 39 / 42 / 67 tools by edition, 4 resources + 18 templates, 8 registries, OAuth 2.1, multi-platform
+**🐳 Docker Hub:** [`aywengo/kafka-schema-reg-mcp`](https://hub.docker.com/r/aywengo/kafka-schema-reg-mcp) | **📊 Stats:** 40 / 43 / 68 tools by edition, 4 resources + 18 templates, 8 registries, OAuth 2.1, multi-platform
 
 **License:** MIT | **Maintainer:** [@aywengo](https://github.com/aywengo) | **Issues:** [GitHub Issues](https://github.com/aywengo/kafka-schema-reg-mcp/issues)

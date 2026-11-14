@@ -114,10 +114,11 @@ for _name in (
     "count_schemas",
     "count_schema_versions",
     "get_registry_statistics",
+    "get_registry_insights",
     "list_workflows",
     "describe_workflow",
 ):
-    _SPECS.append(_read(_name, task=_name in {"count_schemas", "get_registry_statistics"}))
+    _SPECS.append(_read(_name, task=_name in {"count_schemas", "get_registry_statistics", "get_registry_insights"}))
 
 # Editor: schema authoring.
 _SPECS.extend(

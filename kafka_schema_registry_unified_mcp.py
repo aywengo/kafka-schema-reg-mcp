@@ -154,6 +154,7 @@ from oauth_provider import (
     get_oauth_scopes_info,
 )
 from protocol_version import current_protocol_version
+from registry_insights import get_registry_insights_tool
 from registry_management_tools import list_registries_tool  # Still needed for resource handlers
 from registry_management_tools import (
     get_registry_info_tool,
@@ -2093,6 +2094,29 @@ async def get_registry_statistics(
     # Always use background task version for better performance due to complexity
     return await get_registry_statistics_task_queue_tool(
         registry_manager, REGISTRY_MODE, registry, include_context_details, progress=progress
+    )
+
+
+@mcp.tool(task=True)
+async def get_registry_insights(
+    registry: Optional[str] = None,
+    context: Optional[str] = None,
+    top_n: int = 10,
+    version_sprawl_threshold: int = 20,
+    progress: Progress = Progress(),
+):
+    """Report version spread, schema types, compatibility overrides and dangling references for a registry.
+
+    A point-in-time snapshot of registry state. Usage, consumer and historical data are not available.
+    """
+    return await get_registry_insights_tool(
+        registry_manager,
+        REGISTRY_MODE,
+        registry=registry,
+        context=context,
+        top_n=top_n,
+        version_sprawl_threshold=version_sprawl_threshold,
+        progress=progress,
     )
 
 

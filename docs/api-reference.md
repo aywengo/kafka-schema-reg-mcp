@@ -1554,9 +1554,9 @@ The v3.1.0 server exposes an edition-dependent MCP surface. The full parameter r
 
 | Edition | Tools | Access |
 |---|---|---|
-| `viewer` | 39 | Read-only browsing, export, comparison, compatibility, statistics |
-| `editor` | 42 | Viewer plus schema registration and evolution |
-| `admin` | 67 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
+| `viewer` | 40 | Read-only browsing, export, comparison, compatibility, statistics |
+| `editor` | 43 | Viewer plus schema registration and evolution |
+| `admin` | 68 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
 
 ### Tool inventory
 
@@ -1583,6 +1583,7 @@ The v3.1.0 server exposes an edition-dependent MCP surface. The full parameter r
 | `get_mode` | `viewer` | `read` | read-only | Get the current mode of the Schema Registry. |
 | `get_oauth_scopes_info` | `viewer` | `read` | read-only | Get information about OAuth scopes and permissions. |
 | `get_registry_info` | `viewer` | `read` | read-only | Get detailed information about a specific registry. |
+| `get_registry_insights` | `viewer` | `read` | read-only | Report version spread, schema types, compatibility overrides and dangling references for a registry. |
 | `get_registry_statistics` | `viewer` | `read` | read-only | Get comprehensive statistics about a registry. |
 | `get_schema` | `viewer` | `read` | read-only | Get a specific version of a schema. |
 | `get_schema_by_id` | `viewer` | `read` | read-only | Get a schema by its globally unique ID. |

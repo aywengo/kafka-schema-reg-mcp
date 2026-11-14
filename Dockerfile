@@ -116,6 +116,7 @@ COPY --chown=mcp:mcp schema_validation.py .
 COPY --chown=mcp:mcp core_registry_tools.py .
 COPY --chown=mcp:mcp batch_operations.py .
 COPY --chown=mcp:mcp statistics_tools.py .
+COPY --chown=mcp:mcp registry_insights.py .
 COPY --chown=mcp:mcp export_tools.py .
 COPY --chown=mcp:mcp comparison_tools.py .
 COPY --chown=mcp:mcp migration_tools.py .
