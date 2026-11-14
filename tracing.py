@@ -61,7 +61,7 @@ _NAME_FIELDS = frozenset(
 
 #: Result statuses that are a failed call. dry_run, applied, and
 #: confirmation_required stay ok.
-_FAILURE_STATUS = frozenset({"rejected", "incomplete", "compatibility_error"})
+_FAILURE_STATUS = frozenset({"rejected", "incomplete", "compatibility_error", "error"})
 
 # Argument name to span attribute. Anything else on the call, including
 # schema documents and secrets, is ignored.
@@ -182,7 +182,10 @@ def carrier_from_scope(scope: Mapping[str, Any]) -> dict[str, str]:
         if name is None or value is None:
             continue
         key = name.lower()
-        if key in _TRACE_HEADERS:
+        if key == "tracestate":
+            # A request may repeat tracestate. Keep every field, in order.
+            found[key] = f"{found[key]},{value}" if key in found else value
+        elif key in _TRACE_HEADERS:
             found[key] = value
     return found
 
@@ -285,10 +288,12 @@ def outcome_of(result: Any) -> str:
     """``ok`` or ``error`` for a result that did not raise.
 
     A dict from ``create_error_response`` has an ``error`` string and no
-    schema body. ``rejected``, ``incomplete``, and ``compatibility_error``
-    are failures. ``dry_run``, ``applied``, and ``confirmation_required``
-    are not. The message itself is not an attribute. A result that carries
-    a schema body is a successful read, not that error shape.
+    schema body. ``rejected``, ``incomplete``, ``compatibility_error``,
+    and ``error`` are failures. A migration with failed attempts and no
+    successful attempt is a failure. ``dry_run``, ``applied``,
+    ``confirmation_required``, and ``cancelled`` are not. The message
+    itself is not an attribute. A result that carries a schema body is a
+    successful read, not that error shape.
     """
     if getattr(result, "is_error", False):
         return "error"
@@ -305,7 +310,11 @@ def _is_failure(body: Any) -> bool:
     if isinstance(body.get("error"), str) and "schema" not in body:
         return True
     status = body.get("status")
-    return isinstance(status, str) and status in _FAILURE_STATUS
+    if isinstance(status, str) and status in _FAILURE_STATUS:
+        return True
+    failed = body.get("failed_migrations")
+    successful = body.get("successful_migrations")
+    return isinstance(failed, int) and not isinstance(failed, bool) and failed > 0 and successful == 0
 
 
 def _result_body(result: Any) -> Any:

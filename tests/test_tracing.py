@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -165,6 +166,28 @@ async def test_seam_span_uses_the_http_traceparent_as_its_parent(memory: _Memory
     assert _hex(span.parent.span_id, 16) == PARENT_ID
 
 
+@pytest.mark.asyncio
+async def test_repeated_tracestate_headers_are_all_kept(memory: _Memory) -> None:
+    async def app(_scope: Any, _receive: Any, send: Any) -> None:
+        with memory.tracer.start_as_current_span("tools/call"):
+            pass
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    await _invoke(
+        app,
+        [
+            (b"traceparent", CALLER.encode()),
+            (b"tracestate", b"congo=t61rcWkgMzE"),
+            (b"tracestate", b"rojo=00f067aa0ba902b7"),
+        ],
+    )
+
+    span = _one(memory.exporter)
+    assert span.context.trace_state.get("congo") == "t61rcWkgMzE"
+    assert span.context.trace_state.get("rojo") == "00f067aa0ba902b7"
+
+
 # ---- tool span ------------------------------------------------------------
 
 
@@ -266,6 +289,10 @@ async def test_tool_result_is_error_flag_marks_the_span(memory: _Memory) -> None
         ({"status": "dry_run"}, "ok"),
         ({"status": "applied"}, "ok"),
         ({"status": "confirmation_required"}, "ok"),
+        ({"status": "error", "message": "No operation type selected"}, "error"),
+        ({"status": "cancelled", "message": "Bulk operation cancelled"}, "ok"),
+        ({"failed_migrations": 2, "successful_migrations": 0, "message": "secret-token"}, "error"),
+        ({"failed_migrations": 1, "successful_migrations": 1, "message": "secret-token"}, "ok"),
     ],
 )
 async def test_failure_status_marks_the_span(memory: _Memory, body: dict[str, Any], outcome: str) -> None:
@@ -455,17 +482,53 @@ async def _post(client: Any, payload: dict[str, Any], headers: dict[str, str]) -
     return await client.post("/mcp", json=payload, headers={"accept": _ACCEPT, **headers})
 
 
-@pytest.mark.asyncio
-async def test_streamable_http_continues_each_requests_trace() -> None:
-    import httpx
-    from fastmcp import FastMCP
+@contextmanager
+def _temporary_tracer() -> Iterator[InMemorySpanExporter]:
+    """Install a provider, then put the previous one and the one-time guard back.
 
+    ``set_tracer_provider`` succeeds only once. Shutting the test provider
+    down while it is still the global provider leaves later tests with a
+    dead provider they cannot replace.
+    """
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
     provider.add_span_processor(_DropExceptionDetail())
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     previous = trace_api.get_tracer_provider()
+    once = trace_api._TRACER_PROVIDER_SET_ONCE
+    was_done = once._done
+    once._done = False
     trace_api.set_tracer_provider(provider)
+    try:
+        yield exporter
+    finally:
+        provider.shutdown()
+        once._done = False
+        trace_api.set_tracer_provider(previous)
+        once._done = was_done
+
+
+def test_temporary_tracer_restores_the_provider_guard() -> None:
+    before = trace_api.get_tracer_provider()
+    once = trace_api._TRACER_PROVIDER_SET_ONCE
+    was_done = once._done
+    with _temporary_tracer() as exporter:
+        assert trace_api.get_tracer_provider() is not before
+        assert not exporter.get_finished_spans()
+    assert trace_api.get_tracer_provider() is before
+    assert once._done is was_done
+
+
+@pytest.mark.asyncio
+async def test_streamable_http_continues_each_requests_trace() -> None:
+    with _temporary_tracer() as exporter:
+        await _exercise_streamable_http(exporter)
+
+
+async def _exercise_streamable_http(exporter: InMemorySpanExporter) -> None:
+    import httpx
+    from fastmcp import FastMCP
+
     mcp = FastMCP("trace-http")
 
     @mcp.tool
@@ -479,67 +542,63 @@ async def test_streamable_http_continues_each_requests_trace() -> None:
         transport="streamable-http",
         json_response=True,
     )
-    try:
-        async with app.router.lifespan_context(app):
-            transport = httpx.ASGITransport(app=app)
-            async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-                opened = await _post(
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            opened = await _post(
+                client,
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2026-07-28",
+                        "capabilities": {},
+                        "clientInfo": {"name": "trace-test", "version": "0"},
+                    },
+                },
+                {},
+            )
+            assert opened.status_code == 200, opened.text
+            session = opened.headers["mcp-session-id"]
+            session_header = {"mcp-session-id": session}
+            noted = await _post(
+                client,
+                {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                session_header,
+            )
+            assert noted.status_code == 202, noted.text
+
+            async def call(trace: dict[str, str]) -> Any:
+                return await _post(
                     client,
                     {
                         "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "initialize",
-                        "params": {
-                            "protocolVersion": "2026-07-28",
-                            "capabilities": {},
-                            "clientInfo": {"name": "trace-test", "version": "0"},
-                        },
+                        "id": 2,
+                        "method": "tools/call",
+                        "params": {"name": "get_schema", "arguments": {"subject": "user-events"}},
                     },
-                    {},
+                    {**session_header, **trace},
                 )
-                assert opened.status_code == 200, opened.text
-                session = opened.headers["mcp-session-id"]
-                session_header = {"mcp-session-id": session}
-                noted = await _post(
-                    client,
-                    {"jsonrpc": "2.0", "method": "notifications/initialized"},
-                    session_header,
-                )
-                assert noted.status_code == 202, noted.text
 
-                async def call(trace: dict[str, str]) -> Any:
-                    return await _post(
-                        client,
-                        {
-                            "jsonrpc": "2.0",
-                            "id": 2,
-                            "method": "tools/call",
-                            "params": {"name": "get_schema", "arguments": {"subject": "user-events"}},
-                        },
-                        {**session_header, **trace},
-                    )
+            refused = await call({"traceparent": CALLER, "tracestate": TRACE_STATE})
+            assert refused.status_code == 200, refused.text
+            first = _tool_spans(exporter)[-1]
+            assert _hex(first.context.trace_id, 32) == TRACE_ID
+            assert first.parent is not None
+            assert _hex(first.parent.span_id, 16) == PARENT_ID
+            assert first.context.trace_state.get("congo") == "t61rcWkgMzE"
+            assert first.attributes["mcp.outcome"] == "refused"
+            assert first.attributes["schema.subject"] == "user-events"
+            assert "secret-token" not in _span_text(first)
 
-                refused = await call({"traceparent": CALLER, "tracestate": TRACE_STATE})
-                assert refused.status_code == 200, refused.text
-                first = _tool_spans(exporter)[-1]
-                assert _hex(first.context.trace_id, 32) == TRACE_ID
-                assert first.parent is not None
-                assert _hex(first.parent.span_id, 16) == PARENT_ID
-                assert first.context.trace_state.get("congo") == "t61rcWkgMzE"
-                assert first.attributes["mcp.outcome"] == "refused"
-                assert first.attributes["schema.subject"] == "user-events"
-                assert "secret-token" not in _span_text(first)
+            fresh = await call({})
+            assert fresh.status_code == 200, fresh.text
+            second = _tool_spans(exporter)[-1]
+            assert _hex(second.context.trace_id, 32) not in {TRACE_ID, TRACE_ID_2}
 
-                fresh = await call({})
-                assert fresh.status_code == 200, fresh.text
-                second = _tool_spans(exporter)[-1]
-                assert _hex(second.context.trace_id, 32) not in {TRACE_ID, TRACE_ID_2}
-
-                again = await call({"traceparent": CALLER_2, "tracestate": TRACE_STATE})
-                assert again.status_code == 200, again.text
-                third = _tool_spans(exporter)[-1]
-                assert _hex(third.context.trace_id, 32) == TRACE_ID_2
-                assert third.attributes["mcp.outcome"] == "refused"
-    finally:
-        trace_api.set_tracer_provider(previous)
-        provider.shutdown()
+            again = await call({"traceparent": CALLER_2, "tracestate": TRACE_STATE})
+            assert again.status_code == 200, again.text
+            third = _tool_spans(exporter)[-1]
+            assert _hex(third.context.trace_id, 32) == TRACE_ID_2
+            assert third.attributes["mcp.outcome"] == "refused"
