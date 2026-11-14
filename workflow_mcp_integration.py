@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from fastmcp import FastMCP
 from fastmcp.server.context import Context
 
+from dr_planning import RPO_OPTIONS, RTO_OPTIONS, SCENARIO_OPTIONS, build_dr_plan
 from elicitation import ElicitationManager, ElicitationResponse
 from mrtr import as_bool, ask
 from multi_step_elicitation import MultiStepElicitationManager
@@ -409,25 +410,53 @@ class WorkflowMCPTools:
             backup_target: Optional[str] = None,
             schedule: Optional[str] = None,
             verify_restore: Optional[bool] = None,
+            rpo: Optional[str] = None,
+            rto: Optional[str] = None,
+            scenarios: Optional[List[str]] = None,
+            include_runbook: Optional[bool] = None,
             ctx: Context = None,
         ) -> Any:
-            """Plan a disaster-recovery setup, asking for missing inputs over MRTR."""
+            """Plan a disaster-recovery setup from RPO, RTO and scenarios, asking for missing inputs over MRTR.
+
+            rpo: real-time, under-1-hour, under-24-hours or weekly.
+            rto: under-5-minutes, under-1-hour, under-4-hours or under-24-hours.
+            scenarios: any of datacenter-failure, region-outage, corruption, accidental-deletion.
+            The plan names restore_bundle for verification and recovery; this tool does not call it.
+            """
             if backup_target is None and ctx is not None:
                 form = {
                     "type": "object",
                     "properties": {
                         "registry": {"type": "string", "title": "Registry"},
                         "backup_target": {"type": "string", "title": "Backup target (URI or bucket)"},
-                        "schedule": {"type": "string", "title": "Backup schedule", "default": "daily"},
+                        "schedule": {"type": "string", "title": "Backup schedule (empty follows the RPO)"},
                         "verify_restore": {"type": "boolean", "title": "Verify restore", "default": True},
+                        "rpo": {
+                            "type": "string",
+                            "title": "RPO: maximum acceptable schema loss",
+                            "enum": list(RPO_OPTIONS),
+                            "default": "under-24-hours",
+                        },
+                        "rto": {
+                            "type": "string",
+                            "title": "RTO: maximum acceptable downtime",
+                            "enum": list(RTO_OPTIONS),
+                            "default": "under-4-hours",
+                        },
+                        "primary_scenario": {
+                            "type": "string",
+                            "title": "Disaster scenario that concerns you most",
+                            "enum": list(SCENARIO_OPTIONS),
+                            "default": "accidental-deletion",
+                        },
                     },
                     "required": ["backup_target"],
                 }
                 status, values = await ask(
                     ctx,
-                    message="Choose the disaster-recovery target",
+                    message="Choose the disaster-recovery target and objectives",
                     schema=form,
-                    state="guided_disaster_recovery:v1",
+                    state="guided_disaster_recovery:v2",
                 )
                 if status == "suspend":
                     return values
@@ -437,27 +466,29 @@ class WorkflowMCPTools:
                 backup_target = values.get("backup_target") or backup_target
                 schedule = values.get("schedule") or schedule
                 verify_restore = values.get("verify_restore") if verify_restore is None else verify_restore
+                rpo = rpo or values.get("rpo") or None
+                rto = rto or values.get("rto") or None
+                primary = values.get("primary_scenario")
+                if primary and not scenarios:
+                    scenarios = [primary]
 
             if not backup_target:
                 return json.dumps({"error": "backup_target is required"})
 
-            return json.dumps(
-                {
-                    "status": "plan",
-                    "workflow_id": "disaster_recovery_setup",
-                    "registry": registry,
-                    "backup_target": backup_target,
-                    "schedule": schedule or "daily",
-                    "verify_restore": as_bool(verify_restore, True),
-                    "steps": [
-                        "Inventory registries, contexts and subjects.",
-                        "Export a full backup to the chosen target.",
-                        "Schedule recurring backups and retention.",
-                        "Verify with restore_bundle against a scratch registry.",
-                    ],
-                    "note": "This plan does not call restore_bundle. migrate_schema remains the live-to-live copy.",
-                }
-            )
+            try:
+                plan = build_dr_plan(
+                    registry=registry,
+                    backup_target=backup_target,
+                    schedule=schedule,
+                    verify_restore=as_bool(verify_restore, True),
+                    rpo=rpo,
+                    rto=rto,
+                    scenarios=scenarios,
+                    include_runbook=as_bool(include_runbook, True),
+                )
+            except ValueError as e:
+                return json.dumps({"error": str(e)})
+            return json.dumps(plan)
 
 
 def create_workflow_executor(workflow_result: Dict[str, Any]) -> Dict[str, Any]:

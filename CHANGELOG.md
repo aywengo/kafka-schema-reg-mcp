@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   server exports nothing. The startup log drops userinfo and query from
   that URL. A caller that sends no `traceparent` is unchanged.
   (#201)
+- `guided_disaster_recovery` takes `rpo`, `rto`, `scenarios`, and
+  `include_runbook`. The RPO picks the backup cadence, the RTO picks the
+  recovery path (warm standby or `restore_bundle` into a prepared or new
+  registry), and each scenario adds a runbook section. The plan adds
+  `objectives`, `strategy`, `warnings`, and a Markdown `runbook`; the 3.1 keys
+  are unchanged. The form also asks for RPO, RTO, and a primary scenario. It
+  is still a planner and calls nothing. (#76)
 
 ## [3.1.0] - 2026-11-07
 
