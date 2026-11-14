@@ -39,11 +39,28 @@ def test_rpo_picks_the_backup_cadence(rpo: str, schedule: str) -> None:
     assert plan["strategy"]["standby_required"] is False
 
 
-def test_real_time_rpo_requires_a_standby() -> None:
-    plan = _plan(rpo="real-time")
+@pytest.mark.parametrize("rto", [None, "under-1-hour", "under-24-hours"])
+def test_real_time_rpo_recovers_from_the_standby(rto) -> None:
+    plan = _plan(rpo="real-time", rto=rto)
     assert plan["strategy"]["standby_required"] is True
+    assert plan["strategy"]["recovery"] == "warm_standby"
     assert any("real-time RPO" in warning for warning in plan["warnings"])
     assert "compare_registries" in plan["runbook"]
+    assert "Fallback only" in plan["runbook"]
+
+
+def test_corruption_is_found_with_read_only_queries() -> None:
+    runbook = _plan(scenarios=["corruption"])["runbook"]
+    section = runbook[runbook.index("## Scenario: Corruption") :]
+    assert "export_subject or export_context" in section
+    assert "conflicts list" not in section
+
+
+def test_verification_applies_to_a_scratch_registry() -> None:
+    runbook = _plan()["runbook"]
+    section = runbook[runbook.index("## Verification") :]
+    assert "apply=true into an isolated scratch registry" in section
+    assert "compare_registries" in section
 
 
 @pytest.mark.parametrize(

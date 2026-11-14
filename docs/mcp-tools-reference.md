@@ -941,7 +941,11 @@ When `backup_target` is missing, the tool asks for it together with RPO, RTO and
 primary scenario. The plan keeps the 3.1 keys and adds `objectives`, `strategy`
 (`backup_cadence`, `recovery`, `standby_required`), `warnings`, and `runbook` (Markdown,
 or `null` when `include_runbook` is false). `rpo=real-time` and `rto=under-5-minutes`
-set `standby_required`, because scheduled exports cannot meet them. An explicit
+both recover from a warm standby and set `standby_required`, because restoring a
+scheduled export cannot meet them; for a real-time RPO the export restore is listed
+only as a fallback. Restore verification applies the backup to an isolated scratch
+registry and compares it with the source, since a dry run does not contact the
+registry. An explicit
 `schedule` slower than the RPO allows is reported in `warnings`. The tool names
 `restore_bundle` and does not call it.
 
