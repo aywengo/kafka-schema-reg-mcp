@@ -14,8 +14,10 @@ and exception messages are not exported.
 from __future__ import annotations
 
 import atexit
+import json
 import logging
 import os
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -41,6 +43,25 @@ _TRACE_HEADERS = frozenset({"traceparent", "tracestate"})
 #: Longer than any subject or schema id this server addresses. A schema
 #: document pasted into an allowlisted argument is left off the span.
 _MAX_IDENTITY_LENGTH = 256
+
+#: One name token. A schema document, space, or credential URL does not match.
+_NAME_TOKEN = re.compile(r"^[A-Za-z0-9._:-]+$")
+
+_NAME_FIELDS = frozenset(
+    {
+        "subject",
+        "source_subject",
+        "target_subject",
+        "context",
+        "registry",
+        "source_registry",
+        "target_registry",
+    }
+)
+
+#: Result statuses that are a failed call. dry_run, applied, and
+#: confirmation_required stay ok.
+_FAILURE_STATUS = frozenset({"rejected", "incomplete", "compatibility_error"})
 
 # Argument name to span attribute. Anything else on the call, including
 # schema documents and secrets, is ignored.
@@ -227,21 +248,36 @@ def identity_attributes(arguments: Mapping[str, Any] | None) -> dict[str, str | 
     for name, attribute in _IDENTITY.items():
         if name not in arguments:
             continue
-        value = _identity_value(arguments[name])
+        value = _identity_value(name, arguments[name])
         if value is not None:
             attrs[attribute] = value
     return attrs
 
 
-def _identity_value(value: Any) -> str | int | None:
+def _identity_value(name: str, value: Any) -> str | int | None:
+    """A subject, registry, schema id, or version. Payloads and URLs are omitted."""
     if isinstance(value, bool) or value is None:
         return None
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        text = value.strip()
-        if text and len(text) <= _MAX_IDENTITY_LENGTH:
-            return text
+    if name == "schema_id":
+        if isinstance(value, int) and value >= 0:
+            return value
+        return None
+    if name == "version":
+        if isinstance(value, int) and value >= 0:
+            return value
+        if isinstance(value, str):
+            return _name_token(value)
+        return None
+    if name in _NAME_FIELDS and isinstance(value, str):
+        return _name_token(value)
+    return None
+
+
+def _name_token(value: str) -> str | None:
+    """A single name token, or None when the value is a payload or URL."""
+    text = value.strip()
+    if text and len(text) <= _MAX_IDENTITY_LENGTH and _NAME_TOKEN.fullmatch(text):
+        return text
     return None
 
 
@@ -249,23 +285,67 @@ def outcome_of(result: Any) -> str:
     """``ok`` or ``error`` for a result that did not raise.
 
     A dict from ``create_error_response`` has an ``error`` string and no
-    schema body. The message itself is not an attribute. A result that
-    carries a schema body is a successful read, not that error shape.
+    schema body. ``rejected``, ``incomplete``, and ``compatibility_error``
+    are failures. ``dry_run``, ``applied``, and ``confirmation_required``
+    are not. The message itself is not an attribute. A result that carries
+    a schema body is a successful read, not that error shape.
     """
     if getattr(result, "is_error", False):
         return "error"
     body = _result_body(result)
-    if isinstance(body, dict) and isinstance(body.get("error"), str) and "schema" not in body:
+    if _is_failure(body):
         return "error"
     return "ok"
 
 
+def _is_failure(body: Any) -> bool:
+    """Whether a result body reports a failed call."""
+    if not isinstance(body, dict):
+        return False
+    if isinstance(body.get("error"), str) and "schema" not in body:
+        return True
+    status = body.get("status")
+    return isinstance(status, str) and status in _FAILURE_STATUS
+
+
 def _result_body(result: Any) -> Any:
+    """Structured content, a dict result, or one JSON object in text content."""
     structured = getattr(result, "structured_content", None)
     if isinstance(structured, dict):
         return structured
     if isinstance(result, dict):
         return result
+    text = _text_content(result)
+    if text is None:
+        return None
+    return _json_object(text)
+
+
+def _text_content(result: Any) -> str | None:
+    """The text of a single text block. Mixed content is left unread."""
+    content = getattr(result, "content", None)
+    if not isinstance(content, list) or len(content) != 1:
+        return None
+    block = content[0]
+    text = getattr(block, "text", None)
+    if isinstance(text, str):
+        return text
+    if isinstance(block, dict) and isinstance(block.get("text"), str):
+        return block["text"]
+    return None
+
+
+def _json_object(text: str) -> dict[str, Any] | None:
+    """A JSON object. Other text, including a schema document, is ignored."""
+    stripped = text.strip()
+    if not stripped.startswith("{"):
+        return None
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(parsed, dict):
+        return parsed
     return None
 
 

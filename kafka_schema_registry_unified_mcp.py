@@ -3859,13 +3859,14 @@ async def _run_registered_tool(tool: str, arguments: dict) -> Any:
 
 if FLEET_CONFIG.role == "front":
     active_fleet = ClientGroupFleet(FLEET_CONFIG.directory, _FLEET_CLIENTS or {})
-    mcp.add_middleware(FrontRouter(active_fleet))
 else:
     active_fleet = InProcessFleet(list(registry_manager.list_registries()), _run_registered_tool)
 
-# Outermost tools/call middleware, so a front still attributes the span when
-# FrontRouter handles the call itself. Attributes land on FastMCP's seam span.
+# First registered middleware is the outermost. ToolCallSpans must wrap
+# FrontRouter so a front that returns without call_next still attributes the span.
 mcp.add_middleware(ToolCallSpans())
+if FLEET_CONFIG.role == "front":
+    mcp.add_middleware(FrontRouter(active_fleet))
 
 
 # ===== SERVER ENTRY POINT =====

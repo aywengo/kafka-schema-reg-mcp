@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Iterator
 from pathlib import Path
@@ -28,6 +29,7 @@ from tracing import (  # noqa: E402
     ToolCallSpans,
     TraceContextMiddleware,
     _DropExceptionDetail,
+    asgi_middleware,
     configure,
     inject_outbound,
 )
@@ -168,10 +170,14 @@ async def test_seam_span_uses_the_http_traceparent_as_its_parent(memory: _Memory
 
 @pytest.mark.asyncio
 async def test_tool_span_records_the_subject_and_not_the_payload(memory: _Memory) -> None:
+    compact_schema = '{"type":"record","name":"U"}'
     arguments = {
         "subject": "user-events",
         "schema_id": 42,
         "registry": "production",
+        "context": "prod",
+        "source_subject": compact_schema,
+        "target_registry": "https://user:pass@registry",
         "schema": SCHEMA,
         "authorization": "Bearer secret-token",
         "version": "v" * 300,
@@ -190,10 +196,15 @@ async def test_tool_span_records_the_subject_and_not_the_payload(memory: _Memory
     assert span.attributes["schema.subject"] == "user-events"
     assert span.attributes["schema.id"] == 42
     assert span.attributes["schema.registry"] == "production"
+    assert span.attributes["schema.context"] == "prod"
     assert "schema.version" not in span.attributes
+    assert "schema.source_subject" not in span.attributes
+    assert "schema.target_registry" not in span.attributes
     rendered = _values(span)
     assert "secret-token" not in rendered
     assert "record" not in rendered
+    assert "user:pass" not in rendered
+    assert compact_schema not in rendered
     assert "authorization" not in span.attributes
 
 
@@ -243,6 +254,63 @@ async def test_tool_result_is_error_flag_marks_the_span(memory: _Memory) -> None
     span = _one(memory.exporter)
     assert span.attributes["mcp.outcome"] == "error"
     assert span.status.status_code == StatusCode.ERROR
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("body", "outcome"),
+    [
+        ({"status": "rejected", "reason": "secret-token"}, "error"),
+        ({"status": "incomplete", "reason": "secret-token"}, "error"),
+        ({"status": "compatibility_error", "message": "secret-token"}, "error"),
+        ({"status": "dry_run"}, "ok"),
+        ({"status": "applied"}, "ok"),
+        ({"status": "confirmation_required"}, "ok"),
+    ],
+)
+async def test_failure_status_marks_the_span(memory: _Memory, body: dict[str, Any], outcome: str) -> None:
+    async def call_next(_context: Any) -> ToolResult:
+        return ToolResult(structured_content=body)
+
+    with memory.tracer.start_as_current_span("tools/call"):
+        await ToolCallSpans().on_call_tool(_call("restore_bundle", {"subject": "user-events"}), call_next)
+
+    span = _one(memory.exporter)
+    assert span.attributes["mcp.outcome"] == outcome
+    assert "secret-token" not in _values(span)
+
+
+@pytest.mark.asyncio
+async def test_text_json_error_marks_the_span_without_the_message(memory: _Memory) -> None:
+    from mcp.types import TextContent
+
+    message = "Schema evolution input was declined secret-token"
+
+    async def call_next(_context: Any) -> ToolResult:
+        return ToolResult(content=[TextContent(type="text", text=json.dumps({"error": message}))])
+
+    with memory.tracer.start_as_current_span("tools/call"):
+        await ToolCallSpans().on_call_tool(_call("guided_schema_evolution"), call_next)
+
+    span = _one(memory.exporter)
+    assert span.attributes["mcp.outcome"] == "error"
+    assert "secret-token" not in _values(span)
+    assert message not in _values(span)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", ["not json", json.dumps({"status": "dry_run"})])
+async def test_plain_text_and_success_json_stay_ok(memory: _Memory, text: str) -> None:
+    from mcp.types import TextContent
+
+    async def call_next(_context: Any) -> ToolResult:
+        return ToolResult(content=[TextContent(type="text", text=text)])
+
+    with memory.tracer.start_as_current_span("tools/call"):
+        await ToolCallSpans().on_call_tool(_call("guided_schema_evolution"), call_next)
+
+    span = _one(memory.exporter)
+    assert span.attributes["mcp.outcome"] == "ok"
 
 
 def test_export_drops_the_exception_message() -> None:
@@ -328,3 +396,150 @@ def test_traces_endpoint_uses_the_otlp_http_path() -> None:
     assert tracing._traces_endpoint("http://otel:4318") == "http://otel:4318/v1/traces"
     assert tracing._traces_endpoint("http://otel:4318/") == "http://otel:4318/v1/traces"
     assert tracing._traces_endpoint("http://otel:4318/v1/traces") == "http://otel:4318/v1/traces"
+
+
+# ---- middleware order -----------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_later_middleware_records_a_short_circuit(memory: _Memory) -> None:
+    from fastmcp import FastMCP
+    from fastmcp.server.middleware import Middleware
+
+    class _Stop(Middleware):
+        async def on_call_tool(self, context: Any, call_next: Any) -> ToolResult:
+            return ToolResult(structured_content={"status": "rejected", "reason": "secret-token"})
+
+    mcp = FastMCP("trace-order")
+
+    @mcp.tool
+    def get_schema(subject: str) -> dict[str, str]:
+        return {"subject": subject}
+
+    mcp.add_middleware(ToolCallSpans())
+    mcp.add_middleware(_Stop())
+
+    with memory.tracer.start_as_current_span("tools/call"):
+        await mcp.call_tool("get_schema", {"subject": "user-events"})
+
+    span = _one(memory.exporter)
+    assert span.attributes["mcp.tool"] == "get_schema"
+    assert span.attributes["mcp.outcome"] == "error"
+    assert span.attributes["schema.subject"] == "user-events"
+    assert "secret-token" not in _values(span)
+
+
+# ---- streamable HTTP ------------------------------------------------------
+
+CALLER_2 = "00-11111111111111111111111111111111-00f067aa0ba902b7-01"
+TRACE_ID_2 = "11111111111111111111111111111111"
+_ACCEPT = "application/json, text/event-stream"
+
+
+def _tool_spans(exporter: InMemorySpanExporter) -> list[Any]:
+    return [span for span in exporter.get_finished_spans() if (span.attributes or {}).get("mcp.tool") == "get_schema"]
+
+
+def _span_text(span: Any) -> str:
+    parts = [_values(span)]
+    if span.status.description:
+        parts.append(span.status.description)
+    for event in span.events:
+        parts.append(event.name)
+        if event.attributes:
+            parts.extend(str(value) for value in event.attributes.values())
+    return " ".join(parts)
+
+
+async def _post(client: Any, payload: dict[str, Any], headers: dict[str, str]) -> Any:
+    return await client.post("/mcp", json=payload, headers={"accept": _ACCEPT, **headers})
+
+
+@pytest.mark.asyncio
+async def test_streamable_http_continues_each_requests_trace() -> None:
+    import httpx
+    from fastmcp import FastMCP
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(_DropExceptionDetail())
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    previous = trace_api.get_tracer_provider()
+    trace_api.set_tracer_provider(provider)
+    mcp = FastMCP("trace-http")
+
+    @mcp.tool
+    def get_schema(subject: str) -> dict[str, str]:
+        raise AuthorizationError("denied secret-token")
+
+    mcp.add_middleware(ToolCallSpans())
+    app = mcp.http_app(
+        path="/mcp",
+        middleware=asgi_middleware(),
+        transport="streamable-http",
+        json_response=True,
+    )
+    try:
+        async with app.router.lifespan_context(app):
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+                opened = await _post(
+                    client,
+                    {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2026-07-28",
+                            "capabilities": {},
+                            "clientInfo": {"name": "trace-test", "version": "0"},
+                        },
+                    },
+                    {},
+                )
+                assert opened.status_code == 200, opened.text
+                session = opened.headers["mcp-session-id"]
+                session_header = {"mcp-session-id": session}
+                noted = await _post(
+                    client,
+                    {"jsonrpc": "2.0", "method": "notifications/initialized"},
+                    session_header,
+                )
+                assert noted.status_code == 202, noted.text
+
+                async def call(trace: dict[str, str]) -> Any:
+                    return await _post(
+                        client,
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 2,
+                            "method": "tools/call",
+                            "params": {"name": "get_schema", "arguments": {"subject": "user-events"}},
+                        },
+                        {**session_header, **trace},
+                    )
+
+                refused = await call({"traceparent": CALLER, "tracestate": TRACE_STATE})
+                assert refused.status_code == 200, refused.text
+                first = _tool_spans(exporter)[-1]
+                assert _hex(first.context.trace_id, 32) == TRACE_ID
+                assert first.parent is not None
+                assert _hex(first.parent.span_id, 16) == PARENT_ID
+                assert first.context.trace_state.get("congo") == "t61rcWkgMzE"
+                assert first.attributes["mcp.outcome"] == "refused"
+                assert first.attributes["schema.subject"] == "user-events"
+                assert "secret-token" not in _span_text(first)
+
+                fresh = await call({})
+                assert fresh.status_code == 200, fresh.text
+                second = _tool_spans(exporter)[-1]
+                assert _hex(second.context.trace_id, 32) not in {TRACE_ID, TRACE_ID_2}
+
+                again = await call({"traceparent": CALLER_2, "tracestate": TRACE_STATE})
+                assert again.status_code == 200, again.text
+                third = _tool_spans(exporter)[-1]
+                assert _hex(third.context.trace_id, 32) == TRACE_ID_2
+                assert third.attributes["mcp.outcome"] == "refused"
+    finally:
+        trace_api.set_tracer_provider(previous)
+        provider.shutdown()
