@@ -48,7 +48,8 @@ The repository is organized into the following directories:
   feature's unmerged branch.
 - Merge to `main` only through a pull request, after an approving review from GitHub Copilot
   or the repository owner (`@aywengo`, see [CODEOWNERS](CODEOWNERS)).
-- Agents open the pull request and wait. They do not merge before that approval.
+- Agents open the pull request and never merge it on their own, approved or not. The owner
+  merges, or explicitly asks an agent to merge a specific approved pull request.
 
 ## Pre-Commit Checklist
 
