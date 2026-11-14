@@ -194,6 +194,27 @@ async def test_failed_subject_config_is_unknown_not_inherited() -> None:
     assert _codes(report, "COMPATIBILITY_NONE") == []
 
 
+async def test_404_digits_in_the_url_are_not_a_missing_override() -> None:
+    client = _client()
+    original = client.get_subject_config
+
+    def failing(subject, context=None):
+        if subject == "customer":
+            return {"error": "403 Client Error: Forbidden for url: http://registry:8404/config/orders-404"}
+        return original(subject, context)
+
+    client.get_subject_config = failing
+    report = await _insights(client)
+    assert report["compatibility"]["by_effective_level"]["UNKNOWN"] == 1
+
+
+async def test_default_scope_excludes_other_contexts_qualified_subjects() -> None:
+    report = await _insights(context=".")
+    assert report["contexts_analyzed"] == ["default"]
+    assert report["total_subjects"] == 3
+    assert ":.billing:invoice" not in [t["subject"] for t in report["version_distribution"]["top_subjects"]]
+
+
 async def test_failed_context_config_is_reported_and_collection_continues() -> None:
     client = _client()
     client.get_global_config = lambda context=None: (
@@ -252,6 +273,7 @@ class SessionClient(FakeClient):
         self.session = Mock()
         self.session.get = self._get
         self._forbidden = set(forbidden)
+        self.timeouts = []
 
     def build_context_url(self, path, context=None):
         if context and context != ".":
@@ -259,6 +281,7 @@ class SessionClient(FakeClient):
         return f"{self.base}{path}"
 
     def _get(self, url, **kwargs):
+        self.timeouts.append(kwargs.get("timeout"))
         if url in self._forbidden:
             return _Response(403, {"error_code": 40301})
         if url == f"{self.base}/contexts":
@@ -282,6 +305,15 @@ async def test_failed_subject_listing_is_an_error_not_an_empty_context() -> None
     assert ".billing" not in [f["context"] for f in _codes(report, "EMPTY_CONTEXT")]
     assert {"default", ".archive"} >= {u["context"] for u in report["references"]["unverified"]}
     assert [u["target_subject"] for u in report["references"]["unverified"]] == ["invoice"]
+
+
+async def test_listing_requests_carry_a_timeout() -> None:
+    from registry_insights import LIST_TIMEOUT_SECONDS
+
+    base = _client()
+    client = SessionClient(base._contexts, base._subjects, base._global, base._overrides)
+    await _insights(client)
+    assert client.timeouts and set(client.timeouts) == {LIST_TIMEOUT_SECONDS}
 
 
 async def test_failed_context_listing_is_reported() -> None:
