@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- HTTP `traceparent` and `tracestate` continue into FastMCP's tool span.
+  The span records the tool name, the outcome (`ok`, `error`, or
+  `refused`), and the subject or schema id the call touched. Credentials,
+  schema payloads, baggage, and exception messages are not exported. A front
+  forwards `traceparent` and `tracestate` to the shard. Set
+  `OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP/HTTP) to export; with no endpoint the
+  server exports nothing. The startup log drops userinfo and query from
+  that URL. A caller that sends no `traceparent` is unchanged.
+  (#201)
+
 ## [3.1.0] - 2026-11-07
 
 Restore, one access-token verifier, an optional fleet front, and per-resource

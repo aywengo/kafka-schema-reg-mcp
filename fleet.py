@@ -22,6 +22,7 @@ from mrtr import is_modern_connection
 from protocol_version import current_protocol_version
 from resource_linking import add_links_to_response
 from schema_validation import create_error_response
+from tracing import inject_outbound
 
 try:
     from httpx2 import Auth as HttpxAuth
@@ -109,10 +110,15 @@ class RequestBearerAuth(HttpxAuth):
     """
 
     def auth_flow(self, request: Any) -> Any:
-        """Yield ``request``, with Authorization set when a bearer is present."""
+        """Yield ``request`` with the caller bearer and the current trace.
+
+        ``traceparent`` and ``tracestate`` are the only trace headers added.
+        A context with no bearer still sends no Authorization header.
+        """
         token = inbound_bearer()
         if token:
             request.headers["Authorization"] = _authorization_value(token)
+        inject_outbound(request.headers)
         yield request
 
 

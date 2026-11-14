@@ -51,6 +51,8 @@ from kafka_schema_registry_unified_mcp import (
 )
 from oauth_provider import advertised_grants, protected_resource_grant_metadata
 from protocol_version import DEFAULT_PROTOCOL_VERSION
+from tracing import asgi_middleware
+from tracing import configure as configure_tracing
 
 # Configure logging for remote deployment
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -1210,7 +1212,14 @@ def main():
 
         # Only streamable-http transport is supported (SSE deprecated per MCP 2025-06-18)
         logger.info("🚀 Starting MCP server with streamable-http transport")
-        mcp.run(transport="streamable-http", host=host, port=port, path=path)
+        configure_tracing()
+        mcp.run(
+            transport="streamable-http",
+            host=host,
+            port=port,
+            path=path,
+            middleware=asgi_middleware(),
+        )
 
     except Exception as e:
         logger.error(f"Failed to start remote MCP server: {e}")

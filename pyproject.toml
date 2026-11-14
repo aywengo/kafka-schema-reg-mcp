@@ -25,6 +25,8 @@ dependencies = [
     "avro-python3>=1.10.2",
     "jaraco-context>=6.1.2",  # GHSA-58pv-8j8x-9vj2 (transitive via fastmcp/keyring)
     "msgpack>=1.2.1",  # GHSA-6v7p-g79w-8964 (transitive via pydocket/redis stack)
+    "opentelemetry-sdk>=1.27,<2",  # trace export (#201); HTTP exporter only, no gRPC
+    "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
 ]
 
 [project.optional-dependencies]

@@ -32,6 +32,10 @@ jsonschema>=4.26.0
 # FastMCP web framework for remote deployment - Conservative version
 starlette>=0.52.1
 
+# Trace export (#201). HTTP only; the gRPC exporter is not installed.
+opentelemetry-sdk>=1.27,<2
+opentelemetry-exporter-otlp-proto-http>=1.27,<2
+
 # Testing dependencies - Conservative but recent versions
 pytest>=8.4.1
 pytest-asyncio>=1.0.0

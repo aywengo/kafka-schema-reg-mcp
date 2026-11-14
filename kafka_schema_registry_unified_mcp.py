@@ -183,6 +183,8 @@ from statistics_tools import (
     get_registry_statistics_task_queue_tool,
 )
 from tool_catalog import TOOL_CATALOG, tools_for
+from tracing import ToolCallSpans
+from tracing import configure as configure_tracing
 from workflow_mcp_integration import (
     handle_workflow_elicitation_response,
     register_workflow_tools,
@@ -3857,9 +3859,14 @@ async def _run_registered_tool(tool: str, arguments: dict) -> Any:
 
 if FLEET_CONFIG.role == "front":
     active_fleet = ClientGroupFleet(FLEET_CONFIG.directory, _FLEET_CLIENTS or {})
-    mcp.add_middleware(FrontRouter(active_fleet))
 else:
     active_fleet = InProcessFleet(list(registry_manager.list_registries()), _run_registered_tool)
+
+# First registered middleware is the outermost. ToolCallSpans must wrap
+# FrontRouter so a front that returns without call_next still attributes the span.
+mcp.add_middleware(ToolCallSpans())
+if FLEET_CONFIG.role == "front":
+    mcp.add_middleware(FrontRouter(active_fleet))
 
 
 # ===== SERVER ENTRY POINT =====
@@ -3933,4 +3940,7 @@ if __name__ == "__main__":
         logger.info("🔗 Elicitation and workflow features disabled in SLIM_MODE")
         logger.info("💡 To enable full features, set SLIM_MODE=false")
 
+    # OTLP/HTTP when OTEL_EXPORTER_OTLP_ENDPOINT is set. remote-mcp-server
+    # imports this module, then calls configure_tracing() on its own entry.
+    configure_tracing()
     mcp.run()

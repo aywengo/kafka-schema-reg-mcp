@@ -561,6 +561,27 @@ curl http://localhost:38000/.well-known/oauth-protected-resource
 curl http://localhost:38000/mcp/compliance-status
 ```
 
+### Traces
+
+HTTP requests that include a W3C `traceparent` continue that trace. The tool
+span records the tool name, the outcome (`ok`, `error`, or `refused`), and
+the subject or schema id the call touched. Schema documents, credentials,
+baggage, and exception messages are not exported. A front sends
+`traceparent` and `tracestate` on to the shard.
+
+Export is off until a collector is set. The endpoint is the OTLP/HTTP base
+(port 4318):
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+OTEL_SERVICE_NAME=kafka-schema-registry-mcp
+```
+
+`OTEL_SERVICE_NAME` is optional. On Kubernetes, set both with Helm
+`extraEnvVars`; they are rendered into the chart ConfigMap. A process with
+no endpoint exports nothing, and a request with no `traceparent` still
+succeeds.
+
 ### Docker Health Checks
 
 ```yaml

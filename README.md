@@ -393,8 +393,8 @@ helm install kafka-schema-mcp ./helm/kafka-schema-reg-mcp
 
 ## 🤝 Contributing
 
-We welcome contributions. Open an issue or pull request on
-[GitHub](https://github.com/aywengo/kafka-schema-reg-mcp), and see:
+We welcome contributions. The [contribution guide](CONTRIBUTING.md) covers
+branching from `main`, lint, and tests. Also see:
 - **[Development Setup](docs/deployment.md#local-development)**
 - **[Testing Guide](TESTING_SETUP_GUIDE.md)**
 - **[Release Process](docs/release-process.md)**
