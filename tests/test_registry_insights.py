@@ -170,6 +170,130 @@ async def test_context_argument_limits_the_scope() -> None:
     assert report["total_subjects"] == 1
 
 
+async def test_override_equal_to_the_context_level_is_still_listed() -> None:
+    client = _client(overrides={(None, "customer"): "NONE", (".billing", "invoice"): "FULL"})
+    overrides = (await _insights(client))["compatibility"]["overrides"]
+    assert {"context": ".billing", "subject": "invoice", "level": "FULL"} in overrides
+
+
+async def test_failed_subject_config_is_unknown_not_inherited() -> None:
+    client = _client()
+    original = client.get_subject_config
+
+    def failing(subject, context=None):
+        if subject == "customer":
+            return {"error": "403 Client Error: Forbidden"}
+        return original(subject, context)
+
+    client.get_subject_config = failing
+    report = await _insights(client)
+    assert report["compatibility"]["by_effective_level"]["UNKNOWN"] == 1
+    assert {"context": "default", "subject": "customer", "error": "config: 403 Client Error: Forbidden"} in report[
+        "errors"
+    ]
+    assert _codes(report, "COMPATIBILITY_NONE") == []
+
+
+async def test_failed_context_config_is_reported_and_collection_continues() -> None:
+    client = _client()
+    client.get_global_config = lambda context=None: (
+        {"error": "500 Server Error"} if context == ".billing" else {"compatibilityLevel": "BACKWARD"}
+    )
+    report = await _insights(client)
+    assert report["total_subjects"] == 4
+    assert {"context": ".billing", "subject": None, "error": "config: 500 Server Error"} in report["errors"]
+
+
+async def test_qualified_names_in_a_named_context_resolve_references() -> None:
+    subjects = {
+        None: {"orders-value": {"versions": 1, "refs": [":.billing:invoice"]}},
+        ".billing": {":.billing:invoice": {"versions": 2}},
+    }
+    client = FakeClient([".", ".billing"], subjects, {None: "BACKWARD", ".billing": "BACKWARD"})
+    report = await _insights(client)
+    assert report["references"]["dangling"] == []
+    assert report["references"]["most_referenced"] == [
+        {"context": ".billing", "subject": ":.billing:invoice", "referenced_by": 1}
+    ]
+
+
+async def test_references_outside_the_scope_are_unverified_not_dangling() -> None:
+    client = _client()
+    del client._subjects[None][":.billing:invoice"]
+    report = await _insights(client, context=".")
+    assert report["references"]["unverified"] == [
+        {"context": "default", "subject": "payments-value", "target_context": ".billing", "target_subject": "invoice"}
+    ]
+    assert [d["missing_subject"] for d in report["references"]["dangling"]] == ["money"]
+
+
+class _Response:
+    def __init__(self, status, payload):
+        self.status_code = status
+        self._payload = payload
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise RuntimeError(f"{self.status_code} Client Error")
+
+    def json(self):
+        return self._payload
+
+
+class SessionClient(FakeClient):
+    """Exposes the session the real RegistryClient lists with, failing for chosen URLs."""
+
+    base = "http://registry"
+
+    def __init__(self, *args, forbidden=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.auth = None
+        self.headers = {}
+        self.session = Mock()
+        self.session.get = self._get
+        self._forbidden = set(forbidden)
+
+    def build_context_url(self, path, context=None):
+        if context and context != ".":
+            return f"{self.base}/contexts/{context}{path}"
+        return f"{self.base}{path}"
+
+    def _get(self, url, **kwargs):
+        if url in self._forbidden:
+            return _Response(403, {"error_code": 40301})
+        if url == f"{self.base}/contexts":
+            return _Response(200, self.get_contexts())
+        prefix = f"{self.base}/contexts/"
+        context = url[len(prefix) :].split("/")[0] if url.startswith(prefix) else None
+        return _Response(200, self.get_subjects(context))
+
+
+async def test_failed_subject_listing_is_an_error_not_an_empty_context() -> None:
+    base = _client()
+    client = SessionClient(
+        base._contexts,
+        base._subjects,
+        base._global,
+        base._overrides,
+        forbidden={"http://registry/contexts/.billing/subjects"},
+    )
+    report = await _insights(client)
+    assert {"context": ".billing", "subject": None, "error": "subjects: 403 Client Error"} in report["errors"]
+    assert ".billing" not in [f["context"] for f in _codes(report, "EMPTY_CONTEXT")]
+    assert {"default", ".archive"} >= {u["context"] for u in report["references"]["unverified"]}
+    assert [u["target_subject"] for u in report["references"]["unverified"]] == ["invoice"]
+
+
+async def test_failed_context_listing_is_reported() -> None:
+    base = _client()
+    client = SessionClient(
+        base._contexts, base._subjects, base._global, base._overrides, forbidden={"http://registry/contexts"}
+    )
+    report = await _insights(client)
+    assert report["errors"][0] == {"context": "all", "subject": None, "error": "contexts: 403 Client Error"}
+    assert report["contexts_analyzed"] == ["default"]
+
+
 async def test_report_validates_against_its_output_schema() -> None:
     report = await _insights()
     assert report["_validation"]["validated"] is True

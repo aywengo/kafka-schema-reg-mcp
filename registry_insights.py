@@ -14,7 +14,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from fastmcp.dependencies import Progress
 
@@ -46,6 +46,7 @@ class SubjectRecord:
     versions: Optional[int] = None
     schema_type: Optional[str] = None
     override: Optional[str] = None
+    override_unknown: bool = False
     references: list[tuple[Optional[str], str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -58,6 +59,7 @@ class ContextRecord:
     level: Optional[str]
     subjects: list[SubjectRecord]
     error: Optional[str] = None
+    config_error: Optional[str] = None
 
 
 def _label(context: Optional[str]) -> str:
@@ -80,7 +82,7 @@ def _split_qualified(subject: str, context: Optional[str]) -> tuple[Optional[str
     """Resolve ``:.ctx:name`` to ``(ctx, name)``; a plain name stays in ``context``."""
     if subject.startswith(":."):
         qualified, _, name = subject[2:].partition(":")
-        return _normalise_context(qualified), name
+        return _normalise_context(f".{qualified}" if qualified else None), name
     return context, subject
 
 
@@ -88,6 +90,33 @@ def _level(config: Any) -> Optional[str]:
     if isinstance(config, dict) and "error" not in config:
         return config.get("compatibilityLevel") or config.get("compatibility")
     return None
+
+
+def _config_error(config: Any) -> Optional[str]:
+    if isinstance(config, dict) and "error" in config:
+        return str(config["error"])
+    if not isinstance(config, dict):
+        return f"unexpected config response: {config!r}"
+    return None
+
+
+def _strict_list(client: Any, path: str, context: Optional[str], fallback: Callable[[], Any]) -> list:
+    """GET a list and raise on failure.
+
+    ``RegistryClient.get_subjects`` and ``get_contexts`` turn every failure into ``[]``,
+    which would read as an empty registry. A client without a session uses ``fallback``.
+    """
+    session = getattr(client, "session", None)
+    build = getattr(client, "build_context_url", None)
+    if session is None or build is None:
+        result = fallback()
+    else:
+        response = session.get(build(path, context), auth=client.auth, headers=client.headers)
+        response.raise_for_status()
+        result = response.json()
+    if not isinstance(result, list):
+        raise ValueError(f"unexpected listing response: {result!r}")
+    return result
 
 
 def _inspect_subject(client: Any, context: Optional[str], subject: str) -> SubjectRecord:
@@ -109,8 +138,14 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
         else:
             record.errors.append(f"latest: {latest.get('error', latest)}")
 
-        # A subject without an override answers with an error; it inherits the context level.
-        record.override = _level(client.get_subject_config(subject, context))
+        config = client.get_subject_config(subject, context)
+        error = _config_error(config)
+        if error is None:
+            record.override = _level(config)
+        elif "404" not in error:
+            # Only a 404 means "no override"; any other failure leaves the effective level unknown.
+            record.override_unknown = True
+            record.errors.append(f"config: {error}")
     except Exception as e:
         record.errors.append(str(e))
     return record
@@ -118,18 +153,21 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
 
 def collect_context(client: Any, context: Optional[str], skip_qualified: bool = False) -> ContextRecord:
     """Read one context: its compatibility level and every subject in it."""
+    config = None
     try:
-        level = _level(client.get_global_config(context))
-        subjects = client.get_subjects(context)
-        if not isinstance(subjects, list):
-            return ContextRecord(context, level, [], error=str(subjects))
+        config = client.get_global_config(context)
+        subjects = _strict_list(client, "/subjects", context, lambda: client.get_subjects(context))
+    except Exception as e:
+        return ContextRecord(context, _level(config), [], error=f"subjects: {e}", config_error=_config_error(config))
+    level, config_error = _level(config), _config_error(config)
+    try:
         if skip_qualified:
             subjects = [s for s in subjects if not s.startswith(":.")]
         with ThreadPoolExecutor(max_workers=_SUBJECT_WORKERS) as executor:
             records = list(executor.map(lambda s: _inspect_subject(client, context, s), subjects))
-        return ContextRecord(context, level, records)
+        return ContextRecord(context, level, records, config_error=config_error)
     except Exception as e:
-        return ContextRecord(context, None, [], error=str(e))
+        return ContextRecord(context, level, [], error=str(e), config_error=config_error)
 
 
 def _finding(code: str, severity: str, context: Optional[str], subject: Optional[str], message: str) -> dict:
@@ -145,7 +183,11 @@ def summarise(
     """Turn collected context records into the insights report sections."""
     contexts = list(contexts)
     records = [record for ctx in contexts for record in ctx.subjects]
-    known = {(_key(record.context), record.subject): (record.context, record.subject) for record in records}
+    known = {}
+    for record in records:
+        target_context, name = _split_qualified(record.subject, record.context)
+        known[(_key(target_context), name)] = (record.context, record.subject)
+    scanned = {_key(ctx.context) for ctx in contexts if not ctx.error}
     levels = {ctx.context: ctx.level for ctx in contexts}
     findings: list[dict] = []
     errors: list[dict] = []
@@ -178,9 +220,9 @@ def summarise(
     overrides = []
     for record in records:
         context_level = levels.get(record.context)
-        effective = record.override or context_level
+        effective = None if record.override_unknown else (record.override or context_level)
         by_level[effective or "UNKNOWN"] += 1
-        if record.override and record.override != context_level:
+        if record.override:
             overrides.append({"context": _label(record.context), "subject": record.subject, "level": record.override})
         if effective and effective.upper() == "NONE":
             findings.append(
@@ -195,11 +237,23 @@ def summarise(
 
     referenced_by: Counter = Counter()
     dangling = []
+    unverified = []
     for record in records:
         for target in record.references:
             found = known.get((_key(target[0]), target[1]))
             if found:
                 referenced_by[found] += 1
+                continue
+            if _key(target[0]) not in scanned:
+                # The target's context was out of scope or failed to list; absence is not proven.
+                unverified.append(
+                    {
+                        "context": _label(record.context),
+                        "subject": record.subject,
+                        "target_context": _label(target[0]),
+                        "target_subject": target[1],
+                    }
+                )
                 continue
             dangling.append(
                 {
@@ -226,7 +280,9 @@ def summarise(
     for ctx in contexts:
         if ctx.error:
             errors.append({"context": _label(ctx.context), "subject": None, "error": ctx.error})
-        elif ctx.context is not None and not ctx.subjects:
+        if ctx.config_error:
+            errors.append({"context": _label(ctx.context), "subject": None, "error": f"config: {ctx.config_error}"})
+        if not ctx.error and ctx.context is not None and not ctx.subjects:
             findings.append(_finding("EMPTY_CONTEXT", "info", ctx.context, None, "Context has no subjects."))
     for record in records:
         for message in record.errors:
@@ -246,24 +302,27 @@ def summarise(
             "by_effective_level": dict(by_level),
             "overrides": overrides,
         },
-        "references": {"most_referenced": most_referenced, "dangling": dangling},
+        "references": {"most_referenced": most_referenced, "dangling": dangling, "unverified": unverified},
         "findings": findings,
         "errors": errors,
         "limitations": LIMITATIONS,
     }
 
 
-def _contexts_to_scan(client: Any, context: Optional[str]) -> list[Optional[str]]:
+def _contexts_to_scan(client: Any, context: Optional[str]) -> tuple[list[Optional[str]], Optional[str]]:
+    """Return the contexts to read and, when listing contexts failed, that error."""
     if context is not None:
-        return [_normalise_context(context)]
-    listed = client.get_contexts()
+        return [_normalise_context(context)], None
     names: list[Optional[str]] = [None]
-    if isinstance(listed, list):
-        for name in listed:
-            normalised = _normalise_context(name)
-            if normalised not in names:
-                names.append(normalised)
-    return names
+    try:
+        listed = _strict_list(client, "/contexts", None, client.get_contexts)
+    except Exception as e:
+        return names, f"contexts: {e}"
+    for name in listed:
+        normalised = _normalise_context(name)
+        if normalised not in names:
+            names.append(normalised)
+    return names, None
 
 
 @structured_output("get_registry_insights", fallback_on_error=True)
@@ -307,7 +366,7 @@ async def get_registry_insights_tool(
             )
 
         await progress.set_message("Listing contexts")
-        names = await asyncio.to_thread(_contexts_to_scan, client, context)
+        names, listing_error = await asyncio.to_thread(_contexts_to_scan, client, context)
         await progress.set_total(len(names))
         skip_qualified = context is None and len(names) > 1
 
@@ -318,6 +377,8 @@ async def get_registry_insights_tool(
             await progress.increment()
 
         report = summarise(collected, top_n=top_n, version_sprawl_threshold=version_sprawl_threshold)
+        if listing_error:
+            report["errors"].insert(0, {"context": "all", "subject": None, "error": listing_error})
         report.update(
             {
                 "registry": getattr(client.config, "name", "default"),
