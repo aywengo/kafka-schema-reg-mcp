@@ -423,6 +423,22 @@ def test_traces_endpoint_uses_the_otlp_http_path() -> None:
     assert tracing._traces_endpoint("http://otel:4318") == "http://otel:4318/v1/traces"
     assert tracing._traces_endpoint("http://otel:4318/") == "http://otel:4318/v1/traces"
     assert tracing._traces_endpoint("http://otel:4318/v1/traces") == "http://otel:4318/v1/traces"
+    assert tracing._traces_endpoint("http://otel:4318/otlp/") == "http://otel:4318/otlp/v1/traces"
+    assert (
+        tracing._traces_endpoint("https://user:token@collector:4318") == "https://user:token@collector:4318/v1/traces"
+    )
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://otel:4318?api-key=secret",
+        "http://otel:4318/?api-key=secret",
+        "http://otel:4318/v1/traces?api-key=secret",
+    ],
+)
+def test_traces_endpoint_keeps_the_query(endpoint: str) -> None:
+    assert tracing._traces_endpoint(endpoint) == "http://otel:4318/v1/traces?api-key=secret"
 
 
 def test_logged_endpoint_drops_userinfo_and_query() -> None:

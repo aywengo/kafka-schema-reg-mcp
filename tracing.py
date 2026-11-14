@@ -139,11 +139,15 @@ def _loggable_endpoint(url: str) -> str:
 
 
 def _traces_endpoint(endpoint: str) -> str:
-    """The traces URL. ``endpoint`` is the OTLP base, as the spec defines it."""
-    base = endpoint.rstrip("/")
-    if base.endswith("/v1/traces"):
-        return base
-    return f"{base}/v1/traces"
+    """The traces URL. ``endpoint`` is the OTLP base, as the spec defines it.
+
+    Only the path changes, so userinfo and a query string are kept.
+    """
+    parts = urlsplit(endpoint)
+    path = parts.path.rstrip("/")
+    if not path.endswith("/v1/traces"):
+        path = f"{path}/v1/traces"
+    return urlunsplit((parts.scheme, parts.netloc, path, parts.query, parts.fragment))
 
 
 class _DropExceptionDetail(SpanProcessor):
