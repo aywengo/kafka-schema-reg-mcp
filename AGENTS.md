@@ -38,6 +38,18 @@ The repository is organized into the following directories:
 - `pyproject.toml`: Project configuration (Black, Ruff, isort, MyPy settings)
 - `TESTING_SETUP_GUIDE.md`: Comprehensive testing setup guide
 
+## Branching and Merging
+
+- Every new feature gets its own branch, cut from the latest `origin/main`. One feature per
+  branch and per pull request.
+- Name the branch by type: `feat/<name>`, `fix/<name>`, `docs/<name>`, `chore/<name>`,
+  `deps/<name>`.
+- Never commit a feature directly to `main`, and never stack a new feature on another
+  feature's unmerged branch.
+- Merge to `main` only through a pull request, after an approving review from GitHub Copilot
+  or the repository owner (`@aywengo`, see [CODEOWNERS](CODEOWNERS)).
+- Agents open the pull request and wait. They do not merge before that approval.
+
 ## Pre-Commit Checklist
 
 Before committing any changes, **ALWAYS** run linting checks to ensure code quality and consistency.
