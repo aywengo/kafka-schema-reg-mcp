@@ -425,6 +425,18 @@ def test_traces_endpoint_uses_the_otlp_http_path() -> None:
     assert tracing._traces_endpoint("http://otel:4318/v1/traces") == "http://otel:4318/v1/traces"
 
 
+def test_logged_endpoint_drops_userinfo_and_query() -> None:
+    secret = tracing._loggable_endpoint("https://user:token@collector:4318/v1/traces")
+    assert secret == "https://collector:4318/v1/traces"
+    assert "token" not in secret
+    queried = tracing._loggable_endpoint("http://otel:4318/v1/traces?api-key=secret")
+    assert queried == "http://otel:4318/v1/traces"
+    assert "secret" not in queried
+    ipv6 = tracing._loggable_endpoint("https://user:token@[2001:db8::1]:4318/v1/traces")
+    assert ipv6 == "https://[2001:db8::1]:4318/v1/traces"
+    assert "token" not in ipv6
+
+
 # ---- middleware order -----------------------------------------------------
 
 

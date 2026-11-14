@@ -20,6 +20,7 @@ import os
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from fastmcp.exceptions import AuthorizationError
 from fastmcp.server.middleware import Middleware
@@ -108,6 +109,7 @@ def configure(environ: Mapping[str, str] | None = None) -> bool:
 
     service = env.get(SERVICE_ENV, "").strip() or DEFAULT_SERVICE_NAME
     url = _traces_endpoint(endpoint)
+    logged = _loggable_endpoint(url)
     provider = TracerProvider(resource=Resource.create({"service.name": service}))
     # Before the exporter, so a status description or exception event that
     # FastMCP records never leaves the process.
@@ -116,8 +118,24 @@ def configure(environ: Mapping[str, str] | None = None) -> bool:
     trace_api.set_tracer_provider(provider)
     _provider = provider
     atexit.register(_shutdown)
-    logger.info("exporting traces to %s as %s", url, service)
+    logger.info("exporting traces to %s as %s", logged, service)
     return True
+
+
+def _loggable_endpoint(url: str) -> str:
+    """The endpoint with userinfo, query, and fragment removed.
+
+    The exporter still receives the original URL. The startup log must not
+    carry a token from ``OTEL_EXPORTER_OTLP_ENDPOINT``.
+    """
+    parts = urlsplit(url)
+    host = parts.hostname
+    if not parts.scheme or not host:
+        return "configured endpoint"
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = f"{host}:{parts.port}" if parts.port is not None else host
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
 
 
 def _traces_endpoint(endpoint: str) -> str:
