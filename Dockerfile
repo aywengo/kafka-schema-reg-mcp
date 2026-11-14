@@ -156,6 +156,9 @@ COPY --chown=mcp:mcp cache_hints.py .
 # Fleet front router (v3.1 M3). Imported at server startup.
 COPY --chown=mcp:mcp fleet.py .
 
+# W3C traceparent continuation (#201). Imported at server startup.
+COPY --chown=mcp:mcp tracing.py .
+
 # Copy main server files
 COPY --chown=mcp:mcp kafka_schema_registry_unified_mcp.py .
 COPY --chown=mcp:mcp remote-mcp-server.py .

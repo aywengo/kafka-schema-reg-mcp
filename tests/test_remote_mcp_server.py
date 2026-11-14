@@ -122,6 +122,8 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.original_env = os.environ.copy()
+        # main() configures trace export when this is set. Keep the test off the network.
+        os.environ.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
 
     def tearDown(self):
         """Clean up test environment."""
@@ -158,13 +160,19 @@ class TestRemoteMCPServerStartup(unittest.TestCase):
                 result = remote_mcp_server.main()
 
                 # Verify mcp.run was called with correct transport
-                mock_mcp.run.assert_called_once_with(
-                    transport="streamable-http",
-                    host="0.0.0.0",
-                    port=8000,
-                    path="/mcp",
-                )
+                mock_mcp.run.assert_called_once()
+                kwargs = mock_mcp.run.call_args.kwargs
+                self.assertEqual(kwargs["transport"], "streamable-http")
+                self.assertEqual(kwargs["host"], "0.0.0.0")
+                self.assertEqual(kwargs["port"], 8000)
+                self.assertEqual(kwargs["path"], "/mcp")
+                from tracing import TraceContextMiddleware
+
+                self.assertEqual(len(kwargs["middleware"]), 1)
+                self.assertIs(kwargs["middleware"][0].cls, TraceContextMiddleware)
                 self.assertEqual(result, 0)
+            except AssertionError:
+                raise
             except Exception:
                 # If we can't test the startup, at least verify config is correct
                 transport = os.getenv("MCP_TRANSPORT", "streamable-http")

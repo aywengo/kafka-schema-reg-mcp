@@ -183,6 +183,8 @@ from statistics_tools import (
     get_registry_statistics_task_queue_tool,
 )
 from tool_catalog import TOOL_CATALOG, tools_for
+from tracing import ToolCallSpans
+from tracing import configure as configure_tracing
 from workflow_mcp_integration import (
     handle_workflow_elicitation_response,
     register_workflow_tools,
@@ -3861,6 +3863,10 @@ if FLEET_CONFIG.role == "front":
 else:
     active_fleet = InProcessFleet(list(registry_manager.list_registries()), _run_registered_tool)
 
+# Outermost tools/call middleware, so a front still attributes the span when
+# FrontRouter handles the call itself. Attributes land on FastMCP's seam span.
+mcp.add_middleware(ToolCallSpans())
+
 
 # ===== SERVER ENTRY POINT =====
 
@@ -3933,4 +3939,7 @@ if __name__ == "__main__":
         logger.info("🔗 Elicitation and workflow features disabled in SLIM_MODE")
         logger.info("💡 To enable full features, set SLIM_MODE=false")
 
+    # OTLP/HTTP when OTEL_EXPORTER_OTLP_ENDPOINT is set. remote-mcp-server
+    # imports this module, then calls configure_tracing() on its own entry.
+    configure_tracing()
     mcp.run()
