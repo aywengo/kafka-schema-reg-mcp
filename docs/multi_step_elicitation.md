@@ -71,18 +71,26 @@ Helps reorganize schemas across contexts:
 
 ### 3. Disaster Recovery Setup
 
-Configure disaster recovery strategies:
+`guided_disaster_recovery` plans from recovery objectives rather than a strategy menu:
 
-- **Active-Passive**: Primary with standby
-- **Active-Active**: Multiple active registries
-- **Backup & Restore**: Periodic backups
-- **Multi-Region**: Geographic distribution
+- **RPO** (`real-time`, `under-1-hour`, `under-24-hours`, `weekly`) sets the backup
+  cadence. A real-time RPO cannot be met by scheduled exports, so it requires a warm
+  standby and keeps the export restore only as a fallback.
+- **RTO** (`under-5-minutes`, `under-1-hour`, `under-4-hours`, `under-24-hours`) picks
+  the recovery path: warm standby, `restore_bundle` into a prepared registry, or
+  `restore_bundle` into a registry provisioned at recovery time.
+- **Scenarios** (`datacenter-failure`, `region-outage`, `corruption`,
+  `accidental-deletion`) each add a runbook section.
 
 **Example Flow**:
-1. Choose DR strategy
-2. Select registries
-3. Configure sync options
-4. Test and validate
+1. The client calls `guided_disaster_recovery` without `backup_target`
+2. The server asks for the backup target, RPO, RTO and a primary scenario
+3. The client retries with the answers and gets `objectives`, `strategy`, `warnings` and a Markdown `runbook`
+4. The operator runs the plan: `export_global` backups, a `restore_bundle` drill into a scratch registry, and per-context export comparison
+
+The 9-step `disaster_recovery_setup` definition in `workflow_definitions.py` is the
+internal manager's workflow; the MCP tool does not walk through it. Parameters are in
+[`guided_disaster_recovery`](mcp-tools-reference.md#guided_disaster_recovery).
 
 ## Usage
 
@@ -253,7 +261,7 @@ The following MRTR planner tools are registered:
 4. **guided_disaster_recovery**: Plan a recovery strategy
 
 Each tool returns a plan. Execution stays in the normal tools, such as
-`register_schema`, `migrate_schema`, and `migrate_context`.
+`register_schema`, `migrate_schema`, `migrate_context`, and `restore_bundle`.
 
 ### Example Tool Usage
 
@@ -384,10 +392,11 @@ The integration includes:
 1. **Automatic Initialization**: Multi-step workflow manager is created when the server starts
 2. **Workflow Planners**: The four MRTR planner tools return plans; instance workflow tools were removed
 3. **Response Handling**: Modern clients resume with `inputResponses`; legacy clients use `elicitation/create`
-4. **Pre-defined Workflows**: Three workflows are ready to use:
+4. **Pre-defined Workflows**: Four internal workflow definitions:
    - Schema Migration Wizard (6 steps)
-   - Context Reorganization (9 steps) 
-   - Disaster Recovery Setup (9 steps)
+   - Context Reorganization (9 steps)
+   - Disaster Recovery Setup (9 steps; `guided_disaster_recovery` plans from RPO and RTO instead)
+   - Schema Evolution Assistant (12 steps)
 5. **Automated Testing**: Integrated into the unified test runner for CI/CD pipelines
    - Included in both quick mode (essential functionality) and full mode (comprehensive testing)
    - 22 test cases covering all workflow scenarios and edge cases
