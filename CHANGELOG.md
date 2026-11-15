@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-11-15
+
+Registry insights, disaster-recovery objectives, and trace continuation. Editions
+are 40 / 43 / 68 tools; the task backend and the Schema Registry HTTP client are
+unchanged.
+
 ### Added
 
 - HTTP `traceparent` and `tracestate` continue into FastMCP's tool span.

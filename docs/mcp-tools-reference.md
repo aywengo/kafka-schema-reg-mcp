@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-This document describes the Kafka Schema Registry MCP Server **3.1.0** on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The tool surface is generated from `tool_catalog.py`; this reference is generated from the live MCP schemas.
+This document describes the Kafka Schema Registry MCP Server **3.2.0** on **FastMCP 4.1+** and **MCP 2026-07-28**. The same process also serves `2025-11-25` clients. The tool surface is generated from `tool_catalog.py`; this reference is generated from the live MCP schemas.
 
 ## Editions
 

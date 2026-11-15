@@ -11,7 +11,7 @@ global:
 # Application configuration (port must match service.targetPort; ConfigMap sets MCP_PORT)
 app:
   name: "kafka-schema-registry-remote-mcp"
-  version: "3.1.0"
+  version: "3.2.0"
   viewonly: false
   logLevel: "INFO"
   port: 8000
@@ -231,7 +231,7 @@ configMaps:
         server:
           name: "Kafka Schema Registry Remote MCP Server"
           description: "Remote MCP server for Kafka Schema Registry operations with OAuth authentication"
-          version: "3.1.0"
+          version: "3.2.0"
           
         endpoints:
           mcp: "https://mcp-schema-registry.your-domain.com/mcp"

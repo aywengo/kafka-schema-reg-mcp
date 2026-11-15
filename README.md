@@ -23,7 +23,7 @@ A comprehensive **Model Context Protocol (MCP) server** that provides Claude Des
 
 > **🎯 True MCP Implementation**: Uses **FastMCP 4.1+** on **MCP Python SDK 2** with **MCP 2026-07-28** compliance. The same process negotiates `2025-11-25` with older clients. Fully compatible with Claude Desktop and other MCP clients using JSON-RPC over `stdio`.
 
-**Latest Version:** [v3.1.0](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
+**Latest Version:** [v3.2.0](CHANGELOG.md) | **Docker:** `aywengo/kafka-schema-reg-mcp:stable`
 </td>
 </tr>
 </table>
@@ -150,8 +150,8 @@ docker pull aywengo/kafka-schema-reg-mcp:stable
 docker pull aywengo/kafka-schema-reg-mcp:stable-editor
 docker pull aywengo/kafka-schema-reg-mcp:stable-admin
 
-# This release. Admin on the 3.1.0 tag is 67 tools.
-docker pull aywengo/kafka-schema-reg-mcp:3.1.0-admin
+# This release. Admin on the 3.2.0 tag is 68 tools.
+docker pull aywengo/kafka-schema-reg-mcp:3.2.0-admin
 ```
 
 #### Choosing an edition
@@ -410,7 +410,12 @@ python kafka_schema_registry_unified_mcp.py
 
 ## 🆕 What's New
 
-### v3.1.0 (Latest)
+### v3.2.0 (Latest)
+- **🩺 Registry insights** - `get_registry_insights` (viewer) reports version spread, schema types, compatibility overrides, dangling references and findings. Editions are now 40 / 43 / 68 tools
+- **🛡️ DR objectives** - `guided_disaster_recovery` takes RPO, RTO and scenarios, picks the backup cadence and recovery path, and returns a Markdown runbook
+- **🔭 Trace continuation** - HTTP `traceparent` and `tracestate` continue into the tool span; set `OTEL_EXPORTER_OTLP_ENDPOINT` to export
+
+### v3.1.0
 - **♻️ Restore** - `restore_bundle` applies an export document to one registry, dry-run unless told to write, and preserves schema ids. Admin is now 67 tools
 - **🔐 One verifier** - Human, client-credentials, and SEP-990 access tokens share one check. Grants are advertised only when the issuer lists them
 - **🚢 Fleet front** - Optional process that routes `registry=` to a shard and holds no registry password

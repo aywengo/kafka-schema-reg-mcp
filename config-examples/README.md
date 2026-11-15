@@ -1,6 +1,6 @@
 # Configuration Examples
 
-This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.1 with **FastMCP 4.1+** and **MCP 2026-07-28**.
+This directory contains example Claude Desktop configuration files for different deployment scenarios of the Kafka Schema Registry MCP Server v3.2 with **FastMCP 4.1+** and **MCP 2026-07-28**.
 
 ## 📂 Available Configurations
 
@@ -9,14 +9,14 @@ This directory contains example Claude Desktop configuration files for different
 - **`claude_desktop_docker_config.json`** - Docker latest tag configuration
 - **`claude_desktop_stable_config.json`** - Docker stable tag configuration (recommended)
 - **`claude_desktop_viewonly_config.json`** - View-only mode for production safety
-- **`claude_desktop_viewer_config.json`** - Viewer edition (39 tools, default)
-- **`claude_desktop_editor_config.json`** - Editor edition (42 tools)
+- **`claude_desktop_viewer_config.json`** - Viewer edition (default; 40 tools on `:3.2.0`)
+- **`claude_desktop_editor_config.json`** - Editor edition (43 tools on `:3.2.0-editor`)
 - **`claude_desktop_admin_config.json`** - Admin edition. The file pulls `:stable`
 
 ### Version-Specific Configurations
 
 #### Stable channel
-These files pull `:stable` or `:latest`. `:stable` moves only when Tag as Stable runs, so it is not automatically 3.1.0. Pin `:3.1.0`, `:3.1.0-editor`, or `:3.1.0-admin` to run this release. Admin on `:3.1.0-admin` is 67 tools.
+These files pull `:stable` or `:latest`. `:stable` moves only when Tag as Stable runs, so it is not automatically 3.2.0. Pin `:3.2.0`, `:3.2.0-editor`, or `:3.2.0-admin` to run this release. On 3.2.0 the editions are 40 / 43 / 68 tools; 3.1.0 images have 39 / 42 / 67.
 - **`claude_desktop_stable_config.json`** - Promoted `:stable` image, viewer edition
 - **`claude_desktop_docker_config.json`** - `:latest` image, viewer edition
 
@@ -51,9 +51,9 @@ These files are kept for older deployments; use the 3.0 configurations for new w
 
 | File | Edition | Tools |
 |---|---|---|
-| `claude_desktop_viewer_config.json` | viewer | 39 |
-| `claude_desktop_editor_config.json` | editor | 42 |
-| `claude_desktop_admin_config.json` | admin | 67 on `:3.1.0-admin` |
+| `claude_desktop_viewer_config.json` | viewer | 40 on `:3.2.0` |
+| `claude_desktop_editor_config.json` | editor | 43 on `:3.2.0-editor` |
+| `claude_desktop_admin_config.json` | admin | 68 on `:3.2.0-admin` |
 
 ```bash
 cp config-examples/claude_desktop_admin_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
@@ -182,9 +182,8 @@ cd tests
 
 ### Use Case: Production (stable channel)
 **Recommended:** `claude_desktop_stable_config.json` for read-only, or `claude_desktop_admin_config.json` for full access
-- ✅ Promoted `:stable` image. Pin `:3.1.0-admin` for the 67-tool 3.1.0 admin catalog
+- ✅ Promoted `:stable` image. Pin `:3.2.0-admin` for the 68-tool 3.2.0 admin catalog
 - ✅ `viewer` by default; choose `editor` or `admin` explicitly
-- ✅ Multi-registry, background tasks and MRTR workflows
 - ✅ Multi-registry, background tasks and MRTR workflows
 
 ### Use Case: Historical FastMCP 2.x Deployment (v2.2.2)
@@ -278,7 +277,7 @@ All configurations in this directory use the updated port scheme:
 ### Expected Results
 When your configuration is working correctly:
 - ✅ MCP server starts without errors
-- ✅ 68 tools are available
+- ✅ The edition's tools are listed (40 / 43 / 68 on 3.2.0)
 - ✅ Schema Registry connectivity confirmed
 - ✅ Basic operations work (list subjects, get schemas)
 
