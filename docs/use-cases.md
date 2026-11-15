@@ -10,7 +10,7 @@ The Kafka Schema Registry MCP Server uses **FastMCP 4.1+** on **MCP Python SDK 2
 - ✅ **FastMCP 4.1+ Framework**: Modern MCP architecture with dual-era protocol support
 - ✅ **MCP 2026-07-28 Compliance**: Modern protocol with `2025-11-25` client fallback
 - ✅ **Enhanced Authentication**: FastMCP 4 `JWTVerifier` with OAuth 2.1 discovery for multiple providers
-- ✅ **39 / 42 / 67 MCP Tools**: Complete schema operations by edition via natural language
+- ✅ **40 / 43 / 68 MCP Tools**: Complete schema operations by edition via natural language
 - ✅ **Claude Desktop Ready**: Direct AI integration for schema management
 - ✅ **Natural Language Interface**: No curl commands or API knowledge required
 - ✅ **Real-time Interaction**: Immediate feedback through Claude Desktop
@@ -824,6 +824,35 @@ for context in stats['contexts']:
     print(f"- Schemas: {context['total_schemas']}")
     print(f"- Versions: {context['total_versions']}")
 ```
+
+### Registry Health Review
+`get_registry_statistics` counts contexts, schemas and versions. `get_registry_insights`
+(viewer, background task) also says what needs attention:
+
+```python
+report = get_registry_insights(registry="production")          # every context
+billing = get_registry_insights(registry="production", context=".billing")
+
+for finding in report["findings"]:
+    # COMPATIBILITY_NONE, VERSION_SPRAWL, DANGLING_REFERENCE, EMPTY_CONTEXT
+    print(finding["severity"], finding["code"], finding["context"], finding["subject"])
+
+print(report["version_distribution"]["buckets"])   # {"1": .., "2-5": .., "6-20": .., "21+": ..}
+print(report["compatibility"]["overrides"])        # subjects with their own level
+print(report["references"]["dangling"])            # references to subjects that do not exist
+print(report["references"]["unverified"])          # targets in contexts outside the scope
+print(report["errors"])                            # reads that failed; the rest of the report stands
+```
+
+A reference is `dangling` only when its target context was scanned, or when every
+context was listed and the target context is not among them. In a scoped report, a
+reference into another context is `unverified`, not missing. Raise
+`version_sprawl_threshold` (default 20) to suit your registry.
+
+The Schema Registry API carries no usage, consumer or history data, so the report
+does not either; `limitations` says so on every result. A subject nothing references
+may still be read by producers and consumers. For trends, scrape the remote server's
+`/metrics` endpoint.
 
 ### Schema Evolution Tracking
 Track schema evolution across different contexts:

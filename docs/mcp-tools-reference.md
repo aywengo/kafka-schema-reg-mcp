@@ -8,15 +8,15 @@ Set `MCP_EDITION=viewer|editor|admin`; the default is `viewer`. `SLIM_MODE=true`
 
 | Edition | Tools | Access |
 |---|---|---|
-| `viewer` | 39 | Read-only browsing, export, comparison, compatibility, statistics |
-| `editor` | 42 | Viewer plus schema registration and evolution |
-| `admin` | 67 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
+| `viewer` | 40 | Read-only browsing, export, comparison, compatibility, statistics |
+| `editor` | 43 | Viewer plus schema registration and evolution |
+| `admin` | 68 | Full surface: configuration, deletion, contexts, migration, bulk operations, workflows |
 
 Tools outside the active edition are not registered, so clients do not list them and cannot call them.
 
 ## Tools by edition
 
-### Viewer (39 tools)
+### Viewer (40 tools)
 
 | Tool | Scope | Kind | Description |
 |---|---|---|---|
@@ -41,6 +41,7 @@ Tools outside the active edition are not registered, so clients do not list them
 | `get_mode` | `read` | read-only | Get the current mode of the Schema Registry. |
 | `get_oauth_scopes_info` | `read` | read-only | Get information about OAuth scopes and permissions. |
 | `get_registry_info` | `read` | read-only | Get detailed information about a specific registry. |
+| `get_registry_insights` | `read` | read-only | Report version spread, schema types, compatibility overrides and dangling references for a registry. |
 | `get_registry_statistics` | `read` | read-only | Get comprehensive statistics about a registry. |
 | `get_schema` | `read` | read-only | Get a specific version of a schema. |
 | `get_schema_by_id` | `read` | read-only | Get a schema by its globally unique ID. |
@@ -414,6 +415,35 @@ Get detailed information about a specific registry.
 | Parameter | Type | Required | Default / values |
 |---|---|---|---|
 | `registry` | `string` | no |  |
+
+#### `get_registry_insights`
+
+Report version spread, schema types, compatibility overrides and dangling references for a registry.
+
+- Edition: `viewer`
+- Scope: `read`
+- Kind: read-only
+- Background task: Yes.
+
+| Parameter | Type | Required | Default / values |
+|---|---|---|---|
+| `registry` | `string` | no |  |
+| `context` | `string` | no | all contexts |
+| `top_n` | `integer` | no | `10` |
+| `version_sprawl_threshold` | `integer` | no | `20` |
+
+A point-in-time snapshot of registry state. The result has `version_distribution`
+(buckets `1`, `2-5`, `6-20`, `21+` and the top subjects), `schema_types`,
+`compatibility` (global and per-context levels, effective level counts, subject
+overrides), `references` (most-referenced subjects, references to subjects that do
+not exist, and `unverified` references into a context that was out of scope or
+failed to list), `findings` (`COMPATIBILITY_NONE`, `VERSION_SPRAWL`,
+`DANGLING_REFERENCE`, `EMPTY_CONTEXT`), `errors`, and `limitations`. A failed
+listing or configuration read is reported under `errors`: a subject whose config read
+fails (other than 404, "no override") counts as `UNKNOWN`, and a context that fails to
+list produces no absence-based findings.
+Usage, consumer and historical data are not available from the registry API; use
+`/metrics` and the Grafana dashboard for trends.
 
 #### `get_registry_statistics`
 
