@@ -100,7 +100,8 @@ app:
 # Security
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 2000
 
 securityContext:
@@ -110,7 +111,8 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
 
 # Network policies
 networkPolicy:

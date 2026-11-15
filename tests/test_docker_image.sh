@@ -54,7 +54,7 @@ run_test "MCP SDK Installation" \
 
 # Test 3: MCP server import (most important - no Pydantic warnings)
 run_test "MCP Server Import (No Pydantic Warnings)" \
-"docker run --rm ${IMAGE_NAME} python -c 'import kafka_schema_registry_unified_mcp as m; print("✅ MCP server imports successfully"); print("✅ No Pydantic warnings - field name conflicts resolved")'"
+"docker run --rm ${IMAGE_NAME} python -c 'import kafka_schema_registry_unified_mcp as m; print(\"✅ MCP server imports successfully\"); print(\"✅ No Pydantic warnings - field name conflicts resolved\")'"
 
 # Test 4: Python syntax validation
 run_test "Python Syntax Validation" \

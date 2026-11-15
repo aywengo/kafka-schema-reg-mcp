@@ -28,11 +28,13 @@ Usage:
     docker run -p 8000:8000 -e ENABLE_AUTH=true aywengo/kafka-schema-reg-mcp:stable python remote-mcp-server.py
 """
 
+import asyncio
 import logging
 import os
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -537,10 +539,18 @@ def get_security_headers() -> dict:
     }
 
 
-def _probe_registry_health() -> tuple[dict, bool]:
-    """Probe registries this process owns. A front does not open those connections."""
+def _probe_registry_health(timeout: Optional[float] = None) -> tuple[dict, bool]:
+    """Probe registries this process owns. A front does not open those connections.
+
+    Args:
+        timeout: Optional per-registry request timeout in seconds. When set,
+            hung registries fail fast instead of blocking for the default 10s.
+    """
     registry_health: dict = {}
     overall_healthy = True
+    probe_kwargs: dict = {}
+    if timeout is not None:
+        probe_kwargs["timeout"] = timeout
     try:
         if registry_manager is None:
             return {"fleet": {"status": "front"}}, True
@@ -549,7 +559,7 @@ def _probe_registry_health() -> tuple[dict, bool]:
             if default_registry:
                 client = registry_manager.get_registry(default_registry)
                 if client:
-                    test_result = client.test_connection()
+                    test_result = client.test_connection(**probe_kwargs)
                     registry_health[default_registry] = test_result
                     if test_result.get("status") != "connected":
                         overall_healthy = False
@@ -561,7 +571,7 @@ def _probe_registry_health() -> tuple[dict, bool]:
                 try:
                     client = registry_manager.get_registry(registry_name)
                     if client:
-                        test_result = client.test_connection()
+                        test_result = client.test_connection(**probe_kwargs)
                         registry_health[registry_name] = test_result
                         if test_result.get("status") != "connected":
                             overall_healthy = False
@@ -585,7 +595,12 @@ def _probe_registry_health() -> tuple[dict, bool]:
 
 @mcp.custom_route("/health", methods=["GET"])
 async def health_check(request):
-    """Health check endpoint for Kubernetes and monitoring."""
+    """Health check endpoint for monitoring.
+
+    Probes Schema Registry off the event loop so a hung registry cannot stall
+    other requests (including /ready). Returns 503 when any registry is down.
+    Kubernetes liveness should use /ready instead of this endpoint.
+    """
     try:
         start_time = time.time()
 
@@ -613,8 +628,11 @@ async def health_check(request):
             },
         }
 
-        # Test registry connectivity
-        registry_health, overall_healthy = _probe_registry_health()
+        # Test registry connectivity off the event loop with a short timeout
+        registry_health, overall_healthy = await asyncio.to_thread(
+            _probe_registry_health,
+            3.0,
+        )
 
         # Update server status based on registry health
         if not overall_healthy:

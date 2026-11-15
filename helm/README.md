@@ -352,7 +352,8 @@ Secure defaults are applied:
 ```yaml
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 2000
 
 securityContext:
@@ -362,8 +363,14 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
 ```
+
+Uid/gid `999` matches the image's `mcp` user. The container command defaults
+to `python remote-mcp-server.py`, and the ConfigMap sets `MCP_PORT` from
+`app.port`. Liveness probes use `/ready` so a Schema Registry outage does not
+restart the pods; `/health` still reports registry degradation.
 
 ## Troubleshooting
 

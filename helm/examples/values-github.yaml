@@ -119,10 +119,11 @@ resources:
     cpu: 500m
     memory: 512Mi
 
-# Liveness and readiness probes
+# Liveness and readiness probes (liveness uses /ready so a registry outage
+# does not restart the pod; /health still reports registry degradation)
 livenessProbe:
   httpGet:
-    path: /health
+    path: /ready
     port: http
   initialDelaySeconds: 30
   periodSeconds: 10
@@ -227,11 +228,13 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 2000
 
 # GitHub OAuth specific environment variables

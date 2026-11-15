@@ -7,6 +7,10 @@ image:
   tag: local
   pullPolicy: Never  # Use local image built by Kind
 
+# ConfigMap sets MCP_PORT from app.port; must match service/probes below
+app:
+  port: 8000
+
 # Service configuration
 service:
   type: NodePort
@@ -37,10 +41,11 @@ resources:
     cpu: 100m
     memory: 256Mi
 
-# Health checks
+# Health checks (liveness uses /ready so a registry outage does not restart
+# the pod; /health still reports registry degradation)
 livenessProbe:
   httpGet:
-    path: /health
+    path: /ready
     port: 8000
   initialDelaySeconds: 30
   periodSeconds: 10
@@ -49,14 +54,14 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /health
+    path: /ready
     port: 8000
   initialDelaySeconds: 10
   periodSeconds: 5
   timeoutSeconds: 5
   failureThreshold: 3
 
-# Security context
+# Security context (uid 999 matches the image's mcp user)
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:
@@ -64,13 +69,14 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
 
 # Pod security context
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 1000
 
 # Service account

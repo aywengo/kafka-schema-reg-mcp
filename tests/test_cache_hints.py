@@ -172,6 +172,24 @@ from oauth_provider import get_fastmcp_config
 print(get_fastmcp_config("t")["cache_scope"])
 """
 
+VERSION_CODE = """
+from _version import __version__
+from oauth_provider import get_fastmcp_config
+print(get_fastmcp_config("t")["version"])
+print(__version__)
+"""
+
+
+def test_fastmcp_config_reports_server_version():
+    """Handshake version must be the project release, not FastMCP's."""
+    full_env = {**os.environ, "ENABLE_AUTH": "false"}
+    result = subprocess.run(
+        [sys.executable, "-c", VERSION_CODE], cwd=ROOT, env=full_env, capture_output=True, text=True, timeout=120
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    reported, expected = result.stdout.strip().splitlines()[-2:]
+    assert reported == expected
+
 
 def _list_scope(env: dict[str, str]) -> str:
     full_env = {**os.environ, **env}

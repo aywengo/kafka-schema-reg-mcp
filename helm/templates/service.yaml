@@ -18,4 +18,5 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 4 }} 
+    {{- include "kafka-schema-registry-mcp.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp 

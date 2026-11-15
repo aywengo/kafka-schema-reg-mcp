@@ -8,15 +8,23 @@ global:
     mode: "remote-mcp"  # Remote MCP server mode
   environment: "production"  # Environment label for metrics
     
-# Application configuration
+# Application configuration (port must match service.targetPort; ConfigMap sets MCP_PORT)
 app:
   name: "kafka-schema-registry-remote-mcp"
   version: "3.1.0"
-  
+  viewonly: false
+  logLevel: "INFO"
+  port: 8000
+
 image:
   repository: "aywengo/kafka-schema-reg-mcp"
   tag: "stable"
   pullPolicy: IfNotPresent
+
+# HTTP remote MCP server
+command:
+  - python
+  - remote-mcp-server.py
 
 # Remote MCP Server Configuration
 remoteMcp:
@@ -52,38 +60,58 @@ remoteMcp:
     defaultScopes: ["read"]
     requiredScopes: ["read"]
 
-# Environment variables
-env:
-  # Remote MCP specific
-  MCP_TRANSPORT: "streamable-http"
-  MCP_HOST: "0.0.0.0"
-  MCP_PORT: "8000"
-  MCP_PATH: "/mcp"
-  TLS_ENABLED: "true"
-  
-  # OAuth 2.1 Configuration (Generic)
-  ENABLE_AUTH: "true"
-  AUTH_ISSUER_URL: "${AUTH_ISSUER_URL}"
-  AUTH_AUDIENCE: "${AUTH_AUDIENCE}"
-  AUTH_VALID_SCOPES: "read,write,admin"
-  AUTH_DEFAULT_SCOPES: "read"
-  AUTH_REQUIRED_SCOPES: "read"
-  
-  # JWT validation
-  JWKS_CACHE_TTL: "3600"
-  
-  # Schema Registry connection (example - replace with your registries)
-  SCHEMA_REGISTRY_NAME_1: "production"
-  SCHEMA_REGISTRY_URL_1: "https://prod-schema-registry.your-domain.com"
-  SCHEMA_REGISTRY_USER_1: "${PROD_REGISTRY_USER}"
-  SCHEMA_REGISTRY_PASSWORD_1: "${PROD_REGISTRY_PASSWORD}"
-  VIEWONLY_1: "true"
-  
-  SCHEMA_REGISTRY_NAME_2: "staging"
-  SCHEMA_REGISTRY_URL_2: "https://staging-schema-registry.your-domain.com"
-  SCHEMA_REGISTRY_USER_2: "${STAGING_REGISTRY_USER}"
-  SCHEMA_REGISTRY_PASSWORD_2: "${STAGING_REGISTRY_PASSWORD}"
-  VIEWONLY_2: "false"
+# Schema Registry connection (example - replace with your registries)
+schemaRegistry:
+  url: "https://prod-schema-registry.your-domain.com"
+  user: "${PROD_REGISTRY_USER}"
+  password: "${PROD_REGISTRY_PASSWORD}"
+  multiRegistry:
+    enabled: true
+    registries:
+      - name: "production"
+        url: "https://prod-schema-registry.your-domain.com"
+        viewonly: true
+        user: "${PROD_REGISTRY_USER}"
+        password: "${PROD_REGISTRY_PASSWORD}"
+      - name: "staging"
+        url: "https://staging-schema-registry.your-domain.com"
+        viewonly: false
+        user: "${STAGING_REGISTRY_USER}"
+        password: "${STAGING_REGISTRY_PASSWORD}"
+
+# OAuth2 Authentication Configuration
+auth:
+  enabled: true
+  oauth2:
+    issuerUrl: "${AUTH_ISSUER_URL}"
+    validScopes: "read,write,admin"
+    defaultScopes: "read"
+    requiredScopes: "read"
+    clientRegistrationEnabled: false
+    revocationEnabled: true
+  existingSecret:
+    enabled: false
+    name: ""
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
+  createSecret:
+    enabled: true
+    clientId: "${AZURE_CLIENT_ID}"
+    clientSecret: "${AZURE_CLIENT_SECRET}"
+
+extraEnvVars:
+  - name: MCP_TRANSPORT
+    value: "streamable-http"
+  - name: MCP_HOST
+    value: "0.0.0.0"
+  - name: MCP_PATH
+    value: "/mcp"
+  - name: TLS_ENABLED
+    value: "true"
+  - name: AUTH_AUDIENCE
+    value: "${AUTH_AUDIENCE}"
+  - name: JWKS_CACHE_TTL
+    value: "3600"
 
 # Service configuration
 service:
@@ -117,28 +145,26 @@ ingress:
 # Tool catalog edition: viewer, editor, or admin.
 edition: admin
 
-# Deployment configuration
-deployment:
-  replicaCount: 2
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-      
-  # Use remote MCP server script
-  command: ["python", "remote-mcp-server.py"]
-  
-  # Health checks for remote deployment
-  healthCheck:
-    enabled: true
-    httpGet:
-      path: "/health"
-      port: 8000
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
+replicaCount: 2
+
+# Liveness uses /ready so a Schema Registry outage does not restart the pod
+livenessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 3
 
 # Resource limits
 resources:
@@ -157,11 +183,21 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
-# Security context
-securityContext:
+# Security context (uid 999 matches the image's mcp user)
+podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
+  runAsUser: 999
+  runAsGroup: 999
   readOnlyRootFilesystem: true
 
 # Network policies
