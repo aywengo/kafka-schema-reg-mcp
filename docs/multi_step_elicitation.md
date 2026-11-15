@@ -86,7 +86,7 @@ Helps reorganize schemas across contexts:
 1. The client calls `guided_disaster_recovery` without `backup_target`
 2. The server asks for the backup target, RPO, RTO and a primary scenario
 3. The client retries with the answers and gets `objectives`, `strategy`, `warnings` and a Markdown `runbook`
-4. The operator runs the plan: `export_global` backups, a `restore_bundle` drill into a scratch registry, and per-context export comparison
+4. The operator runs the plan: `export_global` backups, a `restore_bundle` drill into an empty scratch registry, and per-context export comparison
 
 The 9-step `disaster_recovery_setup` definition in `workflow_definitions.py` is the
 internal manager's workflow; the MCP tool does not walk through it. Parameters are in

@@ -394,9 +394,11 @@ eu-registry      → European region
 ```
 1. "Plan DR with guided_disaster_recovery: RPO under-1-hour, RTO under-4-hours"
 2. "Export the primary registry with export_global"
-3. "Restore the export into the scratch registry with restore_bundle, dry run first"
+3. "Restore the export into an empty scratch registry with restore_bundle apply=true"
 4. "Compare every context's export from scratch with the backup"
 ```
+A dry run (apply=false) only validates the document; it writes and reports nothing.
+Clear the scratch registry before each drill: restore never deletes entries.
 compare_registries checks versions only in the default context, and
 find_missing_schemas only lists whole subjects, so neither proves a backup complete.
 
@@ -738,14 +740,15 @@ as Markdown.
 # On the cadence the plan sets
 "Export all production schemas with export_global"
 "Store the document at the backup target, outside the primary's failure domain"
-"Restore it into the scratch registry with restore_bundle apply=true"
+"Clear the scratch registry, or provision a fresh one"
+"Restore it into the empty scratch registry with restore_bundle apply=true"
 "Compare every context's export from scratch with the backup document"
 ```
 
 ### Recovery Process
 ```
 1. "Confirm the primary is unreachable with test_registry_connection"
-2. "Dry-run restore_bundle of the latest backup into the recovery registry"
+2. "Validate the latest backup with restore_bundle apply=false (checks the document only)"
 3. "Apply it with apply=true; schema ids are preserved"
 4. "Compare every context's export from the recovery registry with the backup"
 5. "Repoint producers and consumers"

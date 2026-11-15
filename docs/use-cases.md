@@ -716,7 +716,9 @@ Store it at s3://schemas-dr.
 Human: "Production is down. Restore the latest backup into dr-registry"
 
 Claude: [Uses restore_bundle with bundle=<export document>, target="dr-registry"]
-Dry run: lists what would be written. It does not contact the registry.
+Dry run: status dry_run. The document is valid (ids have versions, no reference cycles,
+known target). It does not contact the registry, so created, skipped and conflicts stay
+empty; an empty report does not mean nothing needs restoring.
 
 [Uses restore_bundle with apply=true]
 Status: applied, no conflicts. Schema ids are preserved; versions already present are skipped.
@@ -736,12 +738,15 @@ references match in every context.
 
 `compare_registries` is not enough here: it compares versions only in the default
 context. `find_missing_schemas` reports only subjects that are gone entirely, not
-deleted versions. Run the same restore and comparison against an isolated scratch
-registry after each backup, so the drill is proven before an incident.
+deleted versions. Run the same restore and comparison against an empty, isolated
+scratch registry after each backup, so the drill is proven before an incident.
+`restore_bundle` never deletes entries that are absent from the document, so a reused
+scratch registry keeps subjects production has since deleted and a valid backup fails
+the comparison. Clear it, or provision a fresh one, before every drill.
 
 **MCP Benefits:**
 - ✅ **Objective-driven plan**: RPO and RTO pick the cadence and recovery path
-- ✅ **Id-preserving restore**: `restore_bundle` keeps schema ids, dry run first
+- ✅ **Id-preserving restore**: `restore_bundle` keeps schema ids; a dry run validates the document first
 - ✅ **Background task**: A large restore does not block the conversation
 - ✅ **Tested recovery**: The runbook includes a scratch-registry drill
 

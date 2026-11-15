@@ -62,8 +62,9 @@ and one primary scenario. It returns a plan:
   Pass `include_runbook=false` to leave it out.
 
 The tool is a planner and calls nothing. You carry the plan out with the normal tools:
-`export_global` or `export_context` for backups, `restore_bundle` to recover (dry run
-first, then `apply=true`), and a restore into a scratch registry to verify. See
+`export_global` or `export_context` for backups, `restore_bundle` to recover (a dry run
+validates the document without contacting the registry, then `apply=true` writes), and
+a restore into an empty scratch registry to verify. See
 [`guided_disaster_recovery`](../mcp-tools-reference.md#guided_disaster_recovery) and
 [`restore_bundle`](../mcp-tools-reference.md#restore_bundle) for the parameters.
 
