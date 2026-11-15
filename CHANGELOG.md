@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version at a `.tgz` on GitHub Pages that was never published, so
   `helm install --repo` failed with 404. Entries now use the GitHub release
   asset URL. (#213)
+- Docker Hub `latest` is the viewer image again. Each edition job also pushed
+  an unsuffixed `latest`, so the last job to finish won; after 3.1.0 that was
+  the editor image. Re-point the existing tag once by hand. (#217)
 
 ## [3.1.0] - 2026-11-07
 
