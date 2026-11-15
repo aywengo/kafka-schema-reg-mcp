@@ -511,6 +511,7 @@ run_advanced_feature_tests() {
         "test_production_readiness.py:Production readiness validation"
         "test_resource_linking.py:Resource linking and URI navigation (MCP 2025-06-18 compliance)"
         "test_schema_evolution_assistant.py:Schema Evolution Assistant with breaking change detection and migration strategies"
+        "test_v32_feature_http.py:3.2 feature HTTP checks (DR plan, registry insights, traceparent)"
     )
     
     run_test_list "${tests[@]}"

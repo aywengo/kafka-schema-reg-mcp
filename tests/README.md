@@ -38,6 +38,7 @@ The unified server automatically detects whether to run in single-registry or mu
 - `test_migration_integration.py` - Schema migration functionality
 - `test_performance_load.py` - Performance and load testing
 - `test_error_handling.py` - Error handling and recovery
+- `test_v32_feature_http.py` - 3.2 HTTP checks for `guided_disaster_recovery`, `get_registry_insights`, and `traceparent` (starts a mock registry + MCP, or set `MCP_URL` / `MCP_IMAGE`)
 
 ### Remote MCP Server Tests
 - `test_remote_mcp_server.py` - Remote deployment functionality and transport configuration
