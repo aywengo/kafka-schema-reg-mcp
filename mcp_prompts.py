@@ -392,11 +392,15 @@ eu-registry      → European region
 
 ### Disaster Recovery
 ```
-1. "Compare primary and backup registries"
-2. "Find missing schemas in backup"
-3. "Sync all schemas to backup"
-4. "Verify backup completeness"
+1. "Plan DR with guided_disaster_recovery: RPO under-1-hour, RTO under-4-hours"
+2. "Export the primary registry with export_global"
+3. "Restore the export into an empty scratch registry with restore_bundle apply=true"
+4. "Compare every context's export from scratch with the backup"
 ```
+A dry run (apply=false) only validates the document; it writes and reports nothing.
+Clear the scratch registry before each drill: restore never deletes entries.
+compare_registries checks versions only in the default context, and
+find_missing_schemas only lists whole subjects, so neither proves a backup complete.
 
 ## 💡 Best Practices
 - Keep production in VIEWONLY mode
@@ -723,23 +727,34 @@ Platform: "Migrate to shared context after review"
 
 ## 🔄 Disaster Recovery
 
+### Plan
+```
+"Plan DR for production with guided_disaster_recovery"
+"Set RPO under-1-hour, RTO under-4-hours, scenarios region-outage and corruption"
+```
+The RPO sets the backup cadence and the RTO the recovery path. The runbook is returned
+as Markdown.
+
 ### Automated Backup
 ```bash
-# Daily backup script
-"Export all production schemas"
-"Compress and timestamp"
-"Store in backup location"
-"Verify backup integrity"
+# On the cadence the plan sets
+"Export all production schemas with export_global"
+"Store the document at the backup target, outside the primary's failure domain"
+"Clear the scratch registry, or provision a fresh one"
+"Restore it into the empty scratch registry with restore_bundle apply=true"
+"Compare every context's export from scratch with the backup document"
 ```
 
 ### Recovery Process
 ```
-1. "Compare primary and backup"
-2. "Identify missing schemas"
-3. "Restore from backup"
-4. "Verify restoration"
-5. "Update documentation"
+1. "Confirm the primary is unreachable with test_registry_connection"
+2. "Validate the latest backup with restore_bundle apply=false (checks the document only)"
+3. "Apply it with apply=true; schema ids are preserved"
+4. "Compare every context's export from the recovery registry with the backup"
+5. "Repoint producers and consumers"
 ```
+For an accidental deletion, compare each context's export with the backup to find the
+missing versions, then run restore_bundle narrowed with context and subject.
 
 ## 🧪 Testing Strategies
 

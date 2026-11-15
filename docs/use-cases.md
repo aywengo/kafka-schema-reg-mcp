@@ -676,79 +676,79 @@ Claude: Let me check the cleanup progress.
 
 ---
 
-### 12. Disaster Recovery with Progress Monitoring
+### 12. Disaster Recovery: Plan, Back Up, Restore, Verify
 
-#### **Scenario**: Emergency Schema Registry Recovery
-A production incident requires restoring schemas from a backup registry to a new instance.
+#### **Scenario**: Recover production schemas into a new registry
+The team needs a recovery plan that meets its objectives, a backup taken on that plan,
+and a tested way to restore it. All steps use the admin edition.
 
-**Initiate Emergency Recovery:**
+**Plan from objectives:**
 ```
-Human: "We need to restore all production schemas from our backup registry to the new disaster recovery instance ASAP"
+Human: "Plan disaster recovery for production. We can lose at most an hour of schema
+changes and must be back within four hours. Cover a region outage and accidental deletion."
 
-Claude: I'll generate an emergency recovery command from your backup registry.
+Claude: [Uses guided_disaster_recovery with registry="production",
+         backup_target="s3://schemas-dr", rpo="under-1-hour", rto="under-4-hours",
+         scenarios=["region-outage", "accidental-deletion"]]
 
-[Uses migrate_context MCP tool for disaster recovery]
-🚨 Emergency Recovery Command Generated:
-
-Copy and run this command for immediate recovery:
-docker run --platform linux/amd64 --network host -it --rm \
-  -e SOURCE_SCHEMA_REGISTRY_URL=http://backup-registry:8081 \
-  -e DEST_SCHEMA_REGISTRY_URL=http://dr-registry:8082 \
-  -e SOURCE_USERNAME=backup_user \
-  -e SOURCE_PASSWORD=backup_pass \
-  -e DEST_USERNAME=dr_user \
-  -e DEST_PASSWORD=dr_pass \
-  -e ENABLE_MIGRATION=true \
-  -e DRY_RUN=false \
-  -e PRESERVE_IDS=true \
-  -e DEST_IMPORT_MODE=true \
-  aywengo/kafka-schema-reg-migrator:latest
-
-Recovery scope: All contexts from backup registry (127 schemas)
-
-⚠️ This is a LIVE MIGRATION - changes will be made immediately
-⚠️ Monitor output for progress and any errors
-⚠️ External tool provides automatic retry and parallel processing
+Plan:
+- Backup cadence: hourly (set by the RPO)
+- Recovery: restore_to_prepared_registry (set by the RTO); keep an empty registry provisioned
+- Runbook: backup, recovery, a section for each scenario, and verification
+- Warnings: none
 ```
 
-**Real-Time Recovery Monitoring:**
+The planner calls nothing. An RPO of `real-time` or an RTO of `under-5-minutes`
+switches recovery to a warm standby and sets `standby_required`, because restoring a
+scheduled export cannot meet them.
+
+**Back up on the plan's cadence:**
 ```
-Human: "How do I track the recovery progress?"
+Human: "Take the backup"
 
-Claude: Monitor the external migrator's real-time output:
-
-# The Docker command shows live recovery progress:
-[INFO] Starting disaster recovery...
-[INFO] Source: backup-registry/production
-[INFO] Target: dr-registry/production
-[INFO] Processing context: payment-events (15 schemas)
-[INFO] ✓ payment-created (v1-5) migrated
-[INFO] ✓ payment-processed (v1-3) migrated
-[INFO] Progress: 45/127 schemas (35%)
-[INFO] Estimated time remaining: 1m 30s
-
-The external migrator provides automatic retry and detailed error reporting for mission-critical recovery operations.
-
-**Post-Recovery Validation:**
+Claude: [Uses export_global with registry="production"]
+The export document covers every context, with schema ids, versions and references.
+Store it at s3://schemas-dr.
 ```
-Human: "Verify that the disaster recovery registry matches our backup"
 
-Claude: I'll verify the recovery was successful.
-
-[Uses compare_registries MCP tool]
-✅ Recovery Validation Complete:
-   Schemas matched: 127/127
-   Versions matched: 100%
-   Configurations matched: 100%
-
-   Disaster recovery successful!
+**Recover into the prepared registry:**
 ```
+Human: "Production is down. Restore the latest backup into dr-registry"
+
+Claude: [Uses restore_bundle with bundle=<export document>, target="dr-registry"]
+Dry run: status dry_run. The document is valid (ids have versions, no reference cycles,
+known target). It does not contact the registry, so created, skipped and conflicts stay
+empty; an empty report does not mean nothing needs restoring.
+
+[Uses restore_bundle with apply=true]
+Status: applied, no conflicts. Schema ids are preserved; versions already present are skipped.
+```
+
+`restore_bundle` can run as a background task. For an accidental deletion,
+narrow it with `context` and `subject` to put back only what is missing.
+
+**Verify the recovery:**
+```
+Human: "Verify that dr-registry matches the backup"
+
+Claude: [Uses export_context for every context in dr-registry]
+Compared with the backup document: subjects, versions, schema ids, bodies and
+references match in every context.
+```
+
+`compare_registries` is not enough here: it compares versions only in the default
+context. `find_missing_schemas` reports only subjects that are gone entirely, not
+deleted versions. Run the same restore and comparison against an empty, isolated
+scratch registry after each backup, so the drill is proven before an incident.
+`restore_bundle` never deletes entries that are absent from the document, so a reused
+scratch registry keeps subjects production has since deleted and a valid backup fails
+the comparison. Clear it, or provision a fresh one, before every drill.
 
 **MCP Benefits:**
-- ✅ **Emergency Response**: Fast disaster recovery
-- ✅ **Parallel Migration**: Maximum speed when needed
-- ✅ **Continuous Monitoring**: Real-time progress updates
-- ✅ **Validation Tools**: Ensure complete recovery
+- ✅ **Objective-driven plan**: RPO and RTO pick the cadence and recovery path
+- ✅ **Id-preserving restore**: `restore_bundle` keeps schema ids; a dry run validates the document first
+- ✅ **Background task**: A large restore does not block the conversation
+- ✅ **Tested recovery**: The runbook includes a scratch-registry drill
 
 ## 🎯 Advanced Async Patterns
 

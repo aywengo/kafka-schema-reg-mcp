@@ -40,13 +40,33 @@ This directory contains documentation for advanced multi-step workflows availabl
 ---
 
 ### 🛡️ Disaster Recovery Setup
-**Purpose**: Configure backup and recovery strategies  
-**Use Case**: Setting up automated backups, disaster recovery planning  
+**Purpose**: Turn recovery objectives into a backup, recovery and verification plan  
+**Use Case**: Disaster recovery planning, restore drills, failure runbooks  
 **Complexity**: Advanced  
+**Edition**: `admin`
 
 **How to Start**:
 - **Direct**: `guided_disaster_recovery`
-- **Via unified MCP**: Available as a tool in the main server
+- **With objectives**: `guided_disaster_recovery --backup_target "s3://schemas-dr" --rpo "under-1-hour" --rto "under-4-hours" --scenarios '["region-outage", "accidental-deletion"]'`
+
+When `backup_target` is missing, the tool asks for it together with the RPO, the RTO
+and one primary scenario. It returns a plan:
+
+- `objectives`: the RPO, RTO and scenarios you chose.
+- `strategy`: `backup_cadence` (the RPO sets it: hourly, daily or weekly), `recovery`
+  (the RTO picks `warm_standby`, `restore_to_prepared_registry` or
+  `restore_to_new_registry`) and `standby_required`. A real-time RPO always recovers
+  from a warm standby, because restoring a scheduled export loses changes made since it.
+- `warnings`: for example, a `schedule` slower than the RPO allows.
+- `runbook`: Markdown with backup, recovery, one section per scenario and verification.
+  Pass `include_runbook=false` to leave it out.
+
+The tool is a planner and calls nothing. You carry the plan out with the normal tools:
+`export_global` or `export_context` for backups, `restore_bundle` to recover (a dry run
+validates the document without contacting the registry, then `apply=true` writes), and
+a restore into an empty scratch registry to verify. See
+[`guided_disaster_recovery`](../mcp-tools-reference.md#guided_disaster_recovery) and
+[`restore_bundle`](../mcp-tools-reference.md#restore_bundle) for the parameters.
 
 ## Workflow Entry Points
 
@@ -131,7 +151,7 @@ Workflows integrate with existing interactive tools:
 ### For Advanced Users
 1. **Multi-Schema Operations**: Handle complex restructuring scenarios
 2. **Cross-Registry Migrations**: Manage enterprise-scale migrations
-3. **Disaster Recovery**: Set up comprehensive backup and recovery strategies
+3. **Disaster Recovery**: Plan from RPO and RTO, then drill the restore into a scratch registry
 
 ## Best Practices
 
