@@ -86,6 +86,7 @@ Restart Claude Desktop and try these prompts:
 - **🔒 Production Safety** - VIEWONLY mode and per-registry access control
 - **🔐 OAuth 2.1 Authentication** - Enterprise-grade security with scope-based permissions
 - **📈 Real-time Progress** - Async operations with progress tracking and cancellation
+- **🩺 Registry Insights** - `get_registry_insights` reports version spread, schema types, compatibility overrides, dangling references and findings such as `COMPATIBILITY_NONE`
 - **🔗 Resource Linking** - HATEOAS navigation with enhanced tool responses
 - **🧪 MCP 2026-07-28** - FastMCP 4 / MCP SDK 2; one process also serves `2025-11-25` clients
 - **🎛️ Three editions** - `viewer` (40 tools), `editor` (43) and `admin` (68) from one codebase

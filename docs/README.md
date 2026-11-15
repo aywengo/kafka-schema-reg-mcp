@@ -9,7 +9,7 @@ This project uses **FastMCP 4.1+** on **MCP Python SDK 2** for **MCP 2026-07-28*
 ### **Key MCP Features:**
 - ✅ **FastMCP 4.1+ / MCP SDK 2**: Dual-era protocol negotiation in one process
 - ✅ **MCP 2026-07-28 Compliance**: Modern sessionless protocol with `2025-11-25` fallback
-- ✅ **Three editions**: `viewer` (39 tools), `editor` (42) and `admin` (67) from one codebase
+- ✅ **Three editions**: `viewer` (40 tools), `editor` (43) and `admin` (68) from one codebase
 - ✅ **Enhanced Authentication**: OAuth 2.1 discovery with scope-based tool permissions
 - ✅ **MRTR workflows**: Guided schema evolution, migration, context reorganization and disaster recovery
 - ✅ **Advanced Security**: Credential protection, secure logging and VIEWONLY enforcement at the HTTP boundary
@@ -47,7 +47,7 @@ Comprehensive deployment instructions covering:
 
 ### 🔧 **[MCP Tools Reference](mcp-tools-reference.md)** - Complete Tool Documentation
 Generated reference for the full edition-dependent MCP surface:
-- **Edition summary**: `viewer` (39 tools), `editor` (42) and `admin` (67)
+- **Edition summary**: `viewer` (40 tools), `editor` (43) and `admin` (68)
 - **Tool inventory**: scope, read-only/destructive annotations and parameters for every tool
 - **Resources**: 4 concrete resources and 18 resource templates
 - **Prompts**: 10 built-in prompts
