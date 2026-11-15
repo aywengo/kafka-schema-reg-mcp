@@ -45,6 +45,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the editor image. Re-point the existing tag once by hand. (#217)
 - Published images carry an `org.opencontainers.image.version` label. The
   publish workflow overrode it with an expression that renders empty. (#219)
+- `tests/test_docker_image.sh` no longer aborts on the third check: the
+  import command escaped its inner quotes the same way as the other
+  python `-c` checks. (#221)
+- The MCP handshake `serverInfo.version` is the project release from
+  `_version.py`, not the FastMCP library version. (#220)
+- The image no longer sets `PYTHONDEVMODE=0`. Any non-empty value enables
+  Python development mode, so published images were running with it on.
+  (#218)
+- Default Helm install becomes Ready: the chart runs as uid/gid 999
+  (matching the image's `mcp` user), starts `remote-mcp-server.py`, and
+  sets `MCP_PORT` from `app.port`. (#214)
+- The MCP Service selector includes `app.kubernetes.io/component: mcp`,
+  so the bundled Valkey pod is no longer an endpoint. (#215)
+- Liveness probes use `/ready` so a Schema Registry outage does not
+  restart MCP pods. `/health` still probes registries (off the event
+  loop, with a short timeout) and returns 503 when degraded. (#216)
 
 ## [3.1.0] - 2026-11-07
 

@@ -199,17 +199,24 @@ mcp_schema_registry_response_time_seconds_min{registry="production"} 0.023000
 The metrics are automatically configured in the Helm chart:
 
 ```yaml
-# Health checks
-deployment:
-  healthCheck:
-    enabled: true
-    httpGet:
-      path: "/health"
-      port: 8000
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
+# Liveness uses /ready so a Schema Registry outage does not restart the pod.
+# /health still probes registries and returns 503 when degraded.
+livenessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
 
 # Prometheus monitoring
 monitoring:

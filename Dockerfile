@@ -85,8 +85,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
     find /var/log -type f -exec truncate -s 0 {} \;
 
-# Create non-root user for security (before copying files)
-RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /bin/bash mcp
+# Create non-root user for security (before copying files).
+# Pin uid/gid 999 so the Helm chart can match them without guessing.
+RUN groupadd -r -g 999 mcp && useradd -r -u 999 -g mcp -d /app -s /bin/bash mcp
 
 # Set working directory and ensure proper ownership
 WORKDIR /app
@@ -186,8 +187,6 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # Security: Disable Python hash randomization for reproducible builds
     PYTHONHASHSEED=random \
-    # Security: Enable Python development mode warnings
-    PYTHONDEVMODE=0 \
     # Security: Restrict Python path
     PYTHONPATH=/app
 

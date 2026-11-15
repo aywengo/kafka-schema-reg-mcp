@@ -27,10 +27,11 @@ serviceAccount:
   annotations: {}
   name: ""
 
-# Pod Security Context
+# Pod Security Context (uid 999 matches the image's mcp user)
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
   fsGroup: 2000
 
 # Container Security Context
@@ -41,7 +42,13 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: false
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 999
+  runAsGroup: 999
+
+# HTTP remote MCP server (probes and Service assume streamable-http)
+command:
+  - python
+  - remote-mcp-server.py
 
 # OAuth2 Authentication Configuration
 auth:
@@ -152,13 +159,16 @@ resources:
     cpu: 100m
     memory: 256Mi
 
-# Liveness and readiness probes
+# Liveness and readiness probes.
+# Liveness uses /ready so a Schema Registry outage does not restart the pod.
+# /health still probes registries and returns 503 when degraded.
 livenessProbe:
   httpGet:
-    path: /health
+    path: /ready
     port: http
   initialDelaySeconds: 30
   periodSeconds: 10
+  timeoutSeconds: 5
 
 readinessProbe:
   httpGet:
@@ -166,6 +176,7 @@ readinessProbe:
     port: http
   initialDelaySeconds: 5
   periodSeconds: 5
+  timeoutSeconds: 5
 
 # Autoscaling
 autoscaling:

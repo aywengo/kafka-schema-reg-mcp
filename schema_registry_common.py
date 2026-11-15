@@ -400,14 +400,19 @@ class RegistryClient:
             return f"{self.config.url}/contexts/{safe_context}{base_url}"
         return f"{self.config.url}{base_url}"
 
-    def test_connection(self) -> Dict[str, Any]:
-        """Test connection to this registry."""
+    def test_connection(self, timeout: float = 10) -> Dict[str, Any]:
+        """Test connection to this registry.
+
+        Args:
+            timeout: Request timeout in seconds. Health probes may pass a
+                shorter value so a hung registry cannot stall the event loop.
+        """
         try:
             response = self.session.get(
                 f"{self.config.url}/subjects",
                 auth=self.auth,
                 headers=self.headers,
-                timeout=10,
+                timeout=timeout,
             )
             if response.status_code == 200:
                 return {
