@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Optional
+from urllib.parse import quote
 
 from fastmcp.dependencies import Progress
 
@@ -146,9 +147,15 @@ def _strict_list(client: Any, path: str, context: Optional[str], fallback: Calla
 
 def _inspect_subject(client: Any, context: Optional[str], subject: str) -> SubjectRecord:
     record = SubjectRecord(context=context, subject=subject)
+    # Unescaped, "a?b" would read subject "a" and "a/b" another path; a 404 there reads as "no override".
+    # ":" stays raw: under /contexts/<ctx>, the registry re-qualifies ":.ctx:name" sent as %3A.
+    path_subject = quote(subject, safe=":")
     try:
         versions = _read(
-            client, f"/subjects/{subject}/versions", context, lambda: client.get_schema_versions(subject, context)
+            client,
+            f"/subjects/{path_subject}/versions",
+            context,
+            lambda: client.get_schema_versions(subject, context),
         )
         if isinstance(versions, list):
             record.versions = len(versions)
@@ -157,7 +164,7 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
 
         latest = _read(
             client,
-            f"/subjects/{subject}/versions/latest",
+            f"/subjects/{path_subject}/versions/latest",
             context,
             lambda: client.get_schema(subject, "latest", context),
         )
@@ -172,7 +179,7 @@ def _inspect_subject(client: Any, context: Optional[str], subject: str) -> Subje
             record.errors.append(f"latest: {latest.get('error', latest)}")
 
         config = _read(
-            client, f"/config/{subject}", context, lambda: client.get_subject_config(subject, context), config=True
+            client, f"/config/{path_subject}", context, lambda: client.get_subject_config(subject, context), config=True
         )
         error = _config_error(config)
         if error is None:

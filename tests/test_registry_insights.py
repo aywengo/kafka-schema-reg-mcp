@@ -3,6 +3,7 @@
 import os
 import sys
 from unittest.mock import AsyncMock, Mock
+from urllib.parse import unquote
 
 import pytest
 import requests
@@ -340,7 +341,7 @@ class SessionClient(FakeClient):
         if path.startswith("/contexts/"):
             context, _, rest = path[len("/contexts/") :].partition("/")
             path = f"/{rest}"
-        parts = path.strip("/").split("/")
+        parts = [unquote(part) for part in path.strip("/").split("/")]
         if parts == ["subjects"]:
             payload = self.get_subjects(context)
         elif parts == ["config"]:
@@ -387,6 +388,26 @@ async def test_every_scan_request_carries_a_timeout() -> None:
         "http://registry/subjects/customer/versions/latest",
         "http://registry/config/customer",
     } <= urls
+
+
+async def test_subject_names_are_escaped_in_request_paths() -> None:
+    subjects = {None: {"odd?name": {"versions": 2}, "odd": {"versions": 1}}}
+    client = SessionClient(["."], subjects, {None: "BACKWARD"}, {(None, "odd?name"): "NONE"})
+    report = await _insights(client)
+    urls = {url for url, _ in client.requests}
+    assert "http://registry/config/odd%3Fname" in urls
+    assert "http://registry/subjects/odd%3Fname/versions" in urls
+    assert [f["subject"] for f in _codes(report, "COMPATIBILITY_NONE")] == ["odd?name"]
+
+
+async def test_qualified_subject_colons_stay_raw_in_request_paths() -> None:
+    subjects = {None: {}, ".billing": {":.billing:invoice": {"versions": 1}}}
+    client = SessionClient([".", ".billing"], subjects, {})
+    report = await _insights(client)
+    assert report["errors"] == []
+    assert "http://registry/contexts/.billing/subjects/:.billing:invoice/versions" in {
+        url for url, _ in client.requests
+    }
 
 
 async def test_a_timed_out_read_is_an_error_and_the_report_continues() -> None:
