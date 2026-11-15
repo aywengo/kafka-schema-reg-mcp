@@ -53,7 +53,10 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ matrix.edition == 'viewer' && github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          # latest=auto would add an unsuffixed latest in every edition job.
+          # latest comes from the viewer-only raw rule and the alias step.
           flavor: |
+            latest=false
             suffix=${{ matrix.suffix }}
           labels: |
             org.opencontainers.image.title=Kafka Schema Registry MCP Server (${{ matrix.edition }} edition)
