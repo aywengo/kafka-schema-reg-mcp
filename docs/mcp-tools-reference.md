@@ -930,8 +930,27 @@ Start the Disaster Recovery Setup workflow
 |---|---|---|---|
 | `registry` | `string` | no |  |
 | `backup_target` | `string` | no |  |
-| `schedule` | `string` | no |  |
-| `verify_restore` | `boolean` | no |  |
+| `schedule` | `string` | no | follows `rpo`, else `daily` |
+| `verify_restore` | `boolean` | no | `true` |
+| `rpo` | `string` | no | `real-time`, `under-1-hour`, `under-24-hours`, `weekly` |
+| `rto` | `string` | no | `under-5-minutes`, `under-1-hour`, `under-4-hours`, `under-24-hours` |
+| `scenarios` | `array` of `string` | no | any of `datacenter-failure`, `region-outage`, `corruption`, `accidental-deletion` |
+| `include_runbook` | `boolean` | no | `true` |
+
+When `backup_target` is missing, the tool asks for it together with RPO, RTO and one
+primary scenario. The plan keeps the 3.1 keys and adds `objectives`, `strategy`
+(`backup_cadence`, `recovery`, `standby_required`), `warnings`, and `runbook` (Markdown,
+or `null` when `include_runbook` is false). `rpo=real-time` and `rto=under-5-minutes`
+both recover from a warm standby and set `standby_required`, because restoring a
+scheduled export cannot meet them; for a real-time RPO the export restore is listed
+only as a fallback. Standby drift is checked while the primary is healthy, so
+failover does not depend on reaching it. Restore verification applies the backup to an
+isolated scratch registry and compares every context's export with the backup
+document (subjects, versions, ids, bodies, references), since a dry run does not
+contact the registry and `compare_registries` compares versions only in the default
+context. An explicit
+`schedule` slower than the RPO allows is reported in `warnings`. The tool names
+`restore_bundle` and does not call it.
 
 #### `guided_schema_migration`
 
