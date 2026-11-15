@@ -1,14 +1,14 @@
 # Editions and tool catalog
 
-v3.1 ships one codebase as three editions. `MCP_EDITION` selects the edition at
+v3.2 ships one codebase as three editions. `MCP_EDITION` selects the edition at
 startup; the catalog is the source of truth and every table below is generated
 from `tool_catalog.py`.
 
 | Edition | Tools | Docker tag | Intended use |
 |---|---|---|---|
-| `viewer` | 40 | `:3.1.0-viewer` | Browse, export, compare, compatibility checks |
-| `editor` | 43 | `:3.1.0-editor` | Viewer plus schema registration and evolution |
-| `admin` | 68 | `:3.1.0-admin` | Full access, including configuration, deletion and migration |
+| `viewer` | 40 | `:3.2.0-viewer` | Browse, export, compare, compatibility checks |
+| `editor` | 43 | `:3.2.0-editor` | Viewer plus schema registration and evolution |
+| `admin` | 68 | `:3.2.0-admin` | Full access, including configuration, deletion and migration |
 
 The default is `viewer`. Set `MCP_EDITION=editor` or `MCP_EDITION=admin` to
 expose more tools. The image can also bake a different default with

@@ -1550,7 +1550,7 @@ curl http://localhost:38000/export/subjects?context=production
 
 ## 📊 MCP Tools and Resources
 
-The v3.1.0 server exposes an edition-dependent MCP surface. The full parameter reference is in [mcp-tools-reference.md](mcp-tools-reference.md).
+The v3.2.0 server exposes an edition-dependent MCP surface. The full parameter reference is in [mcp-tools-reference.md](mcp-tools-reference.md).
 
 | Edition | Tools | Access |
 |---|---|---|
@@ -1685,4 +1685,4 @@ The server exposes 10 prompts.
 
 ---
 
-This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v3.1.0. Use this as a reference when building integrations or working with the server programmatically.
+This API reference provides comprehensive documentation for all endpoints and operations supported by the Kafka Schema Registry MCP Server v3.2.0. Use this as a reference when building integrations or working with the server programmatically.

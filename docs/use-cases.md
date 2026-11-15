@@ -1,6 +1,6 @@
 # Kafka Schema Registry MCP Server - Use Cases
 
-This document outlines real-world use cases and scenarios for Kafka Schema Registry MCP Server **3.1.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three editions, **OAuth 2.1**, **Claude Desktop integration**, **background tasks** and **multi-registry support**.
+This document outlines real-world use cases and scenarios for Kafka Schema Registry MCP Server **3.2.0** with **FastMCP 4.1+**, **MCP 2026-07-28**, the three editions, **OAuth 2.1**, **Claude Desktop integration**, **background tasks** and **multi-registry support**.
 
 ## 🤖 MCP Integration Overview
 

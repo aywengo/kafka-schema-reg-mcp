@@ -1,6 +1,6 @@
 # Documentation Index
 
-Welcome to the Kafka Schema Registry MCP Server v3.1 documentation! This folder covers the **FastMCP 4.1+ / MCP SDK 2** stack with **MCP 2026-07-28** compliance, the three runtime editions, **Enhanced Authentication**, **MRTR workflows**, and **Advanced Security Features**.
+Welcome to the Kafka Schema Registry MCP Server v3.2 documentation! This folder covers the **FastMCP 4.1+ / MCP SDK 2** stack with **MCP 2026-07-28** compliance, the three runtime editions, **Enhanced Authentication**, **MRTR workflows**, and **Advanced Security Features**.
 
 ## 🤖 **MCP Implementation Overview**
 
@@ -103,9 +103,14 @@ Design and implementation record for 3.1.0:
 
 ---
 
-## 🎉 What's New in v3.1.0 (Latest)
+## 🎉 What's New in v3.2.0 (Latest)
 
-### **♻️ Restore, identity, fleet, cache hints**
+### **🩺 Insights, DR objectives, tracing**
+- `get_registry_insights` reports a registry's current state and findings. Editions are 40 / 43 / 68 tools
+- `guided_disaster_recovery` plans from RPO, RTO and scenarios and returns a runbook
+- HTTP trace context continues into the tool span
+
+### **v3.1.0: Restore, identity, fleet, cache hints**
 - `restore_bundle` applies an export document. Admin is 67 tools
 - One verifier for human, client-credentials, and SEP-990 access tokens
 - Optional fleet front that holds no registry password
@@ -324,7 +329,7 @@ When contributing to the MCP implementation documentation:
 2. **MCP Tools Reference**: Include comprehensive tool examples and usage patterns
 3. **Deployment**: Provide MCP-specific configuration and troubleshooting
 4. **Claude Desktop Integration**: Document best practices for AI-assisted workflows
-5. **Version Updates**: Keep version references current (latest: v3.1.0)
+5. **Version Updates**: Keep version references current (latest: v3.2.0)
 
 ---
 
