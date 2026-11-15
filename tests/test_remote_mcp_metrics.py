@@ -16,12 +16,15 @@ import os
 import sys
 import threading
 import time
-import types
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# Import the real MCP SDK submodule before loading remote-mcp-server.py so we
+# never install a fake into sys.modules (which would break other tests).
+import mcp.types.version as _mcp_types_version  # noqa: E402,F401
 
 
 def _passthrough_decorator(*_args, **_kwargs):
@@ -31,15 +34,6 @@ def _passthrough_decorator(*_args, **_kwargs):
         return fn
 
     return decorator
-
-
-def _ensure_mcp_types_version() -> None:
-    """Older mcp SDKs ship types.py as a module; stub the version submodule."""
-    if "mcp.types.version" in sys.modules:
-        return
-    version_mod = types.ModuleType("mcp.types.version")
-    version_mod.KNOWN_PROTOCOL_VERSIONS = ["2025-06-18"]
-    sys.modules["mcp.types.version"] = version_mod
 
 
 # Import the remote MCP server module properly
@@ -52,8 +46,6 @@ def import_remote_mcp_server():
     mock_mcp = MagicMock()
     mock_mcp.custom_route = _passthrough_decorator
     mock_mcp.custom_middleware = _passthrough_decorator
-
-    _ensure_mcp_types_version()
 
     # Mock the dependencies
     with patch.dict(
@@ -316,6 +308,12 @@ class TestRemoteMCPEndpoints(unittest.IsolatedAsyncioTestCase):
                 timeout=1.0,
             )
             self.assertEqual(ready_response.status_code, 200)
+            # Must still be pending: a synchronous probe would have blocked the
+            # loop until the 5s wait timed out and finished the health task.
+            self.assertFalse(
+                health_task.done(),
+                "health must still be waiting off the event loop while /ready completes",
+            )
 
             release.set()
             health_response = await asyncio.wait_for(health_task, timeout=2.0)
