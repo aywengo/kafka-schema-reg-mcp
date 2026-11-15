@@ -7,6 +7,10 @@ image:
   tag: local
   pullPolicy: Never  # Use local image built by Kind
 
+# ConfigMap sets MCP_PORT from app.port; must match service/probes below
+app:
+  port: 8000
+
 # Service configuration
 service:
   type: NodePort

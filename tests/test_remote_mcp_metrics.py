@@ -10,15 +10,36 @@ Tests the new Prometheus metrics and monitoring endpoints including:
 - Performance monitoring
 """
 
+import asyncio
 import importlib.util
 import os
 import sys
+import threading
 import time
+import types
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+def _passthrough_decorator(*_args, **_kwargs):
+    """Keep @mcp.custom_route handlers as the real callables under test."""
+
+    def decorator(fn):
+        return fn
+
+    return decorator
+
+
+def _ensure_mcp_types_version() -> None:
+    """Older mcp SDKs ship types.py as a module; stub the version submodule."""
+    if "mcp.types.version" in sys.modules:
+        return
+    version_mod = types.ModuleType("mcp.types.version")
+    version_mod.KNOWN_PROTOCOL_VERSIONS = ["2025-06-18"]
+    sys.modules["mcp.types.version"] = version_mod
 
 
 # Import the remote MCP server module properly
@@ -28,12 +49,18 @@ def import_remote_mcp_server():
     spec = importlib.util.spec_from_file_location("remote_mcp_server", remote_script_path)
     module = importlib.util.module_from_spec(spec)
 
+    mock_mcp = MagicMock()
+    mock_mcp.custom_route = _passthrough_decorator
+    mock_mcp.custom_middleware = _passthrough_decorator
+
+    _ensure_mcp_types_version()
+
     # Mock the dependencies
     with patch.dict(
         "sys.modules",
         {
             "kafka_schema_registry_unified_mcp": MagicMock(
-                mcp=MagicMock(),
+                mcp=mock_mcp,
                 registry_manager=MagicMock(),
                 REGISTRY_MODE="single",
             )
@@ -241,7 +268,7 @@ class TestRemoteMCPMetrics(unittest.TestCase):
         self.assertLess(uptime, 1.0)  # Should be less than 1 second for this test
 
 
-class TestRemoteMCPEndpoints(unittest.TestCase):
+class TestRemoteMCPEndpoints(unittest.IsolatedAsyncioTestCase):
     """Test remote MCP server monitoring endpoints."""
 
     def setUp(self):
@@ -249,31 +276,52 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
         self.metrics = RemoteMCPMetrics()
         # Replace global metrics with our test instance
         remote_mcp_server.metrics = self.metrics
+        remote_mcp_server.REGISTRY_MODE = "single"
 
-    def test_health_check_endpoint(self):
-        """Test health check endpoint functionality."""
-        # Mock a healthy registry
+    async def test_health_check_passes_short_timeout_and_returns_503(self):
+        """Failed registry probe yields 503 and uses the 3s health timeout."""
         mock_client = Mock()
-        mock_client.test_connection.return_value = {"status": "connected"}
+        mock_client.test_connection.return_value = {
+            "status": "error",
+            "error": "connection refused",
+        }
+        remote_mcp_server.registry_manager.get_default_registry.return_value = "test-registry"
+        remote_mcp_server.registry_manager.get_registry.return_value = mock_client
 
-        # Create mock request
-        mock_request = Mock()
+        response = await remote_mcp_server.health_check(Mock())
 
-        # Mock the registry manager and mode
-        with patch.object(
-            remote_mcp_server.registry_manager,
-            "get_default_registry",
-            return_value="test-registry",
-        ):
-            with patch.object(
-                remote_mcp_server.registry_manager,
-                "get_registry",
-                return_value=mock_client,
-            ):
-                with patch("builtins.globals", return_value={"REGISTRY_MODE": "single"}):
-                    # Since we can't easily test async functions in unittest, we'll skip the async test
-                    # This test validates the mocking setup works
-                    self.assertTrue(True)
+        self.assertEqual(response.status_code, 503)
+        mock_client.test_connection.assert_called_once_with(timeout=3.0)
+
+    async def test_health_probe_does_not_block_ready(self):
+        """A hung registry probe must not stall /ready on the event loop."""
+        entered = threading.Event()
+        release = threading.Event()
+        seen_timeouts: list[float | None] = []
+
+        def blocking_probe(timeout=None):
+            seen_timeouts.append(timeout)
+            entered.set()
+            if not release.wait(timeout=5):
+                raise AssertionError("health probe was not released")
+            return {"test-registry": {"status": "error", "error": "hung"}}, False
+
+        with patch.object(remote_mcp_server, "_probe_registry_health", side_effect=blocking_probe):
+            health_task = asyncio.create_task(remote_mcp_server.health_check(Mock()))
+            await asyncio.to_thread(entered.wait, 5)
+            self.assertTrue(entered.is_set(), "health probe should have started")
+
+            ready_response = await asyncio.wait_for(
+                remote_mcp_server.readiness_check(Mock()),
+                timeout=1.0,
+            )
+            self.assertEqual(ready_response.status_code, 200)
+
+            release.set()
+            health_response = await asyncio.wait_for(health_task, timeout=2.0)
+
+        self.assertEqual(health_response.status_code, 503)
+        self.assertEqual(seen_timeouts, [3.0])
 
     def test_metrics_endpoint(self):
         """Test Prometheus metrics endpoint functionality."""
@@ -290,13 +338,10 @@ class TestRemoteMCPEndpoints(unittest.TestCase):
         self.assertIn("mcp_requests_total", output)
         self.assertIn("mcp_schema_registry_operations_total", output)
 
-    def test_readiness_endpoint(self):
-        """Test readiness check endpoint functionality."""
-        # Test that the readiness endpoint function exists
-        self.assertTrue("readiness_check" in dir(remote_mcp_server))
-
-        # Test basic functionality - endpoint should be available
-        self.assertTrue(True)
+    async def test_readiness_endpoint(self):
+        """Readiness returns 200 without probing Schema Registry."""
+        response = await remote_mcp_server.readiness_check(Mock())
+        self.assertEqual(response.status_code, 200)
 
 
 class TestMetricsIntegration(unittest.TestCase):
