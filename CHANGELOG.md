@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fail the report. Usage, consumer, and history data are not in the registry
   API and are not reported. Editions are now 40 / 43 / 68 tools. (#76)
 
+### Fixed
+
+- The Helm repo serves chart URLs that resolve. `index.yaml` pointed every
+  version at a `.tgz` on GitHub Pages that was never published, so
+  `helm install --repo` failed with 404. Entries now use the GitHub release
+  asset URL. (#213)
+
 ## [3.1.0] - 2026-11-07
 
 Restore, one access-token verifier, an optional fleet front, and per-resource

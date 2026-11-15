@@ -87,6 +87,16 @@ jobs:
           ref: gh-pages
           path: gh-pages
 
+      # gh-pages holds only index.yaml, so an entry must use the absolute
+      # release asset URL. Older entries were written with a relative URL.
+      - name: Point chart URLs at release assets
+        run: |
+          sed -E -i 's#^(\s+- )(kafka-schema-registry-mcp-([^ ]+)\.tgz)$#\1https://github.com/${{ github.repository }}/releases/download/kafka-schema-registry-mcp-\3/\2#' gh-pages/index.yaml
+          if grep -nE '^\s+- [^h][^ ]*\.tgz$' gh-pages/index.yaml; then
+            echo "index.yaml still has relative chart URLs"
+            exit 1
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
