@@ -29,7 +29,7 @@ DEFAULT_CONTEXT_LABEL = "default"
 VERSION_BUCKETS = (("1", 1, 1), ("2-5", 2, 5), ("6-20", 6, 20), ("21+", 21, None))
 SCHEMA_TYPES = ("AVRO", "JSON", "PROTOBUF")
 _SUBJECT_WORKERS = 8
-LIST_TIMEOUT_SECONDS = 30
+REQUEST_TIMEOUT_SECONDS = 30
 _NOT_FOUND = re.compile(r"^\s*404\b")
 
 LIMITATIONS = [
@@ -52,6 +52,11 @@ class SubjectRecord:
     override_unknown: bool = False
     references: list[tuple[Optional[str], str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+    @property
+    def home(self) -> Optional[str]:
+        """The context the subject lives in; a qualified name can differ from the listing ``context``."""
+        return _split_qualified(self.subject, self.context)[0]
 
 
 @dataclass
@@ -103,23 +108,37 @@ def _config_error(config: Any) -> Optional[str]:
     return None
 
 
-def _strict_list(client: Any, path: str, context: Optional[str], fallback: Callable[[], Any]) -> list:
-    """GET a list and raise on failure.
+def _get_json(client: Any, path: str, context: Optional[str], fallback: Callable[[], Any], config: bool = False) -> Any:
+    """GET with a timeout and raise on failure; a client without a session uses ``fallback``.
 
-    ``RegistryClient.get_subjects`` and ``get_contexts`` turn every failure into ``[]``,
-    which would read as an empty registry. A client without a session uses ``fallback``.
+    ``RegistryClient`` reads pass no timeout (requests ignores ``session.timeout``), so a
+    registry that stops responding would block the scan's worker threads indefinitely.
     """
     session = getattr(client, "session", None)
     build = getattr(client, "build_context_url", None)
     if session is None or build is None:
-        result = fallback()
-    else:
-        # requests ignores session.timeout, so the timeout has to be passed on the call.
-        response = session.get(
-            build(path, context), auth=client.auth, headers=client.headers, timeout=LIST_TIMEOUT_SECONDS
-        )
-        response.raise_for_status()
-        result = response.json()
+        return fallback()
+    headers = getattr(client, "standard_headers", client.headers) if config else client.headers
+    response = session.get(build(path, context), auth=client.auth, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return response.json()
+
+
+def _read(client: Any, path: str, context: Optional[str], fallback: Callable[[], Any], config: bool = False) -> Any:
+    """Like ``_get_json`` but return ``{"error": ...}`` on failure, as ``RegistryClient`` does."""
+    try:
+        return _get_json(client, path, context, fallback, config)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _strict_list(client: Any, path: str, context: Optional[str], fallback: Callable[[], Any]) -> list:
+    """GET a list and raise on failure.
+
+    ``RegistryClient.get_subjects`` and ``get_contexts`` turn every failure into ``[]``,
+    which would read as an empty registry.
+    """
+    result = _get_json(client, path, context, fallback)
     if not isinstance(result, list):
         raise ValueError(f"unexpected listing response: {result!r}")
     return result
@@ -128,23 +147,33 @@ def _strict_list(client: Any, path: str, context: Optional[str], fallback: Calla
 def _inspect_subject(client: Any, context: Optional[str], subject: str) -> SubjectRecord:
     record = SubjectRecord(context=context, subject=subject)
     try:
-        versions = client.get_schema_versions(subject, context)
+        versions = _read(
+            client, f"/subjects/{subject}/versions", context, lambda: client.get_schema_versions(subject, context)
+        )
         if isinstance(versions, list):
             record.versions = len(versions)
         else:
             record.errors.append(f"versions: {versions.get('error', versions)}")
 
-        latest = client.get_schema(subject, "latest", context)
+        latest = _read(
+            client,
+            f"/subjects/{subject}/versions/latest",
+            context,
+            lambda: client.get_schema(subject, "latest", context),
+        )
         if isinstance(latest, dict) and "error" not in latest:
             record.schema_type = (latest.get("schemaType") or "AVRO").upper()
             for reference in latest.get("references") or []:
                 target = reference.get("subject")
                 if target:
-                    record.references.append(_split_qualified(target, context))
+                    # A plain reference name resolves in the referring subject's own context.
+                    record.references.append(_split_qualified(target, record.home))
         else:
             record.errors.append(f"latest: {latest.get('error', latest)}")
 
-        config = client.get_subject_config(subject, context)
+        config = _read(
+            client, f"/config/{subject}", context, lambda: client.get_subject_config(subject, context), config=True
+        )
         error = _config_error(config)
         if error is None:
             record.override = _level(config)
@@ -161,11 +190,15 @@ def collect_context(client: Any, context: Optional[str], keep_foreign: bool = Fa
     """Read one context: its compatibility level and every subject in it."""
     config = None
     try:
-        config = client.get_global_config(context)
+        config = _read(client, "/config", context, lambda: client.get_global_config(context), config=True)
         subjects = _strict_list(client, "/subjects", context, lambda: client.get_subjects(context))
     except Exception as e:
         return ContextRecord(context, _level(config), [], error=f"subjects: {e}", config_error=_config_error(config))
     level, config_error = _level(config), _config_error(config)
+    # A named context without its own level answers 404 and uses the global level.
+    if context is not None and config_error is not None and _NOT_FOUND.match(config_error):
+        global_config = _read(client, "/config", None, lambda: client.get_global_config(None), config=True)
+        level, config_error = _level(global_config), _config_error(global_config)
     try:
         if not keep_foreign:
             # A listing can include qualified subjects of other contexts; keep only this context's own.
@@ -193,10 +226,14 @@ def summarise(
     records = [record for ctx in contexts for record in ctx.subjects]
     known = {}
     for record in records:
-        target_context, name = _split_qualified(record.subject, record.context)
-        known[(_key(target_context), name)] = (record.context, record.subject)
+        known[(_key(record.home), _split_qualified(record.subject, record.context)[1])] = (
+            record.context,
+            record.subject,
+        )
     scanned = {_key(ctx.context) for ctx in contexts if not ctx.error}
     levels = {ctx.context: ctx.level for ctx in contexts}
+    # Keyed by the subject's own context: a level that was not collected stays unknown.
+    home_levels = {_key(ctx.context): ctx.level for ctx in contexts}
     findings: list[dict] = []
     errors: list[dict] = []
 
@@ -227,7 +264,7 @@ def summarise(
     by_level: Counter = Counter()
     overrides = []
     for record in records:
-        context_level = levels.get(record.context)
+        context_level = home_levels.get(_key(record.home))
         effective = None if record.override_unknown else (record.override or context_level)
         by_level[effective or "UNKNOWN"] += 1
         if record.override:

@@ -5,6 +5,7 @@ import sys
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -225,6 +226,17 @@ async def test_failed_context_config_is_reported_and_collection_continues() -> N
     assert {"context": ".billing", "subject": None, "error": "config: 500 Server Error"} in report["errors"]
 
 
+async def test_named_context_without_its_own_level_uses_the_global_level() -> None:
+    client = _client()
+    client.get_global_config = lambda context=None: (
+        {"error": "404 Client Error: Not Found"} if context == ".billing" else {"compatibilityLevel": "NONE"}
+    )
+    report = await _insights(client, context=".billing")
+    assert report["compatibility"]["context_levels"] == {".billing": "NONE"}
+    assert report["errors"] == []
+    assert [f["subject"] for f in _codes(report, "COMPATIBILITY_NONE")] == ["invoice"]
+
+
 async def test_qualified_names_in_a_named_context_resolve_references() -> None:
     subjects = {
         None: {"orders-value": {"versions": 1, "refs": [":.billing:invoice"]}},
@@ -266,14 +278,16 @@ class SessionClient(FakeClient):
 
     base = "http://registry"
 
-    def __init__(self, *args, forbidden=(), **kwargs):
+    def __init__(self, *args, forbidden=(), hanging=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.auth = None
         self.headers = {}
+        self.standard_headers = {}
         self.session = Mock()
         self.session.get = self._get
         self._forbidden = set(forbidden)
-        self.timeouts = []
+        self._hanging = set(hanging)
+        self.requests = []
 
     def build_context_url(self, path, context=None):
         if context and context != ".":
@@ -281,14 +295,32 @@ class SessionClient(FakeClient):
         return f"{self.base}{path}"
 
     def _get(self, url, **kwargs):
-        self.timeouts.append(kwargs.get("timeout"))
+        self.requests.append((url, kwargs.get("timeout")))
+        if url in self._hanging:
+            raise requests.exceptions.ReadTimeout("Read timed out. (read timeout=30)")
         if url in self._forbidden:
             return _Response(403, {"error_code": 40301})
-        if url == f"{self.base}/contexts":
+        path = url[len(self.base) :]
+        if path == "/contexts":
             return _Response(200, self.get_contexts())
-        prefix = f"{self.base}/contexts/"
-        context = url[len(prefix) :].split("/")[0] if url.startswith(prefix) else None
-        return _Response(200, self.get_subjects(context))
+        context = None
+        if path.startswith("/contexts/"):
+            context, _, rest = path[len("/contexts/") :].partition("/")
+            path = f"/{rest}"
+        parts = path.strip("/").split("/")
+        if parts == ["subjects"]:
+            payload = self.get_subjects(context)
+        elif parts == ["config"]:
+            payload = self.get_global_config(context)
+        elif parts[0] == "config":
+            payload = self.get_subject_config(parts[1], context)
+        elif len(parts) == 3:
+            payload = self.get_schema_versions(parts[1], context)
+        else:
+            payload = self.get_schema(parts[1], parts[3], context)
+        if isinstance(payload, dict) and "error" in payload:
+            return _Response(int(payload["error"][:3]), payload)
+        return _Response(200, payload)
 
 
 async def test_failed_subject_listing_is_an_error_not_an_empty_context() -> None:
@@ -307,13 +339,58 @@ async def test_failed_subject_listing_is_an_error_not_an_empty_context() -> None
     assert [u["target_subject"] for u in report["references"]["unverified"]] == ["invoice"]
 
 
-async def test_listing_requests_carry_a_timeout() -> None:
-    from registry_insights import LIST_TIMEOUT_SECONDS
+async def test_every_scan_request_carries_a_timeout() -> None:
+    from registry_insights import REQUEST_TIMEOUT_SECONDS
 
     base = _client()
     client = SessionClient(base._contexts, base._subjects, base._global, base._overrides)
-    await _insights(client)
-    assert client.timeouts and set(client.timeouts) == {LIST_TIMEOUT_SECONDS}
+    report = await _insights(client)
+    assert report["total_subjects"] == 4
+    assert {timeout for _, timeout in client.requests} == {REQUEST_TIMEOUT_SECONDS}
+    urls = {url for url, _ in client.requests}
+    assert {
+        "http://registry/config",
+        "http://registry/subjects/customer/versions",
+        "http://registry/subjects/customer/versions/latest",
+        "http://registry/config/customer",
+    } <= urls
+
+
+async def test_a_timed_out_read_is_an_error_and_the_report_continues() -> None:
+    base = _client()
+    client = SessionClient(
+        base._contexts,
+        base._subjects,
+        base._global,
+        base._overrides,
+        hanging={"http://registry/subjects/customer/versions"},
+    )
+    report = await _insights(client)
+    assert report["total_subjects"] == 4
+    assert {
+        "context": "default",
+        "subject": "customer",
+        "error": "versions: Read timed out. (read timeout=30)",
+    } in report["errors"]
+
+
+async def test_failed_context_listing_keeps_qualified_subjects_in_their_own_context() -> None:
+    subjects = {
+        None: {
+            "orders-value": {"versions": 1},
+            ":.billing:invoice": {"versions": 1, "refs": ["item"]},
+            ":.billing:item": {"versions": 1},
+        },
+    }
+    client = SessionClient([".", ".billing"], subjects, {None: "NONE"}, forbidden={"http://registry/contexts"})
+    report = await _insights(client)
+    assert report["references"]["dangling"] == []
+    assert report["references"]["most_referenced"] == [
+        {"context": "default", "subject": ":.billing:item", "referenced_by": 1}
+    ]
+    # .billing's level was never read, so its subjects do not inherit the default NONE.
+    assert report["compatibility"]["by_effective_level"] == {"NONE": 1, "UNKNOWN": 2}
+    assert [f["subject"] for f in _codes(report, "COMPATIBILITY_NONE")] == ["orders-value"]
 
 
 async def test_failed_context_listing_is_reported() -> None:
