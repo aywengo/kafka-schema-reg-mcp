@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Hub `latest` is the viewer image again. Each edition job also pushed
   an unsuffixed `latest`, so the last job to finish won; after 3.1.0 that was
   the editor image. Re-point the existing tag once by hand. (#217)
+- Published images carry an `org.opencontainers.image.version` label. The
+  publish workflow overrode it with an expression that renders empty. (#219)
 
 ## [3.1.0] - 2026-11-07
 

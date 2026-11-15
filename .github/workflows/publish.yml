@@ -62,7 +62,6 @@ jobs:
             org.opencontainers.image.title=Kafka Schema Registry MCP Server (${{ matrix.edition }} edition)
             org.opencontainers.image.description=True MCP server for Kafka Schema Registry with OAuth integration (Azure/Google/Keycloak/Okta), ${{ matrix.edition }} edition, multi-registry support, Kubernetes deployment, and Claude Desktop integration.
             org.opencontainers.image.vendor=aywengo
-            org.opencontainers.image.version={{version}}
             org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
             org.opencontainers.image.revision={{sha}}
             org.opencontainers.image.url=https://github.com/${{ github.repository }}
