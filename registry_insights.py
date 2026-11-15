@@ -220,8 +220,14 @@ def summarise(
     *,
     top_n: int = 10,
     version_sprawl_threshold: int = 20,
+    complete: bool = False,
+    global_level: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Turn collected context records into the insights report sections."""
+    """Turn collected context records into the insights report sections.
+
+    ``complete`` means every context was listed, so a context missing from ``contexts``
+    does not exist. ``global_level`` is used when the default context was not collected.
+    """
     contexts = list(contexts)
     records = [record for ctx in contexts for record in ctx.subjects]
     known = {}
@@ -231,6 +237,7 @@ def summarise(
             record.subject,
         )
     scanned = {_key(ctx.context) for ctx in contexts if not ctx.error}
+    listed = {_key(ctx.context) for ctx in contexts}
     levels = {ctx.context: ctx.level for ctx in contexts}
     # Keyed by the subject's own context: a level that was not collected stays unknown.
     home_levels = {_key(ctx.context): ctx.level for ctx in contexts}
@@ -289,7 +296,8 @@ def summarise(
             if found:
                 referenced_by[found] += 1
                 continue
-            if _key(target[0]) not in scanned:
+            target_key = _key(target[0])
+            if target_key not in scanned and (target_key in listed or not complete):
                 # The target's context was out of scope or failed to list; absence is not proven.
                 unverified.append(
                     {
@@ -342,7 +350,7 @@ def summarise(
         },
         "schema_types": dict(types),
         "compatibility": {
-            "global_level": levels.get(None),
+            "global_level": levels[None] if None in levels else global_level,
             "context_levels": {_label(ctx.context): ctx.level for ctx in contexts},
             "by_effective_level": dict(by_level),
             "overrides": overrides,
@@ -422,7 +430,22 @@ async def get_registry_insights_tool(
             collected.append(await asyncio.to_thread(collect_context, client, name, keep_foreign))
             await progress.increment()
 
-        report = summarise(collected, top_n=top_n, version_sprawl_threshold=version_sprawl_threshold)
+        global_level, global_error = None, None
+        if None not in names:
+            global_config = await asyncio.to_thread(
+                _read, client, "/config", None, lambda: client.get_global_config(None), True
+            )
+            global_level, global_error = _level(global_config), _config_error(global_config)
+
+        report = summarise(
+            collected,
+            top_n=top_n,
+            version_sprawl_threshold=version_sprawl_threshold,
+            complete=context is None and listing_error is None,
+            global_level=global_level,
+        )
+        if global_error:
+            report["errors"].append({"context": "all", "subject": None, "error": f"global config: {global_error}"})
         if listing_error:
             report["errors"].insert(0, {"context": "all", "subject": None, "error": listing_error})
         report.update(

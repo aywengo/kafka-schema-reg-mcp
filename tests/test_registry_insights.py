@@ -233,8 +233,41 @@ async def test_named_context_without_its_own_level_uses_the_global_level() -> No
     )
     report = await _insights(client, context=".billing")
     assert report["compatibility"]["context_levels"] == {".billing": "NONE"}
+    assert report["compatibility"]["global_level"] == "NONE"
     assert report["errors"] == []
     assert [f["subject"] for f in _codes(report, "COMPATIBILITY_NONE")] == ["invoice"]
+
+
+async def test_named_context_report_keeps_the_global_level_beside_its_own() -> None:
+    report = await _insights(context=".billing")
+    assert report["compatibility"]["global_level"] == "BACKWARD"
+    assert report["compatibility"]["context_levels"] == {".billing": "FULL"}
+
+
+def _with_reference_to(target: str, **kwargs):
+    client = _client(**kwargs)
+    client._subjects[None]["orders-value"]["refs"] = [target]
+    return client
+
+
+async def test_reference_into_an_unlisted_context_is_dangling_after_a_full_listing() -> None:
+    report = await _insights(_with_reference_to(":.deleted:invoice"))
+    assert {
+        "context": "default",
+        "subject": "orders-value",
+        "missing_context": ".deleted",
+        "missing_subject": "invoice",
+    } in report["references"]["dangling"]
+    assert report["references"]["unverified"] == []
+
+
+async def test_reference_into_an_unlisted_context_is_unverified_when_listing_fails() -> None:
+    base = _with_reference_to(":.deleted:invoice")
+    client = SessionClient(
+        base._contexts, base._subjects, base._global, base._overrides, forbidden={"http://registry/contexts"}
+    )
+    report = await _insights(client)
+    assert [u["target_context"] for u in report["references"]["unverified"]] == [".deleted"]
 
 
 async def test_qualified_names_in_a_named_context_resolve_references() -> None:
